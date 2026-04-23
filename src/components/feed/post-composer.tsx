@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Image as ImageIcon, X, Loader2, BarChart3 } from "lucide-react";
+import { Image as ImageIcon, X, Loader2, BarChart3, Smile } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,7 +36,7 @@ export function PostComposer() {
 
   return (
     <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
-      <DialogContent className="sm:max-w-[520px] p-0 gap-0 bg-card border-border">
+      <DialogContent className="sm:max-w-[520px] p-0 gap-0 bg-card border-border rounded-2xl overflow-hidden">
         {user && (
           <ComposerForm
             user={user}
@@ -62,12 +62,16 @@ export function InlineComposer({
   if (!user) return null;
 
   return (
-    <ComposerForm
-      user={user}
-      replyToId={replyToId}
-      onSuccess={onSuccess}
-      inline
-    />
+    <div className="mx-3 mt-3">
+      <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
+        <ComposerForm
+          user={user}
+          replyToId={replyToId}
+          onSuccess={onSuccess}
+          inline
+        />
+      </div>
+    </div>
   );
 }
 
@@ -158,7 +162,7 @@ function ComposerForm({
   };
 
   return (
-    <div className={inline ? "border-b border-border" : ""}>
+    <div>
       <div className="flex gap-3 p-4">
         <UserAvatar
           src={user.user_metadata?.avatar_url}
@@ -168,17 +172,17 @@ function ComposerForm({
 
         <div className="flex-1 min-w-0">
           <Textarea
-            placeholder={replyToId ? "Post your reply..." : "What's happening?"}
+            placeholder={replyToId ? "Write a reply..." : "What's on your mind?"}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="border-none bg-transparent resize-none p-0 text-base placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:border-none min-h-[60px]"
+            className="border-none bg-transparent resize-none p-0 text-[15px] placeholder:text-muted-foreground/50 focus-visible:ring-0 focus-visible:border-none min-h-[60px]"
             rows={inline ? 2 : 3}
           />
 
           {/* Media Previews */}
           {media.length > 0 && (
             <div
-              className={`grid gap-2 mt-3 rounded-xl overflow-hidden ${
+              className={`grid gap-2 mt-3 ${
                 media.length === 1
                   ? "grid-cols-1"
                   : media.length === 2
@@ -191,87 +195,96 @@ function ComposerForm({
               {media.map((m, i) => (
                 <div
                   key={i}
-                  className={`relative group ${
+                  className={`relative group rounded-xl overflow-hidden ${
                     media.length === 3 && i === 0 ? "row-span-2" : ""
                   }`}
                 >
                   <img
                     src={m.preview}
                     alt=""
-                    className="w-full h-full object-cover rounded-lg max-h-[300px]"
+                    className="w-full h-full object-cover rounded-xl max-h-[300px]"
                   />
                   <button
                     onClick={() => removeMedia(i)}
-                    className="absolute top-2 right-2 p-1 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center bg-black/70 hover:bg-black/80 rounded-full opacity-0 group-hover:opacity-100 transition-all"
                   >
-                    <X className="h-4 w-4 text-white" />
+                    <X className="h-3.5 w-3.5 text-white" />
                   </button>
                 </div>
               ))}
             </div>
           )}
+        </div>
+      </div>
 
-          {/* Actions Bar */}
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-            <div className="flex items-center gap-1">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                multiple
-                onChange={handleMediaSelect}
-                className="hidden"
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-primary"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={media.length >= MAX_IMAGES}
-              >
-                <ImageIcon className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-primary"
-                disabled
-                title="Polls coming soon"
-              >
-                <BarChart3 className="h-4 w-4" />
-              </Button>
-            </div>
+      {/* Actions Bar */}
+      <div className="flex items-center justify-between px-4 py-3 border-t border-border/50">
+        <div className="flex items-center gap-0.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            multiple
+            onChange={handleMediaSelect}
+            className="hidden"
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-full text-primary hover:bg-primary/10"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={media.length >= MAX_IMAGES}
+          >
+            <ImageIcon className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-full text-primary hover:bg-primary/10"
+            disabled
+            title="Polls coming soon"
+          >
+            <BarChart3 className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-full text-primary hover:bg-primary/10"
+            disabled
+            title="Emoji"
+          >
+            <Smile className="h-5 w-5" />
+          </Button>
+        </div>
 
-            <div className="flex items-center gap-3">
-              {content.length > 0 && (
-                <span
-                  className={`text-xs ${
-                    isOverLimit
-                      ? "text-destructive"
-                      : charCount > MAX_POST_LENGTH * 0.8
-                        ? "text-yellow-500"
-                        : "text-muted-foreground"
-                  }`}
-                >
-                  {charCount}/{MAX_POST_LENGTH}
-                </span>
-              )}
-              <Button
-                size="sm"
-                className="rounded-full px-4"
-                onClick={handleSubmit}
-                disabled={!canPost || posting}
-              >
-                {posting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : replyToId ? (
-                  "Reply"
-                ) : (
-                  "Post"
-                )}
-              </Button>
-            </div>
-          </div>
+        <div className="flex items-center gap-3">
+          {content.length > 0 && (
+            <span
+              className={`text-xs font-medium ${
+                isOverLimit
+                  ? "text-destructive"
+                  : charCount > MAX_POST_LENGTH * 0.8
+                    ? "text-yellow-500"
+                    : "text-muted-foreground"
+              }`}
+            >
+              {charCount}/{MAX_POST_LENGTH}
+            </span>
+          )}
+          <Button
+            size="sm"
+            className="rounded-full px-5 font-semibold shadow-sm"
+            onClick={handleSubmit}
+            disabled={!canPost || posting}
+          >
+            {posting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : replyToId ? (
+              "Reply"
+            ) : (
+              "Post"
+            )}
+          </Button>
         </div>
       </div>
     </div>

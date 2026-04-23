@@ -34,21 +34,42 @@ function PasswordStrength({ password }: { password: string }) {
 
   if (!password) return null;
 
+  const metCount = checks.filter((c) => c.met).length;
+  const strengthPercent = (metCount / checks.length) * 100;
+  const strengthColor =
+    strengthPercent <= 40
+      ? "bg-red-500"
+      : strengthPercent <= 70
+        ? "bg-amber-500"
+        : "bg-emerald-500";
+
   return (
-    <div className="flex flex-wrap gap-2 pt-1">
-      {checks.map((c) => (
-        <span
-          key={c.label}
-          className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full transition-colors ${
-            c.met
-              ? "text-emerald-400 bg-emerald-400/10"
-              : "text-muted-foreground/60 bg-white/[0.03]"
-          }`}
-        >
-          {c.met ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
-          {c.label}
-        </span>
-      ))}
+    <div className="space-y-2.5 pt-1">
+      {/* Strength bar */}
+      <div className="h-1 w-full rounded-full bg-white/[0.06] overflow-hidden">
+        <motion.div
+          className={`h-full rounded-full ${strengthColor}`}
+          initial={{ width: 0 }}
+          animate={{ width: `${strengthPercent}%` }}
+          transition={{ duration: 0.3 }}
+        />
+      </div>
+      {/* Checks */}
+      <div className="flex flex-wrap gap-1.5">
+        {checks.map((c) => (
+          <span
+            key={c.label}
+            className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${
+              c.met
+                ? "text-emerald-400 bg-emerald-400/10"
+                : "text-muted-foreground/50 bg-white/[0.03]"
+            }`}
+          >
+            {c.met ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
+            {c.label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -99,24 +120,24 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden page-gradient">
       {/* Ambient glow */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/3 right-1/4 w-[500px] h-[500px] bg-blue-500/[0.04] rounded-full blur-[150px]" />
-        <div className="absolute bottom-1/3 left-1/4 w-[400px] h-[400px] bg-purple-500/[0.03] rounded-full blur-[120px]" />
+        <div className="absolute top-1/3 right-1/4 w-[600px] h-[600px] bg-blue-500/[0.04] rounded-full blur-[180px]" />
+        <div className="absolute bottom-1/3 left-1/4 w-[500px] h-[500px] bg-purple-500/[0.03] rounded-full blur-[150px]" />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-[420px] space-y-8 relative z-10"
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-[440px] space-y-6 relative z-10"
       >
         {/* Logo */}
-        <div className="text-center space-y-3">
+        <div className="text-center space-y-2">
           <Link href="/">
             <span
-              className="text-4xl font-extrabold tracking-tighter inline-block"
+              className="text-5xl font-extrabold tracking-tighter inline-block"
               style={{
                 fontFamily: "var(--font-syne), sans-serif",
                 background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.5) 100%)",
@@ -127,41 +148,49 @@ export default function SignUpPage() {
               Orbit
             </span>
           </Link>
-          <p className="text-muted-foreground text-[15px]">
-            Create your account
-          </p>
         </div>
 
-        {/* Card */}
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-8 space-y-6">
+        {/* Main card */}
+        <div className="card-elevated p-8 sm:p-10 space-y-7">
+          <div className="text-center">
+            <h1
+              className="text-xl font-bold"
+              style={{ fontFamily: "var(--font-syne), sans-serif" }}
+            >
+              Create your account
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Join Orbit today
+            </p>
+          </div>
+
           {/* Google button */}
           <Button
             variant="outline"
-            className="w-full h-12 rounded-full bg-white text-black font-medium text-[15px] border-none hover:bg-white/90 hover:text-black"
+            className="btn-social"
             onClick={signUpWithGoogle}
           >
             <GoogleIcon />
             Sign up with Google
           </Button>
 
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-white/[0.08]" />
-            <span className="text-xs text-muted-foreground/70 uppercase tracking-wider font-medium">or</span>
-            <div className="flex-1 h-px bg-white/[0.08]" />
+          {/* Divider */}
+          <div className="divider-text">
+            <span className="text-xs text-muted-foreground/60 uppercase tracking-wider font-medium px-2">or</span>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-[13px] text-muted-foreground">
-                Email
+              <Label htmlFor="email" className="text-[13px] text-muted-foreground font-medium">
+                Email address
               </Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="you@example.com"
                 {...register("email")}
-                className="h-12 rounded-xl bg-white/[0.04] border-white/[0.08] px-4 text-[15px] placeholder:text-muted-foreground/50 focus-visible:border-primary/50 focus-visible:ring-primary/20"
+                className="input-premium"
               />
               {errors.email && (
                 <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
@@ -169,7 +198,7 @@ export default function SignUpPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-[13px] text-muted-foreground">
+              <Label htmlFor="password" className="text-[13px] text-muted-foreground font-medium">
                 Password
               </Label>
               <div className="relative">
@@ -178,12 +207,12 @@ export default function SignUpPage() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Create a strong password"
                   {...register("password")}
-                  className="h-12 rounded-xl bg-white/[0.04] border-white/[0.08] px-4 pr-12 text-[15px] placeholder:text-muted-foreground/50 focus-visible:border-primary/50 focus-visible:ring-primary/20"
+                  className="input-premium pr-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -195,15 +224,15 @@ export default function SignUpPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-[13px] text-muted-foreground">
-                Confirm Password
+              <Label htmlFor="confirmPassword" className="text-[13px] text-muted-foreground font-medium">
+                Confirm password
               </Label>
               <Input
                 id="confirmPassword"
                 type="password"
                 placeholder="Repeat your password"
                 {...register("confirmPassword")}
-                className="h-12 rounded-xl bg-white/[0.04] border-white/[0.08] px-4 text-[15px] placeholder:text-muted-foreground/50 focus-visible:border-primary/50 focus-visible:ring-primary/20"
+                className="input-premium"
               />
               {errors.confirmPassword && (
                 <p className="text-xs text-destructive mt-1">{errors.confirmPassword.message}</p>
@@ -212,13 +241,13 @@ export default function SignUpPage() {
 
             <Button
               type="submit"
-              className="w-full h-12 rounded-full text-[15px] font-bold"
+              className="w-full h-12 rounded-full text-[15px] font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25"
               disabled={isSubmitting}
             >
-              {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Create account"}
+              {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sign Up"}
             </Button>
 
-            <p className="text-[11px] text-muted-foreground/70 leading-snug text-center">
+            <p className="text-[11px] text-muted-foreground/50 leading-snug text-center">
               By signing up, you agree to our{" "}
               <span className="text-primary cursor-pointer hover:underline">Terms</span> and{" "}
               <span className="text-primary cursor-pointer hover:underline">Privacy Policy</span>.
@@ -227,12 +256,14 @@ export default function SignUpPage() {
         </div>
 
         {/* Footer link */}
-        <p className="text-center text-[15px] text-muted-foreground">
-          Already have an account?{" "}
-          <Link href="/login" className="text-primary font-semibold hover:underline">
-            Sign in
-          </Link>
-        </p>
+        <div className="card-elevated p-5">
+          <p className="text-center text-[15px] text-muted-foreground">
+            Already have an account?{" "}
+            <Link href="/login" className="text-primary font-semibold hover:underline">
+              Log in
+            </Link>
+          </p>
+        </div>
       </motion.div>
     </div>
   );

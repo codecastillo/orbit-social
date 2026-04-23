@@ -50,14 +50,22 @@ export function Sidebar() {
   const { data: unreadCount } = useUnreadCount();
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-[260px] border-r border-border bg-sidebar flex flex-col py-6 px-3 z-40 hidden lg:flex">
+    <aside className="fixed left-0 top-0 h-full w-[272px] bg-card/80 backdrop-blur-xl border-r border-border/50 flex flex-col z-40 hidden lg:flex">
       {/* Logo */}
-      <Link href="/feed" className="px-3 mb-8">
-        <h1 className="text-xl font-bold text-gradient">{APP_NAME}</h1>
-      </Link>
+      <div className="px-5 pt-6 pb-5">
+        <Link href="/feed" className="flex items-center gap-2.5 group">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-md shadow-primary/20 group-hover:shadow-lg group-hover:shadow-primary/30 transition-shadow">
+            <span className="text-lg font-extrabold text-primary-foreground tracking-tight">O</span>
+          </div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-gradient">{APP_NAME}</h1>
+        </Link>
+      </div>
+
+      {/* Separator */}
+      <div className="mx-4 h-px bg-border/60" />
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1">
+      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
@@ -67,75 +75,86 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
+                "flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-[14.5px] font-medium transition-all duration-200",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-primary"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                  ? "bg-primary/10 text-primary font-semibold shadow-sm"
+                  : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
               )}
             >
-              <span className="relative">
+              <span className="relative flex-shrink-0">
                 <Icon
-                  className={cn("h-5 w-5", isActive && "text-sidebar-primary")}
-                  strokeWidth={isActive ? 2.5 : 2}
+                  className={cn(
+                    "h-[22px] w-[22px] transition-colors",
+                    isActive ? "text-primary" : ""
+                  )}
+                  strokeWidth={isActive ? 2.5 : 1.8}
                 />
                 {item.label === "Notifications" && !!unreadCount && unreadCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[16px] h-[16px] px-0.5 text-[9px] font-bold leading-none text-white bg-destructive rounded-full">
+                  <span className="absolute -top-1.5 -right-2 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold leading-none text-white bg-destructive rounded-full ring-2 ring-card shadow-sm">
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
               </span>
-              {item.label}
+              <span>{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
+      {/* Separator */}
+      <div className="mx-4 h-px bg-border/60" />
+
       {/* Compose Button */}
-      <div className="px-3 mb-4">
+      <div className="px-4 py-4">
         <Button
-          className="w-full rounded-xl"
+          className="w-full rounded-full h-12 text-[15px] font-semibold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-200"
           size="lg"
           onClick={() => setComposeOpen(true)}
         >
-          <PenSquare className="h-4 w-4 mr-2" />
+          <PenSquare className="h-[18px] w-[18px] mr-2.5" />
           Compose
         </Button>
       </div>
 
+      {/* Separator */}
+      <div className="mx-4 h-px bg-border/60" />
+
       {/* User Menu */}
-      <DropdownMenu>
-        <DropdownMenuTrigger>
-          <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-sidebar-accent transition-colors w-full text-left">
-            <Avatar className="h-9 w-9">
-              <AvatarImage src={user?.user_metadata?.avatar_url} />
-              <AvatarFallback className="text-xs bg-muted">
-                {user?.email?.[0]?.toUpperCase() || "U"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
-                {user?.user_metadata?.display_name || user?.email}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                @{user?.user_metadata?.username || "user"}
-              </p>
-            </div>
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
-          <Link href="/settings">
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
+      <div className="px-3 py-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-accent/80 transition-all duration-200 w-full text-left group">
+              <Avatar className="h-10 w-10 ring-2 ring-border/50 group-hover:ring-primary/30 transition-all">
+                <AvatarImage src={user?.user_metadata?.avatar_url} />
+                <AvatarFallback className="text-sm font-semibold bg-primary/10 text-primary">
+                  {user?.email?.[0]?.toUpperCase() || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate text-foreground">
+                  {user?.user_metadata?.display_name || user?.email}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  @{user?.user_metadata?.username || "user"}
+                </p>
+              </div>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56 rounded-xl shadow-xl border-border/50">
+            <Link href="/settings">
+              <DropdownMenuItem>
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </DropdownMenuItem>
+            </Link>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={signOut} className="text-destructive">
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
             </DropdownMenuItem>
-          </Link>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={signOut} className="text-destructive">
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </aside>
   );
 }

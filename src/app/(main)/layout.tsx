@@ -11,12 +11,12 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <Sidebar />
       <TopBar />
 
       {/* Main content area */}
-      <main className="lg:ml-[260px] xl:mr-[320px] min-h-screen pb-16 lg:pb-0">
+      <main className="lg:ml-[272px] xl:mr-[320px] min-h-screen pb-20 lg:pb-0">
         <div className="mx-auto max-w-[600px] w-full">{children}</div>
       </main>
 

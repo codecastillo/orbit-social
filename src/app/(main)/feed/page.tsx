@@ -13,7 +13,7 @@ export default function FeedPage() {
   const queryClient = useQueryClient();
 
   return (
-    <div className="border-x border-border min-h-screen">
+    <div className="min-h-screen">
       {/* Modal Composer */}
       <PostComposer />
 
@@ -22,16 +22,16 @@ export default function FeedPage() {
         onValueChange={(v) => setTab(v as "foryou" | "following")}
         className="w-full"
       >
-        <TabsList className="w-full rounded-none border-b border-border bg-transparent h-12 sticky top-0 z-10 backdrop-blur-xl bg-background/80">
+        <TabsList className="w-full rounded-none border-b border-border/60 bg-transparent h-13 sticky top-0 z-10 backdrop-blur-xl bg-background/80 px-0">
           <TabsTrigger
             value="foryou"
-            className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            className="flex-1 rounded-none h-full font-semibold text-[15px] border-b-[3px] border-transparent text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent transition-colors"
           >
             For You
           </TabsTrigger>
           <TabsTrigger
             value="following"
-            className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            className="flex-1 rounded-none h-full font-semibold text-[15px] border-b-[3px] border-transparent text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent transition-colors"
           >
             Following
           </TabsTrigger>
@@ -47,7 +47,9 @@ export default function FeedPage() {
         </div>
 
         <TabsContent value="foryou" className="mt-0">
-          <StoryBar />
+          <div className="px-3 pt-3">
+            <StoryBar />
+          </div>
           <FeedList tab="foryou" />
         </TabsContent>
 

@@ -51,7 +51,7 @@ export function ProfileHeader({
   return (
     <div>
       {/* Cover Photo */}
-      <div className="h-48 bg-gradient-to-br from-primary/20 to-primary/5 relative">
+      <div className="h-56 sm:h-64 bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5 relative">
         {profile.cover_url && (
           <img
             src={profile.cover_url}
@@ -59,23 +59,25 @@ export function ProfileHeader({
             className="w-full h-full object-cover"
           />
         )}
+        {/* Gradient overlay at bottom for smooth avatar transition */}
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background/80 to-transparent" />
       </div>
 
-      <div className="px-4 pb-4">
+      <div className="px-4 sm:px-6 pb-5">
         {/* Avatar and Actions Row */}
-        <div className="flex justify-between items-start -mt-12">
+        <div className="flex justify-between items-end -mt-16 relative">
           <UserAvatar
             src={profile.avatar_url}
             fallback={profile.display_name}
             size="xl"
-            className="border-4 border-background"
+            className="h-32 w-32 border-[5px] border-background shadow-lg ring-0"
           />
 
-          <div className="flex items-center gap-2 mt-14">
+          <div className="flex items-center gap-2 pb-1">
             {isOwnProfile ? (
               <Button
                 variant="outline"
-                className="rounded-full"
+                className="rounded-full px-5 font-semibold"
                 onClick={onEdit}
               >
                 Edit Profile
@@ -87,7 +89,7 @@ export function ProfileHeader({
                     <Button
                       variant="outline"
                       size="icon"
-                      className="rounded-full"
+                      className="rounded-full h-10 w-10"
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
@@ -108,24 +110,28 @@ export function ProfileHeader({
         </div>
 
         {/* Name and Username */}
-        <div className="mt-3 space-y-1">
-          <div className="flex items-center gap-1">
-            <h1 className="text-xl font-bold">{profile.display_name}</h1>
+        <div className="mt-4 space-y-0.5">
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-2xl sm:text-[28px] font-extrabold tracking-tight">
+              {profile.display_name}
+            </h1>
             {profile.is_verified && (
-              <BadgeCheck className="h-5 w-5 text-primary fill-primary/20" />
+              <BadgeCheck className="h-6 w-6 text-primary fill-primary/20" />
             )}
           </div>
-          <p className="text-muted-foreground">@{profile.username}</p>
+          <p className="text-muted-foreground text-[15px]">@{profile.username}</p>
         </div>
 
         {/* Bio */}
-        {profile.bio && <p className="mt-3 text-sm leading-relaxed">{profile.bio}</p>}
+        {profile.bio && (
+          <p className="mt-3 text-[15px] leading-relaxed">{profile.bio}</p>
+        )}
 
         {/* Meta Info */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3.5 text-sm text-muted-foreground">
           {profile.location && (
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5" />
+            <span className="flex items-center gap-1.5">
+              <MapPin className="h-4 w-4" />
               {profile.location}
             </span>
           )}
@@ -138,9 +144,9 @@ export function ProfileHeader({
                   href={profile.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-primary hover:underline"
+                  className="flex items-center gap-1.5 text-primary hover:underline"
                 >
-                  <LinkIcon className="h-3.5 w-3.5" />
+                  <LinkIcon className="h-4 w-4" />
                   {url.hostname}
                 </a>
               );
@@ -148,8 +154,8 @@ export function ProfileHeader({
               return null;
             }
           })()}
-          <span className="flex items-center gap-1">
-            <CalendarDays className="h-3.5 w-3.5" />
+          <span className="flex items-center gap-1.5">
+            <CalendarDays className="h-4 w-4" />
             Joined{" "}
             {new Date(profile.created_at).toLocaleDateString("en-US", {
               month: "long",
@@ -159,14 +165,14 @@ export function ProfileHeader({
         </div>
 
         {/* Stats */}
-        <div className="flex gap-4 mt-3">
-          <button className="text-sm hover:underline">
-            <span className="font-bold">{formatNumber(profile.following_count)}</span>{" "}
-            <span className="text-muted-foreground">Following</span>
+        <div className="flex gap-5 mt-4">
+          <button className="group text-sm hover:underline">
+            <span className="font-bold text-base">{formatNumber(profile.following_count)}</span>{" "}
+            <span className="text-muted-foreground group-hover:text-foreground transition-colors">Following</span>
           </button>
-          <button className="text-sm hover:underline">
-            <span className="font-bold">{formatNumber(profile.follower_count)}</span>{" "}
-            <span className="text-muted-foreground">Followers</span>
+          <button className="group text-sm hover:underline">
+            <span className="font-bold text-base">{formatNumber(profile.follower_count)}</span>{" "}
+            <span className="text-muted-foreground group-hover:text-foreground transition-colors">Followers</span>
           </button>
         </div>
       </div>

@@ -127,12 +127,12 @@ export function PostCard({
 
   return (
     <motion.article
-      className="border-b border-border hover:bg-accent/30 transition-colors cursor-pointer"
+      className="bg-card rounded-2xl border border-border/60 shadow-sm cursor-pointer transition-shadow duration-200 hover:shadow-md"
       onClick={navigateToPost}
-      whileHover={{ filter: "brightness(1.03)" }}
+      whileHover={{ y: -1 }}
       transition={{ duration: 0.15 }}
     >
-      <div className={cn("flex gap-3", compact ? "p-3" : "p-4")}>
+      <div className={cn("flex gap-3", compact ? "p-3" : "px-4 pt-4 pb-3")}>
         {/* Avatar */}
         <Link
           href={`/${profile.username}`}
@@ -142,30 +142,30 @@ export function PostCard({
           <UserAvatar
             src={profile.avatar_url}
             fallback={profile.display_name}
-            size={compact ? "sm" : "md"}
+            size={compact ? "md" : "lg"}
           />
         </Link>
 
         <div className="flex-1 min-w-0">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
               <Link
                 href={`/${profile.username}`}
                 onClick={(e) => e.stopPropagation()}
-                className="font-semibold text-sm hover:underline truncate"
+                className="font-bold text-[15px] hover:underline truncate"
               >
                 {profile.display_name}
               </Link>
               <Link
                 href={`/${profile.username}`}
                 onClick={(e) => e.stopPropagation()}
-                className="text-muted-foreground text-sm truncate"
+                className="text-muted-foreground text-[13px] truncate"
               >
                 @{profile.username}
               </Link>
-              <span className="text-muted-foreground text-sm shrink-0">
-                · {formatTimeAgo(post.created_at)}
+              <span className="text-muted-foreground/60 text-[13px] shrink-0">
+                &middot; {formatTimeAgo(post.created_at)}
               </span>
             </div>
 
@@ -173,7 +173,7 @@ export function PostCard({
               <DropdownMenuTrigger
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="p-1 rounded-full hover:bg-accent transition-colors">
+                <div className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-accent transition-colors">
                   <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                 </div>
               </DropdownMenuTrigger>
@@ -201,7 +201,7 @@ export function PostCard({
 
           {/* Content */}
           {post.content && (
-            <div className="mt-1">
+            <div className="mt-1.5">
               <PostContent content={post.content} />
             </div>
           )}
@@ -210,8 +210,8 @@ export function PostCard({
           {post.post_media && post.post_media.length > 0 && (
             <div
               className={cn(
-                "mt-3 rounded-xl overflow-hidden border border-border",
-                post.post_media.length === 1 && "max-h-[400px]",
+                "mt-3 rounded-xl overflow-hidden shadow-sm",
+                post.post_media.length === 1 && "max-h-[420px]",
                 post.post_media.length > 1 && "grid gap-0.5",
                 post.post_media.length === 2 && "grid-cols-2",
                 post.post_media.length >= 3 && "grid-cols-2 grid-rows-2"
@@ -240,7 +240,7 @@ export function PostCard({
           )}
 
           {/* Actions */}
-          <div className="flex items-center justify-between mt-3 -ml-2">
+          <div className="flex items-center justify-between mt-3 -mx-2">
             <ActionButton
               icon={MessageCircle}
               count={post.comment_count}
@@ -266,14 +266,14 @@ export function PostCard({
             <ActionButton
               icon={Share}
               onClick={handleShare}
-              color="blue"
+              color="green"
             />
             <ActionButton
               icon={Bookmark}
               count={bookmarkCount > 0 ? bookmarkCount : undefined}
               onClick={handleBookmark}
               active={isBookmarked}
-              color="blue"
+              color="yellow"
             />
           </div>
         </div>
@@ -287,7 +287,7 @@ function PostContent({ content }: { content: string }) {
   const parts = content.split(/([@#]\w+)/g);
 
   return (
-    <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+    <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
       {parts.map((part, i) => {
         if (part.startsWith("#")) {
           return (
@@ -295,7 +295,7 @@ function PostContent({ content }: { content: string }) {
               key={i}
               href={`/explore/search?q=${encodeURIComponent(part)}`}
               onClick={(e) => e.stopPropagation()}
-              className="text-primary hover:underline"
+              className="text-primary hover:underline font-medium"
             >
               {part}
             </Link>
@@ -307,7 +307,7 @@ function PostContent({ content }: { content: string }) {
               key={i}
               href={`/${part.slice(1)}`}
               onClick={(e) => e.stopPropagation()}
-              className="text-primary hover:underline"
+              className="text-primary hover:underline font-medium"
             >
               {part}
             </Link>
@@ -330,16 +330,23 @@ function ActionButton({
   count?: number;
   onClick: (e: React.MouseEvent) => void;
   active?: boolean;
-  color: "blue" | "green" | "pink";
+  color: "blue" | "green" | "pink" | "yellow";
 }) {
   const [animateLike, setAnimateLike] = useState(false);
 
   const colorClasses = {
-    blue: "hover:text-blue-400 hover:bg-blue-400/10",
-    green: "hover:text-green-400 hover:bg-green-400/10",
+    blue: active
+      ? "text-blue-500"
+      : "hover:text-blue-500 hover:bg-blue-500/10",
+    green: active
+      ? "text-green-500"
+      : "hover:text-green-500 hover:bg-green-500/10",
     pink: active
       ? "text-pink-500"
       : "hover:text-pink-500 hover:bg-pink-500/10",
+    yellow: active
+      ? "text-amber-500"
+      : "hover:text-amber-500 hover:bg-amber-500/10",
   };
 
   const handleClick = (e: React.MouseEvent) => {
@@ -354,7 +361,7 @@ function ActionButton({
     <motion.button
       onClick={handleClick}
       className={cn(
-        "flex items-center gap-1 p-1.5 rounded-full transition-colors text-muted-foreground",
+        "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full transition-colors text-muted-foreground",
         colorClasses[color]
       )}
     >
@@ -369,13 +376,14 @@ function ActionButton({
       >
         <Icon
           className={cn(
-            "h-4 w-4",
-            active && color === "pink" && "fill-current"
+            "h-[18px] w-[18px]",
+            active && color === "pink" && "fill-current",
+            active && color === "yellow" && "fill-current"
           )}
         />
       </motion.span>
       {count !== undefined && count > 0 && (
-        <span className="text-xs">{formatNumber(count)}</span>
+        <span className="text-[13px] font-medium">{formatNumber(count)}</span>
       )}
     </motion.button>
   );

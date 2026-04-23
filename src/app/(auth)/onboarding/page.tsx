@@ -4,7 +4,8 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Camera, Loader2 } from "lucide-react";
+import { Camera, Loader2, User } from "lucide-react";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -16,7 +17,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { APP_NAME } from "@/lib/utils/constants";
 
 export default function OnboardingPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -124,14 +124,47 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden page-gradient">
+      {/* Ambient glow */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-blue-500/[0.04] rounded-full blur-[200px]" />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-[480px] space-y-6 relative z-10"
+      >
+        {/* Logo */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-gradient">{APP_NAME}</h1>
-          <p className="text-muted-foreground">Set up your profile</p>
+          <span
+            className="text-5xl font-extrabold tracking-tighter inline-block"
+            style={{
+              fontFamily: "var(--font-syne), sans-serif",
+              background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.5) 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            Orbit
+          </span>
         </div>
 
-        <div className="glass rounded-2xl p-6 space-y-6">
+        {/* Main card */}
+        <div className="card-elevated p-8 sm:p-10 space-y-8">
+          <div className="text-center">
+            <h1
+              className="text-xl font-bold"
+              style={{ fontFamily: "var(--font-syne), sans-serif" }}
+            >
+              Set up your profile
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Tell the world who you are
+            </p>
+          </div>
+
           {/* Avatar Upload */}
           <div className="flex justify-center">
             <button
@@ -140,18 +173,25 @@ export default function OnboardingPage() {
               className="relative group"
               disabled={uploading}
             >
-              <Avatar className="h-24 w-24 border-2 border-border">
-                <AvatarImage src={avatarUrl || undefined} />
-                <AvatarFallback className="text-2xl bg-muted">
-                  {displayName?.[0]?.toUpperCase() || "?"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                {uploading ? (
-                  <Loader2 className="h-6 w-6 animate-spin text-white" />
-                ) : (
-                  <Camera className="h-6 w-6 text-white" />
-                )}
+              <div className="relative">
+                <Avatar className="h-28 w-28 border-[3px] border-white/10 shadow-xl shadow-black/30">
+                  <AvatarImage src={avatarUrl || undefined} />
+                  <AvatarFallback className="text-3xl bg-white/[0.04]">
+                    {displayName?.[0]?.toUpperCase() || <User className="h-10 w-10 text-muted-foreground/40" />}
+                  </AvatarFallback>
+                </Avatar>
+                {/* Camera overlay */}
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  {uploading ? (
+                    <Loader2 className="h-7 w-7 animate-spin text-white" />
+                  ) : (
+                    <Camera className="h-7 w-7 text-white" />
+                  )}
+                </div>
+                {/* Camera badge */}
+                <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30 border-2 border-background">
+                  <Camera className="h-3.5 w-3.5 text-white" />
+                </div>
               </div>
               <input
                 ref={fileInputRef}
@@ -163,53 +203,59 @@ export default function OnboardingPage() {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username" className="text-[13px] text-muted-foreground font-medium">
+                Username
+              </Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 text-[15px] font-medium">
                   @
                 </span>
                 <Input
                   id="username"
                   placeholder="username"
                   {...register("username")}
-                  className="bg-background/50 pl-8"
+                  className="input-premium pl-9"
                 />
               </div>
               {errors.username && (
-                <p className="text-sm text-destructive">
+                <p className="text-xs text-destructive mt-1">
                   {errors.username.message}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="displayName">Display Name</Label>
+              <Label htmlFor="displayName" className="text-[13px] text-muted-foreground font-medium">
+                Display name
+              </Label>
               <Input
                 id="displayName"
                 placeholder="Your Name"
                 {...register("displayName")}
-                className="bg-background/50"
+                className="input-premium"
               />
               {errors.displayName && (
-                <p className="text-sm text-destructive">
+                <p className="text-xs text-destructive mt-1">
                   {errors.displayName.message}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bio">Bio</Label>
+              <Label htmlFor="bio" className="text-[13px] text-muted-foreground font-medium">
+                Bio
+              </Label>
               <Textarea
                 id="bio"
                 placeholder="Tell us about yourself..."
                 {...register("bio")}
-                className="bg-background/50 resize-none"
+                className="input-premium resize-none min-h-[100px] py-3"
                 rows={3}
               />
               {errors.bio && (
-                <p className="text-sm text-destructive">
+                <p className="text-xs text-destructive mt-1">
                   {errors.bio.message}
                 </p>
               )}
@@ -217,18 +263,23 @@ export default function OnboardingPage() {
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full h-12 rounded-full text-[15px] font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25"
               disabled={isSubmitting}
             >
               {isSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 "Complete Setup"
               )}
             </Button>
           </form>
         </div>
-      </div>
+
+        {/* Footer */}
+        <p className="text-center text-[13px] text-muted-foreground/50">
+          You can always update your profile later
+        </p>
+      </motion.div>
     </div>
   );
 }

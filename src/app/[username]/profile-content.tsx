@@ -72,18 +72,21 @@ export function ProfileContent({
     }
   };
 
+  const tabTriggerClass =
+    "flex-1 rounded-none h-full font-semibold text-[14px] border-b-[3px] border-transparent text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent hover:bg-accent/50 transition-colors";
+
   return (
     <>
       {/* Top bar with back button */}
-      <div className="sticky top-0 z-20 flex items-center gap-4 h-12 px-4 bg-background/80 backdrop-blur-xl border-b border-border">
+      <div className="sticky top-0 z-20 flex items-center gap-4 h-14 px-4 bg-background/80 backdrop-blur-xl border-b border-border/60">
         <button
           onClick={() => router.back()}
-          className="p-1.5 rounded-full hover:bg-accent transition-colors"
+          className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-accent transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div>
-          <h2 className="font-semibold text-sm leading-tight">
+          <h2 className="font-bold text-base leading-tight">
             {profile.display_name}
           </h2>
           <p className="text-xs text-muted-foreground">
@@ -100,53 +103,41 @@ export function ProfileContent({
       />
 
       <Tabs defaultValue="posts" className="w-full">
-        <TabsList className="w-full rounded-none border-b border-border bg-transparent h-12">
-          <TabsTrigger
-            value="posts"
-            className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-          >
+        <TabsList className="w-full rounded-none border-b border-border/60 bg-transparent h-12 px-0">
+          <TabsTrigger value="posts" className={tabTriggerClass}>
             Posts
           </TabsTrigger>
-          <TabsTrigger
-            value="replies"
-            className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-          >
+          <TabsTrigger value="replies" className={tabTriggerClass}>
             Replies
           </TabsTrigger>
-          <TabsTrigger
-            value="media"
-            className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-          >
+          <TabsTrigger value="media" className={tabTriggerClass}>
             Media
           </TabsTrigger>
-          <TabsTrigger
-            value="likes"
-            className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-          >
+          <TabsTrigger value="likes" className={tabTriggerClass}>
             Likes
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="posts" className="mt-0">
-          <div className="p-6 text-center text-muted-foreground text-sm">
+          <div className="p-8 text-center text-muted-foreground text-sm">
             No posts yet.
           </div>
         </TabsContent>
 
         <TabsContent value="replies" className="mt-0">
-          <div className="p-6 text-center text-muted-foreground text-sm">
+          <div className="p-8 text-center text-muted-foreground text-sm">
             No replies yet.
           </div>
         </TabsContent>
 
         <TabsContent value="media" className="mt-0">
-          <div className="p-6 text-center text-muted-foreground text-sm">
+          <div className="p-8 text-center text-muted-foreground text-sm">
             No media yet.
           </div>
         </TabsContent>
 
         <TabsContent value="likes" className="mt-0">
-          <div className="p-6 text-center text-muted-foreground text-sm">
+          <div className="p-8 text-center text-muted-foreground text-sm">
             No likes yet.
           </div>
         </TabsContent>

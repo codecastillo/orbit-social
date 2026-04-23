@@ -63,24 +63,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden page-gradient">
       {/* Ambient glow */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-blue-500/[0.04] rounded-full blur-[150px]" />
-        <div className="absolute bottom-1/4 right-1/3 w-[400px] h-[400px] bg-purple-500/[0.03] rounded-full blur-[120px]" />
+        <div className="absolute top-1/4 left-1/3 w-[600px] h-[600px] bg-blue-500/[0.04] rounded-full blur-[180px]" />
+        <div className="absolute bottom-1/4 right-1/3 w-[500px] h-[500px] bg-purple-500/[0.03] rounded-full blur-[150px]" />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-[420px] space-y-8 relative z-10"
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-[440px] space-y-6 relative z-10"
       >
         {/* Logo */}
-        <div className="text-center space-y-3">
+        <div className="text-center space-y-2">
           <Link href="/">
             <span
-              className="text-4xl font-extrabold tracking-tighter inline-block"
+              className="text-5xl font-extrabold tracking-tighter inline-block"
               style={{
                 fontFamily: "var(--font-syne), sans-serif",
                 background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.5) 100%)",
@@ -91,41 +91,49 @@ export default function LoginPage() {
               Orbit
             </span>
           </Link>
-          <p className="text-muted-foreground text-[15px]">
-            Sign in to your account
-          </p>
         </div>
 
-        {/* Card */}
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-8 space-y-6">
+        {/* Main card */}
+        <div className="card-elevated p-8 sm:p-10 space-y-7">
+          <div className="text-center">
+            <h1
+              className="text-xl font-bold"
+              style={{ fontFamily: "var(--font-syne), sans-serif" }}
+            >
+              Welcome back
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Sign in to your account
+            </p>
+          </div>
+
           {/* Google button */}
           <Button
             variant="outline"
-            className="w-full h-12 rounded-full bg-white text-black font-medium text-[15px] border-none hover:bg-white/90 hover:text-black"
+            className="btn-social"
             onClick={signInWithGoogle}
           >
             <GoogleIcon />
             Continue with Google
           </Button>
 
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-white/[0.08]" />
-            <span className="text-xs text-muted-foreground/70 uppercase tracking-wider font-medium">or</span>
-            <div className="flex-1 h-px bg-white/[0.08]" />
+          {/* Divider */}
+          <div className="divider-text">
+            <span className="text-xs text-muted-foreground/60 uppercase tracking-wider font-medium px-2">or</span>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-[13px] text-muted-foreground">
-                Email
+              <Label htmlFor="email" className="text-[13px] text-muted-foreground font-medium">
+                Email address
               </Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="you@example.com"
                 {...register("email")}
-                className="h-12 rounded-xl bg-white/[0.04] border-white/[0.08] px-4 text-[15px] placeholder:text-muted-foreground/50 focus-visible:border-primary/50 focus-visible:ring-primary/20"
+                className="input-premium"
               />
               {errors.email && (
                 <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
@@ -133,21 +141,26 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-[13px] text-muted-foreground">
-                Password
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-[13px] text-muted-foreground font-medium">
+                  Password
+                </Label>
+                <span className="text-xs text-primary hover:underline cursor-pointer font-medium">
+                  Forgot password?
+                </span>
+              </div>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
                   {...register("password")}
-                  className="h-12 rounded-xl bg-white/[0.04] border-white/[0.08] px-4 pr-12 text-[15px] placeholder:text-muted-foreground/50 focus-visible:border-primary/50 focus-visible:ring-primary/20"
+                  className="input-premium pr-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -159,20 +172,34 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              className="w-full h-12 rounded-full text-[15px] font-bold"
+              className="w-full h-12 rounded-full text-[15px] font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25"
               disabled={isSubmitting}
             >
-              {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sign in"}
+              {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Log In"}
             </Button>
           </form>
+
+          {/* Divider */}
+          <div className="divider-text">
+            <span className="text-xs text-muted-foreground/60 px-2">&nbsp;</span>
+          </div>
+
+          {/* Create account */}
+          <div className="flex justify-center">
+            <Link href="/signup">
+              <Button
+                variant="outline"
+                className="h-11 rounded-full px-8 text-[15px] font-bold border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50"
+              >
+                Create new account
+              </Button>
+            </Link>
+          </div>
         </div>
 
-        {/* Footer link */}
-        <p className="text-center text-[15px] text-muted-foreground">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-primary font-semibold hover:underline">
-            Sign up
-          </Link>
+        {/* Footer */}
+        <p className="text-center text-[13px] text-muted-foreground/50">
+          Secure login powered by Orbit
         </p>
       </motion.div>
     </div>

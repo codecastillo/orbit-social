@@ -52,7 +52,7 @@ export function FeedList({ tab }: FeedListProps) {
         action={
           <button
             onClick={() => refetch()}
-            className="text-primary text-sm hover:underline"
+            className="text-primary text-sm font-medium hover:underline"
           >
             Retry
           </button>
@@ -77,7 +77,7 @@ export function FeedList({ tab }: FeedListProps) {
   }
 
   return (
-    <div>
+    <div className="space-y-3 px-3 py-3">
       {allPosts.map((post) => (
         <PostCard
           key={post.id}
