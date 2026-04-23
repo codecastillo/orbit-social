@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart,
   MessageCircle,
@@ -125,9 +126,11 @@ export function PostCard({
   };
 
   return (
-    <article
+    <motion.article
       className="border-b border-border hover:bg-accent/30 transition-colors cursor-pointer"
       onClick={navigateToPost}
+      whileHover={{ filter: "brightness(1.03)" }}
+      transition={{ duration: 0.15 }}
     >
       <div className={cn("flex gap-3", compact ? "p-3" : "p-4")}>
         {/* Avatar */}
@@ -275,7 +278,7 @@ export function PostCard({
           </div>
         </div>
       </div>
-    </article>
+    </motion.article>
   );
 }
 
@@ -329,6 +332,8 @@ function ActionButton({
   active?: boolean;
   color: "blue" | "green" | "pink";
 }) {
+  const [animateLike, setAnimateLike] = useState(false);
+
   const colorClasses = {
     blue: "hover:text-blue-400 hover:bg-blue-400/10",
     green: "hover:text-green-400 hover:bg-green-400/10",
@@ -337,20 +342,41 @@ function ActionButton({
       : "hover:text-pink-500 hover:bg-pink-500/10",
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (color === "pink") {
+      setAnimateLike(true);
+      setTimeout(() => setAnimateLike(false), 300);
+    }
+    onClick(e);
+  };
+
   return (
-    <button
-      onClick={onClick}
+    <motion.button
+      onClick={handleClick}
       className={cn(
         "flex items-center gap-1 p-1.5 rounded-full transition-colors text-muted-foreground",
         colorClasses[color]
       )}
     >
-      <Icon
-        className={cn("h-4 w-4", active && color === "pink" && "fill-current")}
-      />
+      <motion.span
+        animate={
+          animateLike && color === "pink"
+            ? { scale: [1, 1.3, 1] }
+            : { scale: 1 }
+        }
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        className="flex items-center"
+      >
+        <Icon
+          className={cn(
+            "h-4 w-4",
+            active && color === "pink" && "fill-current"
+          )}
+        />
+      </motion.span>
       {count !== undefined && count > 0 && (
         <span className="text-xs">{formatNumber(count)}</span>
       )}
-    </button>
+    </motion.button>
   );
 }
