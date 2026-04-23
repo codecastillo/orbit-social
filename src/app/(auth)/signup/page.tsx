@@ -88,7 +88,7 @@ export default function SignUpPage() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Min 8 characters"
+                  placeholder="Min 10 characters"
                   {...register("password")}
                   className="bg-background/50 pr-10"
                 />
