@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { APP_NAME } from "@/lib/utils/constants";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 export function TopBar() {
   return (
@@ -12,12 +13,7 @@ export function TopBar() {
       </Link>
 
       <div className="flex items-center gap-2">
-        <Link
-          href="/notifications"
-          className="p-2 rounded-full hover:bg-accent transition-colors"
-        >
-          <Bell className="h-5 w-5" />
-        </Link>
+        <NotificationBell />
         <Link
           href="/messages"
           className="p-2 rounded-full hover:bg-accent transition-colors"

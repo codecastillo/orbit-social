@@ -17,6 +17,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUnreadCount } from "@/lib/hooks/use-notifications";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -46,6 +47,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
+  const { data: unreadCount } = useUnreadCount();
 
   return (
     <aside className="fixed left-0 top-0 h-full w-[260px] border-r border-border bg-sidebar flex flex-col py-6 px-3 z-40 hidden lg:flex">
@@ -71,10 +73,17 @@ export function Sidebar() {
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
               )}
             >
-              <Icon
-                className={cn("h-5 w-5", isActive && "text-sidebar-primary")}
-                strokeWidth={isActive ? 2.5 : 2}
-              />
+              <span className="relative">
+                <Icon
+                  className={cn("h-5 w-5", isActive && "text-sidebar-primary")}
+                  strokeWidth={isActive ? 2.5 : 2}
+                />
+                {item.label === "Notifications" && !!unreadCount && unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[16px] h-[16px] px-0.5 text-[9px] font-bold leading-none text-white bg-destructive rounded-full">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </span>
               {item.label}
             </Link>
           );

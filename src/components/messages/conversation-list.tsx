@@ -1,0 +1,132 @@
+"use client";
+
+import Link from "next/link";
+import { UserAvatar } from "@/components/shared/user-avatar";
+import { formatTimeAgo } from "@/lib/utils/format";
+import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { ConversationWithPreview } from "@/lib/queries/messages";
+
+interface ConversationListProps {
+  conversations: ConversationWithPreview[];
+  isLoading?: boolean;
+}
+
+export function ConversationList({
+  conversations,
+  isLoading,
+}: ConversationListProps) {
+  if (isLoading) {
+    return (
+      <div className="divide-y divide-border">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 p-4">
+            <Skeleton className="h-12 w-12 rounded-full shrink-0" />
+            <div className="flex-1 min-w-0 space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (conversations.length === 0) {
+    return (
+      <div className="p-6 text-center text-muted-foreground">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className="size-6"
+          >
+            <path
+              fillRule="evenodd"
+              d="M4.848 2.771A49.144 49.144 0 0 1 12 2.25c2.43 0 4.817.178 7.152.52 1.978.292 3.348 2.024 3.348 3.97v6.02c0 1.946-1.37 3.678-3.348 3.97a48.901 48.901 0 0 1-3.476.383.39.39 0 0 0-.297.17l-2.755 4.133a.75.75 0 0 1-1.248 0l-2.755-4.133a.39.39 0 0 0-.297-.17 48.9 48.9 0 0 1-3.476-.384c-1.978-.29-3.348-2.024-3.348-3.97V6.741c0-1.946 1.37-3.68 3.348-3.97ZM6.75 8.25a.75.75 0 0 1 .75-.75h9a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1-.75-.75Zm.75 2.25a.75.75 0 0 0 0 1.5H12a.75.75 0 0 0 0-1.5H7.5Z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </div>
+        <p className="text-lg font-medium">No conversations yet</p>
+        <p className="text-sm mt-1">Start a conversation with someone.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="divide-y divide-border">
+      {conversations.map((conversation) => {
+        const displayName =
+          conversation.other_member?.display_name ||
+          conversation.name ||
+          "Unknown";
+        const avatarUrl =
+          conversation.other_member?.avatar_url || conversation.avatar_url;
+        const username =
+          conversation.other_member?.username || displayName;
+
+        let preview = "";
+        if (conversation.last_message) {
+          if (conversation.last_message.is_deleted) {
+            preview = "Message deleted";
+          } else {
+            preview = conversation.last_message.content || "Sent media";
+          }
+        }
+
+        return (
+          <Link
+            key={conversation.id}
+            href={`/messages/${conversation.id}`}
+            className={cn(
+              "flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors",
+              conversation.unread && "bg-muted/30"
+            )}
+          >
+            <UserAvatar
+              src={avatarUrl}
+              fallback={displayName}
+              size="lg"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className={cn(
+                    "text-sm truncate",
+                    conversation.unread
+                      ? "font-semibold text-foreground"
+                      : "font-medium text-foreground"
+                  )}
+                >
+                  {displayName}
+                </span>
+                {conversation.last_message && (
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {formatTimeAgo(conversation.last_message.created_at)}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <p
+                  className={cn(
+                    "text-sm truncate",
+                    conversation.unread
+                      ? "text-foreground/80"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {preview}
+                </p>
+                {conversation.unread && (
+                  <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                )}
+              </div>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
