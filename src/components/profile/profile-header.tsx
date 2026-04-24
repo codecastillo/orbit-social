@@ -58,10 +58,17 @@ export function ProfileHeader({
   const router = useRouter();
   return (
     <div className="relative">
-      {/* Gradient background */}
-      <div className="absolute inset-0 h-28 bg-gradient-to-br from-primary/15 via-purple-500/10 to-blue-500/10 rounded-b-2xl" />
+      {/* Cover photo or gradient */}
+      <div className="h-36 sm:h-44 relative overflow-hidden">
+        {profile.cover_url ? (
+          <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-primary/20 via-purple-500/15 to-blue-500/10" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
+      </div>
 
-      <div className="relative px-5 pt-16 pb-5">
+      <div className="relative px-5 -mt-12 pb-5">
         {/* Avatar + Stats row */}
         <div className="flex items-end gap-5">
           {/* Avatar */}
