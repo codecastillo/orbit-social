@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Compass, Plus, Clapperboard, User } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Home, Compass, Plus, MessageCircle, User } from "lucide-react";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
+import { O, aurora, panel } from "@/lib/design/orbit";
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -31,74 +31,91 @@ export function BottomNav() {
   const profileHref = username ? `/${username}` : "/onboarding";
 
   const items = [
-    { label: "Home", href: "/feed", icon: Home },
-    { label: "Discover", href: "/explore", icon: Compass },
-    { label: "Create", href: "#compose", icon: Plus, primary: true },
-    { label: "Clips", href: "/reels", icon: Clapperboard },
-    { label: "You", href: profileHref, icon: User },
+    { key: "home", label: "Home", href: "/feed", icon: Home },
+    { key: "discover", label: "Discover", href: "/explore", icon: Compass },
+    { key: "compose", label: "Compose", href: "#compose", icon: Plus, primary: true },
+    { key: "msg", label: "Chat", href: "/messages", icon: MessageCircle },
+    { key: "me", label: "You", href: profileHref, icon: User },
   ];
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 lg:hidden"
+      className="fixed z-40 lg:hidden"
       style={{
-        background: "oklch(0.14 0.02 270 / 0.7)",
-        backdropFilter: "blur(40px) saturate(2)",
-        WebkitBackdropFilter: "blur(40px) saturate(2)",
-        borderTop: "1px solid oklch(1 0 0 / 0.06)",
+        left: 14,
+        right: 14,
+        bottom: 22,
+        ...panel({ borderRadius: 28 }),
+        padding: "12px 14px",
+        display: "flex",
+        justifyContent: "space-around",
+        alignItems: "center",
       }}
     >
-      <div className="flex items-center justify-around h-[68px] px-3 pb-[env(safe-area-inset-bottom)]">
-        {items.map((item) => {
-          const isCompose = item.href === "#compose";
-          const isActive =
-            !isCompose &&
-            (pathname === item.href || pathname.startsWith(item.href + "/"));
-          const Icon = item.icon;
+      {items.map((item) => {
+        const isCompose = item.href === "#compose";
+        const isActive =
+          !isCompose &&
+          (pathname === item.href || pathname.startsWith(item.href + "/"));
+        const Icon = item.icon;
 
-          if (isCompose) {
-            return (
-              <button
-                key={item.label}
-                onClick={() => setComposeOpen(true)}
-                className="flex flex-col items-center justify-center active:scale-90 transition-transform duration-150 -mt-2"
-              >
-                <div className="h-12 w-12 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-[0_8px_24px_oklch(0.623_0.214_259_/_0.5)]">
-                  <Icon className="h-6 w-6" strokeWidth={2.4} />
-                </div>
-              </button>
-            );
-          }
-
+        if (isCompose) {
           return (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={cn(
-                "relative flex flex-col items-center justify-center gap-1 px-3 py-2 transition-colors duration-200 active:scale-90",
-                isActive ? "text-primary" : "text-muted-foreground"
-              )}
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setComposeOpen(true)}
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                background: aurora,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: `0 8px 22px -4px ${O.a2}80, inset 0 1px 0 rgba(255,255,255,0.3)`,
+                border: "none",
+                cursor: "pointer",
+                color: "white",
+              }}
             >
-              <Icon
-                className={cn(
-                  "h-[22px] w-[22px] transition-all",
-                  isActive && "drop-shadow-[0_0_10px_oklch(0.623_0.214_259_/_0.7)]"
-                )}
-                strokeWidth={isActive ? 2.4 : 1.8}
-                fill={isActive ? "currentColor" : "none"}
-              />
-              <span
-                className={cn(
-                  "text-[10px] font-semibold tracking-wide leading-none transition-opacity",
-                  isActive ? "opacity-100" : "opacity-60"
-                )}
-              >
-                {item.label}
-              </span>
-            </Link>
+              <Icon style={{ width: 22, height: 22 }} strokeWidth={2.4} />
+            </button>
           );
-        })}
-      </div>
+        }
+
+        return (
+          <Link
+            key={item.key}
+            href={item.href}
+            style={{
+              position: "relative",
+              padding: 8,
+              color: isActive ? O.ink : O.ink3,
+              textDecoration: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon style={{ width: 24, height: 24 }} strokeWidth={isActive ? 2.2 : 1.8} />
+            {isActive && (
+              <span
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: 4,
+                  height: 4,
+                  borderRadius: "50%",
+                  background: aurora,
+                }}
+              />
+            )}
+          </Link>
+        );
+      })}
     </nav>
   );
 }
