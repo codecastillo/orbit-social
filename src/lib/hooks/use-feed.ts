@@ -5,6 +5,7 @@ import { useAuth } from "./use-auth";
 import {
   getFeedPosts,
   checkUserInteractions,
+  checkUserReposted,
   type PostWithAuthor,
 } from "@/lib/queries/posts";
 
@@ -24,20 +25,24 @@ export function useFeed(tab: "foryou" | "following") {
         if (posts.length > 0) {
           try {
             const postIds = posts.map((p) => p.id);
-            const { likedPostIds, bookmarkedPostIds } =
-              await checkUserInteractions(user.id, postIds);
+            const [{ likedPostIds, bookmarkedPostIds }, repostedPostIds] =
+              await Promise.all([
+                checkUserInteractions(user.id, postIds),
+                checkUserReposted(user.id, postIds),
+              ]);
 
             enrichedPosts = posts.map((p) => ({
               ...p,
               user_has_liked: likedPostIds.has(p.id),
               user_has_bookmarked: bookmarkedPostIds.has(p.id),
+              user_has_reposted: repostedPostIds.has(p.id),
             }));
           } catch {
-            // If interactions check fails, still show posts without interaction state
             enrichedPosts = posts.map((p) => ({
               ...p,
               user_has_liked: false,
               user_has_bookmarked: false,
+              user_has_reposted: false,
             }));
           }
         }
@@ -54,6 +59,7 @@ export function useFeed(tab: "foryou" | "following") {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!user,
-    staleTime: 30_000,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
   });
 }

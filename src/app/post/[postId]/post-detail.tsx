@@ -6,8 +6,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Loader2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PostCard } from "@/components/feed/post-card";
-import { InlineComposer } from "@/components/feed/post-composer";
 import { PostSkeleton } from "@/components/shared/loading-skeleton";
+import { Button } from "@/components/ui/button";
+import { Loader2 as Loader2Icon } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Textarea } from "@/components/ui/textarea";
@@ -220,15 +221,13 @@ export function PostDetail({ postId }: { postId: string }) {
       />
 
       {/* Reply Composer */}
-      <div className="border-b border-border">
-        <InlineComposer
-          replyToId={postId}
-          onSuccess={() => {
-            refetchComments();
-            queryClient.invalidateQueries({ queryKey: ["post", postId] });
-          }}
-        />
-      </div>
+      <ReplyComposer
+        postId={postId}
+        onSuccess={() => {
+          refetchComments();
+          queryClient.invalidateQueries({ queryKey: ["post", postId] });
+        }}
+      />
 
       {/* Comments with threaded replies */}
       {commentsLoading ? (
@@ -249,6 +248,58 @@ export function PostDetail({ postId }: { postId: string }) {
           No replies yet. Be the first to reply.
         </div>
       )}
+    </div>
+  );
+}
+
+function ReplyComposer({ postId, onSuccess }: { postId: string; onSuccess: () => void }) {
+  const { user } = useAuth();
+  const [content, setReplyContent] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!user) return null;
+
+  const handleSubmit = async () => {
+    if (!content.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await createPost(user.id, { content: content.trim() }, [], { replyToId: postId });
+      setReplyContent("");
+      toast.success("Reply posted");
+      onSuccess();
+    } catch {
+      toast.error("Failed to post reply");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="border-b border-white/[0.06] p-4">
+      <div className="flex gap-3">
+        <div className="h-8 w-8 rounded-full bg-white/[0.06] flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0">
+          {user.email?.[0]?.toUpperCase() || "U"}
+        </div>
+        <div className="flex-1">
+          <textarea
+            value={content}
+            onChange={(e) => setReplyContent(e.target.value)}
+            placeholder="Write a reply..."
+            className="w-full bg-transparent text-sm resize-none border-none outline-none placeholder:text-muted-foreground/50 min-h-[40px]"
+            rows={2}
+          />
+          <div className="flex justify-end mt-2">
+            <Button
+              size="sm"
+              className="rounded-full px-5 font-semibold cursor-pointer"
+              onClick={handleSubmit}
+              disabled={!content.trim() || isSubmitting}
+            >
+              {isSubmitting ? <Loader2Icon className="h-3.5 w-3.5 animate-spin" /> : "Reply"}
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

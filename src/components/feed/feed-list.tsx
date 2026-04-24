@@ -117,6 +117,7 @@ export function FeedList({ tab }: FeedListProps) {
           post={post}
           isLiked={post.user_has_liked}
           isBookmarked={post.user_has_bookmarked}
+          isReposted={post.user_has_reposted}
           onUpdate={() => refetch()}
           allUserPosts={allPosts}
         />
