@@ -6,7 +6,7 @@ import { Plus, Search, Users, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/shared/empty-state";
+import { OrbitEmptyState } from "@/components/orbit/empty-state";
 import { CommunityCard } from "@/components/communities/community-card";
 import { CreateCommunityDialog } from "@/components/communities/create-community-dialog";
 import { getCommunities, searchCommunities } from "@/lib/queries/communities";
@@ -84,28 +84,19 @@ export default function CommunitiesPage() {
             />
           ))
         ) : (
-          <div className="rounded-3xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-xl p-10">
-            <EmptyState
-              icon={Users}
-              title={debouncedQuery ? "No spaces found" : "No spaces yet"}
-              description={
-                debouncedQuery
-                  ? "Try a different search term"
-                  : "Be the first to create a space."
-              }
-              action={
-                !debouncedQuery && user ? (
-                  <Button
-                    onClick={() => setCreateOpen(true)}
-                    className="rounded-2xl px-5 bg-primary text-primary-foreground border-0 shadow-[0_4px_16px_oklch(0.623_0.214_259_/_0.4)] hover:brightness-110"
-                  >
-                    <Plus className="h-4 w-4 mr-1.5" />
-                    Create Space
-                  </Button>
-                ) : undefined
-              }
-            />
-          </div>
+          <OrbitEmptyState
+            icon={Users}
+            headline={debouncedQuery ? "No" : "Small"}
+            accentWord={debouncedQuery ? "matches" : "places"}
+            sub={
+              debouncedQuery
+                ? "Try a different search term, or start a space yourself."
+                : "No spaces yet. Spin up a room for a topic you'd defend at a dinner table. Six people who care beats six hundred who don't."
+            }
+            ctaLabel={user ? "Start a space" : undefined}
+            ctaIcon={<Plus style={{ width: 13, height: 13 }} />}
+            onCta={user ? () => setCreateOpen(true) : undefined}
+          />
         )}
       </div>
 

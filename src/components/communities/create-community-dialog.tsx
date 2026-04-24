@@ -2,19 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Globe } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ModalShell, Field, Input, TextArea, RadioRow } from "@/components/orbit/forms";
+import { O } from "@/lib/design/orbit";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createCommunity } from "@/lib/queries/communities";
 
@@ -33,6 +25,8 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+type Visibility = "public" | "approval" | "invite";
+
 export function CreateCommunityDialog({
   open,
   onOpenChange,
@@ -43,6 +37,7 @@ export function CreateCommunityDialog({
   const [slug, setSlug] = useState("");
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [description, setDescription] = useState("");
+  const [visibility, setVisibility] = useState<Visibility>("public");
   const [creating, setCreating] = useState(false);
 
   const slugError =
@@ -68,24 +63,27 @@ export function CreateCommunityDialog({
     setSlug(value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !canSubmit) return;
+  const reset = () => {
+    setName("");
+    setSlug("");
+    setSlugManuallyEdited(false);
+    setDescription("");
+    setVisibility("public");
+  };
 
+  const handleSubmit = async () => {
+    if (!user || !canSubmit) return;
     setCreating(true);
     try {
       const community = await createCommunity(
         user.id,
         name.trim(),
         slug.trim(),
-        description.trim()
+        description.trim(),
       );
       toast.success(`Created ${community.name}`);
       onOpenChange(false);
-      setName("");
-      setSlug("");
-      setSlugManuallyEdited(false);
-      setDescription("");
+      reset();
       router.push(`/communities/${community.slug}`);
     } catch (err: unknown) {
       const message =
@@ -102,82 +100,62 @@ export function CreateCommunityDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-card border-border">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Create Community</DialogTitle>
-            <DialogDescription>
-              Start a new community and invite others to join.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label
-                htmlFor="community-name"
-                className="text-sm font-medium"
-              >
-                Name
-              </label>
-              <Input
-                id="community-name"
-                placeholder="My Community"
-                value={name}
-                onChange={(e) => handleNameChange(e.target.value)}
-                maxLength={100}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label
-                htmlFor="community-slug"
-                className="text-sm font-medium"
-              >
-                URL Slug
-              </label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  /communities/
-                </span>
-                <Input
-                  id="community-slug"
-                  placeholder="my-community"
-                  value={slug}
-                  onChange={(e) => handleSlugChange(e.target.value)}
-                  maxLength={100}
-                  className="flex-1"
-                />
-              </div>
-              {slugError && (
-                <p className="text-xs text-destructive">{slugError}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <label
-                htmlFor="community-description"
-                className="text-sm font-medium"
-              >
-                Description
-              </label>
-              <Textarea
-                id="community-description"
-                placeholder="What is this community about?"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                maxLength={500}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button type="submit" disabled={!canSubmit}>
-              {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Create Community
-            </Button>
-          </DialogFooter>
-        </form>
+      <DialogContent
+        className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
+        style={{ boxShadow: "none" }}
+      >
+        <ModalShell
+          title="Start a space"
+          subtitle="Small community. Invite the people who actually care."
+          icon={<Globe style={{ width: 18, height: 18 }} strokeWidth={1.8} />}
+          accent={O.a2}
+          primaryLabel={creating ? "Creating…" : "Create space"}
+          secondaryLabel="Cancel"
+          canSubmit={canSubmit}
+          loading={creating}
+          onPrimary={handleSubmit}
+          onSecondary={() => onOpenChange(false)}
+          onClose={() => onOpenChange(false)}
+        >
+          <Field label="Name">
+            <Input
+              value={name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="Film photographers"
+              maxLength={100}
+              autoFocus
+            />
+          </Field>
+          <Field label="URL" hint="lowercase, no spaces" error={slugError ?? undefined}>
+            <Input
+              prefix="orbit/s/"
+              value={slug}
+              onChange={(e) => handleSlugChange(e.target.value)}
+              placeholder="film-photographers"
+              maxLength={100}
+            />
+          </Field>
+          <Field label="Description" hint="optional">
+            <TextArea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What is this space about?"
+              rows={3}
+              maxLength={500}
+            />
+          </Field>
+          <Field label="Who can join?">
+            <RadioRow<Visibility>
+              value={visibility}
+              onChange={setVisibility}
+              options={[
+                { value: "public", label: "Anyone", hint: "public", accent: O.a2 },
+                { value: "approval", label: "Approval", hint: "you review", accent: "#ffd76a" },
+                { value: "invite", label: "Invite only", hint: "private", accent: O.a3 },
+              ]}
+            />
+          </Field>
+        </ModalShell>
       </DialogContent>
     </Dialog>
   );

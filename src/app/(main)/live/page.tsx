@@ -3,21 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Radio, Loader2 } from "lucide-react";
+import { Radio } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/shared/empty-state";
+import { OrbitEmptyState } from "@/components/orbit/empty-state";
 import { LiveStreamCard } from "@/components/live/live-stream-card";
 import { getLiveStreams, createStream } from "@/lib/queries/live";
 import { useAuth } from "@/lib/hooks/use-auth";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ModalShell, Field, Input } from "@/components/orbit/forms";
+import { O } from "@/lib/design/orbit";
 
 export default function LivePage() {
   const { data: streams, isLoading } = useQuery({
@@ -96,64 +92,133 @@ export default function LivePage() {
             ))}
           </div>
         ) : (
-          <div className="rounded-3xl bg-white/[0.03] border border-white/[0.06] p-10">
-            <EmptyState
-              icon={Radio}
-              title="No one is live right now"
-              description="When people you follow go live, their streams will appear here."
-            />
-          </div>
+          <OrbitEmptyState
+            icon={Radio}
+            accent="#ff5a6a"
+            headline="Nobody's"
+            accentWord="on air"
+            sub="When people you follow go live, you'll find their streams here. Or skip the wait and go first."
+            ctaLabel="Go live"
+            ctaIcon={<Radio style={{ width: 12, height: 12 }} />}
+            onCta={() => setGoLiveOpen(true)}
+            secondaryLabel="Notify me"
+          />
         )}
       </div>
 
       <Dialog open={goLiveOpen} onOpenChange={setGoLiveOpen}>
-        <DialogContent className="sm:max-w-[440px] p-0 gap-0 bg-popover border border-white/[0.08] rounded-3xl overflow-hidden shadow-2xl">
-          <DialogHeader className="p-5 border-b border-white/[0.06]">
-            <DialogTitle className="flex items-center gap-2.5 text-foreground text-lg">
-              <div className="h-9 w-9 rounded-2xl bg-red-500/15 flex items-center justify-center">
-                <Radio className="h-4.5 w-4.5 text-red-400" />
-              </div>
-              Go Live
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm">
-              Give your stream a title and start broadcasting.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="p-5 space-y-4">
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-2 block uppercase tracking-wider">
-                Stream Title
-              </label>
-              <input
-                type="text"
+        <DialogContent
+          className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
+          style={{ boxShadow: "none" }}
+        >
+          <ModalShell
+            title="Go live"
+            subtitle="Hit start and you're broadcasting. No rehearsal."
+            icon={<Radio style={{ width: 18, height: 18 }} />}
+            accent="#ff5a6a"
+            primaryLabel={creating ? "Starting…" : "Start stream"}
+            secondaryLabel="Cancel"
+            canSubmit={!!title.trim()}
+            loading={creating}
+            onPrimary={handleGoLive}
+            onSecondary={() => setGoLiveOpen(false)}
+            onClose={() => setGoLiveOpen(false)}
+          >
+            <Field label="Stream title">
+              <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="What are you streaming?"
                 maxLength={100}
                 autoFocus
-                className="w-full h-11 px-4 rounded-2xl text-sm bg-white/[0.04] border border-white/[0.08] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-red-500/50 focus:bg-white/[0.06] transition-all"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && title.trim()) handleGoLive();
                 }}
               />
-            </div>
-          </div>
-
-          <div className="p-5 border-t border-white/[0.06] flex justify-end">
-            <Button
-              onClick={handleGoLive}
-              disabled={!title.trim() || creating}
-              className="rounded-2xl h-11 px-6 font-semibold bg-red-500 hover:bg-red-600 text-white border-0 shadow-[0_4px_16px_rgba(239,68,68,0.4)] transition-all"
-            >
-              {creating ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Radio className="h-4 w-4 mr-2" />
-              )}
-              Start Stream
-            </Button>
-          </div>
+            </Field>
+            <Field label="Preview">
+              <div
+                style={{
+                  aspectRatio: "16/9",
+                  borderRadius: 14,
+                  position: "relative",
+                  overflow: "hidden",
+                  background:
+                    "linear-gradient(135deg, oklch(0.25 0.04 260), oklch(0.15 0.05 280))",
+                  border: `1px solid ${O.hair2}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background:
+                      "repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0 10px, transparent 10px 20px)",
+                  }}
+                />
+                <div style={{ textAlign: "center", color: O.ink3 }}>
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: "50%",
+                      background: "rgba(255,90,106,0.15)",
+                      border: "1px solid rgba(255,90,106,0.4)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      margin: "0 auto 10px",
+                    }}
+                  >
+                    <Radio style={{ width: 20, height: 20, color: "#ff5a6a" }} />
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: O.ink2,
+                      fontFamily: O.mono,
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    READY TO STREAM
+                  </div>
+                </div>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 10,
+                    left: 10,
+                    padding: "4px 9px",
+                    borderRadius: 99,
+                    background: "rgba(255,90,106,0.2)",
+                    border: "1px solid rgba(255,90,106,0.5)",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: "#ff5a6a",
+                    fontFamily: O.mono,
+                    letterSpacing: "0.1em",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: "#ff5a6a",
+                      boxShadow: "0 0 8px #ff5a6a",
+                    }}
+                  />
+                  READY
+                </div>
+              </div>
+            </Field>
+          </ModalShell>
         </DialogContent>
       </Dialog>
     </div>

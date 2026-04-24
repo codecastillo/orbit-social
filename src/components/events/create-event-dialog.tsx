@@ -1,17 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2Icon } from "lucide-react";
+import { Calendar } from "lucide-react";
+import { toast } from "sonner";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+  ModalShell,
+  Field,
+  Input,
+  TextArea,
+  Toggle,
+} from "@/components/orbit/forms";
+import { O } from "@/lib/design/orbit";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createEvent } from "@/lib/queries/events";
 
@@ -37,7 +37,7 @@ export function CreateEventDialog({
   const [isOnline, setIsOnline] = useState(false);
   const [onlineUrl, setOnlineUrl] = useState("");
 
-  function resetForm() {
+  const reset = () => {
     setTitle("");
     setDescription("");
     setStartAt("");
@@ -45,12 +45,12 @@ export function CreateEventDialog({
     setLocation("");
     setIsOnline(false);
     setOnlineUrl("");
-  }
+  };
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!user || !title.trim() || !startAt) return;
+  const canSubmit = title.trim().length > 0 && startAt.length > 0 && !loading;
 
+  const handleSubmit = async () => {
+    if (!user || !canSubmit) return;
     setLoading(true);
     try {
       await createEvent(user.id, {
@@ -62,126 +62,113 @@ export function CreateEventDialog({
         is_online: isOnline,
         online_url: isOnline && onlineUrl.trim() ? onlineUrl.trim() : undefined,
       });
-
-      resetForm();
+      reset();
       onOpenChange(false);
       onCreated?.();
+      toast.success("Event created");
     } catch (err) {
       console.error("Failed to create event:", err);
+      toast.error("Failed to create event");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Create Event</DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-muted-foreground mb-1 block">
-              Title
-            </label>
+      <DialogContent
+        className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
+        style={{ boxShadow: "none" }}
+      >
+        <ModalShell
+          title="Create an event"
+          subtitle="Meetups, launches, listening sessions."
+          icon={<Calendar style={{ width: 17, height: 17 }} strokeWidth={1.8} />}
+          accent={O.a3}
+          width={560}
+          primaryLabel={loading ? "Creating…" : "Create event"}
+          secondaryLabel="Cancel"
+          canSubmit={canSubmit}
+          loading={loading}
+          onPrimary={handleSubmit}
+          onSecondary={() => onOpenChange(false)}
+          onClose={() => onOpenChange(false)}
+        >
+          <Field label="Title">
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Event name"
-              required
+              placeholder="Film night · zine launch"
+              autoFocus
             />
+          </Field>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <Field label="Starts" hint="local">
+              <Input
+                type="datetime-local"
+                value={startAt}
+                onChange={(e) => setStartAt(e.target.value)}
+                style={{ colorScheme: "dark" }}
+              />
+            </Field>
+            <Field label="Ends">
+              <Input
+                type="datetime-local"
+                value={endAt}
+                onChange={(e) => setEndAt(e.target.value)}
+                style={{ colorScheme: "dark" }}
+              />
+            </Field>
           </div>
-
-          <div>
-            <label className="text-sm font-medium text-muted-foreground mb-1 block">
-              Start Date & Time
-            </label>
-            <input
-              type="datetime-local"
-              value={startAt}
-              onChange={(e) => setStartAt(e.target.value)}
-              required
-              className="w-full h-8 rounded-lg border border-border bg-background px-2.5 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50 [color-scheme:dark]"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-muted-foreground mb-1 block">
-              End Date & Time
-            </label>
-            <input
-              type="datetime-local"
-              value={endAt}
-              onChange={(e) => setEndAt(e.target.value)}
-              className="w-full h-8 rounded-lg border border-border bg-background px-2.5 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50 [color-scheme:dark]"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-muted-foreground mb-1 block">
-              Location
-            </label>
+          <Field label="Where">
             <Input
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="Venue or address"
+              prefix="📍"
             />
+          </Field>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 14px",
+              borderRadius: 12,
+              background: "rgba(255,255,255,0.025)",
+              border: `1px solid ${O.hair2}`,
+              marginBottom: 18,
+            }}
+          >
+            <Toggle on={isOnline} onChange={setIsOnline} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: O.ink }}>
+                Online event
+              </div>
+              <div style={{ fontSize: 11, color: O.ink3, marginTop: 2 }}>
+                we&apos;ll generate a video link
+              </div>
+            </div>
           </div>
-
-          {/* Online toggle */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={isOnline}
-              onClick={() => setIsOnline((v) => !v)}
-              className={`relative h-6 w-11 rounded-full transition-colors ${
-                isOnline ? "bg-primary" : "bg-muted"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
-                  isOnline ? "translate-x-5" : "translate-x-0"
-                }`}
-              />
-            </button>
-            <span className="text-sm text-muted-foreground">Online event</span>
-          </div>
-
           {isOnline && (
-            <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">
-                Meeting URL
-              </label>
+            <Field label="Meeting URL">
               <Input
                 value={onlineUrl}
                 onChange={(e) => setOnlineUrl(e.target.value)}
                 placeholder="https://meet.google.com/..."
                 type="url"
               />
-            </div>
+            </Field>
           )}
-
-          <div>
-            <label className="text-sm font-medium text-muted-foreground mb-1 block">
-              Description
-            </label>
-            <Textarea
+          <Field label="Description">
+            <TextArea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Tell people about your event..."
+              placeholder="Tell people what to show up for."
               rows={3}
             />
-          </div>
-
-          <DialogFooter>
-            <Button type="submit" disabled={loading || !title.trim() || !startAt}>
-              {loading && <Loader2Icon className="h-4 w-4 animate-spin" />}
-              {loading ? "Creating..." : "Create Event"}
-            </Button>
-          </DialogFooter>
-        </form>
+          </Field>
+        </ModalShell>
       </DialogContent>
     </Dialog>
   );

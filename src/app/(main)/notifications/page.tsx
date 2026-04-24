@@ -5,6 +5,7 @@ import { Bell, CheckCheck, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NotificationItem } from "@/components/notifications/notification-item";
+import { OrbitEmptyState } from "@/components/orbit/empty-state";
 import { useNotifications, useUnreadCount } from "@/lib/hooks/use-notifications";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { markAllAsRead } from "@/lib/queries/notifications";
@@ -101,17 +102,13 @@ export default function NotificationsPage() {
           ))}
         </div>
       ) : !notifications || notifications.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24">
-          <div className="h-20 w-20 rounded-3xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center mb-5">
-            <Bell className="h-8 w-8 text-muted-foreground/40" />
-          </div>
-          <p className="text-base font-semibold text-foreground/80">
-            All caught up
-          </p>
-          <p className="text-sm text-muted-foreground/70 mt-1.5">
-            No new notifications right now.
-          </p>
-        </div>
+        <OrbitEmptyState
+          icon={Bell}
+          accent="#ffd76a"
+          headline="All"
+          accentWord="caught up"
+          sub="No new signals in your orbit. Come back later — or go post something and give someone else a reason to show up here."
+        />
       ) : (
         <div className="p-4 space-y-2">
           {notifications.map((notification) => (

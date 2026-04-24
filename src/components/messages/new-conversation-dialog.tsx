@@ -2,16 +2,12 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, PenLine, Loader2 } from "lucide-react";
+import { Edit3, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ModalShell, Field, Input } from "@/components/orbit/forms";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { O, auroraSoft } from "@/lib/design/orbit";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { searchUsers, type ProfileSummary } from "@/lib/queries/social";
 import { getOrCreateDMConversation } from "@/lib/queries/messages";
@@ -39,13 +35,10 @@ export function NewConversationDialog({
         setSearchResults([]);
         return;
       }
-
       setSearching(true);
       try {
         const results = await searchUsers(query, 10);
-        // Filter out current user
-        const filtered = results.filter((r) => r.id !== user?.id);
-        setSearchResults(filtered);
+        setSearchResults(results.filter((r) => r.id !== user?.id));
       } catch {
         toast.error("Failed to search users");
       } finally {
@@ -56,19 +49,12 @@ export function NewConversationDialog({
   );
 
   const handleSelectUser = async (profile: ProfileSummary) => {
-    if (!user) {
-      toast.error("You must be signed in");
-      return;
-    }
-
+    if (!user) return;
     setNavigating(profile.id);
     try {
-      const conversationId = await getOrCreateDMConversation(
-        user.id,
-        profile.id
-      );
+      const conversationId = await getOrCreateDMConversation(user.id, profile.id);
       onOpenChange(false);
-      resetForm();
+      reset();
       router.push(`/messages/${conversationId}`);
     } catch {
       toast.error("Failed to start conversation");
@@ -77,7 +63,7 @@ export function NewConversationDialog({
     }
   };
 
-  const resetForm = () => {
+  const reset = () => {
     setSearchQuery("");
     setSearchResults([]);
   };
@@ -87,78 +73,165 @@ export function NewConversationDialog({
       open={open}
       onOpenChange={(val) => {
         onOpenChange(val);
-        if (!val) resetForm();
+        if (!val) reset();
       }}
     >
-      <DialogContent className="sm:max-w-[480px] p-0 gap-0 bg-zinc-900 border-white/[0.1] rounded-xl overflow-hidden shadow-2xl">
-        <DialogHeader className="p-4 border-b border-white/[0.06]">
-          <DialogTitle className="flex items-center gap-2 text-zinc-100">
-            <PenLine className="h-4.5 w-4.5 text-blue-400" />
-            New Conversation
-          </DialogTitle>
-          <DialogDescription className="text-zinc-500 text-sm">
-            Search for someone to start a conversation with.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="p-4 space-y-3">
-          {/* User search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-            <input
-              type="text"
+      <DialogContent
+        className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
+        style={{ boxShadow: "none" }}
+      >
+        <ModalShell
+          title="New conversation"
+          subtitle="Search someone to start talking to."
+          icon={<Edit3 style={{ width: 17, height: 17 }} strokeWidth={1.8} />}
+          accent={O.a2}
+          primaryLabel="Start"
+          canSubmit={false}
+          onClose={() => onOpenChange(false)}
+          onSecondary={() => onOpenChange(false)}
+          secondaryLabel="Close"
+        >
+          <Field label="To">
+            <Input
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
-              placeholder="Search by name or username..."
+              placeholder="Search by name or @handle…"
+              prefix="🔎"
               autoFocus
-              className="w-full h-10 pl-9 pr-3 rounded-lg text-sm bg-white/[0.04] border border-white/[0.1] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors"
             />
-            {searching && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 animate-spin" />
-            )}
-          </div>
+          </Field>
 
-          {/* Search results */}
-          <div className="max-h-[320px] overflow-y-auto">
-            {searchResults.length > 0 ? (
-              <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-                {searchResults.map((profile) => (
-                  <button
-                    key={profile.id}
-                    onClick={() => handleSelectUser(profile)}
-                    disabled={navigating === profile.id}
-                    className="flex items-center gap-3 w-full p-3 hover:bg-white/[0.04] transition-colors text-left disabled:opacity-50"
-                  >
-                    <UserAvatar
-                      src={profile.avatar_url}
-                      fallback={profile.display_name}
-                      size="md"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-zinc-200 truncate">
-                        {profile.display_name}
-                      </p>
-                      <p className="text-xs text-zinc-500 truncate">
-                        @{profile.username}
-                      </p>
-                    </div>
-                    {navigating === profile.id && (
-                      <Loader2 className="h-4 w-4 text-blue-400 animate-spin shrink-0" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            ) : searchQuery.trim().length >= 2 && !searching ? (
-              <p className="text-center text-sm text-zinc-500 py-6">
-                No users found
-              </p>
-            ) : searchQuery.trim().length === 0 ? (
-              <p className="text-center text-sm text-zinc-500 py-6">
+          {searching && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "14px 16px",
+                borderRadius: 12,
+                background: "rgba(255,255,255,0.025)",
+                border: `1px solid ${O.hair2}`,
+                marginBottom: 18,
+              }}
+            >
+              <Loader2
+                style={{ width: 14, height: 14, color: O.ink3 }}
+                className="animate-spin"
+              />
+              <span style={{ fontSize: 12, color: O.ink3 }}>Searching…</span>
+            </div>
+          )}
+
+          {searchQuery.trim().length === 0 && (
+            <div
+              style={{
+                padding: "14px 16px",
+                borderRadius: 12,
+                background: "rgba(255,255,255,0.025)",
+                border: `1px solid ${O.hair2}`,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                marginBottom: 18,
+              }}
+            >
+              <AlertCircle
+                style={{ width: 14, height: 14, color: O.ink3 }}
+                strokeWidth={1.6}
+              />
+              <span style={{ fontSize: 12, color: O.ink3 }}>
                 Type at least 2 characters to search
-              </p>
-            ) : null}
-          </div>
-        </div>
+              </span>
+            </div>
+          )}
+
+          {searchResults.length > 0 && (
+            <>
+              <div
+                style={{
+                  marginBottom: 10,
+                  fontSize: 11,
+                  color: O.ink3,
+                  fontFamily: O.mono,
+                  letterSpacing: "0.12em",
+                  fontWeight: 600,
+                }}
+              >
+                RESULTS
+              </div>
+              {searchResults.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => handleSelectUser(p)}
+                  disabled={navigating === p.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "10px 10px",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    width: "100%",
+                    background: "transparent",
+                    border: "none",
+                    color: O.ink,
+                    textAlign: "left",
+                    opacity: navigating === p.id ? 0.5 : 1,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <UserAvatar
+                    src={p.avatar_url}
+                    fallback={p.display_name}
+                    size="md"
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 13.5,
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {p.display_name}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: O.ink3 }}>
+                      @{p.username}
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: 99,
+                      background: auroraSoft,
+                      border: `1px solid ${O.a2}44`,
+                      color: O.ink,
+                      fontSize: 11.5,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {navigating === p.id ? "…" : "Message"}
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
+
+          {searchQuery.trim().length >= 2 && !searching && searchResults.length === 0 && (
+            <p
+              style={{
+                textAlign: "center",
+                fontSize: 12,
+                color: O.ink3,
+                padding: "24px 0",
+              }}
+            >
+              No users found
+            </p>
+          )}
+        </ModalShell>
       </DialogContent>
     </Dialog>
   );

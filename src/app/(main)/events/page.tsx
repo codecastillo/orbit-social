@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { PlusIcon, CalendarIcon, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/shared/empty-state";
+import { OrbitEmptyState } from "@/components/orbit/empty-state";
+import { O } from "@/lib/design/orbit";
 import { EventCard } from "@/components/events/event-card";
 import { CreateEventDialog } from "@/components/events/create-event-dialog";
 import { getEvents, type EventWithCreator } from "@/lib/queries/events";
@@ -74,22 +75,17 @@ export default function EventsPage() {
         </div>
       ) : events.length === 0 ? (
         <div className="px-6 pb-20 max-w-6xl">
-          <div className="rounded-3xl bg-white/[0.03] border border-white/[0.06] p-10">
-            <EmptyState
-              icon={CalendarIcon}
-              title="No upcoming events"
-              description="Create an event or check back later."
-              action={
-                <Button
-                  onClick={() => setShowCreate(true)}
-                  className="rounded-2xl h-10 px-5 font-semibold text-sm bg-primary text-primary-foreground border-0 shadow-[0_4px_16px_oklch(0.623_0.214_259_/_0.4)] hover:brightness-110"
-                >
-                  <PlusIcon className="h-4 w-4 mr-1.5" />
-                  Create Event
-                </Button>
-              }
-            />
-          </div>
+          <OrbitEmptyState
+            icon={CalendarIcon}
+            accent={O.a3}
+            headline="Nothing"
+            accentWord="scheduled"
+            sub="No events on your orbit yet. Create a meetup, a listening session, a launch — the real-world side of this place."
+            ctaLabel="Create event"
+            ctaIcon={<PlusIcon style={{ width: 13, height: 13 }} />}
+            onCta={() => setShowCreate(true)}
+            secondaryLabel="Discover events"
+          />
         </div>
       ) : (
         <div className="px-6 pb-20 max-w-6xl space-y-3">
