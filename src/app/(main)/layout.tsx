@@ -16,8 +16,8 @@ export default function MainLayout({
       <TopBar />
 
       {/* Main content area */}
-      <main className="lg:ml-[272px] xl:mr-[320px] min-h-screen pb-20 lg:pb-0">
-        <div className="mx-auto max-w-[600px] w-full">{children}</div>
+      <main className="lg:ml-[72px] min-h-screen pb-20 lg:pb-0">
+        <div className="mx-auto max-w-2xl w-full">{children}</div>
       </main>
 
       <RightPanel />

@@ -137,16 +137,28 @@
   100% { background-position: 200% 0; }
 }
 
+@keyframes gradient-rotate {
+  0% { --gradient-angle: 0deg; }
+  100% { --gradient-angle: 360deg; }
+}
+
+@property --gradient-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
 /* Glassmorphism utilities */
 @layer utilities {
   .glass {
-    background: oklch(1 0 0 / 5%);
-    backdrop-filter: blur(32px) saturate(1.4);
-    -webkit-backdrop-filter: blur(32px) saturate(1.4);
-    border: 1px solid oklch(1 0 0 / 10%);
+    background: oklch(1 0 0 / 4%);
+    backdrop-filter: blur(48px) saturate(1.6);
+    -webkit-backdrop-filter: blur(48px) saturate(1.6);
+    border: 1px solid oklch(1 0 0 / 8%);
     box-shadow:
       0 0 0 1px oklch(1 0 0 / 3%) inset,
-      0 2px 20px oklch(0 0 0 / 20%);
+      0 1px 0 0 oklch(1 0 0 / 5%) inset,
+      0 4px 24px oklch(0 0 0 / 25%);
   }
 
   .glass-strong {
@@ -161,16 +173,48 @@
   }
 
   .card-elevated {
+    --gradient-angle: 0deg;
+    position: relative;
     background: oklch(0.12 0 0 / 80%);
     backdrop-filter: blur(40px) saturate(1.5);
     -webkit-backdrop-filter: blur(40px) saturate(1.5);
-    border: 1px solid oklch(1 0 0 / 8%);
+    border: 1px solid transparent;
+    background-image:
+      linear-gradient(oklch(0.12 0 0 / 80%), oklch(0.12 0 0 / 80%)),
+      conic-gradient(from var(--gradient-angle), oklch(0.623 0.214 259 / 40%), oklch(0.7 0.2 300 / 40%), oklch(0.5 0.2 200 / 40%), oklch(0.623 0.214 259 / 40%));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
     box-shadow:
       0 0 0 1px oklch(1 0 0 / 4%) inset,
-      0 0 40px oklch(0.623 0.214 259 / 3%),
+      0 0 60px oklch(0.623 0.214 259 / 5%),
       0 4px 32px oklch(0 0 0 / 40%),
       0 1px 3px oklch(0 0 0 / 30%);
     border-radius: 1.25rem;
+    animation: gradient-rotate 6s linear infinite;
+  }
+
+  .glow-border {
+    --gradient-angle: 0deg;
+    position: relative;
+    border: 1px solid transparent;
+    background-image:
+      linear-gradient(var(--background), var(--background)),
+      conic-gradient(from var(--gradient-angle), oklch(0.623 0.214 259), oklch(0.7 0.2 300), oklch(0.5 0.25 180), oklch(0.65 0.2 330), oklch(0.623 0.214 259));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    animation: gradient-rotate 4s linear infinite;
+  }
+
+  .glow-text {
+    text-shadow:
+      0 0 12px oklch(0.623 0.214 259 / 50%),
+      0 0 32px oklch(0.623 0.214 259 / 20%);
+  }
+
+  .glow-box {
+    box-shadow:
+      0 0 16px oklch(0.623 0.214 259 / 25%),
+      0 0 48px oklch(0.623 0.214 259 / 10%);
   }
 
   .input-premium {

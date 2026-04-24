@@ -47,11 +47,20 @@ export default function CommunitiesPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-700/50 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-bold text-zinc-100">Spaces</h1>
+      <div className="sticky top-0 z-10 bg-zinc-950/60 backdrop-blur-2xl border-b border-white/[0.06]">
+        <div className="flex items-center justify-between px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 flex items-center justify-center">
+              <Users className="h-4.5 w-4.5 text-violet-400" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight text-zinc-100">Spaces</h1>
+          </div>
           {user && (
-            <Button size="sm" onClick={() => setCreateOpen(true)} className="bg-violet-600 hover:bg-violet-500 text-white border-0 rounded-full">
+            <Button
+              size="sm"
+              onClick={() => setCreateOpen(true)}
+              className="rounded-full px-5 h-9 font-medium bg-gradient-to-r from-violet-600 to-cyan-500 text-white border-0 shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 hover:brightness-110 transition-all"
+            >
               <Plus className="h-4 w-4 mr-1.5" />
               Create
             </Button>
@@ -59,19 +68,21 @@ export default function CommunitiesPage() {
         </div>
 
         {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-          <Input
-            placeholder="Search spaces..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-zinc-800 border-zinc-700/50 text-zinc-200 placeholder:text-zinc-500"
-          />
+        <div className="px-5 pb-4">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+            <Input
+              placeholder="Search spaces..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-10 rounded-full bg-white/[0.05] border-white/[0.08] text-zinc-200 placeholder:text-zinc-500 focus:border-violet-500/50 focus:ring-violet-500/20 transition-all"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Community list */}
-      <div className="p-4 space-y-3">
+      {/* Space cards grid */}
+      <div className="p-5 space-y-3">
         {isLoading ? (
           Array.from({ length: 5 }).map((_, i) => (
             <CommunityCardSkeleton key={i} />
@@ -85,27 +96,32 @@ export default function CommunitiesPage() {
             />
           ))
         ) : (
-          <EmptyState
-            icon={Users}
-            title={
-              debouncedQuery
-                ? "No spaces found"
-                : "No spaces yet"
-            }
-            description={
-              debouncedQuery
-                ? "Try a different search term"
-                : "Be the first to create a space!"
-            }
-            action={
-              !debouncedQuery && user ? (
-                <Button onClick={() => setCreateOpen(true)} className="bg-violet-600 hover:bg-violet-500 text-white border-0 rounded-full">
-                  <Plus className="h-4 w-4 mr-1.5" />
-                  Create Space
-                </Button>
-              ) : undefined
-            }
-          />
+          <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-xl p-10">
+            <EmptyState
+              icon={Users}
+              title={
+                debouncedQuery
+                  ? "No spaces found"
+                  : "No spaces yet"
+              }
+              description={
+                debouncedQuery
+                  ? "Try a different search term"
+                  : "Be the first to create a space!"
+              }
+              action={
+                !debouncedQuery && user ? (
+                  <Button
+                    onClick={() => setCreateOpen(true)}
+                    className="rounded-full px-5 bg-gradient-to-r from-violet-600 to-cyan-500 text-white border-0 shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 hover:brightness-110 transition-all"
+                  >
+                    <Plus className="h-4 w-4 mr-1.5" />
+                    Create Space
+                  </Button>
+                ) : undefined
+              }
+            />
+          </div>
         )}
       </div>
 
@@ -119,7 +135,7 @@ export default function CommunitiesPage() {
 
 function CommunityCardSkeleton() {
   return (
-    <div className="rounded-xl border border-zinc-700/40 bg-zinc-800/50 p-4">
+    <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-xl p-4">
       <div className="flex items-start gap-3">
         <Skeleton className="h-14 w-14 rounded-full shrink-0" />
         <div className="flex-1 space-y-2">
@@ -127,7 +143,7 @@ function CommunityCardSkeleton() {
           <Skeleton className="h-3 w-full" />
           <Skeleton className="h-3 w-20" />
         </div>
-        <Skeleton className="h-8 w-16 rounded-md" />
+        <Skeleton className="h-8 w-16 rounded-full" />
       </div>
     </div>
   );

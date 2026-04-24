@@ -19,24 +19,32 @@ const settingsItems = [
     icon: User,
     title: "Profile",
     description: "Edit your avatar, display name, bio, and more",
+    gradient: "from-violet-500/20 to-purple-500/20",
+    iconColor: "text-violet-400",
   },
   {
     href: "/settings/privacy",
     icon: Shield,
     title: "Privacy",
     description: "Control who can see your content and activity",
+    gradient: "from-cyan-500/20 to-blue-500/20",
+    iconColor: "text-cyan-400",
   },
   {
     href: "/settings/notifications",
     icon: Bell,
     title: "Notifications",
     description: "Choose what notifications you receive",
+    gradient: "from-amber-500/20 to-orange-500/20",
+    iconColor: "text-amber-400",
   },
   {
     href: "/settings/account",
     icon: Settings,
     title: "Account",
     description: "Manage your email, password, and account",
+    gradient: "from-zinc-400/20 to-zinc-500/20",
+    iconColor: "text-zinc-400",
   },
 ];
 
@@ -58,44 +66,50 @@ export default function SettingsPage() {
   }, [user]);
 
   return (
-    <div className="border-x border-border min-h-screen">
-      <div className="p-4 border-b border-border">
-        <h2 className="text-lg font-semibold">Settings</h2>
+    <div className="min-h-screen">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-zinc-950/60 backdrop-blur-2xl border-b border-white/[0.06]">
+        <div className="flex items-center gap-3 px-5 py-4">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-zinc-400/20 to-zinc-500/20 flex items-center justify-center">
+            <Settings className="h-4.5 w-4.5 text-zinc-400" />
+          </div>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-100">Settings</h1>
+        </div>
       </div>
 
-      <div className="p-4 space-y-2">
+      <div className="p-5 space-y-2">
         {settingsItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className="flex items-center gap-4 p-4 rounded-xl glass hover:bg-white/5 transition-colors group"
+            className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-xl hover:bg-white/[0.06] transition-all group"
           >
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted">
-              <item.icon className="h-5 w-5 text-muted-foreground" />
+            <div className={`flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br ${item.gradient}`}>
+              <item.icon className={`h-5 w-5 ${item.iconColor}`} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-foreground">{item.title}</p>
-              <p className="text-sm text-muted-foreground">{item.description}</p>
+              <p className="font-medium text-zinc-200">{item.title}</p>
+              <p className="text-sm text-zinc-500">{item.description}</p>
             </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+            <ChevronRight className="h-5 w-5 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
           </Link>
         ))}
 
         {isCreator && (
           <Link
             href="/settings/creator"
-            className="flex items-center gap-4 p-4 rounded-xl glass hover:bg-white/5 transition-colors group"
+            className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-xl hover:bg-white/[0.06] transition-all group"
           >
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/20">
-              <BarChart3 className="h-5 w-5 text-primary" />
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500/20 to-teal-500/20">
+              <BarChart3 className="h-5 w-5 text-emerald-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-foreground">Creator Analytics</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="font-medium text-zinc-200">Creator Analytics</p>
+              <p className="text-sm text-zinc-500">
                 View your content performance and audience insights
               </p>
             </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+            <ChevronRight className="h-5 w-5 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
           </Link>
         )}
       </div>

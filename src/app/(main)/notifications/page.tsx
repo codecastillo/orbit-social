@@ -24,8 +24,8 @@ export default function NotificationsPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/70 backdrop-blur-2xl border-b border-white/[0.06]">
+      {/* Header — frosted glass with bell icon and unread badge */}
+      <div className="sticky top-0 z-10 bg-background/60 backdrop-blur-2xl border-b border-white/[0.06]">
         <div className="flex items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center relative">
@@ -42,7 +42,7 @@ export default function NotificationsPage() {
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs text-muted-foreground hover:text-foreground rounded-xl h-9 px-3"
+              className="text-xs text-muted-foreground hover:text-foreground rounded-full h-9 px-4 bg-white/[0.04] backdrop-blur-xl hover:bg-white/[0.08] border border-white/[0.06]"
               onClick={handleMarkAllRead}
             >
               <CheckCheck className="h-4 w-4 mr-1.5" />
@@ -78,12 +78,20 @@ export default function NotificationsPage() {
           </p>
         </div>
       ) : (
-        <div className="p-4 space-y-1.5">
+        <div className="p-4 space-y-2">
           {notifications.map((notification) => (
             <div
               key={notification.id}
-              className="rounded-2xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors"
+              className={`relative rounded-2xl border transition-all overflow-hidden ${
+                notification.is_read
+                  ? "bg-white/[0.02] border-white/[0.04] hover:bg-white/[0.04]"
+                  : "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05] shadow-sm shadow-primary/5"
+              }`}
             >
+              {/* Unread glow bar — 3px primary left border */}
+              {!notification.is_read && (
+                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary rounded-l-2xl shadow-[0_0_8px_rgba(124,58,237,0.4)]" />
+              )}
               <NotificationItem notification={notification} />
             </div>
           ))}

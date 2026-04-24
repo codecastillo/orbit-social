@@ -72,16 +72,17 @@ export function ProfileContent({
     }
   };
 
-  const tabTriggerClass =
-    "flex-1 rounded-none h-full font-semibold text-[14px] border-b-[3px] border-transparent text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent hover:bg-accent/50 transition-colors";
+  const pillBase =
+    "rounded-full px-5 py-2 text-[13px] font-semibold transition-all border-0 bg-white/[0.04] text-muted-foreground hover:bg-white/[0.08] data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:shadow-primary/10";
 
   return (
     <>
-      {/* Top bar with back button */}
-      <div className="sticky top-0 z-20 flex items-center gap-4 h-14 px-4 bg-background/80 backdrop-blur-xl border-b border-border/60">
+      {/* Top bar — frosted glass sticky header */}
+      <div className="sticky top-0 z-20 flex items-center gap-4 h-14 px-4 bg-background/60 backdrop-blur-2xl border-b border-white/[0.06]">
+        {/* Back button — frosted glass circle */}
         <button
           onClick={() => router.back()}
-          className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-accent transition-colors"
+          className="h-9 w-9 flex items-center justify-center rounded-full bg-white/[0.06] backdrop-blur-xl hover:bg-white/[0.10] transition-all"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -102,18 +103,19 @@ export function ProfileContent({
         onFollow={handleFollow}
       />
 
+      {/* Tabs — pill-style chips */}
       <Tabs defaultValue="posts" className="w-full">
-        <TabsList className="w-full rounded-none border-b border-border/60 bg-transparent h-12 px-0">
-          <TabsTrigger value="posts" className={tabTriggerClass}>
+        <TabsList className="w-full justify-start gap-2 rounded-none border-b border-white/[0.06] bg-transparent h-auto px-5 py-3">
+          <TabsTrigger value="posts" className={pillBase}>
             Posts
           </TabsTrigger>
-          <TabsTrigger value="replies" className={tabTriggerClass}>
+          <TabsTrigger value="replies" className={pillBase}>
             Replies
           </TabsTrigger>
-          <TabsTrigger value="media" className={tabTriggerClass}>
-            Media
+          <TabsTrigger value="clips" className={pillBase}>
+            Clips
           </TabsTrigger>
-          <TabsTrigger value="likes" className={tabTriggerClass}>
+          <TabsTrigger value="likes" className={pillBase}>
             Likes
           </TabsTrigger>
         </TabsList>
@@ -130,9 +132,9 @@ export function ProfileContent({
           </div>
         </TabsContent>
 
-        <TabsContent value="media" className="mt-0">
+        <TabsContent value="clips" className="mt-0">
           <div className="p-8 text-center text-muted-foreground text-sm">
-            No media yet.
+            No clips yet.
           </div>
         </TabsContent>
 

@@ -18,9 +18,9 @@ export default function FeedPage() {
       <PostComposer />
 
       {/* Header */}
-      <div className="sticky top-0 z-10 backdrop-blur-xl bg-zinc-900/80 border-b border-zinc-700/50">
-        <div className="px-5 pt-4 pb-1">
-          <h1 className="text-xl font-bold text-zinc-100">Home</h1>
+      <div className="sticky top-0 z-10 backdrop-blur-2xl bg-zinc-950/70">
+        <div className="px-5 pt-5 pb-2">
+          <h1 className="text-xl font-bold text-zinc-100 tracking-tight">Home</h1>
         </div>
 
         {/* Pill/Chip Tab Switcher */}
@@ -29,16 +29,16 @@ export default function FeedPage() {
           onValueChange={(v) => setTab(v as "foryou" | "following")}
           className="w-full"
         >
-          <TabsList className="w-full rounded-none bg-transparent h-auto px-4 py-2.5 gap-2 justify-start">
+          <TabsList className="w-full rounded-none bg-transparent h-auto px-4 py-2.5 gap-2 justify-start border-b border-white/[0.04]">
             <TabsTrigger
               value="foryou"
-              className="rounded-full px-5 py-1.5 font-semibold text-sm bg-zinc-800 text-zinc-400 border border-zinc-700/50 transition-all data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:border-violet-500 data-[state=active]:shadow-md data-[state=active]:shadow-violet-500/20 hover:bg-zinc-700"
+              className="rounded-full px-5 py-1.5 font-semibold text-sm bg-white/[0.04] text-zinc-500 border border-white/[0.06] transition-all duration-200 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/30 data-[state=active]:shadow-sm data-[state=active]:shadow-primary/20 hover:bg-white/[0.06] hover:text-zinc-300"
             >
               For You
             </TabsTrigger>
             <TabsTrigger
               value="following"
-              className="rounded-full px-5 py-1.5 font-semibold text-sm bg-zinc-800 text-zinc-400 border border-zinc-700/50 transition-all data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:border-violet-500 data-[state=active]:shadow-md data-[state=active]:shadow-violet-500/20 hover:bg-zinc-700"
+              className="rounded-full px-5 py-1.5 font-semibold text-sm bg-white/[0.04] text-zinc-500 border border-white/[0.06] transition-all duration-200 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/30 data-[state=active]:shadow-sm data-[state=active]:shadow-primary/20 hover:bg-white/[0.06] hover:text-zinc-300"
             >
               Following
             </TabsTrigger>
@@ -54,7 +54,7 @@ export default function FeedPage() {
           </div>
 
           <TabsContent value="foryou" className="mt-0">
-            <div className="px-3 pt-3">
+            <div className="px-4 pt-4">
               <StoryBar />
             </div>
             <FeedList tab="foryou" />

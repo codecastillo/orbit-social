@@ -52,7 +52,7 @@ export function FeedList({ tab }: FeedListProps) {
         action={
           <button
             onClick={() => refetch()}
-            className="text-primary text-sm font-medium hover:underline"
+            className="text-cyan-400 text-sm font-medium hover:underline"
           >
             Retry
           </button>
@@ -77,7 +77,7 @@ export function FeedList({ tab }: FeedListProps) {
   }
 
   return (
-    <div className="space-y-3 px-3 py-3">
+    <div className="space-y-4 px-4 py-4">
       {allPosts.map((post) => (
         <PostCard
           key={post.id}
@@ -93,7 +93,7 @@ export function FeedList({ tab }: FeedListProps) {
 
       {isFetchingNextPage && (
         <div className="flex justify-center py-6">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
         </div>
       )}
     </div>

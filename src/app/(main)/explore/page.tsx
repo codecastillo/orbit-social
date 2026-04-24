@@ -38,33 +38,37 @@ export default function ExplorePage() {
 
   return (
     <div className="min-h-screen">
-      {/* Hero search area */}
-      <div className="sticky top-0 z-10 bg-background/70 backdrop-blur-2xl border-b border-white/[0.06]">
+      {/* Header with search */}
+      <div className="sticky top-0 z-10 bg-background/60 backdrop-blur-2xl border-b border-white/[0.06]">
         <div className="px-5 pt-6 pb-5">
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-5">
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary/20 to-violet-500/20 flex items-center justify-center">
-              <Sparkles className="h-4.5 w-4.5 text-primary" />
+              <Search className="h-4.5 w-4.5 text-primary" />
             </div>
             <h1 className="text-xl font-bold tracking-tight">Discover</h1>
           </div>
+
+          {/* Search bar — large, prominent, rounded-full, frosted glass with glow on focus */}
           <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
             <Input
               placeholder="Search posts, people, tags..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="pl-12 pr-4 h-12 bg-white/[0.04] border-white/[0.08] rounded-2xl text-[15px] placeholder:text-muted-foreground/60 focus:bg-white/[0.06] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all"
+              className="pl-13 pr-5 h-13 bg-white/[0.04] border-white/[0.08] rounded-full text-[15px] placeholder:text-muted-foreground/60 backdrop-blur-xl focus:bg-white/[0.06] focus:border-primary/40 focus:ring-2 focus:ring-primary/20 focus:shadow-[0_0_20px_rgba(124,58,237,0.15)] transition-all"
             />
           </div>
         </div>
       </div>
 
       {isSearching ? (
-        <SearchResults query={debouncedQuery} />
+        <div className="p-5">
+          <SearchResults query={debouncedQuery} />
+        </div>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-2">
           {/* Trending section */}
-          <div className="px-5 pt-5 pb-2">
+          <div className="px-5 pt-6 pb-2">
             <div className="flex items-center gap-2.5 mb-1">
               <TrendingUp className="h-4 w-4 text-orange-400" />
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -75,7 +79,7 @@ export default function ExplorePage() {
           <TrendingTags />
 
           {/* Suggested people */}
-          <div className="px-5 pt-6 pb-2">
+          <div className="px-5 pt-6 pb-3">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold tracking-tight">
                 People to follow
@@ -108,7 +112,7 @@ export default function ExplorePage() {
               ))}
             </div>
           ) : suggestions && suggestions.length > 0 ? (
-            <div className="px-5 pb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-5 pb-6">
               {suggestions.map((profile) => (
                 <UserSuggestionCard key={profile.id} profile={profile} />
               ))}

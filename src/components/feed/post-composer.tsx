@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
 import { Image as ImageIcon, X, Loader2, BarChart3, Smile } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,7 @@ export function PostComposer() {
 
   return (
     <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
-      <DialogContent className="sm:max-w-[520px] p-0 gap-0 bg-zinc-800 border-zinc-700/50 rounded-2xl overflow-hidden shadow-xl shadow-purple-500/5">
+      <DialogContent className="sm:max-w-[520px] p-0 gap-0 bg-zinc-900/90 backdrop-blur-2xl border-white/[0.08] rounded-2xl overflow-hidden shadow-2xl shadow-violet-500/10">
         {user && (
           <ComposerForm
             user={user}
@@ -62,10 +63,10 @@ export function InlineComposer({
   if (!user) return null;
 
   return (
-    <div className="mx-3 mt-3">
-      <div className="relative group bg-zinc-800/70 rounded-2xl border border-zinc-700/50 shadow-sm overflow-hidden transition-all duration-300 hover:border-violet-500/30 hover:shadow-md hover:shadow-violet-500/5">
-        {/* Subtle gradient glow */}
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/5 via-transparent to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+    <div className="mx-4 mt-4">
+      <div className="relative group rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-hidden transition-all duration-300 hover:border-white/[0.12] hover:shadow-md hover:shadow-violet-500/5">
+        {/* Gradient border glow on focus */}
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-violet-500/[0.06] via-transparent to-cyan-500/[0.06] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
         <div className="relative">
           <ComposerForm
             user={user}
@@ -179,50 +180,56 @@ function ComposerForm({
             placeholder={replyToId ? "Write a reply..." : "Share something..."}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="border-none bg-transparent resize-none p-0 text-[15px] text-zinc-200 placeholder:text-zinc-500 focus-visible:ring-0 focus-visible:border-none min-h-[60px]"
+            className="border-none bg-transparent resize-none p-0 text-[15px] text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 focus-visible:border-none min-h-[60px]"
             rows={inline ? 2 : 3}
           />
 
           {/* Media Previews */}
-          {media.length > 0 && (
-            <div
-              className={`grid gap-2 mt-3 ${
-                media.length === 1
-                  ? "grid-cols-1"
-                  : media.length === 2
-                    ? "grid-cols-2"
-                    : media.length === 3
-                      ? "grid-cols-2"
-                      : "grid-cols-2"
-              }`}
-            >
-              {media.map((m, i) => (
-                <div
-                  key={i}
-                  className={`relative group/media rounded-xl overflow-hidden border border-zinc-700/30 ${
-                    media.length === 3 && i === 0 ? "row-span-2" : ""
-                  }`}
-                >
-                  <img
-                    src={m.preview}
-                    alt=""
-                    className="w-full h-full object-cover rounded-xl max-h-[300px]"
-                  />
-                  <button
-                    onClick={() => removeMedia(i)}
-                    className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center bg-black/70 hover:bg-black/80 rounded-full opacity-0 group-hover/media:opacity-100 transition-all"
+          <AnimatePresence>
+            {media.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className={`grid gap-2 mt-3 ${
+                  media.length === 1
+                    ? "grid-cols-1"
+                    : "grid-cols-2"
+                }`}
+              >
+                {media.map((m, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.2 }}
+                    className={`relative group/media rounded-xl overflow-hidden border border-white/[0.06] ${
+                      media.length === 3 && i === 0 ? "row-span-2" : ""
+                    }`}
                   >
-                    <X className="h-3.5 w-3.5 text-white" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+                    <img
+                      src={m.preview}
+                      alt=""
+                      className="w-full h-full object-cover rounded-xl max-h-[300px]"
+                    />
+                    <button
+                      onClick={() => removeMedia(i)}
+                      className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center bg-black/60 backdrop-blur-sm hover:bg-black/80 rounded-full opacity-0 group-hover/media:opacity-100 transition-all"
+                    >
+                      <X className="h-3.5 w-3.5 text-white" />
+                    </button>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
       {/* Actions Bar */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-700/40">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06]">
         <div className="flex items-center gap-1">
           <input
             ref={fileInputRef}
@@ -232,33 +239,27 @@ function ComposerForm({
             onChange={handleMediaSelect}
             className="hidden"
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 rounded-lg text-sky-400 hover:bg-sky-400/15 hover:text-sky-300"
+          <button
+            className="h-9 w-9 flex items-center justify-center rounded-full text-cyan-400 hover:bg-cyan-400/10 hover:shadow-[0_0_12px_rgba(6,182,212,0.15)] transition-all duration-200 disabled:opacity-40 disabled:pointer-events-none"
             onClick={() => fileInputRef.current?.click()}
             disabled={media.length >= MAX_IMAGES}
           >
             <ImageIcon className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 rounded-lg text-amber-400 hover:bg-amber-400/15 hover:text-amber-300"
+          </button>
+          <button
+            className="h-9 w-9 flex items-center justify-center rounded-full text-amber-400 hover:bg-amber-400/10 hover:shadow-[0_0_12px_rgba(245,158,11,0.15)] transition-all duration-200 disabled:opacity-40 disabled:pointer-events-none"
             disabled
             title="Polls coming soon"
           >
             <BarChart3 className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 rounded-lg text-emerald-400 hover:bg-emerald-400/15 hover:text-emerald-300"
+          </button>
+          <button
+            className="h-9 w-9 flex items-center justify-center rounded-full text-emerald-400 hover:bg-emerald-400/10 hover:shadow-[0_0_12px_rgba(16,185,129,0.15)] transition-all duration-200 disabled:opacity-40 disabled:pointer-events-none"
             disabled
             title="Emoji"
           >
             <Smile className="h-5 w-5" />
-          </Button>
+          </button>
         </div>
 
         <div className="flex items-center gap-3">
@@ -266,10 +267,10 @@ function ComposerForm({
             <span
               className={`text-xs font-medium ${
                 isOverLimit
-                  ? "text-destructive"
+                  ? "text-rose-400"
                   : charCount > MAX_POST_LENGTH * 0.8
-                    ? "text-yellow-500"
-                    : "text-zinc-500"
+                    ? "text-amber-400"
+                    : "text-zinc-600"
               }`}
             >
               {charCount}/{MAX_POST_LENGTH}
@@ -277,7 +278,7 @@ function ComposerForm({
           )}
           <Button
             size="sm"
-            className="rounded-full px-5 font-semibold shadow-sm bg-violet-600 hover:bg-violet-500 text-white border-0"
+            className="rounded-full px-6 font-semibold shadow-md bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white border-0 shadow-violet-500/20 hover:shadow-violet-500/30 transition-all duration-200"
             onClick={handleSubmit}
             disabled={!canPost || posting}
           >
