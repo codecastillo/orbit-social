@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -16,6 +16,7 @@ import {
   User,
   Shield,
   Sparkles,
+  Camera,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -146,6 +147,10 @@ export default function SignUpPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -241,6 +246,23 @@ export default function SignUpPage() {
     setCurrentStep((s) => Math.max(s - 1, 0));
   };
 
+  const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+      toast.error("File must be JPEG, PNG, WebP, or GIF");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5MB");
+      return;
+    }
+    // Show preview immediately
+    setAvatarPreview(URL.createObjectURL(file));
+    // Store the file for upload after account creation
+    (window as any).__pendingAvatarFile = file;
+  };
+
   const onSubmit = async (data: FullSignUpFormData) => {
     const { error, data: authData } = await supabase.auth.signUp({
       email: data.email,
@@ -261,16 +283,38 @@ export default function SignUpPage() {
 
     // Update profile with the extra fields
     if (authData.user) {
-      // Wait a moment for the DB trigger to create the profile
-      await new Promise((r) => setTimeout(r, 1000));
+      // Wait for the DB trigger to create the profile
+      await new Promise((r) => setTimeout(r, 1500));
+
+      // Upload avatar if selected
+      let uploadedAvatarUrl: string | null = null;
+      const pendingFile = (window as any).__pendingAvatarFile as File | undefined;
+      if (pendingFile) {
+        const fileExt = pendingFile.name.split(".").pop();
+        const filePath = `${authData.user.id}/avatar.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from("avatars")
+          .upload(filePath, pendingFile, { upsert: true });
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(filePath);
+          uploadedAvatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+        }
+        delete (window as any).__pendingAvatarFile;
+      }
+
+      const updateData: Record<string, any> = {
+        username: data.username.toLowerCase(),
+        display_name: data.fullName,
+        bio: data.bio || null,
+      };
+      if (uploadedAvatarUrl) {
+        updateData.avatar_url = uploadedAvatarUrl;
+      }
 
       const { error: profileError } = await supabase
         .from("profiles")
-        .update({
-          username: data.username.toLowerCase(),
-          display_name: data.fullName,
-          bio: data.bio || null,
-        })
+        .update(updateData)
         .eq("id", authData.user.id);
 
       if (profileError) {
@@ -387,15 +431,15 @@ export default function SignUpPage() {
                       </span>
                     </div>
 
-                    {/* Full Name */}
+                    {/* Display Name */}
                     <div className="space-y-2">
                       <Label htmlFor="fullName" className="text-[13px] text-muted-foreground font-medium">
-                        Full Name
+                        Display Name
                       </Label>
                       <Input
                         id="fullName"
                         type="text"
-                        placeholder="Your full name"
+                        placeholder="How others will see you"
                         {...register("fullName")}
                         className="input-premium"
                       />
@@ -561,11 +605,42 @@ export default function SignUpPage() {
                     className="space-y-5"
                   >
                     <div className="text-center pb-2">
-                      <Sparkles className="h-8 w-8 mx-auto text-primary/60 mb-2" />
                       <p className="text-sm text-muted-foreground">
-                        Add a bio to tell people about yourself
+                        Almost done! Add a photo and bio.
                       </p>
                     </div>
+
+                    {/* Profile Picture */}
+                    <div className="flex justify-center">
+                      <div
+                        className="relative cursor-pointer group"
+                        onClick={() => avatarInputRef.current?.click()}
+                      >
+                        <div className="h-24 w-24 rounded-full bg-white/[0.04] border-2 border-white/[0.08] flex items-center justify-center overflow-hidden">
+                          {avatarPreview ? (
+                            <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="h-10 w-10 text-muted-foreground/30" />
+                          )}
+                        </div>
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Camera className="h-5 w-5 text-white" />
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center border-2 border-background">
+                          <Camera className="h-3 w-3 text-white" />
+                        </div>
+                      </div>
+                      <input
+                        ref={avatarInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        onChange={handleAvatarSelect}
+                        className="hidden"
+                      />
+                    </div>
+                    <p className="text-center text-xs text-muted-foreground/50">
+                      Tap to add a profile photo
+                    </p>
 
                     {/* Bio */}
                     <div className="space-y-2">
