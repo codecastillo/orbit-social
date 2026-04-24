@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { PlusIcon, CalendarIcon } from "lucide-react";
+import { PlusIcon, CalendarIcon, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -32,44 +32,29 @@ export default function EventsPage() {
 
   return (
     <div className="min-h-screen">
-      <div
-        className="sticky top-0 z-10"
-        style={{
-          background: "oklch(0.14 0.02 270 / 0.7)",
-          backdropFilter: "blur(40px) saturate(2)",
-          WebkitBackdropFilter: "blur(40px) saturate(2)",
-          borderBottom: "1px solid oklch(1 0 0 / 0.05)",
-        }}
-      >
-        <div className="flex items-center justify-between px-5 pt-5 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-emerald-500/25 to-teal-500/20 flex items-center justify-center border border-white/[0.06]">
-              <CalendarIcon className="h-5 w-5 text-emerald-300" />
-            </div>
-            <div>
-              <h1
-                className="text-2xl font-extrabold tracking-tight"
-                style={{ fontFamily: "var(--font-syne), sans-serif" }}
-              >
-                Events
-              </h1>
-              <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">
-                What's happening
-              </p>
-            </div>
+      {/* Editorial hero */}
+      <div className="px-6 pt-10 pb-6 max-w-6xl">
+        <div className="flex items-start justify-between gap-6 flex-wrap">
+          <div className="max-w-2xl">
+            <h1 className="hero-display">
+              Things to <em>show up</em> for.
+            </h1>
+            <p className="mt-4 text-lg text-muted-foreground max-w-xl">
+              Meetups, launches, listening sessions — the real-world side of your network.
+            </p>
           </div>
           <Button
             onClick={() => setShowCreate(true)}
-            className="rounded-2xl h-10 px-4 font-semibold text-sm bg-primary text-primary-foreground border-0 shadow-[0_4px_16px_oklch(0.623_0.214_259_/_0.4)] hover:brightness-110 transition-all"
+            className="rounded-full h-11 px-5 font-semibold text-sm btn-gradient shine relative overflow-hidden"
           >
-            <PlusIcon className="h-4 w-4 mr-1.5" />
-            Create
+            <Sparkles className="h-4 w-4 mr-1.5" />
+            Create event
           </Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="p-5 space-y-3">
+        <div className="px-6 pb-20 max-w-6xl space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
@@ -88,7 +73,7 @@ export default function EventsPage() {
           ))}
         </div>
       ) : events.length === 0 ? (
-        <div className="p-5">
+        <div className="px-6 pb-20 max-w-6xl">
           <div className="rounded-3xl bg-white/[0.03] border border-white/[0.06] p-10">
             <EmptyState
               icon={CalendarIcon}
@@ -107,7 +92,7 @@ export default function EventsPage() {
           </div>
         </div>
       ) : (
-        <div className="p-5 space-y-3">
+        <div className="px-6 pb-20 max-w-6xl space-y-3">
           {events.map((event) => (
             <EventCard key={event.id} event={event} />
           ))}

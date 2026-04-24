@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Sparkles, TrendingUp, Hash, AlertCircle, Compass } from "lucide-react";
+import { Search, Hash, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,15 @@ import {
   getTrendingHashtags,
   getTrendingPosts,
 } from "@/lib/queries/social";
-import { PeopleYouMayKnow } from "@/components/shared/people-you-may-know";
+
+const TILE_CLASSES = [
+  "tile-pink",
+  "tile-blue",
+  "tile-green",
+  "tile-amber",
+  "tile-violet",
+  "tile-sunset",
+];
 
 function useDebounce(value: string, delay: number) {
   const [debounced, setDebounced] = useState(value);
@@ -46,7 +54,7 @@ export default function ExplorePage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
+      {/* Search bar at top */}
       <div
         className="sticky top-0 z-10"
         style={{
@@ -56,26 +64,8 @@ export default function ExplorePage() {
           borderBottom: "1px solid oklch(1 0 0 / 0.05)",
         }}
       >
-        <div className="px-5 pt-5 pb-3 flex items-center gap-3">
-          <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-violet-500/25 to-cyan-500/20 flex items-center justify-center border border-white/[0.06]">
-            <Compass className="h-5 w-5 text-violet-300" />
-          </div>
-          <div>
-            <h1
-              className="text-2xl font-extrabold tracking-tight"
-              style={{ fontFamily: "var(--font-syne), sans-serif" }}
-            >
-              Discover
-            </h1>
-            <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">
-              People, tags & moments
-            </p>
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="px-5 pb-4">
-          <div className="relative">
+        <div className="px-6 py-4">
+          <div className="relative max-w-2xl">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search people, posts, tags…"
@@ -88,31 +78,41 @@ export default function ExplorePage() {
       </div>
 
       {isSearching ? (
-        <div className="p-4">
+        <div className="p-6">
           <SearchResults query={debouncedQuery} />
         </div>
       ) : (
-        <div className="space-y-1">
-          <Section icon={<Sparkles className="h-3.5 w-3.5 text-violet-300" />} label="People you may know">
-            <PeopleYouMayKnow />
-          </Section>
+        <div className="px-6 pt-10 pb-20 max-w-6xl">
+          {/* Editorial hero */}
+          <div className="mb-10">
+            <h1 className="hero-display">
+              What&apos;s in the <em>air</em> today.
+            </h1>
+            <p className="mt-4 text-lg text-muted-foreground max-w-xl">
+              Posts, people, and tags rising on the network right now.
+            </p>
+          </div>
 
-          <Section icon={<TrendingUp className="h-3.5 w-3.5 text-primary" />} label="Trending tags">
-            <TrendingHashtags />
-          </Section>
+          {/* Featured trending tag — big card */}
+          <FeaturedTrendingTag />
 
-          <Section icon={<Sparkles className="h-3.5 w-3.5 text-amber-300" />} label="Popular right now">
-            <PopularPosts />
-          </Section>
+          {/* Grid of gradient popular tiles */}
+          <PopularTilesGrid />
 
-          {/* People to follow */}
+          {/* Suggestions row */}
           {!suggestionsError &&
             (suggestionsLoading || (suggestions && suggestions.length > 0)) && (
-              <Section icon={<Sparkles className="h-3.5 w-3.5 text-cyan-300" />} label="Suggested follows">
+              <div className="mt-12">
+                <h2 className="text-[11px] uppercase tracking-[0.14em] font-bold text-muted-foreground mb-5">
+                  People to follow
+                </h2>
                 {suggestionsLoading ? (
-                  <div className="px-5 pb-5 space-y-3">
+                  <div className="grid sm:grid-cols-2 gap-3">
                     {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="flex items-center gap-3">
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.06]"
+                      >
                         <Skeleton className="h-11 w-11 rounded-2xl" />
                         <div className="flex-1 space-y-1.5">
                           <Skeleton className="h-3.5 w-28" />
@@ -123,17 +123,17 @@ export default function ExplorePage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="px-5 pb-5 space-y-3">
+                  <div className="grid sm:grid-cols-2 gap-3">
                     {suggestions!.map((profile) => (
                       <UserSuggestionCard key={profile.id} profile={profile} />
                     ))}
                   </div>
                 )}
-              </Section>
+              </div>
             )}
 
           {suggestionsError && (
-            <div className="flex flex-col items-center py-12 text-center px-5">
+            <div className="flex flex-col items-center py-12 text-center">
               <div className="h-12 w-12 rounded-2xl bg-destructive/10 flex items-center justify-center mb-3">
                 <AlertCircle className="h-5 w-5 text-destructive" />
               </div>
@@ -154,127 +154,164 @@ export default function ExplorePage() {
   );
 }
 
-function Section({
-  icon,
-  label,
-  children,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="border-b border-white/[0.05]">
-      <div className="flex items-center gap-2 px-5 pt-5 pb-3">
-        <div className="h-6 w-6 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center">
-          {icon}
-        </div>
-        <h2 className="text-[11px] uppercase tracking-[0.12em] font-bold text-muted-foreground">
-          {label}
-        </h2>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function TrendingHashtags() {
+function FeaturedTrendingTag() {
   const { data: hashtags, isLoading } = useQuery({
     queryKey: ["trending-hashtags"],
-    queryFn: () => getTrendingHashtags(12),
+    queryFn: () => getTrendingHashtags(6),
     staleTime: 1000 * 60 * 5,
   });
 
   if (isLoading) {
     return (
-      <div className="px-5 pb-5 flex flex-wrap gap-2">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-9 w-24 rounded-2xl" />
-        ))}
+      <div className="mb-10 grid md:grid-cols-3 gap-3">
+        <Skeleton className="h-[220px] md:col-span-2 rounded-3xl" />
+        <div className="space-y-3">
+          <Skeleton className="h-24 rounded-2xl" />
+          <Skeleton className="h-24 rounded-2xl" />
+        </div>
       </div>
     );
   }
 
   if (!hashtags || hashtags.length === 0) return null;
 
+  const featured = hashtags[0];
+  const rest = hashtags.slice(1, 5);
+
   return (
-    <div className="px-5 pb-5 flex flex-wrap gap-2">
-      {hashtags.map((tag) => (
-        <Link
-          key={tag.id}
-          href={`/explore?q=%23${tag.name}`}
-          className="group inline-flex items-center gap-1.5 px-3.5 h-9 rounded-2xl bg-white/[0.04] border border-white/[0.06] text-sm font-semibold text-foreground hover:bg-white/[0.08] hover:border-primary/30 hover:text-primary transition-all"
-        >
-          <Hash className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-          {tag.name}
-          <span className="text-[11px] text-muted-foreground tabular-nums ml-1">
-            {tag.post_count}
+    <div className="mb-10 grid md:grid-cols-3 gap-3">
+      {/* Featured */}
+      <Link
+        href={`/explore?q=%23${featured.name}`}
+        className="group relative md:col-span-2 h-[220px] rounded-3xl overflow-hidden tile-violet p-8 flex flex-col justify-between hover-lift"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] uppercase tracking-[0.14em] font-bold text-white/70">
+            Trending now
           </span>
-        </Link>
-      ))}
+          <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+        </div>
+        <div>
+          <h3
+            className="text-6xl md:text-7xl font-extrabold text-white leading-none tracking-tight"
+            style={{ fontFamily: "var(--font-syne), sans-serif" }}
+          >
+            #{featured.name}
+          </h3>
+          <p className="mt-3 text-sm text-white/80 font-semibold tabular-nums">
+            {featured.post_count} posts today
+          </p>
+        </div>
+        {/* Shine layer */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+      </Link>
+
+      {/* Side tiles */}
+      <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
+        {rest.slice(0, 2).map((tag, i) => (
+          <Link
+            key={tag.id}
+            href={`/explore?q=%23${tag.name}`}
+            className={`group relative rounded-2xl overflow-hidden ${TILE_CLASSES[(i + 1) % TILE_CLASSES.length]} p-5 h-[104px] flex flex-col justify-between hover-lift`}
+          >
+            <Hash className="h-4 w-4 text-white/70" />
+            <div>
+              <p
+                className="text-xl font-extrabold text-white leading-tight tracking-tight"
+                style={{ fontFamily: "var(--font-syne), sans-serif" }}
+              >
+                #{tag.name}
+              </p>
+              <p className="mt-0.5 text-[11px] text-white/70 font-semibold tabular-nums">
+                {tag.post_count} posts
+              </p>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Extra chips underneath on mobile */}
+      {rest.length > 2 && (
+        <div className="md:col-span-3 flex flex-wrap gap-2">
+          {rest.slice(2).map((tag) => (
+            <Link
+              key={tag.id}
+              href={`/explore?q=%23${tag.name}`}
+              className="inline-flex items-center gap-1.5 px-3.5 h-9 rounded-full bg-white/[0.05] border border-white/[0.08] text-sm font-semibold text-foreground hover:bg-white/[0.1] hover:border-primary/30 hover:text-primary transition-all"
+            >
+              <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+              {tag.name}
+              <span className="text-[11px] text-muted-foreground tabular-nums ml-0.5">
+                {tag.post_count}
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function PopularPosts() {
+function PopularTilesGrid() {
   const { data: posts, isLoading } = useQuery({
     queryKey: ["trending-posts"],
-    queryFn: () => getTrendingPosts(9),
+    queryFn: () => getTrendingPosts(8),
     staleTime: 1000 * 60 * 5,
   });
 
-  if (isLoading) {
-    return (
-      <div className="px-5 pb-5 grid grid-cols-3 gap-1.5">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="aspect-square rounded-2xl" />
-        ))}
-      </div>
-    );
-  }
-
-  if (!posts || posts.length === 0) return null;
-
   return (
-    <div className="px-5 pb-5 grid grid-cols-3 gap-1.5">
-      {posts.map((post: any) => {
-        const media = post.post_media?.[0];
-        const hasImage = media && (media.type === "image" || media.type === "video");
-
-        return (
-          <Link
-            key={post.id}
-            href={`/post/${post.id}`}
-            className="group relative aspect-square rounded-2xl overflow-hidden bg-white/[0.03] border border-white/[0.06] hover:border-primary/30 hover:scale-[1.02] transition-all duration-300"
-          >
-            {hasImage ? (
-              <img
-                src={media.thumbnail_url || media.url}
-                alt=""
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-            ) : (
-              <div className="h-full w-full flex items-center justify-center p-3 bg-gradient-to-br from-primary/15 via-violet-500/10 to-transparent">
-                <p className="text-[11px] text-foreground/80 line-clamp-5 text-center leading-snug font-medium">
-                  {post.content?.slice(0, 120) || ""}
-                </p>
-              </div>
-            )}
-
-            <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="inline-flex items-center gap-1 tabular-nums">
-                <span className="text-rose-400">♥</span>
-                {post.like_count ?? 0}
-              </span>
-              <span className="inline-flex items-center gap-1 tabular-nums">
-                <span className="text-sky-400">◌</span>
-                {post.comment_count ?? 0}
-              </span>
-            </div>
-          </Link>
-        );
-      })}
+    <div>
+      <h2 className="text-[11px] uppercase tracking-[0.14em] font-bold text-muted-foreground mb-5">
+        Popular right now
+      </h2>
+      {isLoading ? (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-[4/5] rounded-2xl" />
+          ))}
+        </div>
+      ) : !posts || posts.length === 0 ? null : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {posts.map((post: any, i: number) => {
+            const media = post.post_media?.[0];
+            const hasImage = media && (media.type === "image" || media.type === "video");
+            return (
+              <Link
+                key={post.id}
+                href={`/post/${post.id}`}
+                className={`group relative aspect-[4/5] rounded-2xl overflow-hidden hover-lift ${
+                  hasImage ? "" : TILE_CLASSES[i % TILE_CLASSES.length]
+                }`}
+              >
+                {hasImage ? (
+                  <img
+                    src={media.thumbnail_url || media.url}
+                    alt=""
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  />
+                ) : (
+                  <div className="h-full w-full flex items-end p-5">
+                    <p className="text-white text-[15px] leading-snug font-bold line-clamp-5 drop-shadow">
+                      {post.content?.slice(0, 160) || ""}
+                    </p>
+                  </div>
+                )}
+                <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white text-[11px] font-bold">
+                  <span className="inline-flex items-center gap-1 tabular-nums">
+                    <span className="text-rose-300">♥</span>
+                    {post.like_count ?? 0}
+                  </span>
+                  <span className="inline-flex items-center gap-1 tabular-nums">
+                    <span className="text-sky-300">◌</span>
+                    {post.comment_count ?? 0}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -255,17 +255,13 @@ function HeroSection() {
         <div className="w-full max-w-[420px] space-y-10">
           {/* Headline */}
           <div>
-            <h1
-              className="text-5xl sm:text-6xl lg:text-[68px] font-extrabold leading-[1.02] tracking-[-0.03em]"
-              style={syne}
-            >
-              Your world.
+            <h1 className="hero-display">
+              The internet,
               <br />
-              <span className="text-gradient">Your orbit.</span>
+              but <em>smaller</em>.
             </h1>
             <p className="mt-5 text-lg text-muted-foreground/80 leading-relaxed max-w-sm">
-              The social platform where real connections happen. Share, discover, and
-              build communities — on your terms.
+              A social platform for people who are tired of shouting into the void. Find your people — on your terms.
             </p>
           </div>
 
@@ -397,11 +393,8 @@ function FeaturesSection() {
             <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-4">
               Everything you need
             </p>
-            <h2
-              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-[-0.02em] leading-[1.08]"
-              style={syne}
-            >
-              One platform.
+            <h2 className="hero-display">
+              One <em>platform</em>.
               <br />
               Endless possibilities.
             </h2>
@@ -516,11 +509,8 @@ function HighlightsSection() {
             <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-4">
               Why Orbit
             </p>
-            <h2
-              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-[-0.02em] leading-[1.08]"
-              style={syne}
-            >
-              Built different.
+            <h2 className="hero-display">
+              Built <em>different</em>.
             </h2>
           </div>
         </Reveal>
@@ -687,11 +677,8 @@ function TestimonialsSection() {
             <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-4">
               Loved by creators
             </p>
-            <h2
-              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-[-0.02em] leading-[1.08]"
-              style={syne}
-            >
-              Real people.
+            <h2 className="hero-display">
+              Real <em>people</em>.
               <br />
               Real stories.
             </h2>
@@ -740,13 +727,10 @@ function CTASection() {
 
       <div className="relative z-10 max-w-3xl mx-auto px-6 text-center">
         <Reveal>
-          <h2
-            className="text-4xl sm:text-5xl lg:text-[64px] font-extrabold tracking-[-0.03em] leading-[1.05]"
-            style={syne}
-          >
+          <h2 className="hero-display">
             Ready to join
             <br />
-            <span className="text-gradient">the orbit?</span>
+            the <em>orbit</em>?
           </h2>
           <p className="mt-6 text-lg text-muted-foreground/60 max-w-md mx-auto leading-relaxed">
             Your community is waiting. Start connecting with people who share

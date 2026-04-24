@@ -35,21 +35,13 @@ export default function FeedPage() {
           borderBottom: "1px solid oklch(1 0 0 / 0.05)",
         }}
       >
-        {/* Brand row + segmented tabs */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+        {/* Editorial brand row + segmented tabs */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 gap-4 flex-wrap">
           <div>
-            <h1
-              className="text-2xl font-extrabold tracking-tight"
-              style={{
-                fontFamily: "var(--font-syne), sans-serif",
-                background: "linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.6) 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              Home
+            <h1 className="hero-display-sm">
+              The <em>internet</em>, but smaller.
             </h1>
-            <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">
+            <p className="text-[12px] text-muted-foreground mt-2 font-medium">
               <Sparkles className="inline h-3 w-3 mr-1 text-primary -mt-0.5" />
               Personalised for you
             </p>

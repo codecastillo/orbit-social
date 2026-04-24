@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Search, Users } from "lucide-react";
+import { Plus, Search, Users, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,46 +37,29 @@ export default function CommunitiesPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <div
-        className="sticky top-0 z-10"
-        style={{
-          background: "oklch(0.14 0.02 270 / 0.7)",
-          backdropFilter: "blur(40px) saturate(2)",
-          WebkitBackdropFilter: "blur(40px) saturate(2)",
-          borderBottom: "1px solid oklch(1 0 0 / 0.05)",
-        }}
-      >
-        <div className="flex items-center justify-between px-5 pt-5 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-violet-500/25 to-cyan-500/20 flex items-center justify-center border border-white/[0.06]">
-              <Users className="h-5 w-5 text-violet-300" />
-            </div>
-            <div>
-              <h1
-                className="text-2xl font-extrabold tracking-tight"
-                style={{ fontFamily: "var(--font-syne), sans-serif" }}
-              >
-                Spaces
-              </h1>
-              <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">
-                Find your people
-              </p>
-            </div>
+      {/* Editorial hero header */}
+      <div className="px-6 pt-10 pb-6 max-w-6xl">
+        <div className="flex items-start justify-between gap-6 flex-wrap">
+          <div className="max-w-2xl">
+            <h1 className="hero-display">
+              Small <em>places</em>. Loud enough.
+            </h1>
+            <p className="mt-4 text-lg text-muted-foreground max-w-xl">
+              Tiny communities of people who actually care about the same thing you do.
+            </p>
           </div>
           {user && (
             <Button
-              size="sm"
               onClick={() => setCreateOpen(true)}
-              className="rounded-2xl py-2.5 px-4 h-10 font-semibold text-sm bg-primary text-primary-foreground border-0 shadow-[0_4px_16px_oklch(0.623_0.214_259_/_0.4)] hover:brightness-110 transition-all"
+              className="rounded-full h-11 px-5 font-semibold text-sm btn-gradient shine relative overflow-hidden"
             >
-              <Plus className="h-4 w-4 mr-1.5" />
-              Create
+              <Sparkles className="h-4 w-4 mr-1.5" />
+              Start a space
             </Button>
           )}
         </div>
 
-        <div className="px-5 pb-4">
+        <div className="mt-8 max-w-lg">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -89,7 +72,7 @@ export default function CommunitiesPage() {
         </div>
       </div>
 
-      <div className="p-5 space-y-3">
+      <div className="px-6 pb-20 max-w-6xl space-y-3">
         {isLoading ? (
           Array.from({ length: 5 }).map((_, i) => <CardSkeleton key={i} />)
         ) : communities && communities.length > 0 ? (

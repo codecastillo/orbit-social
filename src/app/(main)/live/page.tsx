@@ -54,73 +54,43 @@ export default function LivePage() {
 
   return (
     <div className="min-h-screen">
-      <div
-        className="sticky top-0 z-10"
-        style={{
-          background: "oklch(0.14 0.02 270 / 0.7)",
-          backdropFilter: "blur(40px) saturate(2)",
-          WebkitBackdropFilter: "blur(40px) saturate(2)",
-          borderBottom: "1px solid oklch(1 0 0 / 0.05)",
-        }}
-      >
-        <div className="flex items-center justify-between px-5 pt-5 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-red-500/25 to-rose-500/20 flex items-center justify-center border border-white/[0.06] relative">
-              <Radio className="h-5 w-5 text-red-300" />
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1
-                  className="text-2xl font-extrabold tracking-tight"
-                  style={{ fontFamily: "var(--font-syne), sans-serif" }}
-                >
-                  Live
-                </h1>
-                <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full bg-red-500/15 border border-red-500/25">
-                  <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
-                  <span className="text-[10px] font-bold text-red-300 uppercase tracking-wider">
-                    On air
-                  </span>
+      {/* Editorial hero */}
+      <div className="px-6 pt-10 pb-6 max-w-6xl">
+        <div className="flex items-start justify-between gap-6 flex-wrap">
+          <div className="max-w-2xl">
+            <h1 className="hero-display">
+              Live and <em>unrehearsed</em>.
+            </h1>
+            <p className="mt-4 text-lg text-muted-foreground max-w-xl flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full bg-red-500/15 border border-red-500/25">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
+                <span className="text-[10px] font-bold text-red-300 uppercase tracking-wider">
+                  On air
                 </span>
-              </div>
-              <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">
-                {streams?.length ?? 0} live now
-              </p>
-            </div>
+              </span>
+              <span className="tabular-nums">{streams?.length ?? 0} streams right now.</span>
+            </p>
           </div>
 
           <Button
-            className="rounded-2xl h-10 px-4 font-semibold text-sm bg-red-500 hover:bg-red-600 text-white border-0 shadow-[0_4px_16px_rgba(239,68,68,0.4)]"
+            className="rounded-full h-11 px-5 font-semibold text-sm bg-red-500 hover:bg-red-600 text-white border-0 shadow-[0_4px_16px_rgba(239,68,68,0.4)]"
             onClick={() => setGoLiveOpen(true)}
           >
             <Radio className="h-4 w-4 mr-1.5" />
-            Go Live
+            Go live
           </Button>
         </div>
       </div>
 
-      <div className="p-5">
+      <div className="px-6 pb-20 max-w-6xl">
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div
-                key={i}
-                className="overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.06]"
-              >
-                <Skeleton className="aspect-video w-full" />
-                <div className="flex items-center gap-3 p-4">
-                  <Skeleton className="h-10 w-10 rounded-2xl" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-3.5 w-3/4" />
-                    <Skeleton className="h-3 w-1/2" />
-                  </div>
-                </div>
-              </div>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="aspect-[4/5] rounded-2xl" />
             ))}
           </div>
         ) : streams && streams.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
             {streams.map((stream) => (
               <LiveStreamCard key={stream.id} stream={stream} />
             ))}
