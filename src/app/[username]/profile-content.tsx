@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Grid3X3, LayoutList, Bookmark } from "lucide-react";
+import { ArrowLeft, Grid3X3, Heart, Repeat2, Bookmark } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -33,8 +33,9 @@ interface ProfileContentProps {
 }
 
 const tabs = [
-  { value: "grid", icon: Grid3X3, label: "Posts" },
-  { value: "list", icon: LayoutList, label: "List" },
+  { value: "posts", icon: Grid3X3, label: "Posts" },
+  { value: "likes", icon: Heart, label: "Likes" },
+  { value: "reposts", icon: Repeat2, label: "Reposts" },
   { value: "saved", icon: Bookmark, label: "Saved" },
 ] as const;
 
@@ -46,7 +47,7 @@ export function ProfileContent({
   initialIsFollowing,
 }: ProfileContentProps) {
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
-  const [activeTab, setActiveTab] = useState<TabValue>("grid");
+  const [activeTab, setActiveTab] = useState<TabValue>("posts");
   const router = useRouter();
   const { user } = useAuth();
   const supabase = createClient();
@@ -93,15 +94,18 @@ export function ProfileContent({
   return (
     <>
       {/* Top bar */}
-      <div className="sticky top-0 z-20 flex items-center gap-4 h-14 px-4 bg-background/80 backdrop-blur-xl border-b border-border/40">
+      <div className="sticky top-0 z-20 flex items-center gap-4 h-14 px-4 bg-background/80 backdrop-blur-xl border-b border-white/[0.06]">
         <button
           onClick={() => router.back()}
-          className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-muted/50 transition-colors"
+          className="h-9 w-9 flex items-center justify-center rounded-full bg-white/[0.05] hover:bg-white/[0.08] transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div>
-          <h2 className="font-bold text-base leading-tight">
+          <h2
+            className="font-bold text-base leading-tight"
+            style={{ fontFamily: "var(--font-syne), sans-serif" }}
+          >
             {profile.display_name}
           </h2>
           <p className="text-xs text-muted-foreground">
@@ -117,26 +121,29 @@ export function ProfileContent({
         onFollow={handleFollow}
       />
 
-      {/* Instagram-style icon tab bar */}
-      <div className="flex border-t border-border/40">
+      {/* Tab bar — Posts, Likes, Reposts, Saved */}
+      <div className="flex border-t border-white/[0.06]">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.value;
+          // Only show Saved tab on own profile
+          if (tab.value === "saved" && !isOwnProfile) return null;
           return (
             <button
               key={tab.value}
               onClick={() => setActiveTab(tab.value)}
               className={cn(
-                "flex-1 flex items-center justify-center py-3 relative transition-colors",
+                "flex-1 flex flex-col items-center justify-center gap-1 py-3 relative transition-colors",
                 isActive
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground/70"
               )}
               aria-label={tab.label}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-4.5 w-4.5" />
+              <span className="text-[10px] font-medium">{tab.label}</span>
               {isActive && (
-                <span className="absolute top-0 inset-x-0 h-[1px] bg-foreground" />
+                <span className="absolute top-0 inset-x-0 h-[2px] bg-primary" />
               )}
             </button>
           );
@@ -144,17 +151,29 @@ export function ProfileContent({
       </div>
 
       {/* Tab content */}
-      {activeTab === "grid" && <ProfileGrid posts={posts} />}
+      {activeTab === "posts" && <ProfileGrid posts={posts} />}
 
-      {activeTab === "list" && (
-        <div className="p-8 text-center text-muted-foreground text-sm">
-          No list posts yet.
+      {activeTab === "likes" && (
+        <div className="p-12 text-center text-muted-foreground text-sm">
+          <Heart className="h-10 w-10 mx-auto mb-3 opacity-30" />
+          <p className="font-medium">No liked posts yet</p>
+          <p className="text-xs mt-1 opacity-60">Posts you like will appear here.</p>
         </div>
       )}
 
-      {activeTab === "saved" && (
-        <div className="p-8 text-center text-muted-foreground text-sm">
-          No saved posts yet.
+      {activeTab === "reposts" && (
+        <div className="p-12 text-center text-muted-foreground text-sm">
+          <Repeat2 className="h-10 w-10 mx-auto mb-3 opacity-30" />
+          <p className="font-medium">No reposts yet</p>
+          <p className="text-xs mt-1 opacity-60">Posts you repost will appear here.</p>
+        </div>
+      )}
+
+      {activeTab === "saved" && isOwnProfile && (
+        <div className="p-12 text-center text-muted-foreground text-sm">
+          <Bookmark className="h-10 w-10 mx-auto mb-3 opacity-30" />
+          <p className="font-medium">No saved posts yet</p>
+          <p className="text-xs mt-1 opacity-60">Tap the bookmark icon to save posts here.</p>
         </div>
       )}
     </>

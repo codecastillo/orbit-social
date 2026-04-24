@@ -624,7 +624,7 @@ function CTASection() {
 const footerCols = [
   {
     title: "Product",
-    links: ["Feed", "Clips", "Moments", "Chat", "Spaces", "Exchange"],
+    links: ["Feed", "Clips", "Moments", "Chat", "Events"],
   },
   {
     title: "Company",

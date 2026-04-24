@@ -8,10 +8,7 @@ import {
   Clapperboard,
   MessageCircle,
   Bell,
-  Users,
-  ShoppingBag,
   Calendar,
-  Bookmark,
   Plus,
   Settings,
   LogOut,
@@ -35,10 +32,7 @@ const navItems = [
   { label: "Clips", href: "/reels", icon: Clapperboard },
   { label: "Messages", href: "/messages", icon: MessageCircle },
   { label: "Notifications", href: "/notifications", icon: Bell },
-  { label: "Spaces", href: "/communities", icon: Users },
-  { label: "Exchange", href: "/marketplace", icon: ShoppingBag },
   { label: "Events", href: "/events", icon: Calendar },
-  { label: "Saved", href: "/bookmarks", icon: Bookmark },
 ];
 
 export function Sidebar() {

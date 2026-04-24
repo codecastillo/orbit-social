@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { HeroPost } from "./hero-post";
 import { PostGridCard } from "./post-grid-card";
 import { ClipsCarousel } from "./clips-carousel";
-import { SpacesCarousel } from "./spaces-carousel";
+// SpacesCarousel removed — Spaces feature deprecated
 import { EmptyState } from "@/components/shared/empty-state";
 import { useFeed } from "@/lib/hooks/use-feed";
 
@@ -138,17 +138,6 @@ export function MagazineFeed() {
       >
         <SectionHeader title="Trending Clips" subtitle="Popular short videos" />
         <ClipsCarousel />
-      </motion.section>
-
-      {/* Your Spaces */}
-      <motion.section
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true, margin: "-60px" }}
-        transition={{ duration: 0.5 }}
-      >
-        <SectionHeader title="Your Spaces" subtitle="Communities you might like" />
-        <SpacesCarousel />
       </motion.section>
 
       {/* More Posts */}
