@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
 
-const publicRoutes = ["/login", "/signup", "/callback"];
+const publicRoutes = ["/login", "/signup", "/callback", "/verify-email"];
 
 // Rate limit: 100 requests per minute per IP for auth routes
 const AUTH_RATE_LIMIT = 20;

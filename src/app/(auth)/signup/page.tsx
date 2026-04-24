@@ -275,14 +275,16 @@ export default function SignUpPage() {
   };
 
   const onSubmit = async (data: FullSignUpFormData) => {
-    const { error, data: authData } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
       options: {
         emailRedirectTo: `${window.location.origin}/callback?next=/feed`,
         data: {
-          display_name: data.fullName,
+          // These keys match what the DB trigger reads
+          full_name: data.fullName,
           username: data.username.toLowerCase(),
+          bio: data.bio || null,
         },
       },
     });
@@ -292,50 +294,8 @@ export default function SignUpPage() {
       return;
     }
 
-    // Update profile with the extra fields
-    if (authData.user) {
-      // Wait for the DB trigger to create the profile
-      await new Promise((r) => setTimeout(r, 1500));
-
-      // Upload avatar if selected
-      let uploadedAvatarUrl: string | null = null;
-      const pendingFile = (window as any).__pendingAvatarFile as File | undefined;
-      if (pendingFile) {
-        const fileExt = pendingFile.name.split(".").pop();
-        const filePath = `${authData.user.id}/avatar.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from("avatars")
-          .upload(filePath, pendingFile, { upsert: true });
-
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(filePath);
-          uploadedAvatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-        }
-        delete (window as any).__pendingAvatarFile;
-      }
-
-      const updateData: Record<string, any> = {
-        username: data.username.toLowerCase(),
-        display_name: data.fullName,
-        bio: data.bio || null,
-      };
-      if (uploadedAvatarUrl) {
-        updateData.avatar_url = uploadedAvatarUrl;
-      }
-
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update(updateData)
-        .eq("id", authData.user.id);
-
-      if (profileError) {
-        console.error("Profile update error:", profileError);
-        toast.error("Profile setup failed — you can update it in Settings.");
-      }
-    }
-
-    toast.success("Account created! Check your email to confirm.");
-    router.push("/feed");
+    // Redirect to verify email page
+    router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
   };
 
   const signUpWithGoogle = async () => {
