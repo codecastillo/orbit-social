@@ -2,21 +2,15 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { X, Search, Users, Loader2 } from "lucide-react";
+import { X, Users, Plus } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ModalShell, Field, Input } from "@/components/orbit/forms";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { searchUsers, type ProfileSummary } from "@/lib/queries/social";
 import { createGroupConversation } from "@/lib/queries/messages";
-import { cn } from "@/lib/utils";
+import { O, auroraSoft } from "@/lib/design/orbit";
 
 interface CreateGroupDialogProps {
   open: boolean;
@@ -33,7 +27,6 @@ export function CreateGroupDialog({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ProfileSummary[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<ProfileSummary[]>([]);
-  const [searching, setSearching] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const handleSearch = useCallback(
@@ -43,24 +36,19 @@ export function CreateGroupDialog({
         setSearchResults([]);
         return;
       }
-
-      setSearching(true);
       try {
         const results = await searchUsers(query, 10);
-        // Filter out current user and already selected users
         const filtered = results.filter(
           (r) =>
             r.id !== user?.id &&
-            !selectedUsers.some((s) => s.id === r.id)
+            !selectedUsers.some((s) => s.id === r.id),
         );
         setSearchResults(filtered);
       } catch {
         toast.error("Failed to search users");
-      } finally {
-        setSearching(false);
       }
     },
-    [user?.id, selectedUsers]
+    [user?.id, selectedUsers],
   );
 
   const addUser = (profile: ProfileSummary) => {
@@ -73,19 +61,25 @@ export function CreateGroupDialog({
     setSelectedUsers((prev) => prev.filter((u) => u.id !== userId));
   };
 
+  const reset = () => {
+    setGroupName("");
+    setSearchQuery("");
+    setSearchResults([]);
+    setSelectedUsers([]);
+  };
+
   const handleCreate = async () => {
     if (!user || !groupName.trim() || selectedUsers.length === 0) return;
-
     setCreating(true);
     try {
       const conversationId = await createGroupConversation(
         user.id,
         groupName.trim(),
-        selectedUsers.map((u) => u.id)
+        selectedUsers.map((u) => u.id),
       );
       toast.success("Group created!");
       onOpenChange(false);
-      resetForm();
+      reset();
       router.push(`/messages/${conversationId}`);
     } catch {
       toast.error("Failed to create group");
@@ -94,138 +88,181 @@ export function CreateGroupDialog({
     }
   };
 
-  const resetForm = () => {
-    setGroupName("");
-    setSearchQuery("");
-    setSearchResults([]);
-    setSelectedUsers([]);
-  };
+  const canSubmit =
+    groupName.trim().length > 0 && selectedUsers.length > 0 && !creating;
 
   return (
     <Dialog
       open={open}
       onOpenChange={(val) => {
         onOpenChange(val);
-        if (!val) resetForm();
+        if (!val) reset();
       }}
     >
-      <DialogContent className="sm:max-w-[480px] p-0 gap-0 bg-zinc-900 border-white/[0.1] rounded-xl overflow-hidden shadow-2xl">
-        <DialogHeader className="p-4 border-b border-white/[0.06]">
-          <DialogTitle className="flex items-center gap-2 text-zinc-100">
-            <Users className="h-4.5 w-4.5 text-blue-400" />
-            New Group Chat
-          </DialogTitle>
-          <DialogDescription className="text-zinc-500 text-sm">
-            Create a group conversation with multiple people.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="p-4 space-y-4">
-          {/* Group name input */}
-          <div>
-            <label className="text-xs font-medium text-zinc-400 mb-1.5 block">
-              Group Name
-            </label>
-            <input
-              type="text"
+      <DialogContent
+        className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
+        style={{ boxShadow: "none" }}
+      >
+        <ModalShell
+          title="New group"
+          subtitle="A conversation between more than two."
+          icon={<Users style={{ width: 17, height: 17 }} strokeWidth={1.8} />}
+          accent={O.a1}
+          width={540}
+          primaryLabel={creating ? "Creating…" : "Create group"}
+          secondaryLabel="Cancel"
+          canSubmit={canSubmit}
+          loading={creating}
+          onPrimary={handleCreate}
+          onSecondary={() => onOpenChange(false)}
+          onClose={() => onOpenChange(false)}
+        >
+          <Field label="Group name" hint="optional">
+            <Input
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
-              placeholder="Enter group name..."
+              placeholder="Film photographers — sf trip"
               maxLength={50}
-              className="w-full h-10 px-3 rounded-lg text-sm bg-white/[0.04] border border-white/[0.1] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors"
+              autoFocus
             />
-          </div>
+          </Field>
 
-          {/* Selected users pills */}
-          {selectedUsers.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+          <Field
+            label="Members"
+            hint={`${selectedUsers.length} selected`}
+          >
+            <div
+              style={{
+                minHeight: 80,
+                padding: 10,
+                borderRadius: 12,
+                background: "rgba(255,255,255,0.03)",
+                border: `1px solid ${O.hair2}`,
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 6,
+                alignItems: "flex-start",
+              }}
+            >
               {selectedUsers.map((u) => (
-                <span
+                <div
                   key={u.id}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/15 text-blue-400 border border-blue-500/20"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "4px 10px 4px 4px",
+                    borderRadius: 99,
+                    background: auroraSoft,
+                    border: `1px solid ${O.a2}44`,
+                  }}
                 >
                   <UserAvatar
                     src={u.avatar_url}
                     fallback={u.display_name}
                     size="sm"
                   />
-                  {u.display_name}
+                  <span style={{ fontSize: 12, fontWeight: 500, color: O.ink }}>
+                    {u.display_name}
+                  </span>
                   <button
+                    type="button"
                     onClick={() => removeUser(u.id)}
-                    className="hover:text-blue-200 transition-colors"
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      color: O.ink3,
+                      display: "flex",
+                      alignItems: "center",
+                    }}
                   >
-                    <X className="h-3 w-3" />
+                    <X style={{ width: 10, height: 10 }} strokeWidth={2} />
                   </button>
-                </span>
+                </div>
               ))}
-            </div>
-          )}
-
-          {/* User search */}
-          <div>
-            <label className="text-xs font-medium text-zinc-400 mb-1.5 block">
-              Add Members
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
-                placeholder="Search by name or username..."
-                className="w-full h-10 pl-9 pr-3 rounded-lg text-sm bg-white/[0.04] border border-white/[0.1] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors"
+                placeholder="Search someone to add…"
+                style={{
+                  flex: 1,
+                  minWidth: 160,
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  color: O.ink,
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  fontFamily: "inherit",
+                }}
               />
-              {searching && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 animate-spin" />
-              )}
             </div>
+          </Field>
 
-            {/* Search results */}
-            {searchResults.length > 0 && (
-              <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                {searchResults.map((profile) => (
-                  <button
-                    key={profile.id}
-                    onClick={() => addUser(profile)}
-                    className="flex items-center gap-3 w-full p-2.5 hover:bg-white/[0.04] transition-colors text-left"
-                  >
-                    <UserAvatar
-                      src={profile.avatar_url}
-                      fallback={profile.display_name}
-                      size="sm"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-zinc-200 truncate">
-                        {profile.display_name}
-                      </p>
-                      <p className="text-xs text-zinc-500 truncate">
-                        @{profile.username}
-                      </p>
-                    </div>
-                  </button>
-                ))}
+          {searchResults.length > 0 && (
+            <>
+              <div
+                style={{
+                  marginBottom: 10,
+                  fontSize: 11,
+                  color: O.ink3,
+                  fontFamily: O.mono,
+                  letterSpacing: "0.12em",
+                  fontWeight: 600,
+                }}
+              >
+                RESULTS
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-white/[0.06] flex justify-end">
-          <Button
-            onClick={handleCreate}
-            disabled={
-              !groupName.trim() ||
-              selectedUsers.length === 0 ||
-              creating
-            }
-            className="rounded-lg px-6 font-semibold bg-blue-500 hover:bg-blue-600 text-white border-0 transition-colors"
-          >
-            {creating ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
-            Create Group
-          </Button>
-        </div>
+              {searchResults.map((p) => (
+                <div
+                  key={p.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "10px 10px",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                  }}
+                  onClick={() => addUser(p)}
+                >
+                  <UserAvatar
+                    src={p.avatar_url}
+                    fallback={p.display_name}
+                    size="sm"
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: O.ink }}>
+                      {p.display_name}
+                    </div>
+                    <div style={{ fontSize: 11, color: O.ink3 }}>
+                      @{p.username}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: 8,
+                      background: "rgba(255,255,255,0.04)",
+                      border: `1px solid ${O.hair2}`,
+                      color: O.ink2,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Plus style={{ width: 13, height: 13 }} strokeWidth={2} />
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
+        </ModalShell>
       </DialogContent>
     </Dialog>
   );

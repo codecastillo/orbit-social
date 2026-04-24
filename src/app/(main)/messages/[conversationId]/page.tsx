@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import {
   Users,
   Pin,
@@ -31,6 +32,8 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWebRTC } from "@/lib/hooks/use-webrtc";
 import { cn } from "@/lib/utils";
+import { O, aurora, panel } from "@/lib/design/orbit";
+import { Eyebrow, PillBtn } from "@/components/orbit/primitives";
 
 interface ChatPageProps {
   params: Promise<{ conversationId: string }>;
@@ -192,17 +195,34 @@ export default function ChatPage({ params }: ChatPageProps) {
       : null;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header — frosted, rounded chips */}
+    <div
+      style={{
+        color: O.ink,
+        fontFamily: O.sans,
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) 280px",
+        gap: 18,
+        height: "calc(100vh - 48px)",
+      }}
+      className="xl:grid-cols-[minmax(0,1fr)_280px] grid-cols-1"
+    >
+      {/* CHAT PANEL */}
       <div
-        className="sticky top-0 z-10"
         style={{
-          background: "oklch(0.14 0.02 270 / 0.7)",
-          backdropFilter: "blur(40px) saturate(2)",
-          WebkitBackdropFilter: "blur(40px) saturate(2)",
-          borderBottom: "1px solid oklch(1 0 0 / 0.05)",
+          ...panel(),
+          padding: 0,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
         }}
       >
+        {/* Header — frosted, rounded chips */}
+        <div
+          style={{
+            borderBottom: `1px solid ${O.hair}`,
+          }}
+        >
         <div className="flex items-center gap-3 px-4 py-3">
           <button
             onClick={() => router.push("/messages")}
@@ -353,7 +373,189 @@ export default function ChatPage({ params }: ChatPageProps) {
         />
       )}
 
-      <MessageInput onSend={handleSend} />
+        <MessageInput onSend={handleSend} />
+      </div>{/* /chat panel */}
+
+      {/* PROFILE RAIL */}
+      {!loadingOther && (otherUser || isGroup) && (
+        <aside
+          style={{
+            ...panel(),
+            padding: 22,
+            overflow: "auto",
+            height: "fit-content",
+            maxHeight: "calc(100vh - 48px)",
+            position: "sticky",
+            top: 24,
+          }}
+          className="hidden xl:block"
+        >
+          <div
+            style={{
+              textAlign: "center",
+              paddingBottom: 20,
+              borderBottom: `1px solid ${O.hair}`,
+            }}
+          >
+            {isGroup ? (
+              <div
+                style={{
+                  width: 76,
+                  height: 76,
+                  borderRadius: "50%",
+                  margin: "0 auto",
+                  background: aurora,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 28,
+                  fontWeight: 700,
+                  color: "white",
+                }}
+              >
+                {headerName[0]?.toUpperCase()}
+              </div>
+            ) : otherUser ? (
+              <div style={{ display: "inline-block" }}>
+                <UserAvatar
+                  src={otherUser.avatar_url}
+                  fallback={otherUser.display_name}
+                  size="xl"
+                />
+              </div>
+            ) : null}
+            <div style={{ fontSize: 16, fontWeight: 600, marginTop: 10 }}>
+              {headerName}
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: O.ink3,
+                fontFamily: O.mono,
+                letterSpacing: "0.06em",
+              }}
+            >
+              {isGroup
+                ? `${groupMembers.length + 1} MEMBERS`
+                : `@${otherUser?.username.toUpperCase()}`}
+            </div>
+            {!isGroup && otherUser && (
+              <Link href={`/${otherUser.username}`} style={{ textDecoration: "none" }}>
+                <PillBtn size="sm" style={{ marginTop: 12 }}>
+                  View profile →
+                </PillBtn>
+              </Link>
+            )}
+          </div>
+
+          {pinnedMessages.length > 0 && (
+            <div style={{ marginTop: 18 }}>
+              <Eyebrow accent>
+                ◇&nbsp;&nbsp;PINNED · {pinnedMessages.length}
+              </Eyebrow>
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                }}
+              >
+                {pinnedMessages.slice(0, 3).map((m) => (
+                  <div
+                    key={m.id}
+                    style={{
+                      padding: "8px 10px",
+                      borderRadius: 10,
+                      background: "rgba(255,215,106,0.06)",
+                      border: "1px solid rgba(255,215,106,0.18)",
+                      fontSize: 12,
+                      color: O.ink2,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {(m.content || "Media").slice(0, 60)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginTop: 18 }}>
+            <Eyebrow>◈&nbsp;&nbsp;ACTIONS</Eyebrow>
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={toggleEncryption}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  fontSize: 13,
+                  color: isEncrypted ? "#7dffa3" : O.ink2,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  cursor: "pointer",
+                  background: "transparent",
+                  border: "none",
+                  fontFamily: "inherit",
+                  textAlign: "left",
+                }}
+              >
+                <Lock style={{ width: 14, height: 14 }} strokeWidth={1.8} />
+                {isEncrypted ? "Encryption on" : "Enable encryption"}
+              </button>
+              {!isGroup && otherUser && (
+                <button
+                  type="button"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    fontSize: 13,
+                    color: O.ink2,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    cursor: "pointer",
+                    background: "transparent",
+                    border: "none",
+                    fontFamily: "inherit",
+                    textAlign: "left",
+                  }}
+                >
+                  <Pin style={{ width: 14, height: 14 }} strokeWidth={1.8} />
+                  Pin conversation
+                </button>
+              )}
+              {!isGroup && otherUser && (
+                <button
+                  type="button"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    fontSize: 13,
+                    color: "#ff6a7a",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    cursor: "pointer",
+                    background: "transparent",
+                    border: "none",
+                    fontFamily: "inherit",
+                    textAlign: "left",
+                  }}
+                >
+                  <ShieldCheck style={{ width: 14, height: 14 }} strokeWidth={1.8} />
+                  Block @{otherUser.username}
+                </button>
+              )}
+            </div>
+          </div>
+        </aside>
+      )}
 
       {webrtc.callState !== "idle" && callPeer && (
         <CallOverlay
