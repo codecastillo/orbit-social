@@ -10,6 +10,8 @@ interface ChatWindowProps {
   onLoadMore?: () => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
+  onPinMessage?: (messageId: string, isPinned: boolean) => void;
+  isGroup?: boolean;
 }
 
 function formatDateDivider(dateStr: string): string {
@@ -49,6 +51,8 @@ export function ChatWindow({
   onLoadMore,
   hasMore,
   isLoadingMore,
+  onPinMessage,
+  isGroup,
 }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -131,6 +135,8 @@ export function ChatWindow({
                 message={message}
                 isOwn={isOwn}
                 showSender={showSender}
+                currentUserId={currentUserId}
+                onPinMessage={onPinMessage}
               />
             </div>
           );

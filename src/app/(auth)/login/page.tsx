@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -13,6 +13,36 @@ import { loginSchema, type LoginFormData } from "@/lib/utils/validators";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createLoginEvent } from "@/lib/queries/security";
+
+const LOCKOUT_KEY = "orbit_login_lockout";
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+
+interface LockoutData {
+  attempts: number;
+  lockedUntil: number | null;
+}
+
+function getLockoutData(): LockoutData {
+  try {
+    const raw = localStorage.getItem(LOCKOUT_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { attempts: 0, lockedUntil: null };
+}
+
+function setLockoutData(data: LockoutData) {
+  try {
+    localStorage.setItem(LOCKOUT_KEY, JSON.stringify(data));
+  } catch {}
+}
+
+function clearLockoutData() {
+  try {
+    localStorage.removeItem(LOCKOUT_KEY);
+  } catch {}
+}
 
 const GoogleIcon = () => (
   <svg className="h-5 w-5 mr-3" viewBox="0 0 24 24">
@@ -28,6 +58,17 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  // Account lockout state
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockoutRemaining, setLockoutRemaining] = useState(0);
+  const [attemptsLeft, setAttemptsLeft] = useState(MAX_ATTEMPTS);
+
+  // MFA challenge state
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaVerifying, setMfaVerifying] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -36,19 +77,153 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
+  // Check lockout status on mount and update countdown
+  const checkLockout = useCallback(() => {
+    const data = getLockoutData();
+    if (data.lockedUntil && data.lockedUntil > Date.now()) {
+      setIsLocked(true);
+      setLockoutRemaining(data.lockedUntil - Date.now());
+      setAttemptsLeft(0);
+    } else if (data.lockedUntil && data.lockedUntil <= Date.now()) {
+      // Lockout expired
+      clearLockoutData();
+      setIsLocked(false);
+      setAttemptsLeft(MAX_ATTEMPTS);
+    } else {
+      setAttemptsLeft(MAX_ATTEMPTS - data.attempts);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkLockout();
+  }, [checkLockout]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!isLocked) return;
+    const interval = setInterval(() => {
+      const data = getLockoutData();
+      if (data.lockedUntil && data.lockedUntil > Date.now()) {
+        setLockoutRemaining(data.lockedUntil - Date.now());
+      } else {
+        clearLockoutData();
+        setIsLocked(false);
+        setAttemptsLeft(MAX_ATTEMPTS);
+        setLockoutRemaining(0);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isLocked]);
+
+  const recordFailedAttempt = () => {
+    const data = getLockoutData();
+    data.attempts += 1;
+
+    if (data.attempts >= MAX_ATTEMPTS) {
+      data.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
+      setIsLocked(true);
+      setLockoutRemaining(LOCKOUT_DURATION_MS);
+    }
+
+    setLockoutData(data);
+    setAttemptsLeft(MAX_ATTEMPTS - data.attempts);
+  };
+
+  const formatCountdown = (ms: number) => {
+    const totalSeconds = Math.ceil(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
+
   const onSubmit = async (data: LoginFormData) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    if (isLocked) return;
+
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
     });
 
     if (error) {
+      recordFailedAttempt();
       toast.error(error.message);
       return;
     }
 
-    router.push("/feed");
-    router.refresh();
+    // Check if MFA is required
+    if (
+      signInData.session &&
+      signInData.session.user
+    ) {
+      // Check for MFA factors
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      if (factors && factors.totp.length > 0) {
+        const verifiedFactor = factors.totp.find(
+          (f) => f.status === "verified"
+        );
+        if (verifiedFactor) {
+          setMfaRequired(true);
+          setMfaFactorId(verifiedFactor.id);
+          return;
+        }
+      }
+
+      // No MFA required, clear lockout and proceed
+      clearLockoutData();
+
+      // Log successful login
+      try {
+        await createLoginEvent(signInData.session.user.id, "success");
+      } catch {
+        // Non-blocking
+      }
+
+      router.push("/feed");
+      router.refresh();
+    }
+  };
+
+  const handleMfaVerify = async () => {
+    if (mfaCode.length !== 6 || !mfaFactorId) return;
+    setMfaVerifying(true);
+
+    try {
+      const { data: challengeData, error: challengeError } =
+        await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
+
+      if (challengeError) throw challengeError;
+
+      const { data: verifyData, error: verifyError } =
+        await supabase.auth.mfa.verify({
+          factorId: mfaFactorId,
+          challengeId: challengeData.id,
+          code: mfaCode,
+        });
+
+      if (verifyError) throw verifyError;
+
+      clearLockoutData();
+
+      // Log successful login
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          await createLoginEvent(user.id, "success");
+        }
+      } catch {
+        // Non-blocking
+      }
+
+      router.push("/feed");
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err.message || "Invalid verification code");
+      setMfaCode("");
+    } finally {
+      setMfaVerifying(false);
+    }
   };
 
   const signInWithGoogle = async () => {
@@ -61,6 +236,97 @@ export default function LoginPage() {
 
     if (error) toast.error(error.message);
   };
+
+  // MFA Challenge Screen
+  if (mfaRequired) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden page-gradient">
+        <div className="fixed inset-0 pointer-events-none">
+          <div className="absolute top-1/4 left-1/3 w-[600px] h-[600px] bg-blue-500/[0.04] rounded-full blur-[180px]" />
+          <div className="absolute bottom-1/4 right-1/3 w-[500px] h-[500px] bg-purple-500/[0.03] rounded-full blur-[150px]" />
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full max-w-[440px] space-y-6 relative z-10"
+        >
+          <div className="text-center space-y-2">
+            <Link href="/">
+              <span
+                className="text-5xl font-extrabold tracking-tighter inline-block"
+                style={{
+                  fontFamily: "var(--font-syne), sans-serif",
+                  background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.5) 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                Orbit
+              </span>
+            </Link>
+          </div>
+
+          <div className="card-elevated p-8 sm:p-10 space-y-7">
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-500/10">
+                <ShieldCheck className="h-7 w-7 text-blue-400" />
+              </div>
+              <h1
+                className="text-xl font-bold"
+                style={{ fontFamily: "var(--font-syne), sans-serif" }}
+              >
+                Two-Factor Authentication
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Enter the 6-digit code from your authenticator app
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={mfaCode}
+                onChange={(e) =>
+                  setMfaCode(e.target.value.replace(/\D/g, ""))
+                }
+                placeholder="000000"
+                className="input-premium text-center text-2xl tracking-[0.4em] font-mono h-14"
+                autoFocus
+              />
+
+              <Button
+                onClick={handleMfaVerify}
+                disabled={mfaCode.length !== 6 || mfaVerifying}
+                className="w-full h-12 rounded-full text-[15px] font-bold shadow-lg shadow-primary/20"
+              >
+                {mfaVerifying ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  "Verify"
+                )}
+              </Button>
+
+              <button
+                onClick={() => {
+                  setMfaRequired(false);
+                  setMfaCode("");
+                  setMfaFactorId(null);
+                }}
+                className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Back to login
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden page-gradient">
@@ -107,11 +373,34 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {/* Lockout Banner */}
+          {isLocked && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 space-y-2"
+            >
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-red-400" />
+                <p className="text-sm font-medium text-red-300">
+                  Account temporarily locked
+                </p>
+              </div>
+              <p className="text-xs text-red-400/70">
+                Too many failed login attempts. Try again in{" "}
+                <span className="font-mono font-bold text-red-300">
+                  {formatCountdown(lockoutRemaining)}
+                </span>
+              </p>
+            </motion.div>
+          )}
+
           {/* Google button */}
           <Button
             variant="outline"
             className="btn-social"
             onClick={signInWithGoogle}
+            disabled={isLocked}
           >
             <GoogleIcon />
             Continue with Google
@@ -134,6 +423,7 @@ export default function LoginPage() {
                 placeholder="you@example.com"
                 {...register("email")}
                 className="input-premium"
+                disabled={isLocked}
               />
               {errors.email && (
                 <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
@@ -156,6 +446,7 @@ export default function LoginPage() {
                   placeholder="Enter your password"
                   {...register("password")}
                   className="input-premium pr-12"
+                  disabled={isLocked}
                 />
                 <button
                   type="button"
@@ -170,10 +461,18 @@ export default function LoginPage() {
               )}
             </div>
 
+            {/* Failed attempts warning */}
+            {!isLocked && attemptsLeft < MAX_ATTEMPTS && attemptsLeft > 0 && (
+              <p className="text-xs text-amber-400">
+                {attemptsLeft} attempt{attemptsLeft !== 1 ? "s" : ""} remaining
+                before temporary lockout
+              </p>
+            )}
+
             <Button
               type="submit"
               className="w-full h-12 rounded-full text-[15px] font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isLocked}
             >
               {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Log In"}
             </Button>

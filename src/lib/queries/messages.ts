@@ -5,6 +5,7 @@ const supabase = createClient();
 export interface ConversationWithPreview {
   id: string;
   is_group: boolean;
+  is_encrypted: boolean;
   name: string | null;
   avatar_url: string | null;
   created_by: string;
@@ -35,6 +36,7 @@ export interface Message {
   media_type: string | null;
   reply_to_id: string | null;
   is_deleted: boolean;
+  is_pinned: boolean;
   created_at: string;
   sender?: {
     id: string;
@@ -292,4 +294,239 @@ export async function deleteMessage(messageId: string) {
     .eq("id", messageId);
 
   if (error) throw error;
+}
+
+// Message reactions
+
+export interface MessageReaction {
+  message_id: string;
+  user_id: string;
+  emoji: string;
+  created_at: string;
+}
+
+export async function addMessageReaction(
+  messageId: string,
+  userId: string,
+  emoji: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("message_reactions")
+    .insert({ message_id: messageId, user_id: userId, emoji });
+
+  if (error) throw error;
+}
+
+export async function removeMessageReaction(
+  messageId: string,
+  userId: string,
+  emoji: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("message_reactions")
+    .delete()
+    .eq("message_id", messageId)
+    .eq("user_id", userId)
+    .eq("emoji", emoji);
+
+  if (error) throw error;
+}
+
+export async function getMessageReactions(
+  messageId: string
+): Promise<{ emoji: string; count: number; userIds: string[] }[]> {
+  const { data, error } = await supabase
+    .from("message_reactions")
+    .select("emoji, user_id")
+    .eq("message_id", messageId);
+
+  if (error) throw error;
+
+  const grouped = new Map<string, string[]>();
+  for (const row of data || []) {
+    if (!grouped.has(row.emoji)) {
+      grouped.set(row.emoji, []);
+    }
+    grouped.get(row.emoji)!.push(row.user_id);
+  }
+
+  return Array.from(grouped.entries()).map(([emoji, userIds]) => ({
+    emoji,
+    count: userIds.length,
+    userIds,
+  }));
+}
+
+export async function getMessagesReactions(
+  messageIds: string[]
+): Promise<Map<string, { emoji: string; count: number; userIds: string[] }[]>> {
+  if (messageIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from("message_reactions")
+    .select("message_id, emoji, user_id")
+    .in("message_id", messageIds);
+
+  if (error) throw error;
+
+  const byMessage = new Map<string, Map<string, string[]>>();
+  for (const row of data || []) {
+    if (!byMessage.has(row.message_id)) {
+      byMessage.set(row.message_id, new Map());
+    }
+    const emojiMap = byMessage.get(row.message_id)!;
+    if (!emojiMap.has(row.emoji)) {
+      emojiMap.set(row.emoji, []);
+    }
+    emojiMap.get(row.emoji)!.push(row.user_id);
+  }
+
+  const result = new Map<string, { emoji: string; count: number; userIds: string[] }[]>();
+  for (const [msgId, emojiMap] of byMessage) {
+    result.set(
+      msgId,
+      Array.from(emojiMap.entries()).map(([emoji, userIds]) => ({
+        emoji,
+        count: userIds.length,
+        userIds,
+      }))
+    );
+  }
+
+  return result;
+}
+
+// ── Group Chat Functions ────────────────────────────────────────────
+
+export async function createGroupConversation(
+  creatorId: string,
+  name: string,
+  memberIds: string[]
+): Promise<string> {
+  const { data: conv, error: convError } = await supabase
+    .from("conversations")
+    .insert({
+      is_group: true,
+      name,
+      created_by: creatorId,
+      last_message_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (convError) throw convError;
+
+  const allMembers = [
+    { conversation_id: conv.id, user_id: creatorId, role: "admin" },
+    ...memberIds.map((id) => ({
+      conversation_id: conv.id,
+      user_id: id,
+      role: "member" as const,
+    })),
+  ];
+
+  const { error: memberError } = await supabase
+    .from("conversation_members")
+    .insert(allMembers);
+
+  if (memberError) throw memberError;
+
+  return conv.id;
+}
+
+export async function addGroupMember(
+  conversationId: string,
+  userId: string
+) {
+  const { error } = await supabase
+    .from("conversation_members")
+    .insert({ conversation_id: conversationId, user_id: userId, role: "member" });
+
+  if (error) throw error;
+}
+
+export async function removeGroupMember(
+  conversationId: string,
+  userId: string
+) {
+  const { error } = await supabase
+    .from("conversation_members")
+    .delete()
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
+export async function updateGroupName(
+  conversationId: string,
+  name: string
+) {
+  const { error } = await supabase
+    .from("conversations")
+    .update({ name })
+    .eq("id", conversationId);
+
+  if (error) throw error;
+}
+
+export async function getGroupMembers(conversationId: string) {
+  const { data, error } = await supabase
+    .from("conversation_members")
+    .select(
+      `
+      user_id,
+      role,
+      joined_at,
+      profiles:profiles!conversation_members_user_id_fkey (
+        id, username, display_name, avatar_url
+      )
+    `
+    )
+    .eq("conversation_id", conversationId);
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+// ── Message Pinning ─────────────────────────────────────────────────
+
+export async function pinMessage(messageId: string) {
+  const { error } = await supabase
+    .from("messages")
+    .update({ is_pinned: true })
+    .eq("id", messageId);
+
+  if (error) throw error;
+}
+
+export async function unpinMessage(messageId: string) {
+  const { error } = await supabase
+    .from("messages")
+    .update({ is_pinned: false })
+    .eq("id", messageId);
+
+  if (error) throw error;
+}
+
+export async function getPinnedMessages(
+  conversationId: string
+): Promise<Message[]> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select(
+      `
+      *,
+      sender:profiles!messages_sender_id_fkey (
+        id, username, display_name, avatar_url
+      )
+    `
+    )
+    .eq("conversation_id", conversationId)
+    .eq("is_pinned", true)
+    .eq("is_deleted", false)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data as Message[]) || [];
 }

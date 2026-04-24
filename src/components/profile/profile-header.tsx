@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Link as LinkIcon,
@@ -7,6 +8,7 @@ import {
   BadgeCheck,
   MessageCircle,
   CalendarDays,
+  QrCode,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -16,8 +18,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { UserAvatar } from "@/components/shared/user-avatar";
+import { UserAvatar, type AvatarBorderStyle } from "@/components/shared/user-avatar";
 import { FollowButton } from "@/components/shared/follow-button";
+import { QRCodeDialog } from "@/components/profile/qr-code-dialog";
 import { formatNumber } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getMutualFollows } from "@/lib/queries/social";
@@ -39,6 +42,8 @@ interface ProfileHeaderProps {
     following_count: number;
     post_count: number;
     created_at: string;
+    theme_color?: string | null;
+    avatar_border?: string | null;
   };
   isOwnProfile: boolean;
   isFollowing: boolean;
@@ -60,6 +65,15 @@ export function ProfileHeader({
 }: ProfileHeaderProps) {
   const router = useRouter();
   const { user } = useAuth();
+  const [qrOpen, setQrOpen] = useState(false);
+
+  const themeColor = profile.theme_color || undefined;
+  const avatarBorder = (profile.avatar_border as AvatarBorderStyle) || "none";
+
+  // Build inline accent style object when theme_color is set
+  const accentStyle = themeColor
+    ? ({ "--profile-accent": themeColor } as React.CSSProperties)
+    : undefined;
 
   const { data: mutualFollows } = useQuery({
     queryKey: ["mutual-follows", user?.id, profile.id],
@@ -85,13 +99,26 @@ export function ProfileHeader({
   })();
 
   return (
-    <div className="relative">
+    <div className="relative" style={accentStyle}>
       {/* Cover photo or gradient */}
       <div className="h-36 sm:h-44 relative overflow-hidden">
         {profile.cover_url ? (
           <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-primary/20 via-purple-500/15 to-blue-500/10" />
+          <div
+            className="w-full h-full"
+            style={
+              themeColor
+                ? {
+                    background: `linear-gradient(135deg, ${themeColor}33, ${themeColor}1a, transparent)`,
+                  }
+                : undefined
+            }
+          >
+            {!themeColor && (
+              <div className="w-full h-full bg-gradient-to-br from-primary/20 via-purple-500/15 to-blue-500/10" />
+            )}
+          </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
       </div>
@@ -105,6 +132,7 @@ export function ProfileHeader({
             fallback={profile.display_name}
             size="xl"
             className="h-24 w-24 shrink-0 ring-4 ring-background shadow-xl"
+            avatarBorder={avatarBorder}
           />
 
           {/* Stats */}
@@ -136,7 +164,10 @@ export function ProfileHeader({
               {profile.display_name}
             </h1>
             {profile.is_verified && (
-              <BadgeCheck className="h-5 w-5 text-primary fill-primary/20" />
+              <BadgeCheck
+                className={themeColor ? "h-5 w-5" : "h-5 w-5 text-primary fill-primary/20"}
+                style={themeColor ? { color: themeColor, fill: `${themeColor}33` } : undefined}
+              />
             )}
           </div>
           <p className="text-sm text-muted-foreground">@{profile.username}</p>
@@ -163,7 +194,8 @@ export function ProfileHeader({
                     href={profile.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                    className={themeColor ? "inline-flex items-center gap-1 text-sm hover:underline" : "inline-flex items-center gap-1 text-sm text-primary hover:underline"}
+                    style={themeColor ? { color: themeColor } : undefined}
                   >
                     <LinkIcon className="h-3.5 w-3.5" />
                     {url.hostname}
@@ -183,19 +215,34 @@ export function ProfileHeader({
         {/* Action buttons */}
         <div className="mt-5 flex items-center gap-2">
           {isOwnProfile ? (
-            <Button
-              variant="outline"
-              className="flex-1 rounded-xl h-10 text-sm font-semibold"
-              onClick={() => router.push("/settings/profile")}
-            >
-              Edit Profile
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl h-10 text-sm font-semibold"
+                onClick={() => router.push("/settings/profile")}
+              >
+                Edit Profile
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-xl h-10 w-10"
+                onClick={() => setQrOpen(true)}
+              >
+                <QrCode className="h-4 w-4" />
+              </Button>
+            </>
           ) : (
             <>
               <FollowButton
                 isFollowing={isFollowing}
                 onToggle={onFollow}
                 className="flex-1 rounded-xl h-10"
+                style={
+                  themeColor && !isFollowing
+                    ? { backgroundColor: themeColor, borderColor: themeColor }
+                    : undefined
+                }
               />
               <Button
                 variant="outline"
@@ -203,6 +250,14 @@ export function ProfileHeader({
               >
                 <MessageCircle className="h-4 w-4 mr-1.5" />
                 Message
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-xl h-10 w-10"
+                onClick={() => setQrOpen(true)}
+              >
+                <QrCode className="h-4 w-4" />
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger>
@@ -224,6 +279,13 @@ export function ProfileHeader({
           )}
         </div>
       </div>
+
+      <QRCodeDialog
+        username={profile.username}
+        displayName={profile.display_name}
+        open={qrOpen}
+        onOpenChange={setQrOpen}
+      />
     </div>
   );
 }

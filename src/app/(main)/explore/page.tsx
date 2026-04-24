@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getSuggestedUsers } from "@/lib/queries/social";
 import { cn } from "@/lib/utils";
+import { PeopleYouMayKnow } from "@/components/shared/people-you-may-know";
 
 function useDebounce(value: string, delay: number) {
   const [debounced, setDebounced] = useState(value);
@@ -115,6 +116,11 @@ export default function ExplorePage() {
         </div>
       ) : (
         <div>
+          {/* People You May Know */}
+          <div className="border-b border-white/[0.06]">
+            <PeopleYouMayKnow />
+          </div>
+
           {/* Mosaic explore grid */}
           <MosaicGrid />
 

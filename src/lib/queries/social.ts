@@ -57,10 +57,14 @@ export async function checkFollowing(
 
 // ── Blocks ───────────────────────────────────────────────────────────
 
-export async function blockUser(blockerId: string, blockedId: string) {
+export async function blockUser(blockerId: string, blockedId: string, expiresAt?: string) {
   const { error } = await supabase
     .from("blocks")
-    .insert({ blocker_id: blockerId, blocked_id: blockedId });
+    .insert({
+      blocker_id: blockerId,
+      blocked_id: blockedId,
+      ...(expiresAt ? { expires_at: expiresAt } : {}),
+    });
   if (error) throw error;
 }
 
@@ -75,10 +79,14 @@ export async function unblockUser(blockerId: string, blockedId: string) {
 
 // ── Mutes ────────────────────────────────────────────────────────────
 
-export async function muteUser(userId: string, mutedId: string) {
+export async function muteUser(userId: string, mutedId: string, expiresAt?: string) {
   const { error } = await supabase
     .from("mutes")
-    .insert({ user_id: userId, muted_id: mutedId });
+    .insert({
+      user_id: userId,
+      muted_id: mutedId,
+      ...(expiresAt ? { expires_at: expiresAt } : {}),
+    });
   if (error) throw error;
 }
 
@@ -328,6 +336,81 @@ export async function getMutualFollows(
   };
 }
 
+// ── Combined Suggestions (merged algorithm) ────────────────────────
+
+export async function getCombinedSuggestions(
+  userId: string,
+  limit = 12
+): Promise<(ProfileSummary & { mutualCount?: number })[]> {
+  // Run both algorithms in parallel and merge results
+  const [networkSuggestions, engagementSuggestions] = await Promise.all([
+    getSuggestedUsers(userId, limit).catch(() => [] as ProfileSummary[]),
+    getEngagementBasedSuggestions(userId, limit).catch(() => [] as ProfileSummary[]),
+  ]);
+
+  // Get mutual follow counts for all candidates
+  const { data: myFollows } = await supabase
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", userId);
+
+  const myFollowingIds = new Set((myFollows ?? []).map((f) => f.following_id));
+
+  // Merge and deduplicate, combining scores
+  const scoreMap = new Map<
+    string,
+    { profile: ProfileSummary; score: number; mutualCount: number }
+  >();
+
+  // Network suggestions get base score of 10 + position bonus
+  for (let i = 0; i < networkSuggestions.length; i++) {
+    const p = networkSuggestions[i];
+    scoreMap.set(p.id, {
+      profile: p,
+      score: 10 + (networkSuggestions.length - i),
+      mutualCount: 0,
+    });
+  }
+
+  // Engagement suggestions get base score of 8 + position bonus
+  for (let i = 0; i < engagementSuggestions.length; i++) {
+    const p = engagementSuggestions[i];
+    const existing = scoreMap.get(p.id);
+    if (existing) {
+      existing.score += 8 + (engagementSuggestions.length - i);
+    } else {
+      scoreMap.set(p.id, {
+        profile: p,
+        score: 8 + (engagementSuggestions.length - i),
+        mutualCount: 0,
+      });
+    }
+  }
+
+  // Calculate mutual follow counts for each candidate
+  const candidateIds = Array.from(scoreMap.keys());
+  if (candidateIds.length > 0 && myFollowingIds.size > 0) {
+    const { data: candidateFollowers } = await supabase
+      .from("follows")
+      .select("following_id, follower_id")
+      .in("following_id", candidateIds)
+      .in("follower_id", Array.from(myFollowingIds));
+
+    for (const row of candidateFollowers ?? []) {
+      const entry = scoreMap.get(row.following_id);
+      if (entry) {
+        entry.mutualCount++;
+        entry.score += 3; // Boost score per mutual
+      }
+    }
+  }
+
+  return Array.from(scoreMap.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((v) => ({ ...v.profile, mutualCount: v.mutualCount }));
+}
+
 // ── Engagement-based Suggestions ────────────────────────────────────
 
 export async function getEngagementBasedSuggestions(
@@ -435,4 +518,58 @@ export async function getEngagementBasedSuggestions(
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map((s) => s.profile);
+}
+
+// ── Close Friends ──────────────────────────────────────────────────
+
+export async function getCloseFriends(userId: string) {
+  const { data, error } = await supabase
+    .from("close_friends")
+    .select(
+      `
+      friend_id,
+      created_at,
+      profiles:profiles!close_friends_friend_id_fkey (
+        ${PROFILE_SELECT}
+      )
+    `
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []).map((row: any) => row.profiles as ProfileSummary);
+}
+
+export async function addCloseFriend(userId: string, friendId: string) {
+  const { error } = await supabase
+    .from("close_friends")
+    .insert({ user_id: userId, friend_id: friendId });
+
+  if (error) throw error;
+}
+
+export async function removeCloseFriend(userId: string, friendId: string) {
+  const { error } = await supabase
+    .from("close_friends")
+    .delete()
+    .eq("user_id", userId)
+    .eq("friend_id", friendId);
+
+  if (error) throw error;
+}
+
+export async function checkCloseFriends(
+  userId: string,
+  friendIds: string[]
+): Promise<Set<string>> {
+  if (friendIds.length === 0) return new Set();
+  const { data, error } = await supabase
+    .from("close_friends")
+    .select("friend_id")
+    .eq("user_id", userId)
+    .in("friend_id", friendIds);
+
+  if (error) throw error;
+  return new Set((data ?? []).map((cf) => cf.friend_id));
 }

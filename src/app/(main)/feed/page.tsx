@@ -7,6 +7,7 @@ import { PostComposer } from "@/components/feed/post-composer";
 import { FeedList } from "@/components/feed/feed-list";
 import { StoryBar } from "@/components/stories/story-bar";
 import { useQueryClient } from "@tanstack/react-query";
+import { PeopleYouMayKnow } from "@/components/shared/people-you-may-know";
 
 export default function FeedPage() {
   const [tab, setTab] = useState<"foryou" | "following">("foryou");
@@ -63,6 +64,9 @@ export default function FeedPage() {
           </TabsList>
 
           <TabsContent value="foryou" className="mt-0">
+            <div className="border-b border-white/[0.06]">
+              <PeopleYouMayKnow />
+            </div>
             <FeedList tab="foryou" />
           </TabsContent>
 

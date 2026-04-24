@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useMemo } from "react";
+import { useRef, useCallback, useMemo, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { PostCard } from "./post-card";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useFeed } from "@/lib/hooks/use-feed";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { rankPosts, type UserInteractions } from "@/lib/services/feed-algorithm";
+import { useFilterStore } from "@/lib/stores/filter-store";
 
 interface FeedListProps {
   tab: "foryou" | "following";
@@ -15,6 +16,13 @@ interface FeedListProps {
 
 export function FeedList({ tab }: FeedListProps) {
   const { user } = useAuth();
+  const { containsBlockedWord, loadFromStorage } = useFilterStore();
+
+  // Load blocked words from localStorage on mount
+  useEffect(() => {
+    loadFromStorage();
+  }, [loadFromStorage]);
+
   const {
     data,
     fetchNextPage,
@@ -58,13 +66,20 @@ export function FeedList({ tab }: FeedListProps) {
   }, [data]);
 
   // Client-side ranking for the "For You" tab
-  const allPosts = useMemo(() => {
+  const rankedPosts = useMemo(() => {
     const raw = data?.pages.flatMap((page) => page.posts) || [];
     if (tab === "foryou" && user?.id && raw.length > 1) {
       return rankPosts(raw, user.id, interactionMap);
     }
     return raw;
   }, [data, tab, user?.id, interactionMap]);
+
+  // Filter out posts containing blocked words
+  const allPosts = useMemo(() => {
+    return rankedPosts.filter(
+      (post) => !containsBlockedWord(post.content || "")
+    );
+  }, [rankedPosts, containsBlockedWord]);
 
   if (isLoading) return <FeedSkeleton />;
 

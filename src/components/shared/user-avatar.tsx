@@ -3,12 +3,21 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
+export type AvatarBorderStyle =
+  | "none"
+  | "gradient-rainbow"
+  | "gold"
+  | "silver"
+  | "diamond"
+  | "animated-glow";
+
 interface UserAvatarProps {
   src?: string | null;
   fallback: string;
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
   hasStory?: boolean;
+  avatarBorder?: AvatarBorderStyle;
 }
 
 const sizeClasses = {
@@ -18,25 +27,43 @@ const sizeClasses = {
   xl: "h-24 w-24",
 };
 
+const borderClasses: Record<AvatarBorderStyle, string> = {
+  none: "",
+  "gradient-rainbow":
+    "p-[2px] bg-gradient-to-tr from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500",
+  gold: "p-[2px] bg-gradient-to-br from-amber-300 via-yellow-500 to-amber-600",
+  silver:
+    "p-[2px] bg-gradient-to-br from-zinc-300 via-slate-400 to-zinc-500",
+  diamond:
+    "p-[2px] bg-gradient-to-br from-cyan-200 via-blue-300 to-indigo-400",
+  "animated-glow":
+    "p-[2px] avatar-animated-glow",
+};
+
 export function UserAvatar({
   src,
   fallback,
   size = "md",
   className,
   hasStory = false,
+  avatarBorder = "none",
 }: UserAvatarProps) {
+  const hasBorderStyle = avatarBorder !== "none";
+  const hasRing = hasStory || hasBorderStyle;
+
   return (
     <div
       className={cn(
         "relative rounded-full",
-        hasStory &&
-          "p-[2px] bg-gradient-to-tr from-primary via-purple-500 to-pink-500"
+        hasStory && !hasBorderStyle &&
+          "p-[2px] bg-gradient-to-tr from-primary via-purple-500 to-pink-500",
+        hasBorderStyle && borderClasses[avatarBorder]
       )}
     >
       <Avatar
         className={cn(
           sizeClasses[size],
-          hasStory && "border-2 border-background",
+          hasRing && "border-2 border-background",
           className
         )}
       >
@@ -45,6 +72,34 @@ export function UserAvatar({
           {fallback.slice(0, 2).toUpperCase()}
         </AvatarFallback>
       </Avatar>
+
+      {/* Animated glow keyframe styles */}
+      {avatarBorder === "animated-glow" && (
+        <style jsx global>{`
+          .avatar-animated-glow {
+            background: conic-gradient(
+              from var(--glow-angle, 0deg),
+              #f43f5e,
+              #a855f7,
+              #3b82f6,
+              #10b981,
+              #eab308,
+              #f43f5e
+            );
+            animation: avatar-glow-spin 3s linear infinite;
+          }
+          @keyframes avatar-glow-spin {
+            to {
+              --glow-angle: 360deg;
+            }
+          }
+          @property --glow-angle {
+            syntax: "<angle>";
+            initial-value: 0deg;
+            inherits: false;
+          }
+        `}</style>
+      )}
     </div>
   );
 }

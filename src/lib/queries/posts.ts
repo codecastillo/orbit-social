@@ -19,6 +19,10 @@ export interface PostWithAuthor {
   poll_data: PollData | null;
   is_pinned: boolean;
   is_hidden: boolean;
+  location: string | null;
+  scheduled_at: string | null;
+  visibility: "public" | "close_friends";
+  content_warning: string | null;
   created_at: string;
   updated_at: string;
   profiles: {
@@ -71,6 +75,10 @@ export async function createPost(
     parentPostId?: string;
     type?: PostWithAuthor["type"];
     pollData?: PollData;
+    scheduledAt?: string;
+    visibility?: "public" | "close_friends";
+    contentWarning?: string;
+    location?: string;
   }
 ) {
   const postType =
@@ -92,6 +100,12 @@ export async function createPost(
       reply_to_id: options?.replyToId || null,
       parent_post_id: options?.parentPostId || null,
       poll_data: options?.pollData || null,
+      visibility: options?.visibility || "public",
+      content_warning: options?.contentWarning || null,
+      location: options?.location || null,
+      ...(options?.scheduledAt
+        ? { scheduled_at: options.scheduledAt, is_hidden: true }
+        : {}),
     })
     .select(POST_SELECT)
     .single();
@@ -174,7 +188,34 @@ export async function getFeedPosts(
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as PostWithAuthor[];
+
+  // Filter close_friends posts: only show if the viewer is in the poster's close_friends list
+  const posts = data as PostWithAuthor[];
+  const closeFriendsPosts = posts.filter(
+    (p: any) => p.visibility === "close_friends" && p.user_id !== userId
+  );
+
+  if (closeFriendsPosts.length > 0) {
+    // Get which posters have the viewer as a close friend
+    const posterIds = [...new Set(closeFriendsPosts.map((p) => p.user_id))];
+    const { data: cfData } = await supabase
+      .from("close_friends")
+      .select("user_id")
+      .in("user_id", posterIds)
+      .eq("friend_id", userId);
+
+    const allowedPosterIds = new Set(
+      (cfData ?? []).map((cf) => cf.user_id)
+    );
+
+    return posts.filter((p: any) => {
+      if (p.visibility !== "close_friends") return true;
+      if (p.user_id === userId) return true;
+      return allowedPosterIds.has(p.user_id);
+    });
+  }
+
+  return posts;
 }
 
 export async function getPostById(postId: string) {
@@ -529,6 +570,38 @@ export async function getUserPollVote(userId: string, postId: string) {
   return data?.option_index ?? null;
 }
 
+export async function pinPost(postId: string): Promise<void> {
+  const { error } = await supabase
+    .from("posts")
+    .update({ is_pinned: true })
+    .eq("id", postId);
+
+  if (error) throw error;
+}
+
+export async function unpinPost(postId: string): Promise<void> {
+  const { error } = await supabase
+    .from("posts")
+    .update({ is_pinned: false })
+    .eq("id", postId);
+
+  if (error) throw error;
+}
+
+export async function getUserPinnedPosts(userId: string): Promise<PostWithAuthor[]> {
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .eq("user_id", userId)
+    .eq("is_pinned", true)
+    .eq("is_hidden", false)
+    .is("reply_to_id", null)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data as PostWithAuthor[];
+}
+
 export async function checkUserInteractions(userId: string, postIds: string[]) {
   const [likesResult, bookmarksResult] = await Promise.all([
     supabase
@@ -573,4 +646,81 @@ export async function uploadPostMedia(
       : "image";
 
   return { url: publicUrl, type };
+}
+
+// --- Scheduled Posts ---
+
+export async function getScheduledPosts(userId: string): Promise<PostWithAuthor[]> {
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .eq("user_id", userId)
+    .eq("is_hidden", true)
+    .not("scheduled_at", "is", null)
+    .order("scheduled_at", { ascending: true });
+
+  if (error) throw error;
+  return data as PostWithAuthor[];
+}
+
+export async function publishScheduledPost(postId: string): Promise<PostWithAuthor> {
+  const { data, error } = await supabase
+    .from("posts")
+    .update({
+      is_hidden: false,
+      scheduled_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", postId)
+    .select(POST_SELECT)
+    .single();
+
+  if (error) throw error;
+  return data as PostWithAuthor;
+}
+
+export async function updateScheduledTime(postId: string, scheduledAt: string): Promise<PostWithAuthor> {
+  const { data, error } = await supabase
+    .from("posts")
+    .update({
+      scheduled_at: scheduledAt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", postId)
+    .select(POST_SELECT)
+    .single();
+
+  if (error) throw error;
+  return data as PostWithAuthor;
+}
+
+/**
+ * Client-side check: publishes any posts whose scheduled_at has passed.
+ * Called on feed load to ensure scheduled posts appear on time.
+ */
+export async function publishDueScheduledPosts(userId: string): Promise<number> {
+  const { data: duePosts, error: fetchError } = await supabase
+    .from("posts")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("is_hidden", true)
+    .not("scheduled_at", "is", null)
+    .lte("scheduled_at", new Date().toISOString());
+
+  if (fetchError) throw fetchError;
+  if (!duePosts || duePosts.length === 0) return 0;
+
+  const { error: updateError } = await supabase
+    .from("posts")
+    .update({
+      is_hidden: false,
+      updated_at: new Date().toISOString(),
+    })
+    .in(
+      "id",
+      duePosts.map((p) => p.id)
+    );
+
+  if (updateError) throw updateError;
+  return duePosts.length;
 }

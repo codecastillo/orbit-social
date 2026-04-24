@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Grid3X3, Heart, Repeat2, Bookmark } from "lucide-react";
+import { ArrowLeft, Grid3X3, Heart, Repeat2, Bookmark, Pin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -9,7 +9,7 @@ import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileGrid } from "@/components/profile/profile-grid";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { getUserPosts, getUserLikedPosts, getUserBookmarkedPosts, getUserRepostedPosts } from "@/lib/queries/posts";
+import { getUserPosts, getUserLikedPosts, getUserBookmarkedPosts, getUserRepostedPosts, getUserPinnedPosts } from "@/lib/queries/posts";
 import { PostCard } from "@/components/feed/post-card";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +30,8 @@ interface ProfileContentProps {
     following_count: number;
     post_count: number;
     created_at: string;
+    theme_color?: string | null;
+    avatar_border?: string | null;
   };
   isOwnProfile: boolean;
   initialIsFollowing: boolean;
@@ -54,6 +56,12 @@ export function ProfileContent({
   const router = useRouter();
   const { user } = useAuth();
   const supabase = createClient();
+
+  const { data: pinnedPosts = [] } = useQuery({
+    queryKey: ["user-pinned-posts", profile.id],
+    queryFn: () => getUserPinnedPosts(profile.id),
+    staleTime: 1000 * 60 * 2,
+  });
 
   const { data: posts = [] } = useQuery({
     queryKey: ["user-posts", profile.id],
@@ -177,9 +185,26 @@ export function ProfileContent({
       </div>
 
       {/* Tab content */}
-      {activeTab === "posts" && posts.length > 0 && <ProfileGrid posts={posts} />}
+      {/* Pinned posts section */}
+      {activeTab === "posts" && pinnedPosts.length > 0 && (
+        <div className="border-b border-white/[0.06]">
+          {pinnedPosts.map((post) => (
+            <div key={post.id} className="relative">
+              <div className="flex items-center gap-1.5 px-4 pt-3 text-[11px] text-muted-foreground font-medium">
+                <Pin className="h-3 w-3" />
+                <span>Pinned</span>
+              </div>
+              <PostCard post={post} />
+            </div>
+          ))}
+        </div>
+      )}
 
-      {activeTab === "posts" && posts.length === 0 && (
+      {activeTab === "posts" && posts.length > 0 && (
+        <ProfileGrid posts={posts.filter((p) => !p.is_pinned)} />
+      )}
+
+      {activeTab === "posts" && posts.length === 0 && pinnedPosts.length === 0 && (
         <div className="p-16 text-center">
           <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-white/[0.04] mb-4">
             <Grid3X3 className="h-7 w-7 text-muted-foreground/30" />

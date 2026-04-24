@@ -47,6 +47,15 @@ function mediaBonus(post: PostWithAuthor): number {
   return hasVideo ? 0.15 : 0.1;
 }
 
+/** Boost bonus: if the post is currently boosted, add a significant score bump. */
+function boostBonus(post: PostWithAuthor): number {
+  const boostedUntil = (post as PostWithAuthor & { boosted_until?: string | null }).boosted_until;
+  if (!boostedUntil) return 0;
+  if (new Date(boostedUntil) <= new Date()) return 0;
+  // Active boost gives a strong bonus
+  return 0.3;
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -68,9 +77,10 @@ export function scorePost(
   const engagement = engagementScore(post);
   const social = socialProximityScore(post, interactions);
   const media = mediaBonus(post);
+  const boost = boostBonus(post);
 
-  // Weighted combination
-  return recency * 0.4 + engagement * 0.25 + social * 0.25 + media * 0.1;
+  // Weighted combination (boost is additive to ensure promoted posts surface)
+  return recency * 0.4 + engagement * 0.25 + social * 0.25 + media * 0.1 + boost;
 }
 
 /**

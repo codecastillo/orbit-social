@@ -1,18 +1,35 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Play, MessageCircle, Eye, Radio } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/utils/format";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getStreamById } from "@/lib/queries/live";
+import { GiftPicker } from "@/components/live/gift-picker";
+import { GiftAnimation } from "@/components/live/gift-animation";
+import { sendGift, type GiftType, type SentGift } from "@/lib/queries/gifts";
 
 export default function StreamViewerPage() {
   const params = useParams<{ streamId: string }>();
+  const [activeGifts, setActiveGifts] = useState<SentGift[]>([]);
+
+  const handleSendGift = useCallback(
+    (giftType: GiftType) => {
+      // In a real app, userId would come from auth context
+      const sentGift = sendGift(params.streamId, "viewer", giftType);
+      setActiveGifts((prev) => [...prev, sentGift]);
+    },
+    [params.streamId]
+  );
+
+  const handleGiftComplete = useCallback((id: string) => {
+    setActiveGifts((prev) => prev.filter((g) => g.id !== id));
+  }, []);
 
   const { data: stream, isLoading } = useQuery({
     queryKey: ["live-stream", params.streamId],
@@ -48,7 +65,10 @@ export default function StreamViewerPage() {
   }
 
   return (
-    <div className="px-4 py-6">
+    <div className="px-4 py-6 relative">
+      {/* Gift animation overlay */}
+      <GiftAnimation gifts={activeGifts} onComplete={handleGiftComplete} />
+
       {/* Video player placeholder */}
       <div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-xl bg-black/90 ring-1 ring-foreground/10">
         <div className="flex flex-col items-center gap-3 text-center">
@@ -106,6 +126,13 @@ export default function StreamViewerPage() {
           <Badge variant="secondary">Ended</Badge>
         )}
       </div>
+
+      {/* Gift picker — visible when stream is live */}
+      {stream.status === "live" && (
+        <div className="mt-4 flex justify-end">
+          <GiftPicker onSendGift={handleSendGift} />
+        </div>
+      )}
 
       {/* Chat placeholder */}
       <div className="mt-6 flex flex-col items-center justify-center rounded-xl bg-card p-8 ring-1 ring-foreground/10">

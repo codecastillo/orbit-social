@@ -190,6 +190,20 @@ export async function toggleUserAdmin(userId: string, isAdmin: boolean) {
   return data;
 }
 
+export async function toggleUserVerified(userId: string, isVerified: boolean) {
+  const adminClient = createAdminClient();
+
+  const { data, error } = await adminClient
+    .from("profiles")
+    .update({ is_verified: isVerified })
+    .eq("id", userId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function suspendUser(userId: string) {
   const adminClient = createAdminClient();
 

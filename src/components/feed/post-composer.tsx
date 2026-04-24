@@ -3,7 +3,7 @@
 import { useState, useRef, useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Image as ImageIcon, X, Loader2, BarChart3, Smile, Plus, Minus } from "lucide-react";
+import { Image as ImageIcon, X, Loader2, BarChart3, Smile, Plus, Minus, Clock, MapPin, FileText, AlertTriangle, Users, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +18,8 @@ import { suggestCaptions } from "@/lib/services/caption-suggestions";
 import { useAudioRecorder } from "@/lib/hooks/use-audio-recorder";
 import { formatDuration, generateWaveformBars, getAudioExtension } from "@/lib/utils/audio";
 import { cn } from "@/lib/utils";
+import { useDraftsStore } from "@/lib/stores/drafts-store";
+import { moderateContent, flagContentForReview } from "@/lib/services/auto-moderation";
 
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
@@ -105,8 +107,11 @@ function ComposerForm({
   const [content, setContent] = useState("");
   const [media, setMedia] = useState<MediaPreview[]>([]);
   const [posting, setPosting] = useState(false);
+  const [location, setLocation] = useState("");
+  const [showLocation, setShowLocation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
+  const { saveDraft } = useDraftsStore();
 
   // Audio recording
   const {
@@ -127,10 +132,21 @@ function ComposerForm({
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const [audioWaveform] = useState(() => generateWaveformBars(32));
 
+  // Schedule state
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState("");
+
   // Poll state
   const [showPoll, setShowPoll] = useState(false);
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [pollEndHours, setPollEndHours] = useState(24);
+
+  // Visibility state
+  const [visibility, setVisibility] = useState<"public" | "close_friends">("public");
+
+  // Content warning state
+  const [contentWarning, setContentWarning] = useState("");
+  const [showContentWarning, setShowContentWarning] = useState(false);
 
   const hasAudio = !!(audioBlob || audioFile);
   const currentAudioUrl = audioPreviewUrl || audioFileUrl;
@@ -249,11 +265,37 @@ function ComposerForm({
     });
   };
 
+  const [moderationWarning, setModerationWarning] = useState<string | null>(null);
+  const [moderationConfirmed, setModerationConfirmed] = useState(false);
+
   const handleSubmit = async () => {
     if (!canPost || posting) return;
+
+    // Auto-moderation check
+    if (content.trim() && !moderationConfirmed) {
+      const result = moderateContent(content.trim());
+      if (result.flagged) {
+        if (result.severity === "high") {
+          toast.error(result.reason || "Content violates community guidelines");
+          // Auto-flag for admin review after posting (if user proceeds)
+          setModerationWarning(result.reason || "Content may violate guidelines");
+          return;
+        }
+        if (result.severity === "medium" || result.severity === "low") {
+          setModerationWarning(result.reason || "Content may violate guidelines");
+          return;
+        }
+      }
+    }
+
+    setModerationWarning(null);
+    setModerationConfirmed(false);
     setPosting(true);
 
     try {
+      // Flag high-severity content for admin review
+      const modResult = content.trim() ? moderateContent(content.trim()) : null;
+
       // Upload media files
       const uploadedMedia = await Promise.all(
         media.map((m) => uploadPostMedia(user.id, m.file))
@@ -287,7 +329,16 @@ function ComposerForm({
           }
         : undefined;
 
-      await createPost(
+      const isScheduling = showSchedule && scheduledAt;
+      const scheduledDate = isScheduling ? new Date(scheduledAt) : null;
+
+      if (scheduledDate && scheduledDate <= new Date()) {
+        toast.error("Please pick a future date and time");
+        setPosting(false);
+        return;
+      }
+
+      const createdPost = await createPost(
         user.id,
         { content: content.trim() },
         uploadedMedia,
@@ -295,8 +346,26 @@ function ComposerForm({
           replyToId,
           type: pollData ? "poll" : undefined,
           pollData,
+          scheduledAt: scheduledDate ? scheduledDate.toISOString() : undefined,
+          location: location.trim() || undefined,
+          visibility,
+          contentWarning: showContentWarning && contentWarning.trim() ? contentWarning.trim() : undefined,
         }
       );
+
+      // Auto-flag high severity content for admin review
+      if (modResult && modResult.flagged && modResult.severity === "high" && createdPost?.id) {
+        try {
+          await flagContentForReview(
+            createdPost.id,
+            user.id,
+            modResult.reason || "Auto-flagged content",
+            modResult.severity
+          );
+        } catch {
+          // Non-blocking
+        }
+      }
 
       setContent("");
       media.forEach((m) => URL.revokeObjectURL(m.preview));
@@ -305,7 +374,20 @@ function ComposerForm({
       setShowPoll(false);
       setPollOptions(["", ""]);
       setPollEndHours(24);
-      toast.success(replyToId ? "Reply posted" : "Post created");
+      setShowSchedule(false);
+      setScheduledAt("");
+      setLocation("");
+      setShowLocation(false);
+      setVisibility("public");
+      setContentWarning("");
+      setShowContentWarning(false);
+      toast.success(
+        isScheduling
+          ? "Post scheduled"
+          : replyToId
+            ? "Reply posted"
+            : "Post created"
+      );
       onSuccess?.();
     } catch {
       toast.error("Failed to create post");
@@ -581,8 +663,161 @@ function ComposerForm({
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Schedule UI */}
+          <AnimatePresence>
+            {showSchedule && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="mt-3"
+              >
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 space-y-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[13px] font-medium text-zinc-300">Schedule post</span>
+                    <button
+                      onClick={() => {
+                        setShowSchedule(false);
+                        setScheduledAt("");
+                      }}
+                      className="text-[12px] text-muted-foreground hover:text-white transition-colors"
+                    >
+                      Remove schedule
+                    </button>
+                  </div>
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    min={new Date().toISOString().slice(0, 16)}
+                    className="w-full h-9 px-3 rounded-lg text-[13px] bg-white/[0.04] border border-white/[0.1] text-zinc-200 focus:outline-none focus:border-blue-500/50 transition-colors"
+                  />
+                  {scheduledAt && (
+                    <p className="text-[11px] text-zinc-500">
+                      Will be published on{" "}
+                      {new Date(scheduledAt).toLocaleString(undefined, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
+
+      {/* Location Input */}
+      <AnimatePresence>
+        {showLocation && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="px-4 pb-2"
+          >
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+              <MapPin className="h-4 w-4 text-zinc-500 shrink-0" />
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Add location..."
+                maxLength={100}
+                className="flex-1 bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none"
+              />
+              {location && (
+                <button
+                  onClick={() => { setLocation(""); setShowLocation(false); }}
+                  className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Content Warning Input */}
+      <AnimatePresence>
+        {showContentWarning && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="px-4 pb-2"
+          >
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/[0.05] border border-amber-500/20">
+              <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+              <input
+                type="text"
+                value={contentWarning}
+                onChange={(e) => setContentWarning(e.target.value)}
+                placeholder="Content warning (e.g., spoilers, sensitive content)..."
+                maxLength={100}
+                className="flex-1 bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none"
+              />
+              <button
+                onClick={() => { setContentWarning(""); setShowContentWarning(false); }}
+                className="text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Visibility Indicator */}
+      {visibility === "close_friends" && (
+        <div className="px-4 pb-2">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/[0.08] border border-emerald-500/20">
+            <Users className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="text-[12px] font-medium text-emerald-400">Close Friends only</span>
+            <button
+              onClick={() => setVisibility("public")}
+              className="ml-auto text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Moderation Warning */}
+      {moderationWarning && (
+        <div className="mx-4 mb-2 rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-4 text-amber-400 shrink-0">
+              <path fillRule="evenodd" d="M6.701 2.25c.577-1 2.02-1 2.598 0l5.196 9a1.5 1.5 0 0 1-1.299 2.25H2.804a1.5 1.5 0 0 1-1.3-2.25l5.197-9ZM8 5a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5A.75.75 0 0 1 8 5Zm0 6.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clipRule="evenodd" />
+            </svg>
+            <p className="text-xs text-amber-300 font-medium">{moderationWarning}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setModerationConfirmed(true);
+                setModerationWarning(null);
+              }}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-medium bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition-colors"
+            >
+              Post anyway
+            </button>
+            <button
+              onClick={() => setModerationWarning(null)}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors"
+            >
+              Edit content
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Actions Bar */}
       <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06]">
@@ -649,11 +884,89 @@ function ComposerForm({
             <BarChart3 className="h-5 w-5" />
           </button>
           <button
+            className={cn(
+              "h-9 w-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-40 disabled:pointer-events-none",
+              showSchedule
+                ? "text-blue-400 hover:text-blue-300"
+                : "text-zinc-400 hover:text-zinc-200"
+            )}
+            onClick={() => {
+              setShowSchedule(!showSchedule);
+              if (showSchedule) setScheduledAt("");
+            }}
+            title={showSchedule ? "Remove schedule" : "Schedule post"}
+          >
+            <Clock className="h-5 w-5" />
+          </button>
+          <button
             className="h-9 w-9 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-40 disabled:pointer-events-none"
             disabled
             title="Emoji"
           >
             <Smile className="h-5 w-5" />
+          </button>
+          <button
+            className={cn(
+              "h-9 w-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-40 disabled:pointer-events-none",
+              showLocation || location
+                ? "text-blue-400 hover:text-blue-300"
+                : "text-zinc-400 hover:text-zinc-200"
+            )}
+            onClick={() => setShowLocation(!showLocation)}
+            title={showLocation ? "Hide location" : "Add location"}
+          >
+            <MapPin className="h-5 w-5" />
+          </button>
+          <button
+            className="h-9 w-9 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            onClick={() => {
+              if (!content.trim() && media.length === 0) {
+                toast.error("Nothing to save as draft");
+                return;
+              }
+              saveDraft(
+                content,
+                media.map((m) => ({ preview: m.preview, type: m.type })),
+                location || undefined
+              );
+              toast.success("Draft saved");
+            }}
+            title="Save as draft"
+          >
+            <FileText className="h-5 w-5" />
+          </button>
+          {/* Visibility toggle */}
+          <button
+            className={cn(
+              "h-9 w-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-40 disabled:pointer-events-none",
+              visibility === "close_friends"
+                ? "text-emerald-400 hover:text-emerald-300"
+                : "text-zinc-400 hover:text-zinc-200"
+            )}
+            onClick={() => setVisibility(visibility === "public" ? "close_friends" : "public")}
+            title={visibility === "public" ? "Switch to Close Friends" : "Switch to Public"}
+          >
+            {visibility === "close_friends" ? (
+              <Users className="h-5 w-5" />
+            ) : (
+              <Globe className="h-5 w-5" />
+            )}
+          </button>
+          {/* Content warning toggle */}
+          <button
+            className={cn(
+              "h-9 w-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-40 disabled:pointer-events-none",
+              showContentWarning
+                ? "text-amber-400 hover:text-amber-300"
+                : "text-zinc-400 hover:text-zinc-200"
+            )}
+            onClick={() => {
+              setShowContentWarning(!showContentWarning);
+              if (showContentWarning) setContentWarning("");
+            }}
+            title={showContentWarning ? "Remove content warning" : "Add content warning"}
+          >
+            <AlertTriangle className="h-5 w-5" />
           </button>
         </div>
 
@@ -673,12 +986,22 @@ function ComposerForm({
           )}
           <Button
             size="sm"
-            className="rounded-lg px-6 font-semibold bg-blue-500 hover:bg-blue-600 text-white border-0 transition-colors"
+            className={cn(
+              "rounded-lg px-6 font-semibold border-0 transition-colors",
+              showSchedule && scheduledAt
+                ? "bg-amber-500 hover:bg-amber-600 text-white"
+                : "bg-blue-500 hover:bg-blue-600 text-white"
+            )}
             onClick={handleSubmit}
-            disabled={!canPost || posting}
+            disabled={!canPost || posting || (showSchedule && !scheduledAt)}
           >
             {posting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
+            ) : showSchedule && scheduledAt ? (
+              <>
+                <Clock className="h-3.5 w-3.5 mr-1.5" />
+                Schedule
+              </>
             ) : replyToId ? (
               "Reply"
             ) : (

@@ -11,6 +11,7 @@ interface FollowButtonProps {
   onToggle: () => Promise<void>;
   size?: "sm" | "default";
   className?: string;
+  style?: React.CSSProperties;
 }
 
 export function FollowButton({
@@ -18,6 +19,7 @@ export function FollowButton({
   onToggle,
   size = "default",
   className,
+  style,
 }: FollowButtonProps) {
   const [loading, setLoading] = useState(false);
   const [hovering, setHovering] = useState(false);
@@ -40,6 +42,7 @@ export function FollowButton({
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         disabled={loading}
+        style={!isFollowing ? style : undefined}
         className={cn(
           "rounded-full min-w-[100px] transition-all",
           isFollowing &&

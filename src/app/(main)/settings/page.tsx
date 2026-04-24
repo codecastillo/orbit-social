@@ -8,6 +8,9 @@ import {
   Settings,
   BarChart3,
   ChevronRight,
+  KeyRound,
+  Filter,
+  Users,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
@@ -45,6 +48,30 @@ const settingsItems = [
     description: "Manage your email, password, and account",
     gradient: "from-zinc-400/20 to-zinc-500/20",
     iconColor: "text-zinc-400",
+  },
+  {
+    href: "/settings/security",
+    icon: KeyRound,
+    title: "Security",
+    description: "Two-factor authentication, login activity, and more",
+    gradient: "from-red-500/20 to-orange-500/20",
+    iconColor: "text-red-400",
+  },
+  {
+    href: "/settings/filters",
+    icon: Filter,
+    title: "Word Filters",
+    description: "Hide posts containing specific words from your feed",
+    gradient: "from-pink-500/20 to-rose-500/20",
+    iconColor: "text-pink-400",
+  },
+  {
+    href: "/settings/close-friends",
+    icon: Users,
+    title: "Close Friends",
+    description: "Manage your close friends list for private sharing",
+    gradient: "from-emerald-500/20 to-teal-500/20",
+    iconColor: "text-emerald-400",
   },
 ];
 

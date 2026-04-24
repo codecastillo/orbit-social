@@ -1,25 +1,124 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isAudioMessage } from "@/lib/utils/audio";
 import { InlineAudioPlayer } from "@/components/shared/inline-audio-player";
-import type { Message } from "@/lib/queries/messages";
+import {
+  MessageReactionPicker,
+  MessageReactionsDisplay,
+} from "@/components/messages/message-reaction-picker";
+import {
+  addMessageReaction,
+  removeMessageReaction,
+  getMessageReactions,
+  type Message,
+} from "@/lib/queries/messages";
 
 interface MessageBubbleProps {
   message: Message;
   isOwn: boolean;
   showSender: boolean;
+  currentUserId?: string;
+  onPinMessage?: (messageId: string, isPinned: boolean) => void;
 }
 
 export function MessageBubble({
   message,
   isOwn,
   showSender,
+  currentUserId,
+  onPinMessage,
 }: MessageBubbleProps) {
   const time = new Date(message.created_at).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  const [reactions, setReactions] = useState<
+    { emoji: string; count: number; hasReacted: boolean }[]
+  >([]);
+
+  useEffect(() => {
+    if (message.is_deleted) return;
+    getMessageReactions(message.id)
+      .then((data) =>
+        setReactions(
+          data.map((r) => ({
+            emoji: r.emoji,
+            count: r.count,
+            hasReacted: currentUserId
+              ? r.userIds.includes(currentUserId)
+              : false,
+          }))
+        )
+      )
+      .catch(() => {});
+  }, [message.id, message.is_deleted, currentUserId]);
+
+  const handleReactionSelect = async (emoji: string) => {
+    if (!currentUserId) return;
+    const existing = reactions.find(
+      (r) => r.emoji === emoji && r.hasReacted
+    );
+
+    if (existing) {
+      // Remove reaction
+      setReactions((prev) =>
+        prev
+          .map((r) =>
+            r.emoji === emoji
+              ? { ...r, count: r.count - 1, hasReacted: false }
+              : r
+          )
+          .filter((r) => r.count > 0)
+      );
+      try {
+        await removeMessageReaction(message.id, currentUserId, emoji);
+      } catch {
+        getMessageReactions(message.id).then((data) =>
+          setReactions(
+            data.map((r) => ({
+              emoji: r.emoji,
+              count: r.count,
+              hasReacted: r.userIds.includes(currentUserId),
+            }))
+          )
+        );
+      }
+    } else {
+      // Add reaction
+      setReactions((prev) => {
+        const found = prev.find((r) => r.emoji === emoji);
+        if (found) {
+          return prev.map((r) =>
+            r.emoji === emoji
+              ? { ...r, count: r.count + 1, hasReacted: true }
+              : r
+          );
+        }
+        return [...prev, { emoji, count: 1, hasReacted: true }];
+      });
+      try {
+        await addMessageReaction(message.id, currentUserId, emoji);
+      } catch {
+        getMessageReactions(message.id).then((data) =>
+          setReactions(
+            data.map((r) => ({
+              emoji: r.emoji,
+              count: r.count,
+              hasReacted: r.userIds.includes(currentUserId),
+            }))
+          )
+        );
+      }
+    }
+  };
+
+  const handleReactionToggle = (emoji: string) => {
+    handleReactionSelect(emoji);
+  };
 
   if (message.is_deleted) {
     return (
@@ -96,46 +195,110 @@ export function MessageBubble({
   return (
     <div
       className={cn(
-        "flex w-full",
+        "flex w-full group",
         isOwn ? "justify-end" : "justify-start",
         showSender ? "mt-3" : "mt-0.5"
       )}
     >
-      <div
-        className={cn(
-          "max-w-[75%] rounded-2xl px-4 py-2",
-          isOwn
-            ? "bg-primary text-primary-foreground rounded-br-md"
-            : "bg-muted/80 text-foreground rounded-bl-md"
-        )}
-      >
-        {showSender && !isOwn && message.sender && (
-          <p className="text-xs font-medium text-muted-foreground mb-1">
-            {message.sender.display_name}
-          </p>
-        )}
-        {message.media_url && !isAudioMessage(null, message.media_url) && (
-          <img
-            src={message.media_url}
-            alt="Media"
-            className="rounded-lg max-w-full mb-1"
-          />
-        )}
-        {message.content && (
-          <p className="text-sm whitespace-pre-wrap break-words">
-            {message.content}
-          </p>
-        )}
-        <p
-          className={cn(
-            "text-[10px] mt-1 text-right",
-            isOwn
-              ? "text-primary-foreground/60"
-              : "text-muted-foreground/60"
+      <div className="flex flex-col">
+        <div className="flex items-center gap-1.5">
+          {isOwn && (
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              {onPinMessage && (
+                <button
+                  onClick={() => onPinMessage(message.id, !!message.is_pinned)}
+                  className={cn(
+                    "h-7 w-7 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors",
+                    message.is_pinned ? "text-amber-400" : "text-muted-foreground"
+                  )}
+                  title={message.is_pinned ? "Unpin message" : "Pin message"}
+                >
+                  <Pin className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <MessageReactionPicker
+                onSelect={handleReactionSelect}
+                existingEmojis={reactions
+                  .filter((r) => r.hasReacted)
+                  .map((r) => r.emoji)}
+              />
+            </div>
           )}
-        >
-          {time}
-        </p>
+          <div className="relative">
+            {message.is_pinned && (
+              <div className="absolute -top-3 right-2">
+                <Pin className="h-3 w-3 text-amber-400" />
+              </div>
+            )}
+            <div
+              className={cn(
+                "max-w-[75%] rounded-2xl px-4 py-2",
+                isOwn
+                  ? "bg-primary text-primary-foreground rounded-br-md"
+                  : "bg-muted/80 text-foreground rounded-bl-md",
+                message.is_pinned && "ring-1 ring-amber-500/20"
+              )}
+            >
+              {showSender && !isOwn && message.sender && (
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  {message.sender.display_name}
+                </p>
+              )}
+              {message.media_url && !isAudioMessage(null, message.media_url) && (
+                <img
+                  src={message.media_url}
+                  alt="Media"
+                  className="rounded-lg max-w-full mb-1"
+                />
+              )}
+              {message.content && (
+                <p className="text-sm whitespace-pre-wrap break-words">
+                  {message.content}
+                </p>
+              )}
+              <p
+                className={cn(
+                  "text-[10px] mt-1 text-right",
+                  isOwn
+                    ? "text-primary-foreground/60"
+                    : "text-muted-foreground/60"
+                )}
+              >
+                {time}
+              </p>
+            </div>
+          </div>
+          {!isOwn && (
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <MessageReactionPicker
+                onSelect={handleReactionSelect}
+                existingEmojis={reactions
+                  .filter((r) => r.hasReacted)
+                  .map((r) => r.emoji)}
+              />
+              {onPinMessage && (
+                <button
+                  onClick={() => onPinMessage(message.id, !!message.is_pinned)}
+                  className={cn(
+                    "h-7 w-7 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors",
+                    message.is_pinned ? "text-amber-400" : "text-muted-foreground"
+                  )}
+                  title={message.is_pinned ? "Unpin message" : "Pin message"}
+                >
+                  <Pin className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        {reactions.length > 0 && (
+          <div className={cn("px-2", isOwn ? "self-end" : "self-start")}>
+            <MessageReactionsDisplay
+              reactions={reactions}
+              onToggle={handleReactionToggle}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

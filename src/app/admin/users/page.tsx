@@ -8,6 +8,8 @@ import {
   ShieldCheck,
   ShieldOff,
   ExternalLink,
+  BadgeCheck,
+  BadgeX,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -18,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { getUsers, toggleUserAdmin } from "@/lib/queries/admin";
+import { getUsers, toggleUserAdmin, toggleUserVerified } from "@/lib/queries/admin";
 
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
@@ -52,6 +54,19 @@ export default function AdminUsersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+    },
+  });
+
+  const toggleVerifiedMutation = useMutation({
+    mutationFn: ({
+      userId,
+      isVerified,
+    }: {
+      userId: string;
+      isVerified: boolean;
+    }) => toggleUserVerified(userId, isVerified),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
     },
   });
 
@@ -137,6 +152,30 @@ export default function AdminUsersPage() {
                     <ExternalLink className="h-3.5 w-3.5" />
                   </Button>
                 </Link>
+
+                <Button
+                  variant={user.is_verified ? "secondary" : "outline"}
+                  size="sm"
+                  disabled={toggleVerifiedMutation.isPending}
+                  onClick={() =>
+                    toggleVerifiedMutation.mutate({
+                      userId: user.id,
+                      isVerified: !user.is_verified,
+                    })
+                  }
+                >
+                  {user.is_verified ? (
+                    <>
+                      <BadgeX className="h-3.5 w-3.5" />
+                      Unverify
+                    </>
+                  ) : (
+                    <>
+                      <BadgeCheck className="h-3.5 w-3.5" />
+                      Verify
+                    </>
+                  )}
+                </Button>
 
                 <Button
                   variant={user.is_admin ? "destructive" : "outline"}

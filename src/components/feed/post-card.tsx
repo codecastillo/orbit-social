@@ -16,6 +16,16 @@ import {
   Pencil,
   Check,
   X,
+  Pin,
+  PinOff,
+  Rocket,
+  Sparkles,
+  MapPin,
+  AlertTriangle,
+  Eye,
+  Users,
+  ShieldBan,
+  VolumeX,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -39,10 +49,24 @@ import {
   votePoll,
   getUserPollVote,
   getOriginalPost,
+  pinPost,
+  unpinPost,
   type PostWithAuthor,
   type PollData,
 } from "@/lib/queries/posts";
+import {
+  addReaction,
+  removeReaction,
+  getUserReaction,
+  getPostReactions,
+  REACTION_EMOJI,
+  type ReactionType,
+  type ReactionCount,
+} from "@/lib/queries/reactions";
+import { boostPost } from "@/lib/queries/boost";
 import { ShareDialog } from "@/components/shared/share-dialog";
+import { BlockMuteDialog } from "@/components/shared/block-mute-dialog";
+import { ReactionPicker, ReactionCountsDisplay } from "./reaction-picker";
 import { PostInsights, computeUserAverages } from "./post-insights";
 import { AudioPlayer } from "@/components/feed/audio-player";
 import { isAudioMediaItem } from "@/lib/utils/audio";
@@ -78,15 +102,22 @@ export function PostCard({
   const [repostCount, setRepostCount] = useState(post.repost_count);
   const [animateHeart, setAnimateHeart] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [blockMuteOpen, setBlockMuteOpen] = useState(false);
+  const [blockMuteAction, setBlockMuteAction] = useState<"block" | "mute">("block");
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content || "");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [spoilerRevealed, setSpoilerRevealed] = useState(false);
   const [displayedContent, setDisplayedContent] = useState(post.content);
 
   // Poll state
   const [userVote, setUserVote] = useState<number | null>(null);
   const [pollData, setPollData] = useState<PollData | null>(post.poll_data);
   const [isVoting, setIsVoting] = useState(false);
+
+  // Reaction state
+  const [userReaction, setUserReaction] = useState<ReactionType | null>(null);
+  const [reactionCounts, setReactionCounts] = useState<ReactionCount[]>([]);
 
   // Repost: load original post if this is a repost
   const [originalPost, setOriginalPost] = useState<PostWithAuthor | null>(null);
@@ -97,6 +128,14 @@ export function PostCard({
       getOriginalPost(post.parent_post_id).then(setOriginalPost).catch(() => {});
     }
   }, [isRepostType, post.parent_post_id]);
+
+  // Load reactions
+  useEffect(() => {
+    getPostReactions(post.id).then(setReactionCounts).catch(() => {});
+    if (user) {
+      getUserReaction(user.id, post.id).then(setUserReaction).catch(() => {});
+    }
+  }, [user, post.id]);
 
   // Load user's poll vote
   useEffect(() => {
@@ -221,6 +260,81 @@ export function PostCard({
     setEditContent(displayedContent || "");
   };
 
+  const handleReaction = async (type: ReactionType) => {
+    if (!user) { toast.error("Sign in to react"); return; }
+
+    if (userReaction === type) {
+      // Remove reaction
+      setUserReaction(null);
+      setReactionCounts((prev) =>
+        prev
+          .map((r) =>
+            r.reaction_type === type ? { ...r, count: r.count - 1 } : r
+          )
+          .filter((r) => r.count > 0)
+      );
+      try { await removeReaction(user.id, post.id); }
+      catch {
+        setUserReaction(type);
+        setReactionCounts((prev) => {
+          const existing = prev.find((r) => r.reaction_type === type);
+          if (existing) return prev.map((r) => r.reaction_type === type ? { ...r, count: r.count + 1 } : r);
+          return [...prev, { reaction_type: type, count: 1 }];
+        });
+      }
+    } else {
+      // Add/change reaction
+      const prevReaction = userReaction;
+      setUserReaction(type);
+      setReactionCounts((prev) => {
+        let updated = prev.map((r) => {
+          if (r.reaction_type === prevReaction) return { ...r, count: r.count - 1 };
+          if (r.reaction_type === type) return { ...r, count: r.count + 1 };
+          return r;
+        }).filter((r) => r.count > 0);
+        if (!updated.find((r) => r.reaction_type === type)) {
+          updated = [...updated, { reaction_type: type, count: 1 }];
+        }
+        return updated;
+      });
+      try { await addReaction(user.id, post.id, type); }
+      catch {
+        setUserReaction(prevReaction);
+        getPostReactions(post.id).then(setReactionCounts).catch(() => {});
+      }
+    }
+  };
+
+  const handlePin = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      if (post.is_pinned) {
+        await unpinPost(post.id);
+        toast.success("Post unpinned");
+      } else {
+        await pinPost(post.id);
+        toast.success("Post pinned to profile");
+      }
+      onUpdate?.();
+    } catch {
+      toast.error("Failed to update pin");
+    }
+  };
+
+  const handleBoost = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await boostPost(post.id, 24);
+      toast.success("Post boosted for 24 hours!");
+      onUpdate?.();
+    } catch {
+      toast.error("Failed to boost post");
+    }
+  };
+
+  const isBoosted = !!(post as PostWithAuthor & { boosted_until?: string | null }).boosted_until &&
+    new Date((post as PostWithAuthor & { boosted_until?: string | null }).boosted_until!) > new Date();
+
   const handlePollVote = async (e: React.MouseEvent, optionIndex: number) => {
     e.stopPropagation();
     if (!user) { toast.error("Sign in to vote"); return; }
@@ -254,6 +368,14 @@ export function PostCard({
       className="p-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
       onClick={() => router.push(`/post/${displayPost.id}`)}
     >
+      {/* Boosted indicator */}
+      {isBoosted && (
+        <div className="flex items-center gap-1.5 ml-10 mb-1 text-[11px] text-amber-400/80 font-medium">
+          <Sparkles className="h-3 w-3" />
+          <span>Promoted</span>
+        </div>
+      )}
+
       {/* Repost indicator */}
       {(isRepostType || repostedByUsername) && (
         <div className="flex items-center gap-2 ml-10 mb-1 text-[13px] text-muted-foreground">
@@ -261,6 +383,14 @@ export function PostCard({
           <span>
             Reposted by @{repostedByUsername || profile.username}
           </span>
+        </div>
+      )}
+
+      {/* Pinned indicator */}
+      {post.is_pinned && (
+        <div className="flex items-center gap-1.5 ml-10 mb-1 text-[11px] text-muted-foreground font-medium">
+          <Pin className="h-3 w-3" />
+          <span>Pinned</span>
         </div>
       )}
 
@@ -277,6 +407,16 @@ export function PostCard({
               {displayProfile.display_name}
             </Link>
             <span className="text-muted-foreground text-[13px] truncate">@{displayProfile.username}</span>
+            {displayPost.location && (
+              <Link
+                href={`/location/${encodeURIComponent(displayPost.location)}`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-0.5 text-muted-foreground/60 text-[12px] hover:text-muted-foreground transition-colors shrink-0"
+              >
+                <MapPin className="h-3 w-3" />
+                <span className="truncate max-w-[100px]">{displayPost.location}</span>
+              </Link>
+            )}
             <span className="text-muted-foreground/50 text-[13px] shrink-0">· {formatTimeAgo(post.created_at)}</span>
 
             <div className="ml-auto shrink-0">
@@ -292,57 +432,110 @@ export function PostCard({
                       <DropdownMenuItem onClick={handleEdit}>
                         <Pencil className="mr-2 h-4 w-4" /> Edit
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handlePin}>
+                        {post.is_pinned ? (
+                          <><PinOff className="mr-2 h-4 w-4" /> Unpin from Profile</>
+                        ) : (
+                          <><Pin className="mr-2 h-4 w-4" /> Pin to Profile</>
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleBoost}>
+                        <Rocket className="mr-2 h-4 w-4" /> Boost Post
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" /> Delete
                       </DropdownMenuItem>
                     </>
                   ) : (
-                    <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                      <Flag className="mr-2 h-4 w-4" /> Report
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setBlockMuteAction("block"); setBlockMuteOpen(true); }}>
+                        <ShieldBan className="mr-2 h-4 w-4" /> Block
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setBlockMuteAction("mute"); setBlockMuteOpen(true); }}>
+                        <VolumeX className="mr-2 h-4 w-4" /> Mute
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                        <Flag className="mr-2 h-4 w-4" /> Report
+                      </DropdownMenuItem>
+                    </>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
 
-          {/* Content - editable or static */}
-          {isEditing ? (
-            <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
-              <Textarea
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                className="min-h-[60px] text-[15px] leading-relaxed bg-white/[0.04] border-white/[0.1] rounded-lg resize-none"
-                autoFocus
-              />
-              <div className="flex items-center gap-2 mt-2">
+          {/* Close Friends badge */}
+          {displayPost.visibility === "close_friends" && (
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <Users className="h-3 w-3" />
+                Close Friends
+              </span>
+            </div>
+          )}
+
+          {/* Content Warning */}
+          {displayPost.content_warning && !spoilerRevealed && (
+            <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+              <div className="rounded-xl bg-amber-500/[0.06] border border-amber-500/20 p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                  <span className="text-sm font-medium text-amber-300">
+                    {displayPost.content_warning}
+                  </span>
+                </div>
                 <button
-                  onClick={handleSaveEdit}
-                  disabled={isSavingEdit || !editContent.trim()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-50 transition-colors"
+                  onClick={(e) => { e.stopPropagation(); setSpoilerRevealed(true); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium bg-white/[0.06] hover:bg-white/[0.1] text-zinc-300 transition-colors"
                 >
-                  <Check className="h-3.5 w-3.5" />
-                  Save
-                </button>
-                <button
-                  onClick={handleCancelEdit}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium text-muted-foreground hover:text-white hover:bg-white/[0.06] transition-colors"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Cancel
+                  <Eye className="h-3.5 w-3.5" />
+                  Show Content
                 </button>
               </div>
             </div>
-          ) : (
-            (displayedContent || displayPost.content) && (
-              <div className="mt-1.5">
-                <PostContent content={displayedContent || displayPost.content || ""} />
-              </div>
-            )
           )}
 
-          {/* Poll Display */}
-          {displayPost.type === "poll" && pollData && (
+          {/* Content - editable or static (hidden behind spoiler if content_warning is set) */}
+          {(!displayPost.content_warning || spoilerRevealed) && (
+            <>
+              {isEditing ? (
+                <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                  <Textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="min-h-[60px] text-[15px] leading-relaxed bg-white/[0.04] border-white/[0.1] rounded-lg resize-none"
+                    autoFocus
+                  />
+                  <div className="flex items-center gap-2 mt-2">
+                    <button
+                      onClick={handleSaveEdit}
+                      disabled={isSavingEdit || !editContent.trim()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-50 transition-colors"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      Save
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium text-muted-foreground hover:text-white hover:bg-white/[0.06] transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                (displayedContent || displayPost.content) && (
+                  <div className="mt-1.5">
+                    <PostContent content={displayedContent || displayPost.content || ""} />
+                  </div>
+                )
+              )}
+            </>
+          )}
+
+          {/* Poll Display (hidden behind spoiler) */}
+          {(!displayPost.content_warning || spoilerRevealed) && displayPost.type === "poll" && pollData && (
             <PollDisplay
               pollData={pollData}
               userVote={userVote}
@@ -351,8 +544,8 @@ export function PostCard({
             />
           )}
 
-          {/* Audio Media */}
-          {displayHasMedia && displayPost.post_media.some((m) => isAudioMediaItem(m.url)) && (
+          {/* Audio Media (hidden behind spoiler) */}
+          {(!displayPost.content_warning || spoilerRevealed) && displayHasMedia && displayPost.post_media.some((m) => isAudioMediaItem(m.url)) && (
             <div className="mt-3" onClick={(e) => e.stopPropagation()}>
               {displayPost.post_media
                 .filter((m) => isAudioMediaItem(m.url))
@@ -362,8 +555,8 @@ export function PostCard({
             </div>
           )}
 
-          {/* Image/Video Media */}
-          {displayHasMedia && displayPost.post_media.some((m) => !isAudioMediaItem(m.url)) && (
+          {/* Image/Video Media (hidden behind spoiler) */}
+          {(!displayPost.content_warning || spoilerRevealed) && displayHasMedia && displayPost.post_media.some((m) => !isAudioMediaItem(m.url)) && (
             <div
               className={cn(
                 "mt-3 rounded-xl overflow-hidden border border-white/[0.06]",
@@ -387,16 +580,34 @@ export function PostCard({
             </div>
           )}
 
+          {/* Reaction counts */}
+          {reactionCounts.length > 0 && (
+            <div onClick={(e) => e.stopPropagation()}>
+              <ReactionCountsDisplay
+                reactions={reactionCounts}
+                userReaction={userReaction}
+                onReactionClick={handleReaction}
+              />
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex items-center justify-between mt-3 -ml-2">
             {/* Left actions */}
             <div className="flex items-center gap-1">
-              <button onClick={handleLike} className={cn("flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-colors", isLiked ? "text-rose-500" : "text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10")}>
-                <motion.span animate={animateHeart ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.3 }}>
-                  <Heart className={cn("h-[18px] w-[18px]", isLiked && "fill-current")} />
-                </motion.span>
-                {likeCount > 0 && <span>{formatNumber(likeCount)}</span>}
-              </button>
+              <div className="relative" onMouseEnter={() => {}} onMouseLeave={() => {}}>
+                <ReactionPicker onSelect={handleReaction} currentReaction={userReaction} />
+                <button onClick={handleLike} className={cn("flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-colors", userReaction ? "text-rose-500" : isLiked ? "text-rose-500" : "text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10")}>
+                  <motion.span animate={animateHeart ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.3 }}>
+                    {userReaction ? (
+                      <span className="text-[16px] leading-none">{REACTION_EMOJI[userReaction]}</span>
+                    ) : (
+                      <Heart className={cn("h-[18px] w-[18px]", isLiked && "fill-current")} />
+                    )}
+                  </motion.span>
+                  {likeCount > 0 && <span>{formatNumber(likeCount)}</span>}
+                </button>
+              </div>
 
               <button onClick={(e) => { e.stopPropagation(); router.push(`/post/${displayPost.id}`); }} className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] text-muted-foreground hover:text-sky-400 hover:bg-sky-500/10 transition-colors">
                 <MessageCircle className="h-[18px] w-[18px]" />
@@ -430,6 +641,17 @@ export function PostCard({
         open={shareOpen}
         onOpenChange={setShareOpen}
       />
+      {user && !isOwnPost && (
+        <BlockMuteDialog
+          open={blockMuteOpen}
+          onOpenChange={setBlockMuteOpen}
+          actionType={blockMuteAction}
+          currentUserId={user.id}
+          targetUserId={post.user_id}
+          targetUsername={displayProfile.username}
+          onSuccess={onUpdate}
+        />
+      )}
     </article>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Users, ShieldCheck } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { formatTimeAgo } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
@@ -58,14 +59,13 @@ export function ConversationList({
   return (
     <div className="divide-y divide-border">
       {conversations.map((conversation) => {
-        const displayName =
-          conversation.other_member?.display_name ||
-          conversation.name ||
-          "Unknown";
-        const avatarUrl =
-          conversation.other_member?.avatar_url || conversation.avatar_url;
-        const username =
-          conversation.other_member?.username || displayName;
+        const isGroup = conversation.is_group;
+        const displayName = isGroup
+          ? conversation.name || "Group Chat"
+          : conversation.other_member?.display_name || conversation.name || "Unknown";
+        const avatarUrl = isGroup
+          ? conversation.avatar_url
+          : conversation.other_member?.avatar_url || conversation.avatar_url;
 
         let preview = "";
         if (conversation.last_message) {
@@ -85,23 +85,47 @@ export function ConversationList({
               conversation.unread && "bg-muted/30"
             )}
           >
-            <UserAvatar
-              src={avatarUrl}
-              fallback={displayName}
-              size="lg"
-            />
+            {isGroup ? (
+              avatarUrl ? (
+                <UserAvatar
+                  src={avatarUrl}
+                  fallback={displayName}
+                  size="lg"
+                />
+              ) : (
+                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center shrink-0">
+                  <Users className="h-5 w-5 text-violet-400" />
+                </div>
+              )
+            ) : (
+              <UserAvatar
+                src={avatarUrl}
+                fallback={displayName}
+                size="lg"
+              />
+            )}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <span
-                  className={cn(
-                    "text-sm truncate",
-                    conversation.unread
-                      ? "font-semibold text-foreground"
-                      : "font-medium text-foreground"
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span
+                    className={cn(
+                      "text-sm truncate",
+                      conversation.unread
+                        ? "font-semibold text-foreground"
+                        : "font-medium text-foreground"
+                    )}
+                  >
+                    {displayName}
+                  </span>
+                  {isGroup && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">
+                      Group
+                    </span>
                   )}
-                >
-                  {displayName}
-                </span>
+                  {conversation.is_encrypted && (
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  )}
+                </div>
                 {conversation.last_message && (
                   <span className="text-xs text-muted-foreground shrink-0">
                     {formatTimeAgo(conversation.last_message.created_at)}

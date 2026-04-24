@@ -9,6 +9,8 @@ import {
   MessageCircle,
   Bell,
   Calendar,
+  Radio,
+  Clock,
   Plus,
   Settings,
   LogOut,
@@ -34,6 +36,8 @@ const navItems = [
   { label: "Messages", href: "/messages", icon: MessageCircle },
   { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Events", href: "/events", icon: Calendar },
+  { label: "Live", href: "/live", icon: Radio },
+  { label: "Scheduled", href: "/scheduled", icon: Clock },
 ];
 
 export function Sidebar() {
