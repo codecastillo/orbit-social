@@ -365,8 +365,8 @@ export function PostCard({
 
   return (
     <article
-      className="p-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
-      onClick={() => router.push(`/post/${displayPost.id}`)}
+      className={cn("p-4 transition-colors", !compact && "cursor-pointer hover:bg-white/[0.02]")}
+      onClick={compact ? undefined : () => router.push(`/post/${displayPost.id}`)}
     >
       {/* Boosted indicator */}
       {isBoosted && (
