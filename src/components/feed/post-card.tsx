@@ -101,6 +101,11 @@ export function PostCard({
   const [likeCount, setLikeCount] = useState(post.like_count);
   const [repostCount, setRepostCount] = useState(post.repost_count);
   const [animateHeart, setAnimateHeart] = useState(false);
+
+  // Sync interaction state when props change (e.g., when interactions load async)
+  useEffect(() => { setIsLiked(initialIsLiked); }, [initialIsLiked]);
+  useEffect(() => { setIsBookmarked(initialIsBookmarked); }, [initialIsBookmarked]);
+  useEffect(() => { setIsReposted(initialIsReposted); }, [initialIsReposted]);
   const [shareOpen, setShareOpen] = useState(false);
   const [blockMuteOpen, setBlockMuteOpen] = useState(false);
   const [blockMuteAction, setBlockMuteAction] = useState<"block" | "mute">("block");
@@ -640,8 +645,8 @@ export function PostCard({
             )}
           </div>
 
-          {/* Post Insights — only visible to the author */}
-          {isOwnPost && (
+          {/* Post Insights — only visible to the author, not on comments */}
+          {isOwnPost && !compact && (
             <PostInsights post={post} userAverages={userAverages} />
           )}
         </div>
