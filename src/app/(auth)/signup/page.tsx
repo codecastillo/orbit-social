@@ -181,8 +181,11 @@ export default function SignUpPage() {
   const passwordValue = watch("password", "");
 
   const updateDob = (month: string, day: string, year: string) => {
-    if (month && day && year) {
-      setValue("dateOfBirth", `${year}-${month}-${day}`, { shouldValidate: true });
+    const m = month.replace(/\D/g, "");
+    const d = day.replace(/\D/g, "");
+    const y = year.replace(/\D/g, "");
+    if (m.length >= 1 && d.length >= 1 && y.length === 4) {
+      setValue("dateOfBirth", `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`, { shouldValidate: true });
     } else {
       setValue("dateOfBirth", "", { shouldValidate: false });
     }
@@ -470,52 +473,51 @@ export default function SignUpPage() {
                       )}
                     </div>
 
-                    {/* Date of Birth — month/day/year dropdowns */}
+                    {/* Date of Birth — typed inputs */}
                     <div className="space-y-2">
                       <Label className="text-[13px] text-muted-foreground font-medium">
                         Date of Birth
                       </Label>
                       <div className="grid grid-cols-3 gap-2">
-                        <select
-                          className="input-premium text-sm appearance-none cursor-pointer"
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="MM"
+                          maxLength={2}
                           value={dobMonth}
                           onChange={(e) => {
-                            setDobMonth(e.target.value);
-                            updateDob(e.target.value, dobDay, dobYear);
+                            const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+                            setDobMonth(v);
+                            updateDob(v.padStart(2, "0"), dobDay.padStart(2, "0"), dobYear);
                           }}
-                        >
-                          <option value="">Month</option>
-                          {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, i) => (
-                            <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>
-                          ))}
-                        </select>
-                        <select
-                          className="input-premium text-sm appearance-none cursor-pointer"
+                          className="input-premium text-center text-sm"
+                        />
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="DD"
+                          maxLength={2}
                           value={dobDay}
                           onChange={(e) => {
-                            setDobDay(e.target.value);
-                            updateDob(dobMonth, e.target.value, dobYear);
+                            const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+                            setDobDay(v);
+                            updateDob(dobMonth.padStart(2, "0"), v.padStart(2, "0"), dobYear);
                           }}
-                        >
-                          <option value="">Day</option>
-                          {Array.from({ length: 31 }, (_, i) => (
-                            <option key={i + 1} value={String(i + 1).padStart(2, "0")}>{i + 1}</option>
-                          ))}
-                        </select>
-                        <select
-                          className="input-premium text-sm appearance-none cursor-pointer"
+                          className="input-premium text-center text-sm"
+                        />
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="YYYY"
+                          maxLength={4}
                           value={dobYear}
                           onChange={(e) => {
-                            setDobYear(e.target.value);
-                            updateDob(dobMonth, dobDay, e.target.value);
+                            const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                            setDobYear(v);
+                            updateDob(dobMonth.padStart(2, "0"), dobDay.padStart(2, "0"), v);
                           }}
-                        >
-                          <option value="">Year</option>
-                          {Array.from({ length: 100 }, (_, i) => {
-                            const y = new Date().getFullYear() - i;
-                            return <option key={y} value={String(y)}>{y}</option>;
-                          })}
-                        </select>
+                          className="input-premium text-center text-sm"
+                        />
                       </div>
                       <input type="hidden" {...register("dateOfBirth")} />
                       {errors.dateOfBirth && (
