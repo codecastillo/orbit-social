@@ -12,6 +12,8 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { getUserPosts } from "@/lib/queries/posts";
 import { cn } from "@/lib/utils";
 
+const syne = { fontFamily: "var(--font-syne), sans-serif" };
+
 interface ProfileContentProps {
   profile: {
     id: string;
@@ -103,8 +105,8 @@ export function ProfileContent({
         </button>
         <div>
           <h2
-            className="font-bold text-base leading-tight"
-            style={{ fontFamily: "var(--font-syne), sans-serif" }}
+            className="font-extrabold text-base leading-tight"
+            style={syne}
           >
             {profile.display_name}
           </h2>
@@ -114,36 +116,38 @@ export function ProfileContent({
         </div>
       </div>
 
-      <ProfileHeader
-        profile={profile}
-        isOwnProfile={isOwnProfile}
-        isFollowing={isFollowing}
-        onFollow={handleFollow}
-      />
+      {/* Gradient accent behind header */}
+      <div className="relative">
+        <ProfileHeader
+          profile={profile}
+          isOwnProfile={isOwnProfile}
+          isFollowing={isFollowing}
+          onFollow={handleFollow}
+        />
+      </div>
 
-      {/* Tab bar — Posts, Likes, Reposts, Saved */}
-      <div className="flex border-t border-white/[0.06]">
+      {/* Tab bar */}
+      <div className="flex border-t border-b border-white/[0.06]">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.value;
-          // Only show Saved tab on own profile
           if (tab.value === "saved" && !isOwnProfile) return null;
           return (
             <button
               key={tab.value}
               onClick={() => setActiveTab(tab.value)}
               className={cn(
-                "flex-1 flex flex-col items-center justify-center gap-1 py-3 relative transition-colors",
+                "flex-1 flex items-center justify-center gap-2 py-3.5 relative transition-colors",
                 isActive
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground/70"
               )}
               aria-label={tab.label}
             >
-              <Icon className="h-4.5 w-4.5" />
-              <span className="text-[10px] font-medium">{tab.label}</span>
+              <Icon className={cn("h-4 w-4", isActive && "text-primary")} />
+              <span className="text-[12px] font-semibold">{tab.label}</span>
               {isActive && (
-                <span className="absolute top-0 inset-x-0 h-[2px] bg-primary" />
+                <span className="absolute bottom-0 inset-x-4 h-[2px] bg-primary rounded-full" />
               )}
             </button>
           );
@@ -151,29 +155,63 @@ export function ProfileContent({
       </div>
 
       {/* Tab content */}
-      {activeTab === "posts" && <ProfileGrid posts={posts} />}
+      {activeTab === "posts" && posts.length > 0 && <ProfileGrid posts={posts} />}
+
+      {activeTab === "posts" && posts.length === 0 && (
+        <div className="p-16 text-center">
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-white/[0.04] mb-4">
+            <Grid3X3 className="h-7 w-7 text-muted-foreground/30" />
+          </div>
+          <p className="text-sm font-semibold text-muted-foreground" style={syne}>
+            No posts yet
+          </p>
+          <p className="text-xs text-muted-foreground/50 mt-1.5 max-w-[220px] mx-auto">
+            {isOwnProfile
+              ? "Share your first post and it will show up here."
+              : "When this user posts, their content will appear here."}
+          </p>
+        </div>
+      )}
 
       {activeTab === "likes" && (
-        <div className="p-12 text-center text-muted-foreground text-sm">
-          <Heart className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="font-medium">No liked posts yet</p>
-          <p className="text-xs mt-1 opacity-60">Posts you like will appear here.</p>
+        <div className="p-16 text-center">
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-white/[0.04] mb-4">
+            <Heart className="h-7 w-7 text-muted-foreground/30" />
+          </div>
+          <p className="text-sm font-semibold text-muted-foreground" style={syne}>
+            No liked posts yet
+          </p>
+          <p className="text-xs text-muted-foreground/50 mt-1.5 max-w-[220px] mx-auto">
+            Posts you like will appear here.
+          </p>
         </div>
       )}
 
       {activeTab === "reposts" && (
-        <div className="p-12 text-center text-muted-foreground text-sm">
-          <Repeat2 className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="font-medium">No reposts yet</p>
-          <p className="text-xs mt-1 opacity-60">Posts you repost will appear here.</p>
+        <div className="p-16 text-center">
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-white/[0.04] mb-4">
+            <Repeat2 className="h-7 w-7 text-muted-foreground/30" />
+          </div>
+          <p className="text-sm font-semibold text-muted-foreground" style={syne}>
+            No reposts yet
+          </p>
+          <p className="text-xs text-muted-foreground/50 mt-1.5 max-w-[220px] mx-auto">
+            Posts you repost will appear here.
+          </p>
         </div>
       )}
 
       {activeTab === "saved" && isOwnProfile && (
-        <div className="p-12 text-center text-muted-foreground text-sm">
-          <Bookmark className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="font-medium">No saved posts yet</p>
-          <p className="text-xs mt-1 opacity-60">Tap the bookmark icon to save posts here.</p>
+        <div className="p-16 text-center">
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-white/[0.04] mb-4">
+            <Bookmark className="h-7 w-7 text-muted-foreground/30" />
+          </div>
+          <p className="text-sm font-semibold text-muted-foreground" style={syne}>
+            No saved posts yet
+          </p>
+          <p className="text-xs text-muted-foreground/50 mt-1.5 max-w-[220px] mx-auto">
+            Tap the bookmark icon to save posts here.
+          </p>
         </div>
       )}
     </>

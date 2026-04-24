@@ -5,6 +5,7 @@ import {
   MoreHorizontal,
   BadgeCheck,
   MessageCircle,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +42,11 @@ interface ProfileHeaderProps {
   onEdit?: () => void;
 }
 
+function formatJoinDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return `Joined ${date.toLocaleDateString("en-US", { month: "long", year: "numeric" })}`;
+}
+
 export function ProfileHeader({
   profile,
   isOwnProfile,
@@ -49,122 +55,134 @@ export function ProfileHeader({
   onEdit,
 }: ProfileHeaderProps) {
   return (
-    <div className="px-5 pt-6 pb-4">
-      {/* Avatar + Stats row */}
-      <div className="flex items-center gap-5">
-        {/* Avatar */}
-        <UserAvatar
-          src={profile.avatar_url}
-          fallback={profile.display_name}
-          size="xl"
-          className="h-20 w-20 shrink-0"
-        />
+    <div className="relative">
+      {/* Gradient background */}
+      <div className="absolute inset-0 h-28 bg-gradient-to-br from-primary/15 via-purple-500/10 to-blue-500/10 rounded-b-2xl" />
 
-        {/* Stats — compact, not spread */}
-        <div className="flex items-center gap-6">
-          {[
-            { value: profile.post_count, label: "Posts" },
-            { value: profile.follower_count, label: "Followers" },
-            { value: profile.following_count, label: "Following" },
-          ].map((stat) => (
-            <button
-              key={stat.label}
-              className="flex flex-col items-center gap-0.5 hover:opacity-80 transition-opacity"
-            >
-              <span className="text-xl font-extrabold leading-tight" style={syne}>
-                {formatNumber(stat.value)}
-              </span>
-              <span className="text-[11px] text-muted-foreground font-medium">
-                {stat.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
+      <div className="relative px-5 pt-16 pb-5">
+        {/* Avatar + Stats row */}
+        <div className="flex items-end gap-5">
+          {/* Avatar */}
+          <UserAvatar
+            src={profile.avatar_url}
+            fallback={profile.display_name}
+            size="xl"
+            className="h-24 w-24 shrink-0 ring-4 ring-background shadow-xl"
+          />
 
-      {/* Name + Username */}
-      <div className="mt-4">
-        <div className="flex items-center gap-1.5">
-          <h1 className="text-base font-bold" style={syne}>
-            {profile.display_name}
-          </h1>
-          {profile.is_verified && (
-            <BadgeCheck className="h-4 w-4 text-primary fill-primary/20" />
-          )}
-        </div>
-        <p className="text-sm text-muted-foreground">@{profile.username}</p>
-      </div>
-
-      {/* Bio */}
-      {profile.bio && (
-        <p className="mt-2 text-sm leading-relaxed">{profile.bio}</p>
-      )}
-
-      {/* Website */}
-      {profile.website &&
-        (() => {
-          try {
-            const url = new URL(profile.website);
-            if (url.protocol !== "http:" && url.protocol !== "https:")
-              return null;
-            return (
-              <a
-                href={profile.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1.5 inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          {/* Stats */}
+          <div className="flex items-center gap-6 pb-1">
+            {[
+              { value: profile.post_count, label: "Posts" },
+              { value: profile.follower_count, label: "Followers" },
+              { value: profile.following_count, label: "Following" },
+            ].map((stat) => (
+              <button
+                key={stat.label}
+                className="flex flex-col items-center gap-0.5 hover:opacity-80 transition-opacity"
               >
-                <LinkIcon className="h-3.5 w-3.5" />
-                {url.hostname}
-              </a>
-            );
-          } catch {
-            return null;
-          }
-        })()}
+                <span className="text-xl font-extrabold leading-tight" style={syne}>
+                  {formatNumber(stat.value)}
+                </span>
+                <span className="text-[11px] text-muted-foreground font-medium">
+                  {stat.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
 
-      {/* Action buttons */}
-      <div className="mt-4 flex items-center gap-2">
-        {isOwnProfile ? (
-          <Button
-            variant="outline"
-            className="flex-1 rounded-xl h-10 text-sm font-semibold"
-            onClick={onEdit}
-          >
-            Edit Profile
-          </Button>
-        ) : (
-          <>
-            <FollowButton
-              isFollowing={isFollowing}
-              onToggle={onFollow}
-              className="flex-1 rounded-xl h-10"
-            />
+        {/* Name + Username */}
+        <div className="mt-4">
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-xl font-extrabold" style={syne}>
+              {profile.display_name}
+            </h1>
+            {profile.is_verified && (
+              <BadgeCheck className="h-5 w-5 text-primary fill-primary/20" />
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">@{profile.username}</p>
+        </div>
+
+        {/* Bio */}
+        {profile.bio && (
+          <p className="mt-3 text-[14px] leading-relaxed">{profile.bio}</p>
+        )}
+
+        {/* Website + Join date */}
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+          {profile.website &&
+            (() => {
+              try {
+                const url = new URL(profile.website);
+                if (url.protocol !== "http:" && url.protocol !== "https:")
+                  return null;
+                return (
+                  <a
+                    href={profile.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                  >
+                    <LinkIcon className="h-3.5 w-3.5" />
+                    {url.hostname}
+                  </a>
+                );
+              } catch {
+                return null;
+              }
+            })()}
+
+          <span className="inline-flex items-center gap-1 text-[13px] text-muted-foreground/60">
+            <CalendarDays className="h-3.5 w-3.5" />
+            {formatJoinDate(profile.created_at)}
+          </span>
+        </div>
+
+        {/* Action buttons */}
+        <div className="mt-5 flex items-center gap-2">
+          {isOwnProfile ? (
             <Button
               variant="outline"
               className="flex-1 rounded-xl h-10 text-sm font-semibold"
+              onClick={onEdit}
             >
-              <MessageCircle className="h-4 w-4 mr-1.5" />
-              Message
+              Edit Profile
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="rounded-xl h-10 w-10"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>Block</DropdownMenuItem>
-                <DropdownMenuItem>Mute</DropdownMenuItem>
-                <DropdownMenuItem>Report</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
-        )}
+          ) : (
+            <>
+              <FollowButton
+                isFollowing={isFollowing}
+                onToggle={onFollow}
+                className="flex-1 rounded-xl h-10"
+              />
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl h-10 text-sm font-semibold"
+              >
+                <MessageCircle className="h-4 w-4 mr-1.5" />
+                Message
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-xl h-10 w-10"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem>Block</DropdownMenuItem>
+                  <DropdownMenuItem>Mute</DropdownMenuItem>
+                  <DropdownMenuItem>Report</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
