@@ -2,28 +2,55 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Radio } from "lucide-react";
+import { Radio, Send } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { OrbitEmptyState } from "@/components/orbit/empty-state";
-import { LiveStreamCard } from "@/components/live/live-stream-card";
-import { getLiveStreams, createStream } from "@/lib/queries/live";
-import { useAuth } from "@/lib/hooks/use-auth";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { OrbitEmptyState } from "@/components/orbit/empty-state";
 import { ModalShell, Field, Input } from "@/components/orbit/forms";
-import { O } from "@/lib/design/orbit";
+import { UserAvatar } from "@/components/shared/user-avatar";
+import {
+  getLiveStreams,
+  createStream,
+  type LiveStreamWithProfile,
+} from "@/lib/queries/live";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { O, aurora, panel } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+
+function hueFor(seed: string): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = seed.charCodeAt(i) + ((h << 5) - h);
+  }
+  const hues = [18, 220, 290, 145, 50, 340, 180, 265];
+  return hues[Math.abs(h) % hues.length];
+}
+
+function elapsedSince(iso: string | null): string {
+  if (!iso) return "00:00";
+  const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (sec < 0) return "00:00";
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m >= 60) {
+    const h = Math.floor(m / 60);
+    return `${h}:${(m % 60).toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
 
 export default function LivePage() {
+  const router = useRouter();
+  const { user } = useAuth();
   const { data: streams, isLoading } = useQuery({
     queryKey: ["live-streams"],
     queryFn: getLiveStreams,
     refetchInterval: 15000,
   });
 
-  const { user } = useAuth();
-  const router = useRouter();
   const [goLiveOpen, setGoLiveOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [creating, setCreating] = useState(false);
@@ -34,7 +61,6 @@ export default function LivePage() {
       return;
     }
     if (!title.trim()) return;
-
     setCreating(true);
     try {
       const stream = await createStream(user.id, title.trim());
@@ -48,179 +74,597 @@ export default function LivePage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          color: O.ink,
+          fontFamily: O.sans,
+          display: "flex",
+          flexDirection: "column",
+          gap: 18,
+        }}
+      >
+        <Skeleton className="h-[480px] w-full rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (!streams || streams.length === 0) {
+    return (
+      <>
+        <OrbitEmptyState
+          icon={Radio}
+          accent="#ff5a6a"
+          headline="Nobody's"
+          accentWord="on air"
+          sub="When people you follow go live, you'll find their streams here. Or skip the wait and go first."
+          ctaLabel="Go live"
+          ctaIcon={<Radio style={{ width: 12, height: 12 }} />}
+          onCta={() => setGoLiveOpen(true)}
+          secondaryLabel="Notify me"
+        />
+        <GoLiveDialog
+          open={goLiveOpen}
+          onOpenChange={setGoLiveOpen}
+          title={title}
+          setTitle={setTitle}
+          creating={creating}
+          onSubmit={handleGoLive}
+        />
+      </>
+    );
+  }
+
+  const featured = streams[0];
+  const others = streams.slice(1);
+
   return (
-    <div className="min-h-screen">
-      {/* Editorial hero */}
-      <div className="px-6 pt-10 pb-6 max-w-6xl">
-        <div className="flex items-start justify-between gap-6 flex-wrap">
-          <div className="max-w-2xl">
-            <h1 className="hero-display">
-              Live and <em>unrehearsed</em>.
-            </h1>
-            <p className="mt-4 text-lg text-muted-foreground max-w-xl flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full bg-red-500/15 border border-red-500/25">
-                <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
-                <span className="text-[10px] font-bold text-red-300 uppercase tracking-wider">
-                  On air
-                </span>
-              </span>
-              <span className="tabular-nums">{streams?.length ?? 0} streams right now.</span>
-            </p>
-          </div>
+    <div
+      style={{
+        color: O.ink,
+        fontFamily: O.sans,
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) 320px",
+        gap: 18,
+      }}
+      className="xl:grid-cols-[minmax(0,1fr)_320px] grid-cols-1"
+    >
+      {/* Main column */}
+      <main
+        style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}
+      >
+        <FeaturedLive stream={featured} onGoLive={() => setGoLiveOpen(true)} />
 
-          <Button
-            className="rounded-full h-11 px-5 font-semibold text-sm bg-red-500 hover:bg-red-600 text-white border-0 shadow-[0_4px_16px_rgba(239,68,68,0.4)]"
-            onClick={() => setGoLiveOpen(true)}
-          >
-            <Radio className="h-4 w-4 mr-1.5" />
-            Go live
-          </Button>
-        </div>
-      </div>
-
-      <div className="px-6 pb-20 max-w-6xl">
-        {isLoading ? (
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-[4/5] rounded-2xl" />
-            ))}
+        {others.length > 0 && (
+          <div>
+            <Eyebrow accent>◆&nbsp;&nbsp;ALSO LIVE · {others.length}</Eyebrow>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 14,
+                marginTop: 12,
+              }}
+              className="md:grid-cols-2 grid-cols-1"
+            >
+              {others.map((s) => (
+                <SmallLiveTile key={s.id} stream={s} />
+              ))}
+            </div>
           </div>
-        ) : streams && streams.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-            {streams.map((stream) => (
-              <LiveStreamCard key={stream.id} stream={stream} />
-            ))}
-          </div>
-        ) : (
-          <OrbitEmptyState
-            icon={Radio}
-            accent="#ff5a6a"
-            headline="Nobody's"
-            accentWord="on air"
-            sub="When people you follow go live, you'll find their streams here. Or skip the wait and go first."
-            ctaLabel="Go live"
-            ctaIcon={<Radio style={{ width: 12, height: 12 }} />}
-            onCta={() => setGoLiveOpen(true)}
-            secondaryLabel="Notify me"
-          />
         )}
-      </div>
+      </main>
 
-      <Dialog open={goLiveOpen} onOpenChange={setGoLiveOpen}>
-        <DialogContent
-          className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
-          style={{ boxShadow: "none" }}
+      {/* Live chat rail */}
+      <ChatRail stream={featured} />
+
+      <GoLiveDialog
+        open={goLiveOpen}
+        onOpenChange={setGoLiveOpen}
+        title={title}
+        setTitle={setTitle}
+        creating={creating}
+        onSubmit={handleGoLive}
+      />
+    </div>
+  );
+}
+
+/* ─── Featured live tile (with overlay header + actions) ─────────── */
+
+function FeaturedLive({
+  stream,
+  onGoLive,
+}: {
+  stream: LiveStreamWithProfile;
+  onGoLive: () => void;
+}) {
+  const hue = hueFor(stream.id);
+  const hue2 = (hue + 80) % 360;
+  return (
+    <div
+      style={{
+        ...panel(),
+        padding: 0,
+        overflow: "hidden",
+        position: "relative",
+      }}
+    >
+      <div
+        style={{
+          aspectRatio: "16/9",
+          background: `linear-gradient(160deg, oklch(0.45 0.18 ${hue}) 0%, oklch(0.3 0.14 ${hue2}) 50%, oklch(0.2 0.1 220) 100%)`,
+          position: "relative",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "radial-gradient(circle at 70% 35%, rgba(255,200,100,0.4), transparent 50%)",
+          }}
+        />
+
+        {/* Top badges */}
+        <div
+          style={{
+            position: "absolute",
+            top: 18,
+            left: 18,
+            display: "flex",
+            gap: 8,
+          }}
         >
-          <ModalShell
-            title="Go live"
-            subtitle="Hit start and you're broadcasting. No rehearsal."
-            icon={<Radio style={{ width: 18, height: 18 }} />}
-            accent="#ff5a6a"
-            primaryLabel={creating ? "Starting…" : "Start stream"}
-            secondaryLabel="Cancel"
-            canSubmit={!!title.trim()}
-            loading={creating}
-            onPrimary={handleGoLive}
-            onSecondary={() => setGoLiveOpen(false)}
-            onClose={() => setGoLiveOpen(false)}
+          <div
+            style={{
+              padding: "6px 12px",
+              borderRadius: 99,
+              background: O.a2,
+              fontSize: 10.5,
+              fontWeight: 800,
+              letterSpacing: "0.12em",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              boxShadow: `0 0 18px ${O.a2}80`,
+              color: "white",
+            }}
           >
-            <Field label="Stream title">
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="What are you streaming?"
-                maxLength={100}
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && title.trim()) handleGoLive();
-                }}
-              />
-            </Field>
-            <Field label="Preview">
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "white",
+                animation: "live-pulse 1.4s infinite",
+              }}
+            />
+            LIVE
+          </div>
+          <div
+            style={{
+              padding: "6px 12px",
+              borderRadius: 99,
+              background: "rgba(0,0,0,0.5)",
+              backdropFilter: "blur(20px)",
+              fontSize: 11,
+              fontFamily: O.mono,
+              color: "white",
+              letterSpacing: "0.06em",
+            }}
+          >
+            ◉ {stream.viewer_count ?? 0} watching · {elapsedSince(stream.started_at)}
+          </div>
+        </div>
+
+        <PillBtn
+          size="sm"
+          onClick={onGoLive}
+          style={{
+            position: "absolute",
+            top: 18,
+            right: 18,
+            color: "white",
+            background: "rgba(0,0,0,0.4)",
+          }}
+        >
+          <Radio style={{ width: 12, height: 12 }} /> Go live
+        </PillBtn>
+
+        {/* Bottom title strip */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding: 28,
+            background: "linear-gradient(to top, rgba(0,0,0,0.7), transparent)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <UserAvatar
+              src={stream.profiles.avatar_url}
+              fallback={stream.profiles.display_name}
+              size="lg"
+            />
+            <div style={{ minWidth: 0 }}>
+              <Display size={24}>
+                {stream.title}
+              </Display>
               <div
                 style={{
-                  aspectRatio: "16/9",
-                  borderRadius: 14,
-                  position: "relative",
-                  overflow: "hidden",
+                  fontSize: 12,
+                  color: "rgba(255,255,255,0.7)",
+                  marginTop: 2,
+                }}
+              >
+                {stream.profiles.display_name} · @{stream.profiles.username}
+              </div>
+            </div>
+            <div
+              style={{
+                marginLeft: "auto",
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <PillBtn>+ Tip</PillBtn>
+              <Link href={`/live/${stream.id}`}>
+                <PillBtn primary>Join the room →</PillBtn>
+              </Link>
+            </div>
+          </div>
+        </div>
+        <style>{`@keyframes live-pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
+      </div>
+    </div>
+  );
+}
+
+/* ─── small live tile ────────────────────────────────────────────── */
+
+function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
+  const hue = hueFor(stream.id);
+  const hue2 = (hue + 60) % 360;
+  return (
+    <Link
+      href={`/live/${stream.id}`}
+      style={{
+        ...panel(),
+        padding: 0,
+        overflow: "hidden",
+        cursor: "pointer",
+        textDecoration: "none",
+        color: O.ink,
+        display: "block",
+      }}
+    >
+      <div
+        style={{
+          aspectRatio: "16/9",
+          background: `linear-gradient(135deg, oklch(0.55 0.18 ${hue}), oklch(0.3 0.12 ${hue2}))`,
+          position: "relative",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "repeating-linear-gradient(135deg, transparent 0 18px, rgba(0,0,0,0.06) 18px 19px)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: 10,
+            left: 10,
+            padding: "3px 8px",
+            borderRadius: 4,
+            background: O.a2,
+            fontSize: 9,
+            fontWeight: 800,
+            letterSpacing: "0.1em",
+            color: "white",
+          }}
+        >
+          ● LIVE
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            padding: "3px 8px",
+            borderRadius: 4,
+            background: "rgba(0,0,0,0.5)",
+            fontSize: 10,
+            fontFamily: O.mono,
+            color: "white",
+          }}
+        >
+          {elapsedSince(stream.started_at)}
+        </div>
+      </div>
+      <div
+        style={{
+          padding: 14,
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+        }}
+      >
+        <UserAvatar
+          src={stream.profiles.avatar_url}
+          fallback={stream.profiles.display_name}
+          size="sm"
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {stream.title}
+          </div>
+          <div style={{ fontSize: 11, color: O.ink3 }}>
+            {stream.profiles.display_name.split(" ")[0]} · {stream.viewer_count ?? 0}{" "}
+            watching
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+/* ─── chat rail (mock — real chat lives in /live/[streamId]) ───── */
+
+function ChatRail({ stream }: { stream: LiveStreamWithProfile }) {
+  return (
+    <aside
+      style={{
+        ...panel(),
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        height: "fit-content",
+        position: "sticky",
+        top: 24,
+        maxHeight: "calc(100vh - 48px)",
+      }}
+      className="hidden xl:flex"
+    >
+      <div
+        style={{
+          padding: "18px 20px",
+          borderBottom: `1px solid ${O.hair}`,
+        }}
+      >
+        <Eyebrow accent>
+          ◆&nbsp;&nbsp;ROOM CHAT · {stream.viewer_count ?? 0} IN
+        </Eyebrow>
+        <p
+          style={{
+            fontSize: 13,
+            color: O.ink2,
+            marginTop: 6,
+            lineHeight: 1.5,
+          }}
+        >
+          Slow chat — a new message every few seconds. No spam.
+        </p>
+      </div>
+      <div
+        style={{
+          flex: 1,
+          padding: "14px 18px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          minHeight: 280,
+          color: O.ink3,
+          fontSize: 12.5,
+          textAlign: "center",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Radio style={{ width: 18, height: 18, color: O.ink3 }} />
+        Join the room to chat with the crowd.
+      </div>
+      <div
+        style={{
+          padding: 14,
+          borderTop: `1px solid ${O.hair}`,
+          display: "flex",
+          gap: 8,
+        }}
+      >
+        <Link
+          href={`/live/${stream.id}`}
+          style={{
+            flex: 1,
+            padding: "10px 14px",
+            borderRadius: 99,
+            background: O.glass,
+            border: `1px solid ${O.hair}`,
+            fontSize: 13,
+            color: O.ink3,
+            textDecoration: "none",
+          }}
+        >
+          Say something kind…
+        </Link>
+        <Link href={`/live/${stream.id}`}>
+          <button
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: "50%",
+              background: aurora,
+              border: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: `0 4px 14px ${O.a1}80`,
+              cursor: "pointer",
+            }}
+          >
+            <Send style={{ width: 14, height: 14, color: "white" }} />
+          </button>
+        </Link>
+      </div>
+    </aside>
+  );
+}
+
+/* ─── Go Live modal ──────────────────────────────────────────────── */
+
+function GoLiveDialog({
+  open,
+  onOpenChange,
+  title,
+  setTitle,
+  creating,
+  onSubmit,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title: string;
+  setTitle: (s: string) => void;
+  creating: boolean;
+  onSubmit: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
+        style={{ boxShadow: "none" }}
+      >
+        <ModalShell
+          title="Go live"
+          subtitle="Hit start and you're broadcasting. No rehearsal."
+          icon={<Radio style={{ width: 18, height: 18 }} />}
+          accent="#ff5a6a"
+          primaryLabel={creating ? "Starting…" : "Start stream"}
+          secondaryLabel="Cancel"
+          canSubmit={!!title.trim()}
+          loading={creating}
+          onPrimary={onSubmit}
+          onSecondary={() => onOpenChange(false)}
+          onClose={() => onOpenChange(false)}
+        >
+          <Field label="Stream title">
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="What are you streaming?"
+              maxLength={100}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && title.trim()) onSubmit();
+              }}
+            />
+          </Field>
+          <Field label="Preview">
+            <div
+              style={{
+                aspectRatio: "16/9",
+                borderRadius: 14,
+                position: "relative",
+                overflow: "hidden",
+                background:
+                  "linear-gradient(135deg, oklch(0.25 0.04 260), oklch(0.15 0.05 280))",
+                border: `1px solid ${O.hair2}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
                   background:
-                    "linear-gradient(135deg, oklch(0.25 0.04 260), oklch(0.15 0.05 280))",
-                  border: `1px solid ${O.hair2}`,
-                  display: "flex",
+                    "repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0 10px, transparent 10px 20px)",
+                }}
+              />
+              <div style={{ textAlign: "center", color: O.ink3 }}>
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: "50%",
+                    background: "rgba(255,90,106,0.15)",
+                    border: "1px solid rgba(255,90,106,0.4)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    margin: "0 auto 10px",
+                  }}
+                >
+                  <Radio style={{ width: 20, height: 20, color: "#ff5a6a" }} />
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: O.ink2,
+                    fontFamily: O.mono,
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  READY TO STREAM
+                </div>
+              </div>
+              <div
+                style={{
+                  position: "absolute",
+                  top: 10,
+                  left: 10,
+                  padding: "4px 9px",
+                  borderRadius: 99,
+                  background: "rgba(255,90,106,0.2)",
+                  border: "1px solid rgba(255,90,106,0.5)",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "#ff5a6a",
+                  fontFamily: O.mono,
+                  letterSpacing: "0.1em",
+                  display: "inline-flex",
                   alignItems: "center",
-                  justifyContent: "center",
+                  gap: 5,
                 }}
               >
                 <div
                   style={{
-                    position: "absolute",
-                    inset: 0,
-                    background:
-                      "repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0 10px, transparent 10px 20px)",
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "#ff5a6a",
+                    boxShadow: "0 0 8px #ff5a6a",
                   }}
                 />
-                <div style={{ textAlign: "center", color: O.ink3 }}>
-                  <div
-                    style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: "50%",
-                      background: "rgba(255,90,106,0.15)",
-                      border: "1px solid rgba(255,90,106,0.4)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      margin: "0 auto 10px",
-                    }}
-                  >
-                    <Radio style={{ width: 20, height: 20, color: "#ff5a6a" }} />
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: O.ink2,
-                      fontFamily: O.mono,
-                      letterSpacing: "0.06em",
-                    }}
-                  >
-                    READY TO STREAM
-                  </div>
-                </div>
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 10,
-                    left: 10,
-                    padding: "4px 9px",
-                    borderRadius: 99,
-                    background: "rgba(255,90,106,0.2)",
-                    border: "1px solid rgba(255,90,106,0.5)",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: "#ff5a6a",
-                    fontFamily: O.mono,
-                    letterSpacing: "0.1em",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: "#ff5a6a",
-                      boxShadow: "0 0 8px #ff5a6a",
-                    }}
-                  />
-                  READY
-                </div>
+                READY
               </div>
-            </Field>
-          </ModalShell>
-        </DialogContent>
-      </Dialog>
-    </div>
+            </div>
+          </Field>
+        </ModalShell>
+      </DialogContent>
+    </Dialog>
   );
 }

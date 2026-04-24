@@ -1,28 +1,34 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Hash, AlertCircle } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { Input } from "@/components/ui/input";
+import { Search, TrendingUp, Radio } from "lucide-react";
+import { Input as BareInput } from "@/components/ui/input";
 import { SearchResults } from "@/components/explore/search-results";
-import { UserSuggestionCard } from "@/components/explore/user-suggestion-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
   getSuggestedUsers,
   getTrendingHashtags,
   getTrendingPosts,
+  followUser,
 } from "@/lib/queries/social";
+import { getLiveStreams } from "@/lib/queries/live";
+import { UserAvatar } from "@/components/shared/user-avatar";
+import { O, aurora, auroraSoft, panel } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 
-const TILE_CLASSES = [
-  "tile-pink",
-  "tile-blue",
-  "tile-green",
-  "tile-amber",
-  "tile-violet",
-  "tile-sunset",
-];
+/* ─── helpers ────────────────────────────────────────────────────── */
+
+function hueFor(seed: string): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = seed.charCodeAt(i) + ((h << 5) - h);
+  }
+  const hues = [18, 220, 290, 145, 50, 340, 180, 265];
+  return hues[Math.abs(h) % hues.length];
+}
 
 function useDebounce(value: string, delay: number) {
   const [debounced, setDebounced] = useState(value);
@@ -33,285 +39,542 @@ function useDebounce(value: string, delay: number) {
   return debounced;
 }
 
+/* ─── page ───────────────────────────────────────────────────────── */
+
 export default function ExplorePage() {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query.trim(), 300);
-  const { user } = useAuth();
-
-  const {
-    data: suggestions,
-    isLoading: suggestionsLoading,
-    isError: suggestionsError,
-    refetch: refetchSuggestions,
-  } = useQuery({
-    queryKey: ["suggested-users", user?.id],
-    queryFn: () => getSuggestedUsers(user!.id, 8),
-    enabled: !!user?.id && debouncedQuery.length === 0,
-    staleTime: 1000 * 60 * 5,
-  });
-
   const isSearching = debouncedQuery.length > 0;
 
   return (
-    <div className="min-h-screen">
-      {/* Search bar at top */}
+    <div
+      style={{
+        color: O.ink,
+        fontFamily: O.sans,
+        padding: 0,
+        display: "flex",
+        flexDirection: "column",
+        gap: 22,
+      }}
+    >
+      {/* Search strip */}
       <div
-        className="sticky top-0 z-10"
         style={{
-          background: "oklch(0.14 0.02 270 / 0.7)",
-          backdropFilter: "blur(40px) saturate(2)",
-          WebkitBackdropFilter: "blur(40px) saturate(2)",
-          borderBottom: "1px solid oklch(1 0 0 / 0.05)",
+          ...panel(),
+          padding: 10,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
         }}
       >
-        <div className="px-6 py-4">
-          <div className="relative max-w-2xl">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search people, posts, tags…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-11 pr-4 h-11 bg-white/[0.04] border border-white/[0.06] rounded-2xl text-sm placeholder:text-muted-foreground/60 focus:border-primary/40 focus:bg-white/[0.06] transition-all"
-            />
-          </div>
-        </div>
+        <Search style={{ width: 16, height: 16, color: O.ink3, marginLeft: 8 }} />
+        <BareInput
+          placeholder="Search people, posts, tags…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="flex-1 border-0 bg-transparent h-9 text-sm text-white placeholder:text-white/40 focus-visible:ring-0"
+        />
       </div>
 
       {isSearching ? (
-        <div className="p-6">
+        <div>
           <SearchResults query={debouncedQuery} />
         </div>
       ) : (
-        <div className="px-6 pt-10 pb-20 max-w-6xl">
-          {/* Editorial hero */}
-          <div className="mb-10">
-            <h1 className="hero-display">
-              What&apos;s in the <em>air</em> today.
-            </h1>
-            <p className="mt-4 text-lg text-muted-foreground max-w-xl">
-              Posts, people, and tags rising on the network right now.
-            </p>
-          </div>
-
-          {/* Featured trending tag — big card */}
-          <FeaturedTrendingTag />
-
-          {/* Grid of gradient popular tiles */}
-          <PopularTilesGrid />
-
-          {/* Suggestions row */}
-          {!suggestionsError &&
-            (suggestionsLoading || (suggestions && suggestions.length > 0)) && (
-              <div className="mt-12">
-                <h2 className="text-[11px] uppercase tracking-[0.14em] font-bold text-muted-foreground mb-5">
-                  People to follow
-                </h2>
-                {suggestionsLoading ? (
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.06]"
-                      >
-                        <Skeleton className="h-11 w-11 rounded-2xl" />
-                        <div className="flex-1 space-y-1.5">
-                          <Skeleton className="h-3.5 w-28" />
-                          <Skeleton className="h-3 w-20" />
-                        </div>
-                        <Skeleton className="h-9 w-[80px] rounded-xl" />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    {suggestions!.map((profile) => (
-                      <UserSuggestionCard key={profile.id} profile={profile} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-          {suggestionsError && (
-            <div className="flex flex-col items-center py-12 text-center">
-              <div className="h-12 w-12 rounded-2xl bg-destructive/10 flex items-center justify-center mb-3">
-                <AlertCircle className="h-5 w-5 text-destructive" />
-              </div>
-              <p className="text-sm font-medium text-foreground/80">
-                Something went wrong
-              </p>
-              <button
-                onClick={() => refetchSuggestions()}
-                className="text-primary text-sm font-semibold hover:underline mt-2"
-              >
-                Retry
-              </button>
-            </div>
-          )}
-        </div>
+        <DiscoverBody />
       )}
     </div>
   );
 }
 
-function FeaturedTrendingTag() {
-  const { data: hashtags, isLoading } = useQuery({
-    queryKey: ["trending-hashtags"],
-    queryFn: () => getTrendingHashtags(6),
+/* ─── Discover body (hero + three rails) ─────────────────────────── */
+
+function DiscoverBody() {
+  const now = new Date();
+  const today = now
+    .toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short" })
+    .toUpperCase();
+
+  return (
+    <>
+      {/* Editorial hero */}
+      <div>
+        <Eyebrow>◇&nbsp;&nbsp;DISCOVER · {today}</Eyebrow>
+        <Display size={56} style={{ marginTop: 8 }}>
+          What&apos;s in the <Acc>air</Acc> today.
+        </Display>
+        <p
+          style={{
+            fontSize: 15,
+            color: O.ink2,
+            marginTop: 10,
+            maxWidth: 640,
+            lineHeight: 1.5,
+          }}
+        >
+          Signals picked up from your orbit and its orbits. No infinite scroll, no chase.
+        </p>
+      </div>
+
+      <FeaturedTrend />
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1.1fr 1fr 1fr",
+          gap: 18,
+        }}
+        className="grid xl:grid-cols-[1.1fr_1fr_1fr] md:grid-cols-2 grid-cols-1"
+      >
+        <TrendingRail />
+        <PeopleRail />
+        <LiveRail />
+      </div>
+    </>
+  );
+}
+
+/* ─── featured #trend hero ───────────────────────────────────────── */
+
+function FeaturedTrend() {
+  const { data: tags } = useQuery({
+    queryKey: ["trending-hashtags", 5],
+    queryFn: () => getTrendingHashtags(5),
+    staleTime: 1000 * 60 * 5,
+  });
+  const { data: posts } = useQuery({
+    queryKey: ["trending-posts", 4],
+    queryFn: () => getTrendingPosts(4),
     staleTime: 1000 * 60 * 5,
   });
 
-  if (isLoading) {
+  if (!tags || tags.length === 0) {
     return (
-      <div className="mb-10 grid md:grid-cols-3 gap-3">
-        <Skeleton className="h-[220px] md:col-span-2 rounded-3xl" />
-        <div className="space-y-3">
-          <Skeleton className="h-24 rounded-2xl" />
-          <Skeleton className="h-24 rounded-2xl" />
-        </div>
+      <div style={{ ...panel(), padding: 36 }}>
+        <Skeleton className="h-32 w-full rounded-xl" />
       </div>
     );
   }
 
-  if (!hashtags || hashtags.length === 0) return null;
-
-  const featured = hashtags[0];
-  const rest = hashtags.slice(1, 5);
+  const top = tags[0];
+  const hues = [18, 220, 290, 145];
 
   return (
-    <div className="mb-10 grid md:grid-cols-3 gap-3">
-      {/* Featured */}
-      <Link
-        href={`/explore?q=%23${featured.name}`}
-        className="group relative md:col-span-2 h-[220px] rounded-3xl overflow-hidden tile-violet p-8 flex flex-col justify-between hover-lift"
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] uppercase tracking-[0.14em] font-bold text-white/70">
-            Trending now
+    <div
+      style={{
+        ...panel(),
+        padding: 0,
+        overflow: "hidden",
+        display: "grid",
+        gridTemplateColumns: "1.1fr 1fr",
+        alignItems: "stretch",
+      }}
+      className="md:grid-cols-[1.1fr_1fr] grid-cols-1"
+    >
+      <div style={{ padding: 36, position: "relative" }}>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "5px 13px",
+            borderRadius: 99,
+            background: aurora,
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+            boxShadow: `0 4px 16px ${O.a2}60`,
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: "white",
+              boxShadow: "0 0 8px white",
+            }}
+          />
+          TRENDING · {Intl.NumberFormat("en", { notation: "compact" }).format(top.post_count)}
+        </div>
+        <Display size={64} style={{ marginTop: 18, lineHeight: 0.95 }}>
+          <span
+            style={{
+              fontFamily: O.serif,
+              fontStyle: "italic",
+              fontWeight: 400,
+            }}
+          >
+            #
           </span>
-          <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-        </div>
-        <div>
-          <h3
-            className="text-6xl md:text-7xl font-extrabold text-white leading-none tracking-tight"
-            style={{ fontFamily: "var(--font-syne), sans-serif" }}
-          >
-            #{featured.name}
-          </h3>
-          <p className="mt-3 text-sm text-white/80 font-semibold tabular-nums">
-            {featured.post_count} posts today
-          </p>
-        </div>
-        {/* Shine layer */}
-        <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-      </Link>
-
-      {/* Side tiles */}
-      <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
-        {rest.slice(0, 2).map((tag, i) => (
-          <Link
-            key={tag.id}
-            href={`/explore?q=%23${tag.name}`}
-            className={`group relative rounded-2xl overflow-hidden ${TILE_CLASSES[(i + 1) % TILE_CLASSES.length]} p-5 h-[104px] flex flex-col justify-between hover-lift`}
-          >
-            <Hash className="h-4 w-4 text-white/70" />
-            <div>
-              <p
-                className="text-xl font-extrabold text-white leading-tight tracking-tight"
-                style={{ fontFamily: "var(--font-syne), sans-serif" }}
-              >
-                #{tag.name}
-              </p>
-              <p className="mt-0.5 text-[11px] text-white/70 font-semibold tabular-nums">
-                {tag.post_count} posts
-              </p>
-            </div>
+          {top.name}
+        </Display>
+        <p
+          style={{
+            fontSize: 15,
+            color: O.ink2,
+            lineHeight: 1.55,
+            margin: "16px 0 0",
+            maxWidth: 460,
+          }}
+        >
+          People are posting about this across your orbit right now.{" "}
+          <b style={{ color: O.ink }}>{top.post_count} posts today.</b>
+        </p>
+        <div style={{ display: "flex", gap: 10, marginTop: 22, flexWrap: "wrap" }}>
+          <Link href={`/hashtag/${encodeURIComponent(top.name)}`}>
+            <PillBtn primary size="lg">
+              Open trend →
+            </PillBtn>
           </Link>
-        ))}
+          <Link href="/feed">
+            <PillBtn size="lg">+ Post yours</PillBtn>
+          </Link>
+        </div>
       </div>
-
-      {/* Extra chips underneath on mobile */}
-      {rest.length > 2 && (
-        <div className="md:col-span-3 flex flex-wrap gap-2">
-          {rest.slice(2).map((tag) => (
-            <Link
-              key={tag.id}
-              href={`/explore?q=%23${tag.name}`}
-              className="inline-flex items-center gap-1.5 px-3.5 h-9 rounded-full bg-white/[0.05] border border-white/[0.08] text-sm font-semibold text-foreground hover:bg-white/[0.1] hover:border-primary/30 hover:text-primary transition-all"
-            >
-              <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-              {tag.name}
-              <span className="text-[11px] text-muted-foreground tabular-nums ml-0.5">
-                {tag.post_count}
-              </span>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PopularTilesGrid() {
-  const { data: posts, isLoading } = useQuery({
-    queryKey: ["trending-posts"],
-    queryFn: () => getTrendingPosts(8),
-    staleTime: 1000 * 60 * 5,
-  });
-
-  return (
-    <div>
-      <h2 className="text-[11px] uppercase tracking-[0.14em] font-bold text-muted-foreground mb-5">
-        Popular right now
-      </h2>
-      {isLoading ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="aspect-[4/5] rounded-2xl" />
-          ))}
-        </div>
-      ) : !posts || posts.length === 0 ? null : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {posts.map((post: any, i: number) => {
-            const media = post.post_media?.[0];
-            const hasImage = media && (media.type === "image" || media.type === "video");
+      <div
+        style={{
+          position: "relative",
+          background: O.glass2,
+          minHeight: 280,
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 12,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gridTemplateRows: "1fr 1fr",
+            gap: 10,
+          }}
+        >
+          {Array.from({ length: 4 }).map((_, i) => {
+            const post = posts?.[i];
+            const hue = hues[i];
+            const hue2 = (hue + 60) % 360;
+            const image = post?.post_media?.[0];
+            const isVisual = image && (image.type === "image" || image.type === "video");
             return (
               <Link
-                key={post.id}
-                href={`/post/${post.id}`}
-                className={`group relative aspect-[4/5] rounded-2xl overflow-hidden hover-lift ${
-                  hasImage ? "" : TILE_CLASSES[i % TILE_CLASSES.length]
-                }`}
+                key={i}
+                href={post ? `/post/${post.id}` : `/hashtag/${encodeURIComponent(top.name)}`}
+                style={{
+                  borderRadius: 14,
+                  overflow: "hidden",
+                  position: "relative",
+                  background: isVisual
+                    ? "#0a0a1a"
+                    : `linear-gradient(135deg, oklch(0.55 0.18 ${hue}), oklch(0.35 0.12 ${hue2}))`,
+                  textDecoration: "none",
+                  color: "white",
+                }}
               >
-                {hasImage ? (
+                {isVisual && image ? (
                   <img
-                    src={media.thumbnail_url || media.url}
+                    src={image.thumbnail_url || image.url}
                     alt=""
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />
                 ) : (
-                  <div className="h-full w-full flex items-end p-5">
-                    <p className="text-white text-[15px] leading-snug font-bold line-clamp-5 drop-shadow">
-                      {post.content?.slice(0, 160) || ""}
-                    </p>
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background:
+                        "repeating-linear-gradient(135deg, transparent 0 14px, rgba(255,255,255,0.05) 14px 15px)",
+                    }}
+                  />
+                )}
+                {post?.profiles?.username && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 8,
+                      left: 10,
+                      fontSize: 10,
+                      color: "white",
+                      opacity: 0.85,
+                      fontFamily: O.mono,
+                    }}
+                  >
+                    by @{post.profiles.username}
                   </div>
                 )}
-                <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
-                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white text-[11px] font-bold">
-                  <span className="inline-flex items-center gap-1 tabular-nums">
-                    <span className="text-rose-300">♥</span>
-                    {post.like_count ?? 0}
-                  </span>
-                  <span className="inline-flex items-center gap-1 tabular-nums">
-                    <span className="text-sky-300">◌</span>
-                    {post.comment_count ?? 0}
-                  </span>
-                </div>
               </Link>
             );
           })}
         </div>
-      )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Trending rail ──────────────────────────────────────────────── */
+
+function TrendingRail() {
+  const { data: tags, isLoading } = useQuery({
+    queryKey: ["trending-hashtags", 5],
+    queryFn: () => getTrendingHashtags(5),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  return (
+    <div style={{ ...panel(), padding: 22 }}>
+      <Eyebrow>◈&nbsp;&nbsp;TRENDING NOW</Eyebrow>
+      <div style={{ marginTop: 14 }}>
+        {isLoading
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  gap: 14,
+                  padding: "12px 0",
+                  borderTop: i ? `1px solid ${O.hair}` : "none",
+                }}
+              >
+                <Skeleton className="h-6 w-6 rounded" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-3.5 w-32" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+            ))
+          : tags?.map((t, i) => (
+              <Link
+                key={t.id}
+                href={`/hashtag/${encodeURIComponent(t.name)}`}
+                style={{
+                  display: "flex",
+                  gap: 14,
+                  padding: "12px 0",
+                  borderTop: i ? `1px solid ${O.hair}` : "none",
+                  alignItems: "center",
+                  color: O.ink,
+                  textDecoration: "none",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: O.serif,
+                    fontStyle: "italic",
+                    fontSize: 26,
+                    color: i === 0 ? O.a2 : O.ink3,
+                    minWidth: 28,
+                  }}
+                >
+                  {i + 1}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>#{t.name}</div>
+                  <div style={{ fontSize: 11, color: O.ink3 }}>
+                    {Intl.NumberFormat("en", { notation: "compact" }).format(t.post_count)}{" "}
+                    posts
+                  </div>
+                </div>
+                <TrendingUp
+                  style={{ width: 11, height: 11, color: "#7dffa3" }}
+                  strokeWidth={2}
+                />
+              </Link>
+            ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── People rail ────────────────────────────────────────────────── */
+
+function PeopleRail() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { data: people, isLoading } = useQuery({
+    queryKey: ["suggested-users", user?.id, 5],
+    queryFn: () => getSuggestedUsers(user!.id, 5),
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  return (
+    <div style={{ ...panel(), padding: 22 }}>
+      <Eyebrow>◇&nbsp;&nbsp;PEOPLE TO ORBIT</Eyebrow>
+      <div style={{ marginTop: 14 }}>
+        {isLoading
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "center",
+                  padding: "8px 0",
+                  borderTop: i ? `1px solid ${O.hair}` : "none",
+                }}
+              >
+                <Skeleton className="h-9 w-9 rounded-full" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-2.5 w-16" />
+                </div>
+                <Skeleton className="h-6 w-8 rounded-full" />
+              </div>
+            ))
+          : people?.map((p, i) => (
+              <div
+                key={p.id}
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "center",
+                  padding: "8px 0",
+                  borderTop: i ? `1px solid ${O.hair}` : "none",
+                }}
+              >
+                <UserAvatar src={p.avatar_url} fallback={p.display_name} size="sm" />
+                <Link
+                  href={`/${p.username}`}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    color: O.ink,
+                    textDecoration: "none",
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{p.display_name}</div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: O.ink3,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    @{p.username}
+                  </div>
+                </Link>
+                <PillBtn
+                  primary
+                  size="sm"
+                  onClick={async () => {
+                    if (!user) return;
+                    try {
+                      await followUser(user.id, p.id);
+                      queryClient.invalidateQueries({
+                        queryKey: ["suggested-users", user.id],
+                      });
+                    } catch {
+                      /* noop */
+                    }
+                  }}
+                >
+                  +
+                </PillBtn>
+              </div>
+            ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Live rail ──────────────────────────────────────────────────── */
+
+function LiveRail() {
+  const { data: streams } = useQuery({
+    queryKey: ["live-streams"],
+    queryFn: getLiveStreams,
+    refetchInterval: 15000,
+  });
+
+  return (
+    <div style={{ ...panel(), padding: 22 }}>
+      <Eyebrow accent>
+        ◆&nbsp;&nbsp;LIVE NOW · {streams?.length ?? 0}
+      </Eyebrow>
+      <div
+        style={{
+          marginTop: 14,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        {!streams || streams.length === 0 ? (
+          <div
+            style={{
+              fontSize: 12,
+              color: O.ink3,
+              padding: "12px 0",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <Radio style={{ width: 13, height: 13, color: O.ink3 }} />
+            Nobody on air — come back later.
+          </div>
+        ) : (
+          streams.slice(0, 4).map((s) => (
+            <Link
+              key={s.id}
+              href={`/live/${s.id}`}
+              style={{
+                display: "flex",
+                gap: 12,
+                padding: 12,
+                borderRadius: 14,
+                background: O.glass,
+                border: `1px solid ${O.hair}`,
+                alignItems: "center",
+                color: O.ink,
+                textDecoration: "none",
+              }}
+            >
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                <UserAvatar
+                  src={s.profiles.avatar_url}
+                  fallback={s.profiles.display_name}
+                  size="sm"
+                />
+                <span
+                  style={{
+                    position: "absolute",
+                    bottom: -3,
+                    right: -4,
+                    background: O.a2,
+                    color: "white",
+                    fontSize: 8,
+                    fontWeight: 800,
+                    padding: "2px 5px",
+                    borderRadius: 4,
+                    letterSpacing: "0.1em",
+                    boxShadow: `0 0 10px ${O.a2}80`,
+                  }}
+                >
+                  LIVE
+                </span>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {s.title}
+                </div>
+                <div style={{ fontSize: 10.5, color: O.ink3 }}>
+                  {s.viewer_count ?? 0} watching
+                </div>
+              </div>
+            </Link>
+          ))
+        )}
+      </div>
     </div>
   );
 }
