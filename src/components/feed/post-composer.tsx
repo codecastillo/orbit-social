@@ -36,7 +36,7 @@ export function PostComposer() {
 
   return (
     <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
-      <DialogContent className="sm:max-w-[520px] p-0 gap-0 bg-card border-border rounded-2xl overflow-hidden">
+      <DialogContent className="sm:max-w-[520px] p-0 gap-0 bg-zinc-800 border-zinc-700/50 rounded-2xl overflow-hidden shadow-xl shadow-purple-500/5">
         {user && (
           <ComposerForm
             user={user}
@@ -63,13 +63,17 @@ export function InlineComposer({
 
   return (
     <div className="mx-3 mt-3">
-      <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
-        <ComposerForm
-          user={user}
-          replyToId={replyToId}
-          onSuccess={onSuccess}
-          inline
-        />
+      <div className="relative group bg-zinc-800/70 rounded-2xl border border-zinc-700/50 shadow-sm overflow-hidden transition-all duration-300 hover:border-violet-500/30 hover:shadow-md hover:shadow-violet-500/5">
+        {/* Subtle gradient glow */}
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/5 via-transparent to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+        <div className="relative">
+          <ComposerForm
+            user={user}
+            replyToId={replyToId}
+            onSuccess={onSuccess}
+            inline
+          />
+        </div>
       </div>
     </div>
   );
@@ -172,10 +176,10 @@ function ComposerForm({
 
         <div className="flex-1 min-w-0">
           <Textarea
-            placeholder={replyToId ? "Write a reply..." : "What's on your mind?"}
+            placeholder={replyToId ? "Write a reply..." : "Share something..."}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="border-none bg-transparent resize-none p-0 text-[15px] placeholder:text-muted-foreground/50 focus-visible:ring-0 focus-visible:border-none min-h-[60px]"
+            className="border-none bg-transparent resize-none p-0 text-[15px] text-zinc-200 placeholder:text-zinc-500 focus-visible:ring-0 focus-visible:border-none min-h-[60px]"
             rows={inline ? 2 : 3}
           />
 
@@ -195,7 +199,7 @@ function ComposerForm({
               {media.map((m, i) => (
                 <div
                   key={i}
-                  className={`relative group rounded-xl overflow-hidden ${
+                  className={`relative group/media rounded-xl overflow-hidden border border-zinc-700/30 ${
                     media.length === 3 && i === 0 ? "row-span-2" : ""
                   }`}
                 >
@@ -206,7 +210,7 @@ function ComposerForm({
                   />
                   <button
                     onClick={() => removeMedia(i)}
-                    className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center bg-black/70 hover:bg-black/80 rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                    className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center bg-black/70 hover:bg-black/80 rounded-full opacity-0 group-hover/media:opacity-100 transition-all"
                   >
                     <X className="h-3.5 w-3.5 text-white" />
                   </button>
@@ -218,8 +222,8 @@ function ComposerForm({
       </div>
 
       {/* Actions Bar */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-border/50">
-        <div className="flex items-center gap-0.5">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-700/40">
+        <div className="flex items-center gap-1">
           <input
             ref={fileInputRef}
             type="file"
@@ -231,7 +235,7 @@ function ComposerForm({
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 rounded-full text-primary hover:bg-primary/10"
+            className="h-9 w-9 rounded-lg text-sky-400 hover:bg-sky-400/15 hover:text-sky-300"
             onClick={() => fileInputRef.current?.click()}
             disabled={media.length >= MAX_IMAGES}
           >
@@ -240,7 +244,7 @@ function ComposerForm({
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 rounded-full text-primary hover:bg-primary/10"
+            className="h-9 w-9 rounded-lg text-amber-400 hover:bg-amber-400/15 hover:text-amber-300"
             disabled
             title="Polls coming soon"
           >
@@ -249,7 +253,7 @@ function ComposerForm({
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 rounded-full text-primary hover:bg-primary/10"
+            className="h-9 w-9 rounded-lg text-emerald-400 hover:bg-emerald-400/15 hover:text-emerald-300"
             disabled
             title="Emoji"
           >
@@ -265,7 +269,7 @@ function ComposerForm({
                   ? "text-destructive"
                   : charCount > MAX_POST_LENGTH * 0.8
                     ? "text-yellow-500"
-                    : "text-muted-foreground"
+                    : "text-zinc-500"
               }`}
             >
               {charCount}/{MAX_POST_LENGTH}
@@ -273,7 +277,7 @@ function ComposerForm({
           )}
           <Button
             size="sm"
-            className="rounded-full px-5 font-semibold shadow-sm"
+            className="rounded-full px-5 font-semibold shadow-sm bg-violet-600 hover:bg-violet-500 text-white border-0"
             onClick={handleSubmit}
             disabled={!canPost || posting}
           >

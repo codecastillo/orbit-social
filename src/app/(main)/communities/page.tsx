@@ -45,13 +45,13 @@ export default function CommunitiesPage() {
   });
 
   return (
-    <div className="border-x border-border min-h-screen">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border p-4">
+      <div className="sticky top-0 z-10 bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-700/50 p-4">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-lg font-semibold">Communities</h1>
+          <h1 className="text-xl font-bold text-zinc-100">Spaces</h1>
           {user && (
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Button size="sm" onClick={() => setCreateOpen(true)} className="bg-violet-600 hover:bg-violet-500 text-white border-0 rounded-full">
               <Plus className="h-4 w-4 mr-1.5" />
               Create
             </Button>
@@ -60,12 +60,12 @@ export default function CommunitiesPage() {
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
           <Input
-            placeholder="Search communities..."
+            placeholder="Search spaces..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="pl-9 bg-zinc-800 border-zinc-700/50 text-zinc-200 placeholder:text-zinc-500"
           />
         </div>
       </div>
@@ -89,19 +89,19 @@ export default function CommunitiesPage() {
             icon={Users}
             title={
               debouncedQuery
-                ? "No communities found"
-                : "No communities yet"
+                ? "No spaces found"
+                : "No spaces yet"
             }
             description={
               debouncedQuery
                 ? "Try a different search term"
-                : "Be the first to create a community!"
+                : "Be the first to create a space!"
             }
             action={
               !debouncedQuery && user ? (
-                <Button onClick={() => setCreateOpen(true)}>
+                <Button onClick={() => setCreateOpen(true)} className="bg-violet-600 hover:bg-violet-500 text-white border-0 rounded-full">
                   <Plus className="h-4 w-4 mr-1.5" />
-                  Create Community
+                  Create Space
                 </Button>
               ) : undefined
             }
@@ -119,7 +119,7 @@ export default function CommunitiesPage() {
 
 function CommunityCardSkeleton() {
   return (
-    <div className="rounded-xl border border-border/50 bg-card/50 p-4">
+    <div className="rounded-xl border border-zinc-700/40 bg-zinc-800/50 p-4">
       <div className="flex items-start gap-3">
         <Skeleton className="h-14 w-14 rounded-full shrink-0" />
         <div className="flex-1 space-y-2">

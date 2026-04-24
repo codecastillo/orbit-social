@@ -3,20 +3,20 @@ export const APP_NAME = "Orbit";
 export const NAV_ITEMS = [
   { label: "Home", href: "/feed", icon: "Home" },
   { label: "Explore", href: "/explore", icon: "Compass" },
-  { label: "Reels", href: "/reels", icon: "Clapperboard" },
+  { label: "Clips", href: "/reels", icon: "Clapperboard" },
   { label: "Messages", href: "/messages", icon: "MessageCircle" },
   { label: "Notifications", href: "/notifications", icon: "Bell" },
-  { label: "Communities", href: "/communities", icon: "Users" },
-  { label: "Marketplace", href: "/marketplace", icon: "ShoppingBag" },
+  { label: "Spaces", href: "/communities", icon: "Users" },
+  { label: "Exchange", href: "/marketplace", icon: "ShoppingBag" },
   { label: "Events", href: "/events", icon: "Calendar" },
-  { label: "Bookmarks", href: "/bookmarks", icon: "Bookmark" },
+  { label: "Saved", href: "/bookmarks", icon: "Bookmark" },
 ] as const;
 
 export const MOBILE_NAV_ITEMS = [
   { label: "Home", href: "/feed", icon: "Home" },
   { label: "Explore", href: "/explore", icon: "Compass" },
   { label: "Create", href: "#compose", icon: "PlusSquare" },
-  { label: "Reels", href: "/reels", icon: "Clapperboard" },
+  { label: "Clips", href: "/reels", icon: "Clapperboard" },
   { label: "Profile", href: "/profile", icon: "User" },
 ] as const;
 

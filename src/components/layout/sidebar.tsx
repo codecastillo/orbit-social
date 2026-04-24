@@ -34,13 +34,13 @@ import { APP_NAME } from "@/lib/utils/constants";
 const navItems = [
   { label: "Home", href: "/feed", icon: Home },
   { label: "Explore", href: "/explore", icon: Compass },
-  { label: "Reels", href: "/reels", icon: Clapperboard },
+  { label: "Clips", href: "/reels", icon: Clapperboard },
   { label: "Messages", href: "/messages", icon: MessageCircle },
   { label: "Notifications", href: "/notifications", icon: Bell },
-  { label: "Communities", href: "/communities", icon: Users },
-  { label: "Marketplace", href: "/marketplace", icon: ShoppingBag },
+  { label: "Spaces", href: "/communities", icon: Users },
+  { label: "Exchange", href: "/marketplace", icon: ShoppingBag },
   { label: "Events", href: "/events", icon: Calendar },
-  { label: "Bookmarks", href: "/bookmarks", icon: Bookmark },
+  { label: "Saved", href: "/bookmarks", icon: Bookmark },
 ];
 
 export function Sidebar() {

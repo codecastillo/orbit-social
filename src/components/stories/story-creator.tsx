@@ -62,7 +62,7 @@ export function StoryCreator({ open, onOpenChange }: StoryCreatorProps) {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Story</DialogTitle>
+          <DialogTitle>Create Moment</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -125,14 +125,14 @@ export function StoryCreator({ open, onOpenChange }: StoryCreatorProps) {
                   Posting...
                 </>
               ) : (
-                "Post Story"
+                "Post Moment"
               )}
             </Button>
           </div>
 
           {mutation.isError && (
             <p className="text-sm text-destructive text-center">
-              Failed to create story. Please try again.
+              Failed to create moment. Please try again.
             </p>
           )}
         </div>

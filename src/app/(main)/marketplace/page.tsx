@@ -49,12 +49,12 @@ export default function MarketplacePage() {
   }, [fetchListings, searchQuery]);
 
   return (
-    <div className="border-x border-border min-h-screen">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border">
+      <div className="sticky top-0 z-10 bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-700/50">
         <div className="flex items-center justify-between p-4">
-          <h1 className="text-xl font-bold">Marketplace</h1>
-          <Button onClick={() => setShowCreate(true)} size="sm">
+          <h1 className="text-xl font-bold text-zinc-100">Exchange</h1>
+          <Button onClick={() => setShowCreate(true)} size="sm" className="bg-violet-600 hover:bg-violet-500 text-white border-0 rounded-full">
             <PlusIcon className="h-4 w-4" />
             Sell
           </Button>
@@ -63,12 +63,12 @@ export default function MarketplacePage() {
         {/* Search */}
         <div className="px-4 pb-3">
           <div className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search marketplace..."
-              className="pl-9"
+              placeholder="Search exchange..."
+              className="pl-9 bg-zinc-800 border-zinc-700/50 text-zinc-200 placeholder:text-zinc-500"
             />
           </div>
         </div>
@@ -80,10 +80,10 @@ export default function MarketplacePage() {
               key={cat}
               onClick={() => setActiveCategory(cat)}
               className={cn(
-                "shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                "shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all border",
                 activeCategory === cat
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                  ? "bg-violet-600 text-white border-violet-500 shadow-md shadow-violet-500/20"
+                  : "bg-zinc-800 text-zinc-400 border-zinc-700/50 hover:bg-zinc-700 hover:text-zinc-300"
               )}
             >
               {cat}
@@ -96,7 +96,7 @@ export default function MarketplacePage() {
       {loading ? (
         <div className="grid grid-cols-2 gap-3 p-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl overflow-hidden border border-white/5">
+            <div key={i} className="rounded-xl overflow-hidden border border-zinc-700/40 bg-zinc-800/50">
               <Skeleton className="aspect-square w-full" />
               <div className="p-3 space-y-2">
                 <Skeleton className="h-5 w-16" />
@@ -116,7 +116,7 @@ export default function MarketplacePage() {
           }
           action={
             !searchQuery ? (
-              <Button onClick={() => setShowCreate(true)} size="sm">
+              <Button onClick={() => setShowCreate(true)} size="sm" className="bg-violet-600 hover:bg-violet-500 text-white border-0 rounded-full">
                 <PlusIcon className="h-4 w-4" />
                 Create Listing
               </Button>

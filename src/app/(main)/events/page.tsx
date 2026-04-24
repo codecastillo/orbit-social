@@ -31,14 +31,23 @@ export default function EventsPage() {
   }, [fetchEvents]);
 
   return (
-    <div className="border-x border-border min-h-screen">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border">
-        <div className="flex items-center justify-between p-4">
-          <h1 className="text-xl font-bold">Events</h1>
-          <Button onClick={() => setShowCreate(true)} size="sm">
-            <PlusIcon className="h-4 w-4" />
-            Create Event
+      <div className="sticky top-0 z-10 bg-background/70 backdrop-blur-2xl border-b border-white/[0.06]">
+        <div className="flex items-center justify-between px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
+              <CalendarIcon className="h-4.5 w-4.5 text-emerald-400" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight">Events</h1>
+          </div>
+          <Button
+            onClick={() => setShowCreate(true)}
+            size="sm"
+            className="rounded-full px-4 h-9 font-medium"
+          >
+            <PlusIcon className="h-4 w-4 mr-1.5" />
+            Create
           </Button>
         </div>
       </div>
@@ -49,10 +58,10 @@ export default function EventsPage() {
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="flex gap-4 rounded-xl p-3 border border-white/5"
+              className="flex gap-4 rounded-2xl p-4 bg-white/[0.02] border border-white/[0.05]"
             >
-              <Skeleton className="h-24 w-24 rounded-lg shrink-0" />
-              <div className="flex-1 space-y-2 py-1">
+              <Skeleton className="h-24 w-24 rounded-xl shrink-0" />
+              <div className="flex-1 space-y-2.5 py-1">
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="h-5 w-40" />
                 <Skeleton className="h-3 w-32" />
@@ -66,8 +75,8 @@ export default function EventsPage() {
           title="No upcoming events"
           description="Create an event or check back later."
           action={
-            <Button onClick={() => setShowCreate(true)} size="sm">
-              <PlusIcon className="h-4 w-4" />
+            <Button onClick={() => setShowCreate(true)} size="sm" className="rounded-full">
+              <PlusIcon className="h-4 w-4 mr-1.5" />
               Create Event
             </Button>
           }

@@ -82,7 +82,7 @@ export function PostCard({
   const handleBookmark = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) {
-      toast.error("Sign in to bookmark posts");
+      toast.error("Sign in to save posts");
       return;
     }
 
@@ -95,7 +95,7 @@ export function PostCard({
     } catch {
       setIsBookmarked(wasBookmarked);
       setBookmarkCount((c) => (wasBookmarked ? c + 1 : c - 1));
-      toast.error("Failed to bookmark post");
+      toast.error("Failed to save post");
     }
   };
 
@@ -127,12 +127,15 @@ export function PostCard({
 
   return (
     <motion.article
-      className="bg-card rounded-2xl border border-border/60 shadow-sm cursor-pointer transition-shadow duration-200 hover:shadow-md"
+      className="group relative bg-zinc-800/70 rounded-2xl border border-zinc-700/50 shadow-sm cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/5 hover:border-purple-500/30"
       onClick={navigateToPost}
-      whileHover={{ y: -1 }}
-      transition={{ duration: 0.15 }}
+      whileHover={{ y: -2, scale: 1.005 }}
+      transition={{ duration: 0.2 }}
     >
-      <div className={cn("flex gap-3", compact ? "p-3" : "px-4 pt-4 pb-3")}>
+      {/* Subtle gradient border glow on hover */}
+      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/10 via-transparent to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+
+      <div className={cn("relative flex gap-3", compact ? "p-3" : "px-5 pt-5 pb-4")}>
         {/* Avatar */}
         <Link
           href={`/${profile.username}`}
@@ -153,18 +156,18 @@ export function PostCard({
               <Link
                 href={`/${profile.username}`}
                 onClick={(e) => e.stopPropagation()}
-                className="font-bold text-[15px] hover:underline truncate"
+                className="font-bold text-[15px] text-zinc-100 hover:underline truncate"
               >
                 {profile.display_name}
               </Link>
               <Link
                 href={`/${profile.username}`}
                 onClick={(e) => e.stopPropagation()}
-                className="text-muted-foreground text-[13px] truncate"
+                className="text-zinc-500 text-[13px] truncate"
               >
                 @{profile.username}
               </Link>
-              <span className="text-muted-foreground/60 text-[13px] shrink-0">
+              <span className="text-zinc-600 text-[13px] shrink-0">
                 &middot; {formatTimeAgo(post.created_at)}
               </span>
             </div>
@@ -173,8 +176,8 @@ export function PostCard({
               <DropdownMenuTrigger
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-accent transition-colors">
-                  <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                <div className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-zinc-700/60 transition-colors">
+                  <MoreHorizontal className="h-4 w-4 text-zinc-500" />
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -201,7 +204,7 @@ export function PostCard({
 
           {/* Content */}
           {post.content && (
-            <div className="mt-1.5">
+            <div className="mt-2">
               <PostContent content={post.content} />
             </div>
           )}
@@ -210,7 +213,7 @@ export function PostCard({
           {post.post_media && post.post_media.length > 0 && (
             <div
               className={cn(
-                "mt-3 rounded-xl overflow-hidden shadow-sm",
+                "mt-3 rounded-xl overflow-hidden shadow-md border border-zinc-700/30",
                 post.post_media.length === 1 && "max-h-[420px]",
                 post.post_media.length > 1 && "grid gap-0.5",
                 post.post_media.length === 2 && "grid-cols-2",
@@ -240,7 +243,7 @@ export function PostCard({
           )}
 
           {/* Actions */}
-          <div className="flex items-center justify-between mt-3 -mx-2">
+          <div className="flex items-center justify-between mt-4 -mx-2 pt-3 border-t border-zinc-700/30">
             <ActionButton
               icon={MessageCircle}
               count={post.comment_count}
@@ -266,7 +269,7 @@ export function PostCard({
             <ActionButton
               icon={Share}
               onClick={handleShare}
-              color="green"
+              color="cyan"
             />
             <ActionButton
               icon={Bookmark}
@@ -287,7 +290,7 @@ function PostContent({ content }: { content: string }) {
   const parts = content.split(/([@#]\w+)/g);
 
   return (
-    <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+    <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words text-zinc-200">
       {parts.map((part, i) => {
         if (part.startsWith("#")) {
           return (
@@ -295,7 +298,7 @@ function PostContent({ content }: { content: string }) {
               key={i}
               href={`/explore/search?q=${encodeURIComponent(part)}`}
               onClick={(e) => e.stopPropagation()}
-              className="text-primary hover:underline font-medium"
+              className="text-violet-400 hover:text-violet-300 hover:underline font-medium"
             >
               {part}
             </Link>
@@ -307,7 +310,7 @@ function PostContent({ content }: { content: string }) {
               key={i}
               href={`/${part.slice(1)}`}
               onClick={(e) => e.stopPropagation()}
-              className="text-primary hover:underline font-medium"
+              className="text-violet-400 hover:text-violet-300 hover:underline font-medium"
             >
               {part}
             </Link>
@@ -330,23 +333,26 @@ function ActionButton({
   count?: number;
   onClick: (e: React.MouseEvent) => void;
   active?: boolean;
-  color: "blue" | "green" | "pink" | "yellow";
+  color: "blue" | "green" | "pink" | "yellow" | "cyan";
 }) {
   const [animateLike, setAnimateLike] = useState(false);
 
   const colorClasses = {
     blue: active
-      ? "text-blue-500"
-      : "hover:text-blue-500 hover:bg-blue-500/10",
+      ? "text-sky-400 bg-sky-400/10"
+      : "text-zinc-500 hover:text-sky-400 hover:bg-sky-400/15",
     green: active
-      ? "text-green-500"
-      : "hover:text-green-500 hover:bg-green-500/10",
+      ? "text-emerald-400 bg-emerald-400/10"
+      : "text-zinc-500 hover:text-emerald-400 hover:bg-emerald-400/15",
     pink: active
-      ? "text-pink-500"
-      : "hover:text-pink-500 hover:bg-pink-500/10",
+      ? "text-rose-400 bg-rose-400/10"
+      : "text-zinc-500 hover:text-rose-400 hover:bg-rose-400/15",
     yellow: active
-      ? "text-amber-500"
-      : "hover:text-amber-500 hover:bg-amber-500/10",
+      ? "text-amber-400 bg-amber-400/10"
+      : "text-zinc-500 hover:text-amber-400 hover:bg-amber-400/15",
+    cyan: active
+      ? "text-cyan-400 bg-cyan-400/10"
+      : "text-zinc-500 hover:text-cyan-400 hover:bg-cyan-400/15",
   };
 
   const handleClick = (e: React.MouseEvent) => {
@@ -361,7 +367,7 @@ function ActionButton({
     <motion.button
       onClick={handleClick}
       className={cn(
-        "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full transition-colors text-muted-foreground",
+        "flex items-center gap-1.5 py-1.5 px-3 rounded-lg transition-all duration-200",
         colorClasses[color]
       )}
     >

@@ -71,7 +71,7 @@ export function StoryBar() {
             )}
           </div>
           <span className="text-xs text-muted-foreground truncate w-16 text-center">
-            Your story
+            Your moment
           </span>
         </button>
 

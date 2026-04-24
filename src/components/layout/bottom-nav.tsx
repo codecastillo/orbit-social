@@ -10,7 +10,7 @@ const items = [
   { label: "Home", href: "/feed", icon: Home },
   { label: "Explore", href: "/explore", icon: Compass },
   { label: "Create", href: "#compose", icon: PlusSquare },
-  { label: "Reels", href: "/reels", icon: Clapperboard },
+  { label: "Clips", href: "/reels", icon: Clapperboard },
   { label: "Profile", href: "/profile", icon: User },
 ];
 

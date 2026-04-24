@@ -283,29 +283,29 @@ function HeroSection() {
 const features = [
   {
     icon: Newspaper,
-    title: "Feed & Stories",
-    desc: "Share moments that matter. A beautiful, algorithmic feed with ephemeral stories that disappear in 24 hours.",
+    title: "Feed & Moments",
+    desc: "Share what matters. A personalized feed with ephemeral Moments that disappear in 24 hours.",
     gradient: "from-blue-500/20 to-cyan-500/10",
     iconColor: "text-blue-400",
   },
   {
     icon: Clapperboard,
-    title: "Reels",
+    title: "Clips",
     desc: "Create and discover short-form videos. Full-screen, immersive, endlessly scrollable.",
     gradient: "from-purple-500/20 to-pink-500/10",
     iconColor: "text-purple-400",
   },
   {
     icon: MessageCircle,
-    title: "Messaging",
+    title: "Chat",
     desc: "Real-time conversations. Send text, media, and reactions — with read receipts and typing indicators.",
     gradient: "from-emerald-500/20 to-teal-500/10",
     iconColor: "text-emerald-400",
   },
   {
     icon: Users,
-    title: "Communities",
-    desc: "Find your people. Join or create communities around shared interests, with dedicated feeds and moderation.",
+    title: "Spaces",
+    desc: "Find your people. Create or join interest-based Spaces with dedicated feeds and moderation tools.",
     gradient: "from-amber-500/20 to-orange-500/10",
     iconColor: "text-amber-400",
   },
@@ -374,7 +374,7 @@ function FeaturesSection() {
 const stats = [
   { value: 10_000_000, label: "Posts shared", suffix: "+" },
   { value: 500_000, label: "Active users", suffix: "+" },
-  { value: 50_000, label: "Communities", suffix: "+" },
+  { value: 50_000, label: "Spaces", suffix: "+" },
   { value: 99.9, label: "Uptime", suffix: "%" },
 ];
 
@@ -624,7 +624,7 @@ function CTASection() {
 const footerCols = [
   {
     title: "Product",
-    links: ["Feed", "Reels", "Stories", "Messaging", "Communities", "Marketplace"],
+    links: ["Feed", "Clips", "Moments", "Chat", "Spaces", "Exchange"],
   },
   {
     title: "Company",
@@ -688,7 +688,7 @@ function Footer() {
 
 export default function LandingPage() {
   return (
-    <div className="relative overflow-hidden bg-[oklch(0.07_0_0)]">
+    <div className="relative overflow-hidden bg-background">
       {/* Grain overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.018]"
@@ -700,7 +700,6 @@ export default function LandingPage() {
 
       <HeroSection />
       <FeaturesSection />
-      <StatsSection />
       <AppPreviewSection />
       <HighlightsSection />
       <CTASection />

@@ -49,9 +49,9 @@ export function ProfileHeader({
   onEdit,
 }: ProfileHeaderProps) {
   return (
-    <div>
+    <div className="relative">
       {/* Cover Photo */}
-      <div className="h-56 sm:h-64 bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5 relative">
+      <div className="h-60 sm:h-72 bg-gradient-to-br from-primary/40 via-violet-600/25 to-primary/10 relative overflow-hidden">
         {profile.cover_url && (
           <img
             src={profile.cover_url}
@@ -59,25 +59,36 @@ export function ProfileHeader({
             className="w-full h-full object-cover"
           />
         )}
-        {/* Gradient overlay at bottom for smooth avatar transition */}
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background/80 to-transparent" />
+        {/* Dramatic multi-layer gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/30 via-transparent to-background/30" />
+        <div className="absolute bottom-0 inset-x-0 h-32 bg-gradient-to-t from-background to-transparent" />
       </div>
 
-      <div className="px-4 sm:px-6 pb-5">
-        {/* Avatar and Actions Row */}
-        <div className="flex justify-between items-end -mt-16 relative">
-          <UserAvatar
-            src={profile.avatar_url}
-            fallback={profile.display_name}
-            size="xl"
-            className="h-32 w-32 border-[5px] border-background shadow-lg ring-0"
-          />
+      <div className="px-5 sm:px-7 pb-6 relative">
+        {/* Avatar + Actions Row */}
+        <div className="flex justify-between items-end -mt-20 relative z-10">
+          <div className="relative">
+            <div className="rounded-full p-1 bg-background shadow-2xl shadow-black/30">
+              <UserAvatar
+                src={profile.avatar_url}
+                fallback={profile.display_name}
+                size="xl"
+                className="h-32 w-32 ring-0 border-0"
+              />
+            </div>
+            {profile.is_verified && (
+              <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-background flex items-center justify-center">
+                <BadgeCheck className="h-6 w-6 text-primary fill-primary/20" />
+              </div>
+            )}
+          </div>
 
-          <div className="flex items-center gap-2 pb-1">
+          <div className="flex items-center gap-2.5 pb-2">
             {isOwnProfile ? (
               <Button
                 variant="outline"
-                className="rounded-full px-5 font-semibold"
+                className="rounded-full px-6 h-10 font-semibold border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08] transition-all"
                 onClick={onEdit}
               >
                 Edit Profile
@@ -89,7 +100,7 @@ export function ProfileHeader({
                     <Button
                       variant="outline"
                       size="icon"
-                      className="rounded-full h-10 w-10"
+                      className="rounded-full h-10 w-10 border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08]"
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
@@ -110,28 +121,25 @@ export function ProfileHeader({
         </div>
 
         {/* Name and Username */}
-        <div className="mt-4 space-y-0.5">
-          <div className="flex items-center gap-1.5">
-            <h1 className="text-2xl sm:text-[28px] font-extrabold tracking-tight">
+        <div className="mt-5 space-y-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               {profile.display_name}
             </h1>
-            {profile.is_verified && (
-              <BadgeCheck className="h-6 w-6 text-primary fill-primary/20" />
-            )}
           </div>
           <p className="text-muted-foreground text-[15px]">@{profile.username}</p>
         </div>
 
         {/* Bio */}
         {profile.bio && (
-          <p className="mt-3 text-[15px] leading-relaxed">{profile.bio}</p>
+          <p className="mt-4 text-[15px] leading-relaxed max-w-lg">{profile.bio}</p>
         )}
 
         {/* Meta Info */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3.5 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-4 text-sm text-muted-foreground">
           {profile.location && (
             <span className="flex items-center gap-1.5">
-              <MapPin className="h-4 w-4" />
+              <MapPin className="h-3.5 w-3.5" />
               {profile.location}
             </span>
           )}
@@ -146,7 +154,7 @@ export function ProfileHeader({
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 text-primary hover:underline"
                 >
-                  <LinkIcon className="h-4 w-4" />
+                  <LinkIcon className="h-3.5 w-3.5" />
                   {url.hostname}
                 </a>
               );
@@ -155,7 +163,7 @@ export function ProfileHeader({
             }
           })()}
           <span className="flex items-center gap-1.5">
-            <CalendarDays className="h-4 w-4" />
+            <CalendarDays className="h-3.5 w-3.5" />
             Joined{" "}
             {new Date(profile.created_at).toLocaleDateString("en-US", {
               month: "long",
@@ -164,15 +172,19 @@ export function ProfileHeader({
           </span>
         </div>
 
-        {/* Stats */}
-        <div className="flex gap-5 mt-4">
-          <button className="group text-sm hover:underline">
-            <span className="font-bold text-base">{formatNumber(profile.following_count)}</span>{" "}
-            <span className="text-muted-foreground group-hover:text-foreground transition-colors">Following</span>
+        {/* Stats - Prominent cards */}
+        <div className="flex gap-3 mt-6">
+          <button className="flex flex-col items-center px-5 py-3 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] transition-colors group min-w-[90px]">
+            <span className="text-xl font-bold tracking-tight">{formatNumber(profile.post_count)}</span>
+            <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors mt-0.5">Posts</span>
           </button>
-          <button className="group text-sm hover:underline">
-            <span className="font-bold text-base">{formatNumber(profile.follower_count)}</span>{" "}
-            <span className="text-muted-foreground group-hover:text-foreground transition-colors">Followers</span>
+          <button className="flex flex-col items-center px-5 py-3 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] transition-colors group min-w-[90px]">
+            <span className="text-xl font-bold tracking-tight">{formatNumber(profile.follower_count)}</span>
+            <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors mt-0.5">Followers</span>
+          </button>
+          <button className="flex flex-col items-center px-5 py-3 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] transition-colors group min-w-[90px]">
+            <span className="text-xl font-bold tracking-tight">{formatNumber(profile.following_count)}</span>
+            <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors mt-0.5">Following</span>
           </button>
         </div>
       </div>
