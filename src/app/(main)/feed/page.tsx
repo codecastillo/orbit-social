@@ -68,7 +68,7 @@ export default function FeedPage() {
           </TabsContent>
 
           <TabsContent value="following" className="mt-0">
-            <FeedList tab="following" />
+            <MagazineFeed tab="following" />
           </TabsContent>
         </Tabs>
       </div>

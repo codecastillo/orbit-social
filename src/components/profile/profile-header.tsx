@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   Link as LinkIcon,
   MoreHorizontal,
@@ -54,6 +55,7 @@ export function ProfileHeader({
   onFollow,
   onEdit,
 }: ProfileHeaderProps) {
+  const router = useRouter();
   return (
     <div className="relative">
       {/* Gradient background */}
@@ -146,7 +148,7 @@ export function ProfileHeader({
             <Button
               variant="outline"
               className="flex-1 rounded-xl h-10 text-sm font-semibold"
-              onClick={onEdit}
+              onClick={() => router.push("/settings/profile")}
             >
               Edit Profile
             </Button>

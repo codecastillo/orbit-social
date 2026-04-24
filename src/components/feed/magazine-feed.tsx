@@ -50,7 +50,7 @@ function MagazineSkeleton() {
   );
 }
 
-export function MagazineFeed() {
+export function MagazineFeed({ tab = "foryou" }: { tab?: "foryou" | "following" }) {
   const {
     data,
     fetchNextPage,
@@ -59,7 +59,7 @@ export function MagazineFeed() {
     isLoading,
     isError,
     refetch,
-  } = useFeed("foryou");
+  } = useFeed(tab);
 
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useCallback(
