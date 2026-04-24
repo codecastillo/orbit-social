@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Compass, PlusSquare, Clapperboard, User } from "lucide-react";
+import { Home, Compass, Plus, Clapperboard, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -32,15 +32,23 @@ export function BottomNav() {
 
   const items = [
     { label: "Home", href: "/feed", icon: Home },
-    { label: "Explore", href: "/explore", icon: Compass },
-    { label: "Create", href: "#compose", icon: PlusSquare },
+    { label: "Discover", href: "/explore", icon: Compass },
+    { label: "Create", href: "#compose", icon: Plus, primary: true },
     { label: "Clips", href: "/reels", icon: Clapperboard },
-    { label: "Profile", href: profileHref, icon: User },
+    { label: "You", href: profileHref, icon: User },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden" style={{ background: "oklch(1 0 0 / 6%)", backdropFilter: "blur(80px) saturate(2)", WebkitBackdropFilter: "blur(80px) saturate(2)", borderTop: "1px solid oklch(1 0 0 / 10%)", boxShadow: "0 -4px 30px oklch(0 0 0 / 30%)" }}>
-      <div className="flex items-center justify-around h-16 px-2 pb-[env(safe-area-inset-bottom)]">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-40 lg:hidden"
+      style={{
+        background: "oklch(0.14 0.02 270 / 0.7)",
+        backdropFilter: "blur(40px) saturate(2)",
+        WebkitBackdropFilter: "blur(40px) saturate(2)",
+        borderTop: "1px solid oklch(1 0 0 / 0.06)",
+      }}
+    >
+      <div className="flex items-center justify-around h-[68px] px-3 pb-[env(safe-area-inset-bottom)]">
         {items.map((item) => {
           const isCompose = item.href === "#compose";
           const isActive =
@@ -53,10 +61,10 @@ export function BottomNav() {
               <button
                 key={item.label}
                 onClick={() => setComposeOpen(true)}
-                className="flex flex-col items-center justify-center gap-1 p-2 text-muted-foreground active:scale-90 transition-transform duration-150"
+                className="flex flex-col items-center justify-center active:scale-90 transition-transform duration-150 -mt-2"
               >
-                <div className="h-10 w-10 rounded-xl bg-primary/15 flex items-center justify-center shadow-[0_0_12px_oklch(0.623_0.214_259_/_20%)]">
-                  <Icon className="h-6 w-6 text-primary" strokeWidth={2} />
+                <div className="h-12 w-12 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-[0_8px_24px_oklch(0.623_0.214_259_/_0.5)]">
+                  <Icon className="h-6 w-6" strokeWidth={2.4} />
                 </div>
               </button>
             );
@@ -67,21 +75,26 @@ export function BottomNav() {
               key={item.label}
               href={item.href}
               className={cn(
-                "flex flex-col items-center justify-center gap-1.5 p-2 transition-all duration-200 active:scale-90",
+                "relative flex flex-col items-center justify-center gap-1 px-3 py-2 transition-colors duration-200 active:scale-90",
                 isActive ? "text-primary" : "text-muted-foreground"
               )}
             >
               <Icon
                 className={cn(
-                  "h-6 w-6 transition-all duration-200",
-                  isActive && "text-primary drop-shadow-[0_0_10px_oklch(0.623_0.214_259_/_60%)]"
+                  "h-[22px] w-[22px] transition-all",
+                  isActive && "drop-shadow-[0_0_10px_oklch(0.623_0.214_259_/_0.7)]"
                 )}
-                strokeWidth={isActive ? 2.5 : 1.8}
+                strokeWidth={isActive ? 2.4 : 1.8}
                 fill={isActive ? "currentColor" : "none"}
               />
-              {isActive && (
-                <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_oklch(0.623_0.214_259_/_80%)]" />
-              )}
+              <span
+                className={cn(
+                  "text-[10px] font-semibold tracking-wide leading-none transition-opacity",
+                  isActive ? "opacity-100" : "opacity-60"
+                )}
+              >
+                {item.label}
+              </span>
             </Link>
           );
         })}

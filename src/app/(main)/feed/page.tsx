@@ -1,86 +1,118 @@
 "use client";
 
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sparkles } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 import { InlineComposer } from "@/components/feed/post-composer";
 import { PostComposer } from "@/components/feed/post-composer";
 import { FeedList } from "@/components/feed/feed-list";
 import { StoryBar } from "@/components/stories/story-bar";
-import { useQueryClient } from "@tanstack/react-query";
 import { PeopleYouMayKnow } from "@/components/shared/people-you-may-know";
 
+const tabs = [
+  { value: "foryou", label: "For you" },
+  { value: "following", label: "Following" },
+] as const;
+
+type TabValue = (typeof tabs)[number]["value"];
+
 export default function FeedPage() {
-  const [tab, setTab] = useState<"foryou" | "following">("foryou");
+  const [tab, setTab] = useState<TabValue>("foryou");
   const queryClient = useQueryClient();
 
   return (
     <div className="min-h-screen">
       <PostComposer />
 
-      {/* Header */}
-      <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80">
-        <div className="relative flex flex-col items-center justify-center py-4 shadow-[0_1px_0_oklch(1_0_0_/_0.06)]">
-          <h1
-            className="text-lg font-extrabold tracking-tight"
-            style={{
-              fontFamily: "var(--font-syne), sans-serif",
-              background: "linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.6) 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            Orbit
-          </h1>
-          <div className="mt-1.5 h-[2px] w-10 rounded-full bg-gradient-to-r from-primary/0 via-primary to-primary/0 shadow-[0_0_12px_oklch(0.623_0.214_259_/_0.6)]" />
+      {/* Frosted header */}
+      <div
+        className="sticky top-0 z-10"
+        style={{
+          background: "oklch(0.14 0.02 270 / 0.7)",
+          backdropFilter: "blur(40px) saturate(2)",
+          WebkitBackdropFilter: "blur(40px) saturate(2)",
+          borderBottom: "1px solid oklch(1 0 0 / 0.05)",
+        }}
+      >
+        {/* Brand row + segmented tabs */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <div>
+            <h1
+              className="text-2xl font-extrabold tracking-tight"
+              style={{
+                fontFamily: "var(--font-syne), sans-serif",
+                background: "linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.6) 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              Home
+            </h1>
+            <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">
+              <Sparkles className="inline h-3 w-3 mr-1 text-primary -mt-0.5" />
+              Personalised for you
+            </p>
+          </div>
+          <SegmentedTabs value={tab} onChange={setTab} />
         </div>
 
-        {/* Moments */}
-        <div className="border-b border-white/[0.06]">
+        {/* Moments / stories */}
+        <div className="border-t border-white/[0.04]">
           <StoryBar />
         </div>
 
-        {/* Inline Composer */}
-        <div className="hidden lg:block">
+        {/* Inline composer (desktop only) */}
+        <div className="hidden lg:block border-t border-white/[0.04]">
           <InlineComposer
             onSuccess={() =>
               queryClient.invalidateQueries({ queryKey: ["feed"] })
             }
           />
         </div>
-
-        {/* Tabs */}
-        <Tabs
-          value={tab}
-          onValueChange={(v) => setTab(v as "foryou" | "following")}
-          className="w-full"
-        >
-          <TabsList className="w-full rounded-none bg-transparent h-auto px-2 py-2 gap-1 justify-center border-b border-white/[0.06]">
-            <TabsTrigger
-              value="foryou"
-              className="flex-1 rounded-full px-4 py-2 text-sm font-semibold text-zinc-500 border-none transition-all duration-200 data-[state=active]:text-zinc-100 data-[state=active]:bg-white/[0.08] data-[state=active]:shadow-sm hover:text-zinc-300"
-            >
-              For You
-            </TabsTrigger>
-            <TabsTrigger
-              value="following"
-              className="flex-1 rounded-full px-4 py-2 text-sm font-semibold text-zinc-500 border-none transition-all duration-200 data-[state=active]:text-zinc-100 data-[state=active]:bg-white/[0.08] data-[state=active]:shadow-sm hover:text-zinc-300"
-            >
-              Following
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="foryou" className="mt-0">
-            <div className="border-b border-white/[0.06] py-1">
-              <PeopleYouMayKnow />
-            </div>
-            <FeedList tab="foryou" />
-          </TabsContent>
-
-          <TabsContent value="following" className="mt-0 pt-1">
-            <FeedList tab="following" />
-          </TabsContent>
-        </Tabs>
       </div>
+
+      {/* Feed */}
+      {tab === "foryou" ? (
+        <>
+          <div className="border-b border-white/[0.05]">
+            <PeopleYouMayKnow />
+          </div>
+          <FeedList tab="foryou" />
+        </>
+      ) : (
+        <FeedList tab="following" />
+      )}
+    </div>
+  );
+}
+
+function SegmentedTabs({
+  value,
+  onChange,
+}: {
+  value: TabValue;
+  onChange: (v: TabValue) => void;
+}) {
+  return (
+    <div className="flex items-center p-1 rounded-2xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-xl">
+      {tabs.map((t) => {
+        const isActive = value === t.value;
+        return (
+          <button
+            key={t.value}
+            onClick={() => onChange(t.value)}
+            className={cn(
+              "relative px-4 h-8 text-[13px] font-semibold rounded-xl transition-all duration-200",
+              isActive
+                ? "bg-primary text-primary-foreground shadow-[0_4px_16px_oklch(0.623_0.214_259_/_0.4)]"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
