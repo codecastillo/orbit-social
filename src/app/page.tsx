@@ -211,10 +211,13 @@ function HeroSection() {
 
           {/* Auth buttons */}
           <div className="space-y-3.5">
-            <Button variant="outline" className="btn-social">
+            <button
+              className="btn-social"
+              onClick={() => {/* Google OAuth handled on signup/login */}}
+            >
               <GoogleIcon />
               Sign up with Google
-            </Button>
+            </button>
 
             <div className="divider-text">
               <span className="text-xs text-muted-foreground/50 uppercase tracking-widest font-medium px-3">
@@ -222,8 +225,8 @@ function HeroSection() {
               </span>
             </div>
 
-            <Link href="/signup" className="block">
-              <Button className="w-full h-12 rounded-full text-[15px] font-bold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30">
+            <Link href="/signup" className="block cursor-pointer">
+              <Button className="w-full h-12 rounded-full text-[15px] font-bold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 cursor-pointer">
                 Create account
               </Button>
             </Link>
@@ -381,17 +384,17 @@ function StatsSection() {
       <div className="absolute inset-0 border-y border-white/[0.04]" />
 
       <div className="max-w-5xl mx-auto px-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-10">
           {stats.map((s, i) => (
             <Reveal key={s.label} delay={i * 0.08}>
-              <div className="text-center">
+              <div className="text-center px-2">
                 <div
-                  className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold tracking-tight"
+                  className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight tabular-nums"
                   style={syne}
                 >
                   <AnimatedCounter target={s.value} suffix={s.suffix} />
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground/60 uppercase tracking-wider font-medium">
+                <p className="mt-2 text-xs sm:text-sm text-muted-foreground/60 uppercase tracking-wider font-medium">
                   {s.label}
                 </p>
               </div>
@@ -481,10 +484,13 @@ function AppPreviewSection() {
   const y = useTransform(scrollYProgress, [0, 1], [60, -60]);
 
   return (
-    <section ref={ref} className="relative py-24 lg:py-32 overflow-hidden">
+    <section ref={ref} className="relative py-32 lg:py-40 overflow-hidden">
       <div className="max-w-4xl mx-auto px-6">
         <Reveal>
-          <div className="text-center mb-16">
+          <div className="text-center mb-20">
+            <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-4">
+              Preview
+            </p>
             <h2
               className="text-4xl sm:text-5xl font-extrabold tracking-[-0.02em]"
               style={syne}
@@ -492,7 +498,7 @@ function AppPreviewSection() {
               See it in action
             </h2>
             <p className="mt-4 text-muted-foreground/60 text-lg">
-              A glimpse of what awaits you inside Orbit.
+              A glimpse of what awaits you inside.
             </p>
           </div>
         </Reveal>
@@ -637,8 +643,8 @@ const footerCols = [
 function Footer() {
   return (
     <footer className="relative border-t border-white/[0.05] pt-16 pb-8 px-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-10 mb-16">
+      <div className="max-w-4xl mx-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-10 mb-16 justify-items-center text-center sm:text-left sm:justify-items-start">
           {footerCols.map((col) => (
             <div key={col.title}>
               <h4 className="text-sm font-semibold mb-4 text-foreground/80" style={syne}>
@@ -657,23 +663,21 @@ function Footer() {
           ))}
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-white/[0.04]">
-          <div className="flex items-center gap-3">
-            <span
-              className="text-xl font-extrabold tracking-tighter"
-              style={{
-                ...syne,
-                background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.4) 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              Orbit
-            </span>
-            <span className="text-xs text-muted-foreground/30">
-              &copy; {new Date().getFullYear()} All rights reserved.
-            </span>
-          </div>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-8 border-t border-white/[0.04]">
+          <span
+            className="text-xl font-extrabold tracking-tighter"
+            style={{
+              ...syne,
+              background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.4) 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            Orbit
+          </span>
+          <span className="text-xs text-muted-foreground/30">
+            &copy; {new Date().getFullYear()} All rights reserved.
+          </span>
         </div>
       </div>
     </footer>
