@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useCurrentProfile } from "@/lib/hooks/use-profile";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { getActiveStories, type StoryGroup } from "@/lib/queries/stories";
 import { StoryViewer } from "./story-viewer";
@@ -12,6 +13,7 @@ import { StoryCreator } from "./story-creator";
 
 export function StoryBar() {
   const { user } = useAuth();
+  const { data: profile } = useCurrentProfile();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [creatorOpen, setCreatorOpen] = useState(false);
@@ -48,19 +50,22 @@ export function StoryBar() {
 
   return (
     <>
+      <div className="px-4 pt-3 pb-1">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Moments</h3>
+      </div>
       <div
         ref={scrollRef}
-        className="flex gap-4 overflow-x-auto scrollbar-hide px-4 py-3 border-b border-border"
+        className="flex gap-4 overflow-x-auto scrollbar-hide px-4 py-2"
       >
-        {/* Your Story */}
+        {/* Your Moment */}
         <button
           onClick={handleOwnStoryClick}
-          className="flex flex-col items-center gap-1 shrink-0"
+          className="flex flex-col items-center gap-1.5 shrink-0 cursor-pointer"
         >
           <div className="relative">
             <UserAvatar
-              src={user?.user_metadata?.avatar_url}
-              fallback={user?.user_metadata?.username || "U"}
+              src={profile?.avatar_url}
+              fallback={profile?.display_name || "U"}
               size="lg"
               hasStory={hasOwnStory && currentUserGroup?.hasUnviewed}
             />
@@ -70,8 +75,8 @@ export function StoryBar() {
               </div>
             )}
           </div>
-          <span className="text-xs text-muted-foreground truncate w-16 text-center">
-            Your moment
+          <span className="text-[11px] text-muted-foreground truncate w-14 text-center">
+            You
           </span>
         </button>
 

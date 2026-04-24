@@ -13,12 +13,10 @@ import {
   Settings,
   LogOut,
 } from "lucide-react";
-import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useUnreadCount } from "@/lib/hooks/use-notifications";
+import { useCurrentProfile } from "@/lib/hooks/use-profile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { createClient } from "@/lib/supabase/client";
-import { User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,20 +41,7 @@ export function Sidebar() {
   const { user, signOut } = useAuth();
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
   const { data: unreadCount } = useUnreadCount();
-  const [username, setUsername] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    const supabase = createClient();
-    supabase
-      .from("profiles")
-      .select("username")
-      .eq("id", user.id)
-      .single()
-      .then(({ data }) => {
-        if (data?.username) setUsername(data.username);
-      });
-  }, [user]);
+  const { data: profile } = useCurrentProfile();
 
   return (
     <aside className="fixed left-0 top-0 h-full w-[72px] glass flex flex-col items-center z-40 hidden lg:flex py-4">
@@ -71,7 +56,6 @@ export function Sidebar() {
         </span>
       </Link>
 
-      {/* Separator */}
       <div className="w-8 h-px bg-white/[0.08] my-2" />
 
       {/* Navigation */}
@@ -92,7 +76,6 @@ export function Sidebar() {
                   : "text-muted-foreground hover:bg-white/[0.06] hover:shadow-[0_0_12px_oklch(0.623_0.214_259_/_10%)]"
               )}
             >
-              {/* Active indicator bar */}
               {isActive && (
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary shadow-[0_0_8px_oklch(0.623_0.214_259_/_60%)]" />
               )}
@@ -115,32 +98,30 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Separator */}
       <div className="w-8 h-px bg-white/[0.08] my-2" />
 
-      {/* Compose Button */}
+      {/* Compose */}
       <button
         onClick={() => setComposeOpen(true)}
         title="Compose"
-        className="flex items-center justify-center h-11 w-11 rounded-full bg-primary shadow-lg glow-box hover:scale-105 hover:shadow-[0_0_24px_oklch(0.623_0.214_259_/_40%)] active:scale-95 transition-all duration-200 mb-2"
+        className="flex items-center justify-center h-11 w-11 rounded-full bg-primary shadow-lg glow-box hover:scale-105 hover:shadow-[0_0_24px_oklch(0.623_0.214_259_/_40%)] active:scale-95 transition-all duration-200 mb-2 cursor-pointer"
       >
         <Plus className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
       </button>
 
-      {/* Separator */}
       <div className="w-8 h-px bg-white/[0.08] my-2" />
 
       {/* User Menu */}
       <DropdownMenu>
         <DropdownMenuTrigger>
           <button
-            className="flex items-center justify-center rounded-xl hover:bg-white/[0.06] transition-all duration-200 p-1 group"
-            title={user?.user_metadata?.display_name || user?.email || "Profile"}
+            className="flex items-center justify-center rounded-xl hover:bg-white/[0.06] transition-all duration-200 p-1 group cursor-pointer"
+            title={profile?.display_name || "Profile"}
           >
             <Avatar className="h-9 w-9 ring-2 ring-white/[0.08] group-hover:ring-primary/30 transition-all">
-              <AvatarImage src={user?.user_metadata?.avatar_url} />
+              <AvatarImage src={profile?.avatar_url || undefined} />
               <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
-                {user?.email?.[0]?.toUpperCase() || "U"}
+                {profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
           </button>
@@ -152,27 +133,27 @@ export function Sidebar() {
         >
           <div className="px-3 py-2 border-b border-border/50">
             <p className="text-sm font-semibold truncate text-foreground">
-              {user?.user_metadata?.display_name || user?.email}
+              {profile?.display_name || user?.email}
             </p>
             <p className="text-xs text-muted-foreground truncate">
-              @{user?.user_metadata?.username || "user"}
+              @{profile?.username || "user"}
             </p>
           </div>
-          {username && (
-            <Link href={`/${username}`}>
-              <DropdownMenuItem>
+          {profile?.username && (
+            <Link href={`/${profile.username}`}>
+              <DropdownMenuItem className="cursor-pointer">
                 View Profile
               </DropdownMenuItem>
             </Link>
           )}
           <Link href="/settings">
-            <DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer">
               <Settings className="mr-2 h-4 w-4" />
               Settings
             </DropdownMenuItem>
           </Link>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={signOut} className="text-destructive">
+          <DropdownMenuItem onClick={signOut} className="text-destructive cursor-pointer">
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out
           </DropdownMenuItem>

@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useCurrentProfile as useCurrentProfileHook } from "@/lib/hooks/use-profile";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { createPost, uploadPostMedia } from "@/lib/queries/posts";
 import { MAX_POST_LENGTH } from "@/lib/utils/constants";
@@ -65,17 +66,19 @@ export function InlineComposer({
   const { user } = useAuth();
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
 
+  const { data: profile } = useCurrentProfileHook();
+
   if (!user) return null;
 
   return (
     <div className="border-b border-white/[0.06]">
       <button
         onClick={() => setComposeOpen(true)}
-        className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-white/[0.02] transition-colors"
+        className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-white/[0.02] transition-colors cursor-pointer"
       >
         <UserAvatar
-          src={user.user_metadata?.avatar_url}
-          fallback={user.user_metadata?.display_name || user.user_metadata?.email || "U"}
+          src={profile?.avatar_url}
+          fallback={profile?.display_name || "U"}
           size="sm"
         />
         <span className="text-sm text-zinc-500">Share something...</span>
