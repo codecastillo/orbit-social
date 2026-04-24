@@ -370,7 +370,8 @@ export function PostCard({
 
   return (
     <article
-      className="p-4 transition-colors hover:bg-white/[0.02]"
+      className={cn("p-4 transition-colors hover:bg-white/[0.02]", !compact && "cursor-pointer")}
+      onClick={compact ? undefined : () => router.push(`/post/${displayPost.id}`)}
     >
       {/* Boosted indicator */}
       {isBoosted && (
@@ -499,11 +500,8 @@ export function PostCard({
             </div>
           )}
 
-          {/* Content area — click navigates to post detail (not on comments) */}
-          <div
-            className={compact ? undefined : "cursor-pointer"}
-            onClick={compact ? undefined : () => router.push(`/post/${displayPost.id}`)}
-          >
+          {/* Content area */}
+          <div>
           {(!displayPost.content_warning || spoilerRevealed) && (
             <>
               {isEditing ? (
@@ -602,7 +600,7 @@ export function PostCard({
           </div>{/* End of clickable content area */}
 
           {/* Actions */}
-          <div className="flex items-center justify-between mt-3 -ml-2">
+          <div className="flex items-center justify-between mt-3 -ml-2" onClick={(e) => e.stopPropagation()}>
             {/* Left actions */}
             <div className="flex items-center gap-1">
               {/* Like */}
