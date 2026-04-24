@@ -20,6 +20,11 @@ import {
   Heart,
   TrendingUp,
   ArrowRight,
+  Radio,
+  Calendar,
+  Mic,
+  Sparkles as SparklesIcon,
+  Quote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -90,6 +95,61 @@ function Reveal({
     >
       {children}
     </motion.div>
+  );
+}
+
+/* ─── Top Nav ──────────────────────────────────────────── */
+
+function TopNav() {
+  return (
+    <motion.nav
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      className="fixed top-0 inset-x-0 z-40 backdrop-blur-xl bg-background/40 border-b border-white/[0.04]"
+    >
+      <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="relative h-7 w-7 rounded-full border border-white/20">
+            <div
+              className="absolute inset-0.5 rounded-full border border-primary/40"
+              style={{ animation: "orbit-spin 8s linear infinite" }}
+            >
+              <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary shadow-[0_0_6px_oklch(0.623_0.214_259/0.8)]" />
+            </div>
+          </div>
+          <span
+            className="text-lg font-extrabold tracking-tight"
+            style={{
+              ...syne,
+              background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.6) 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            Orbit
+          </span>
+        </Link>
+
+        <div className="flex items-center gap-2">
+          <Link href="/login">
+            <Button
+              variant="ghost"
+              className="h-9 rounded-full px-4 text-sm font-semibold text-muted-foreground hover:text-foreground"
+            >
+              Sign in
+            </Button>
+          </Link>
+          <Link href="/signup">
+            <Button
+              className="h-9 rounded-full px-5 text-sm font-bold btn-gradient"
+            >
+              Get started
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </motion.nav>
   );
 }
 
@@ -298,16 +358,30 @@ const features = [
   {
     icon: MessageCircle,
     title: "Chat",
-    desc: "Real-time conversations. Send text, media, and reactions — with read receipts and typing indicators.",
+    desc: "Real-time conversations. Send text, media, voice notes, and reactions — with read receipts.",
     gradient: "from-emerald-500/20 to-teal-500/10",
     iconColor: "text-emerald-400",
   },
   {
-    icon: Users,
-    title: "Spaces",
-    desc: "Find your people. Create or join interest-based Spaces with dedicated feeds and moderation tools.",
+    icon: Radio,
+    title: "Live Streaming",
+    desc: "Go live in one tap. Real-time chat, virtual gifts, and audience reactions — streamed to your followers.",
+    gradient: "from-red-500/20 to-rose-500/10",
+    iconColor: "text-red-400",
+  },
+  {
+    icon: Calendar,
+    title: "Events",
+    desc: "Plan meetups, parties, launches. RSVP, invite, and rally your community around shared moments.",
     gradient: "from-amber-500/20 to-orange-500/10",
     iconColor: "text-amber-400",
+  },
+  {
+    icon: Mic,
+    title: "Audio Posts",
+    desc: "Record voice notes with beautiful waveforms. Add thoughts without typing — your voice, on your timeline.",
+    gradient: "from-indigo-500/20 to-violet-500/10",
+    iconColor: "text-indigo-400",
   },
 ];
 
@@ -337,7 +411,7 @@ function FeaturesSection() {
           </div>
         </Reveal>
 
-        <div className="grid sm:grid-cols-2 gap-5">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {features.map((f, i) => (
             <Reveal key={f.title} delay={i * 0.1}>
               <div className="group relative rounded-2xl border border-white/[0.06] bg-white/[0.02] p-8 sm:p-10 hover:bg-white/[0.04] hover:border-white/[0.1] transition-all duration-500">
@@ -575,6 +649,87 @@ function AppPreviewSection() {
   );
 }
 
+/* ─── Section 5.5: Testimonials ─────────────────────────── */
+
+const testimonials = [
+  {
+    quote:
+      "Orbit is the first social platform that feels built for creators, not advertisers. The Clips feature alone changed how I reach my audience.",
+    name: "Maya Chen",
+    handle: "@mayacreates",
+    avatarGradient: "from-rose-400 to-purple-500",
+  },
+  {
+    quote:
+      "I've tried every platform. Orbit is the only one where my community actually feels like a community — not an algorithm dumping strangers at me.",
+    name: "Darren Okafor",
+    handle: "@darren",
+    avatarGradient: "from-blue-400 to-cyan-500",
+  },
+  {
+    quote:
+      "The audio posts and live streaming are incredible. I run a podcast and Orbit's tooling is better than dedicated podcast apps.",
+    name: "Priya Shah",
+    handle: "@priyaspeaks",
+    avatarGradient: "from-emerald-400 to-teal-500",
+  },
+];
+
+function TestimonialsSection() {
+  return (
+    <section className="relative py-32 lg:py-40 overflow-hidden">
+      <div className="absolute inset-0 border-y border-white/[0.04]" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-primary/[0.04] rounded-full blur-[180px] pointer-events-none" />
+
+      <div className="relative max-w-6xl mx-auto px-6">
+        <Reveal>
+          <div className="text-center max-w-2xl mx-auto mb-20">
+            <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-4">
+              Loved by creators
+            </p>
+            <h2
+              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-[-0.02em] leading-[1.08]"
+              style={syne}
+            >
+              Real people.
+              <br />
+              Real stories.
+            </h2>
+          </div>
+        </Reveal>
+
+        <div className="grid md:grid-cols-3 gap-5">
+          {testimonials.map((t, i) => (
+            <Reveal key={t.name} delay={i * 0.1}>
+              <div className="relative h-full rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm p-7 hover:bg-white/[0.04] hover:border-white/[0.1] hover-lift">
+                <Quote className="absolute top-5 right-5 h-5 w-5 text-primary/30" />
+
+                <p className="text-[15px] leading-relaxed text-foreground/90 mb-6">
+                  &ldquo;{t.quote}&rdquo;
+                </p>
+
+                <div className="flex items-center gap-3 pt-5 border-t border-white/[0.05]">
+                  <div
+                    className={`h-11 w-11 rounded-full bg-gradient-to-br ${t.avatarGradient} ring-1 ring-white/10`}
+                  />
+                  <div>
+                    <p className="font-bold text-[14px]" style={syne}>
+                      {t.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground/70">
+                      {t.handle}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ─── Section 6: CTA Banner ─────────────────────────────── */
 
 function CTASection() {
@@ -698,10 +853,13 @@ export default function LandingPage() {
         }}
       />
 
+      <TopNav />
       <HeroSection />
       <FeaturesSection />
       <AppPreviewSection />
       <HighlightsSection />
+      <StatsSection />
+      <TestimonialsSection />
       <CTASection />
       <Footer />
     </div>
