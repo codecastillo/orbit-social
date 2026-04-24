@@ -595,8 +595,9 @@ export function PostCard({
           <div className="flex items-center justify-between mt-3 -ml-2">
             {/* Left actions */}
             <div className="flex items-center gap-1">
+              {/* Like */}
               <div className="relative" onMouseEnter={() => {}} onMouseLeave={() => {}}>
-                <ReactionPicker onSelect={handleReaction} currentReaction={userReaction} />
+                {!compact && <ReactionPicker onSelect={handleReaction} currentReaction={userReaction} />}
                 <button onClick={handleLike} className={cn("flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-colors", userReaction ? "text-rose-500" : isLiked ? "text-rose-500" : "text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10")}>
                   <motion.span animate={animateHeart ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.3 }}>
                     {userReaction ? (
@@ -609,25 +610,34 @@ export function PostCard({
                 </button>
               </div>
 
-              <button onClick={(e) => { e.stopPropagation(); router.push(`/post/${displayPost.id}`); }} className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] text-muted-foreground hover:text-sky-400 hover:bg-sky-500/10 transition-colors">
+              {/* Comment / Reply count */}
+              <button onClick={(e) => { e.stopPropagation(); if (!compact) router.push(`/post/${displayPost.id}`); }} className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] text-muted-foreground hover:text-sky-400 hover:bg-sky-500/10 transition-colors">
                 <MessageCircle className="h-[18px] w-[18px]" />
                 {post.comment_count > 0 && <span>{formatNumber(post.comment_count)}</span>}
               </button>
 
-              <button onClick={handleRepost} className={cn("flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-colors", isReposted ? "text-emerald-500" : "text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10")}>
-                <Repeat2 className="h-[18px] w-[18px]" />
-                {repostCount > 0 && <span>{formatNumber(repostCount)}</span>}
-              </button>
+              {/* Repost — only on full posts, not comments */}
+              {!compact && (
+                <button onClick={handleRepost} className={cn("flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-colors", isReposted ? "text-emerald-500" : "text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10")}>
+                  <Repeat2 className="h-[18px] w-[18px]" />
+                  {repostCount > 0 && <span>{formatNumber(repostCount)}</span>}
+                </button>
+              )}
 
-              <button onClick={handleShare} className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] text-muted-foreground hover:text-sky-400 hover:bg-sky-500/10 transition-colors">
-                <Share2 className="h-[18px] w-[18px]" />
-              </button>
+              {/* Share — only on full posts */}
+              {!compact && (
+                <button onClick={handleShare} className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] text-muted-foreground hover:text-sky-400 hover:bg-sky-500/10 transition-colors">
+                  <Share2 className="h-[18px] w-[18px]" />
+                </button>
+              )}
             </div>
 
-            {/* Bookmark */}
-            <button onClick={handleBookmark} className={cn("p-1.5 rounded-full transition-colors", isBookmarked ? "text-amber-400" : "text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10")}>
-              <Bookmark className={cn("h-[18px] w-[18px]", isBookmarked && "fill-current")} />
-            </button>
+            {/* Bookmark — only on full posts */}
+            {!compact && (
+              <button onClick={handleBookmark} className={cn("p-1.5 rounded-full transition-colors", isBookmarked ? "text-amber-400" : "text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10")}>
+                <Bookmark className={cn("h-[18px] w-[18px]", isBookmarked && "fill-current")} />
+              </button>
+            )}
           </div>
 
           {/* Post Insights — only visible to the author */}

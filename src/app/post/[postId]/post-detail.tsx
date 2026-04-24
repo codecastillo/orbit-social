@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Loader2, MessageCircle } from "lucide-react";
@@ -164,26 +164,21 @@ export function PostDetail({ postId }: { postId: string }) {
     queryFn: () => getPostComments(postId),
   });
 
-  const [interactions, setInteractions] = useState<{
-    likedPostIds: Set<string>;
-    bookmarkedPostIds: Set<string>;
-    repostedPostIds: Set<string>;
-  }>({ likedPostIds: new Set(), bookmarkedPostIds: new Set(), repostedPostIds: new Set() });
+  const allPostIds = post ? [post.id, ...(comments || []).map((c) => c.id)] : [];
 
-  useEffect(() => {
-    if (!user || !post) return;
-
-    const allPostIds = [post.id, ...(comments || []).map((c) => c.id)];
-    Promise.all([
-      checkUserInteractions(user.id, allPostIds),
-      checkUserReposted(user.id, allPostIds),
-    ]).then(([interactionData, repostedIds]) => {
-      setInteractions({
-        ...interactionData,
-        repostedPostIds: repostedIds,
-      });
-    });
-  }, [user, post, comments]);
+  const { data: interactions = { likedPostIds: new Set<string>(), bookmarkedPostIds: new Set<string>(), repostedPostIds: new Set<string>() } } = useQuery({
+    queryKey: ["post-interactions", postId, user?.id, allPostIds.length],
+    queryFn: async () => {
+      if (!user || allPostIds.length === 0) return { likedPostIds: new Set<string>(), bookmarkedPostIds: new Set<string>(), repostedPostIds: new Set<string>() };
+      const [interactionData, repostedIds] = await Promise.all([
+        checkUserInteractions(user.id, allPostIds),
+        checkUserReposted(user.id, allPostIds),
+      ]);
+      return { ...interactionData, repostedPostIds: repostedIds };
+    },
+    enabled: !!user && !!post,
+    staleTime: 10_000,
+  });
 
   if (postLoading) {
     return (
