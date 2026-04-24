@@ -13,9 +13,12 @@ import {
   Settings,
   LogOut,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useUnreadCount } from "@/lib/hooks/use-notifications";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { createClient } from "@/lib/supabase/client";
+import { User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +43,20 @@ export function Sidebar() {
   const { user, signOut } = useAuth();
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
   const { data: unreadCount } = useUnreadCount();
+  const [username, setUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+    supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.username) setUsername(data.username);
+      });
+  }, [user]);
 
   return (
     <aside className="fixed left-0 top-0 h-full w-[72px] glass flex flex-col items-center z-40 hidden lg:flex py-4">
@@ -141,6 +158,13 @@ export function Sidebar() {
               @{user?.user_metadata?.username || "user"}
             </p>
           </div>
+          {username && (
+            <Link href={`/${username}`}>
+              <DropdownMenuItem>
+                View Profile
+              </DropdownMenuItem>
+            </Link>
+          )}
           <Link href="/settings">
             <DropdownMenuItem>
               <Settings className="mr-2 h-4 w-4" />

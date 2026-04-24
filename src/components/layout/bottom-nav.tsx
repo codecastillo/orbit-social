@@ -1,22 +1,42 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Compass, PlusSquare, Clapperboard, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/lib/stores/ui-store";
-
-const items = [
-  { label: "Home", href: "/feed", icon: Home },
-  { label: "Explore", href: "/explore", icon: Compass },
-  { label: "Create", href: "#compose", icon: PlusSquare },
-  { label: "Clips", href: "/reels", icon: Clapperboard },
-  { label: "Profile", href: "/profile", icon: User },
-];
+import { useAuth } from "@/lib/hooks/use-auth";
+import { createClient } from "@/lib/supabase/client";
 
 export function BottomNav() {
   const pathname = usePathname();
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
+  const { user } = useAuth();
+  const [username, setUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+    supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.username) setUsername(data.username);
+      });
+  }, [user]);
+
+  const profileHref = username ? `/${username}` : "/onboarding";
+
+  const items = [
+    { label: "Home", href: "/feed", icon: Home },
+    { label: "Explore", href: "/explore", icon: Compass },
+    { label: "Create", href: "#compose", icon: PlusSquare },
+    { label: "Clips", href: "/reels", icon: Clapperboard },
+    { label: "Profile", href: profileHref, icon: User },
+  ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 glass lg:hidden">
@@ -44,7 +64,7 @@ export function BottomNav() {
 
           return (
             <Link
-              key={item.href}
+              key={item.label}
               href={item.href}
               className={cn(
                 "flex flex-col items-center justify-center gap-1.5 p-2 transition-all duration-200 active:scale-90",
