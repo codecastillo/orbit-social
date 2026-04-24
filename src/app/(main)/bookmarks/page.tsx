@@ -11,7 +11,7 @@ export default function BookmarksPage() {
               <BookmarkIcon className="h-4.5 w-4.5 text-amber-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-zinc-100">Saved</h1>
+              <h1 className="text-xl font-bold tracking-tight text-zinc-100" style={{ fontFamily: "var(--font-syne), sans-serif" }}>Saved</h1>
               <p className="text-sm text-zinc-500">Posts you have saved for later</p>
             </div>
           </div>

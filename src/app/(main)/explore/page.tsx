@@ -45,7 +45,7 @@ export default function ExplorePage() {
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary/20 to-violet-500/20 flex items-center justify-center">
               <Search className="h-4.5 w-4.5 text-primary" />
             </div>
-            <h1 className="text-xl font-bold tracking-tight">Discover</h1>
+            <h1 className="text-xl font-bold tracking-tight" style={{ fontFamily: "var(--font-syne), sans-serif" }}>Discover</h1>
           </div>
 
           {/* Search bar — large, prominent, rounded-full, frosted glass with glow on focus */}
@@ -55,7 +55,7 @@ export default function ExplorePage() {
               placeholder="Search posts, people, tags..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="pl-13 pr-5 h-13 bg-white/[0.04] border-white/[0.08] rounded-full text-[15px] placeholder:text-muted-foreground/60 backdrop-blur-xl focus:bg-white/[0.06] focus:border-primary/40 focus:ring-2 focus:ring-primary/20 focus:shadow-[0_0_20px_rgba(124,58,237,0.15)] transition-all"
+              className="pl-13 pr-5 h-13 bg-white/[0.05] border border-white/[0.08] rounded-full text-[15px] placeholder:text-muted-foreground/60 backdrop-blur-xl focus:bg-white/[0.06] focus:border-primary/40 focus:ring-2 focus:ring-primary/20 focus:shadow-[0_0_20px_rgba(124,58,237,0.15)] transition-all"
             />
           </div>
         </div>

@@ -55,7 +55,7 @@ export default async function ProfilePage({ params }: Props) {
   }
 
   return (
-    <div className="border-x border-border min-h-screen">
+    <div className="min-h-screen">
       <ProfileContent
         profile={profile}
         isOwnProfile={isOwnProfile}

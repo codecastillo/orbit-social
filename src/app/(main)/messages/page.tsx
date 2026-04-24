@@ -19,7 +19,7 @@ export default function MessagesPage() {
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
               <MessageCircle className="h-4.5 w-4.5 text-blue-400" />
             </div>
-            <h2 className="text-xl font-bold tracking-tight">Chat</h2>
+            <h2 className="text-xl font-bold tracking-tight" style={{ fontFamily: "var(--font-syne), sans-serif" }}>Chat</h2>
           </div>
           <Button
             variant="ghost"

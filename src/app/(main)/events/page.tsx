@@ -39,12 +39,12 @@ export default function EventsPage() {
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
               <CalendarIcon className="h-4.5 w-4.5 text-emerald-400" />
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-zinc-100">Events</h1>
+            <h1 className="text-xl font-bold tracking-tight text-zinc-100" style={{ fontFamily: "var(--font-syne), sans-serif" }}>Events</h1>
           </div>
           <Button
             onClick={() => setShowCreate(true)}
             size="sm"
-            className="rounded-full px-5 h-9 font-medium bg-gradient-to-r from-violet-600 to-cyan-500 text-white border-0 shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 hover:brightness-110 transition-all"
+            className="rounded-full py-2.5 px-5 h-auto font-medium bg-gradient-to-r from-violet-600 to-cyan-500 text-white border-0 shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 hover:brightness-110 transition-all"
           >
             <PlusIcon className="h-4 w-4 mr-1.5" />
             Create

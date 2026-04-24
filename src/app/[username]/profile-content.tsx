@@ -73,7 +73,7 @@ export function ProfileContent({
   };
 
   const pillBase =
-    "rounded-full px-5 py-2 text-[13px] font-semibold transition-all border-0 bg-white/[0.04] text-muted-foreground hover:bg-white/[0.08] data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:shadow-primary/10";
+    "rounded-full px-5 py-2 text-[13px] font-semibold transition-all border-0 bg-white/[0.05] text-muted-foreground hover:bg-white/[0.08] data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:shadow-primary/10";
 
   return (
     <>
@@ -82,7 +82,7 @@ export function ProfileContent({
         {/* Back button — frosted glass circle */}
         <button
           onClick={() => router.back()}
-          className="h-9 w-9 flex items-center justify-center rounded-full bg-white/[0.06] backdrop-blur-xl hover:bg-white/[0.10] transition-all"
+          className="h-9 w-9 flex items-center justify-center rounded-full bg-white/[0.05] backdrop-blur-xl hover:bg-white/[0.10] transition-all"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>

@@ -57,12 +57,12 @@ export default function MarketplacePage() {
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 flex items-center justify-center">
               <ShoppingBagIcon className="h-4.5 w-4.5 text-emerald-400" />
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-zinc-100">Exchange</h1>
+            <h1 className="text-xl font-bold tracking-tight text-zinc-100" style={{ fontFamily: "var(--font-syne), sans-serif" }}>Exchange</h1>
           </div>
           <Button
             onClick={() => setShowCreate(true)}
             size="sm"
-            className="rounded-full px-5 h-9 font-medium bg-gradient-to-r from-violet-600 to-cyan-500 text-white border-0 shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 hover:brightness-110 transition-all"
+            className="rounded-full py-2.5 px-5 h-auto font-medium bg-gradient-to-r from-violet-600 to-cyan-500 text-white border-0 shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 hover:brightness-110 transition-all"
           >
             <PlusIcon className="h-4 w-4 mr-1.5" />
             Sell
@@ -89,7 +89,7 @@ export default function MarketplacePage() {
               key={cat}
               onClick={() => setActiveCategory(cat)}
               className={cn(
-                "shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all border",
+                "shrink-0 px-4 py-2.5 rounded-full text-sm font-medium transition-all border",
                 activeCategory === cat
                   ? "bg-violet-600/90 text-white border-violet-400/30 shadow-[0_0_12px_rgba(139,92,246,0.3)]"
                   : "bg-white/[0.04] text-zinc-400 border-white/[0.08] hover:bg-white/[0.08] hover:text-zinc-300"

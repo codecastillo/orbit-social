@@ -73,7 +73,7 @@ export default function SettingsPage() {
           <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-zinc-400/20 to-zinc-500/20 flex items-center justify-center">
             <Settings className="h-4.5 w-4.5 text-zinc-400" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-zinc-100">Settings</h1>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-100" style={{ fontFamily: "var(--font-syne), sans-serif" }}>Settings</h1>
         </div>
       </div>
 
