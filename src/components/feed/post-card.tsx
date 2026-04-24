@@ -7,8 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart,
   MessageCircle,
-  Repeat2,
-  Share,
+  Send,
   Bookmark,
   MoreHorizontal,
   Trash2,
@@ -127,103 +126,78 @@ export function PostCard({
 
   return (
     <motion.article
-      className="group relative rounded-2xl bg-white/[0.03] border border-white/[0.06] cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:border-white/[0.12] overflow-hidden"
+      className="cursor-pointer border-b border-white/[0.06]"
       onClick={navigateToPost}
-      whileHover={{ y: -1, scale: 1.002 }}
+      whileHover={{ opacity: 0.97 }}
       transition={{ duration: 0.2 }}
     >
-      {/* Hover gradient overlay */}
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/[0.04] via-transparent to-cyan-500/[0.04] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      {/* Header row: avatar + username + menu */}
+      <div className="flex items-center px-4 py-3">
+        <Link
+          href={`/${profile.username}`}
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0"
+        >
+          <UserAvatar
+            src={profile.avatar_url}
+            fallback={profile.display_name}
+            size="sm"
+          />
+        </Link>
 
-      {/* Author row + content + menu */}
-      <div className={cn("relative", compact ? "p-3" : "px-5 pt-5 pb-3")}>
-        <div className="flex items-start gap-3">
-          {/* Avatar */}
-          <Link
-            href={`/${profile.username}`}
-            onClick={(e) => e.stopPropagation()}
-            className="shrink-0"
-          >
-            <UserAvatar
-              src={profile.avatar_url}
-              fallback={profile.display_name}
-              size={compact ? "md" : "lg"}
-            />
-          </Link>
+        <Link
+          href={`/${profile.username}`}
+          onClick={(e) => e.stopPropagation()}
+          className="ml-3 font-semibold text-sm text-zinc-100 hover:underline truncate"
+        >
+          {profile.username}
+        </Link>
 
-          <div className="flex-1 min-w-0">
-            {/* Author row */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <Link
-                  href={`/${profile.username}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="font-bold text-[15px] text-zinc-100 hover:underline truncate"
-                >
-                  {profile.display_name}
-                </Link>
-                <Link
-                  href={`/${profile.username}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-zinc-500 text-[13px] truncate"
-                >
-                  @{profile.username}
-                </Link>
-                <span className="bg-white/[0.06] rounded-full px-2 py-0.5 text-xs text-zinc-500 shrink-0">
-                  {formatTimeAgo(post.created_at)}
-                </span>
+        <span className="ml-2 text-xs text-zinc-500">
+          {formatTimeAgo(post.created_at)}
+        </span>
+
+        <div className="ml-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors">
+                <MoreHorizontal className="h-4 w-4 text-zinc-500" />
               </div>
-
-              {/* More menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  onClick={(e) => e.stopPropagation()}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-zinc-900/95 backdrop-blur-xl border-white/[0.08]">
+              {isOwnPost ? (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete();
+                  }}
+                  className="text-rose-400 focus:text-rose-400"
                 >
-                  <div className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors">
-                    <MoreHorizontal className="h-4 w-4 text-zinc-500" />
-                  </div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-zinc-900/95 backdrop-blur-xl border-white/[0.08]">
-                  {isOwnPost ? (
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete();
-                      }}
-                      className="text-rose-400 focus:text-rose-400"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                      <Flag className="mr-2 h-4 w-4" />
-                      Report
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {/* Content */}
-            {post.content && (
-              <div className="mt-2">
-                <PostContent content={post.content} />
-              </div>
-            )}
-          </div>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                  <Flag className="mr-2 h-4 w-4" />
+                  Report
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      {/* Media -- edge-to-edge within the card */}
+      {/* Media section -- full width, edge to edge, no rounding */}
       {hasMedia && (
         <div
           className={cn(
             "overflow-hidden",
-            post.post_media.length === 1 && "max-h-[480px]",
-            post.post_media.length > 1 && "grid gap-[2px]",
-            post.post_media.length === 2 && "grid-cols-2",
-            post.post_media.length >= 3 && "grid-cols-2 grid-rows-2"
+            post.post_media.length === 1 && "aspect-square",
+            post.post_media.length > 1 && "grid gap-[1px]",
+            post.post_media.length === 2 && "grid-cols-2 aspect-square",
+            post.post_media.length >= 3 && "grid-cols-2 grid-rows-2 aspect-square"
           )}
           onClick={(e) => e.stopPropagation()}
         >
@@ -248,42 +222,75 @@ export function PostCard({
         </div>
       )}
 
-      {/* Actions bar */}
-      <div className={cn("relative flex items-center justify-between", compact ? "px-3 pb-3 pt-2" : "px-5 pb-4 pt-3")}>
-        <ActionButton
-          icon={MessageCircle}
-          count={post.comment_count}
-          onClick={(e) => {
-            e.stopPropagation();
-            navigateToPost();
-          }}
-          color="sky"
-        />
-        <ActionButton
-          icon={Repeat2}
-          count={post.repost_count}
-          onClick={(e) => e.stopPropagation()}
-          color="emerald"
-        />
-        <ActionButton
-          icon={Heart}
-          count={likeCount}
-          onClick={handleLike}
-          active={isLiked}
-          color="rose"
-        />
-        <ActionButton
-          icon={Share}
-          onClick={handleShare}
-          color="violet"
-        />
+      {/* Actions row */}
+      <div className="flex items-center justify-between py-3 px-4">
+        <div className="flex items-center gap-4">
+          <ActionButton
+            icon={Heart}
+            onClick={handleLike}
+            active={isLiked}
+            activeClass="text-rose-500 fill-rose-500"
+            animateOnClick
+          />
+          <ActionButton
+            icon={MessageCircle}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigateToPost();
+            }}
+          />
+          <ActionButton
+            icon={Send}
+            onClick={handleShare}
+          />
+        </div>
         <ActionButton
           icon={Bookmark}
-          count={bookmarkCount > 0 ? bookmarkCount : undefined}
           onClick={handleBookmark}
           active={isBookmarked}
-          color="amber"
+          activeClass="text-zinc-100 fill-zinc-100"
         />
+      </div>
+
+      {/* Like count */}
+      {likeCount > 0 && (
+        <div className="px-4 pb-1">
+          <span className="text-sm font-semibold text-zinc-100">
+            {formatNumber(likeCount)} {likeCount === 1 ? "like" : "likes"}
+          </span>
+        </div>
+      )}
+
+      {/* Caption: username + content inline */}
+      {post.content && (
+        <div className="px-4 pb-1">
+          <p className="text-sm leading-relaxed">
+            <Link
+              href={`/${profile.username}`}
+              onClick={(e) => e.stopPropagation()}
+              className="font-semibold text-zinc-100 hover:underline mr-1.5"
+            >
+              {profile.username}
+            </Link>
+            <PostContent content={post.content} />
+          </p>
+        </div>
+      )}
+
+      {/* Comment count */}
+      {post.comment_count > 0 && (
+        <div className="px-4 pb-1">
+          <span className="text-sm text-zinc-500">
+            View all {post.comment_count} comments
+          </span>
+        </div>
+      )}
+
+      {/* Timestamp */}
+      <div className="px-4 pb-4">
+        <span className="text-[10px] uppercase tracking-wide text-zinc-600">
+          {formatTimeAgo(post.created_at)}
+        </span>
       </div>
     </motion.article>
   );
@@ -294,7 +301,7 @@ function PostContent({ content }: { content: string }) {
   const parts = content.split(/([@#]\w+)/g);
 
   return (
-    <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words text-zinc-300">
+    <span className="text-sm text-zinc-300 whitespace-pre-wrap break-words">
       {parts.map((part, i) => {
         if (part.startsWith("#")) {
           return (
@@ -302,7 +309,7 @@ function PostContent({ content }: { content: string }) {
               key={i}
               href={`/explore/search?q=${encodeURIComponent(part)}`}
               onClick={(e) => e.stopPropagation()}
-              className="text-cyan-400 hover:text-cyan-300 hover:underline font-medium"
+              className="text-blue-400 hover:text-blue-300"
             >
               {part}
             </Link>
@@ -314,7 +321,7 @@ function PostContent({ content }: { content: string }) {
               key={i}
               href={`/${part.slice(1)}`}
               onClick={(e) => e.stopPropagation()}
-              className="text-cyan-400 hover:text-cyan-300 hover:underline font-medium"
+              className="text-blue-400 hover:text-blue-300"
             >
               {part}
             </Link>
@@ -322,50 +329,27 @@ function PostContent({ content }: { content: string }) {
         }
         return part;
       })}
-    </p>
+    </span>
   );
 }
 
 function ActionButton({
   icon: Icon,
-  count,
   onClick,
   active = false,
-  color,
+  activeClass,
+  animateOnClick = false,
 }: {
   icon: React.ElementType;
-  count?: number;
   onClick: (e: React.MouseEvent) => void;
   active?: boolean;
-  color: "sky" | "emerald" | "rose" | "violet" | "amber";
+  activeClass?: string;
+  animateOnClick?: boolean;
 }) {
   const [animatePop, setAnimatePop] = useState(false);
 
-  const styles: Record<typeof color, { active: string; idle: string }> = {
-    rose: {
-      active: "text-rose-400 bg-rose-400/10",
-      idle: "text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 hover:shadow-[0_0_12px_rgba(244,63,94,0.15)]",
-    },
-    sky: {
-      active: "text-sky-400 bg-sky-400/10",
-      idle: "text-zinc-500 hover:text-sky-400 hover:bg-sky-500/10 hover:shadow-[0_0_12px_rgba(14,165,233,0.15)]",
-    },
-    emerald: {
-      active: "text-emerald-400 bg-emerald-400/10",
-      idle: "text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 hover:shadow-[0_0_12px_rgba(16,185,129,0.15)]",
-    },
-    violet: {
-      active: "text-violet-400 bg-violet-400/10",
-      idle: "text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10 hover:shadow-[0_0_12px_rgba(139,92,246,0.15)]",
-    },
-    amber: {
-      active: "text-amber-400 bg-amber-400/10",
-      idle: "text-zinc-500 hover:text-amber-400 hover:bg-amber-500/10 hover:shadow-[0_0_12px_rgba(245,158,11,0.15)]",
-    },
-  };
-
   const handleClick = (e: React.MouseEvent) => {
-    if (color === "rose") {
+    if (animateOnClick) {
       setAnimatePop(true);
       setTimeout(() => setAnimatePop(false), 300);
     }
@@ -375,15 +359,12 @@ function ActionButton({
   return (
     <motion.button
       onClick={handleClick}
-      className={cn(
-        "flex items-center gap-1.5 py-1.5 px-3 rounded-full transition-all duration-200",
-        active ? styles[color].active : styles[color].idle
-      )}
+      className="transition-colors duration-200"
     >
       <motion.span
         animate={
-          animatePop && color === "rose"
-            ? { scale: [1, 1.35, 1] }
+          animatePop
+            ? { scale: [1, 1.3, 1] }
             : { scale: 1 }
         }
         transition={{ duration: 0.3, ease: "easeInOut" }}
@@ -391,15 +372,13 @@ function ActionButton({
       >
         <Icon
           className={cn(
-            "h-[18px] w-[18px]",
-            active && color === "rose" && "fill-current",
-            active && color === "amber" && "fill-current"
+            "h-6 w-6",
+            active && activeClass
+              ? activeClass
+              : "text-zinc-100 hover:text-zinc-400"
           )}
         />
       </motion.span>
-      {count !== undefined && count > 0 && (
-        <span className="text-[13px] font-medium">{formatNumber(count)}</span>
-      )}
     </motion.button>
   );
 }

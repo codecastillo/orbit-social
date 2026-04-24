@@ -37,7 +37,10 @@ export function PostComposer() {
 
   return (
     <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
-      <DialogContent className="sm:max-w-[520px] p-0 gap-0 bg-zinc-900/90 backdrop-blur-2xl border-white/[0.08] rounded-2xl overflow-hidden shadow-2xl shadow-violet-500/10">
+      <DialogContent className="sm:max-w-[520px] p-0 gap-0 bg-zinc-900 border-white/[0.1] rounded-xl overflow-hidden shadow-2xl">
+        <div className="text-center py-3 border-b border-white/[0.06]">
+          <span className="text-sm font-semibold text-zinc-100">Create new post</span>
+        </div>
         {user && (
           <ComposerForm
             user={user}
@@ -60,22 +63,23 @@ export function InlineComposer({
   onSuccess?: () => void;
 }) {
   const { user } = useAuth();
+  const setComposeOpen = useUIStore((s) => s.setComposeOpen);
+
   if (!user) return null;
 
   return (
-    <div className="mx-4 mt-4">
-      <div className="relative group rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-hidden transition-all duration-300 hover:border-white/[0.12] hover:shadow-md hover:shadow-violet-500/5">
-        {/* Gradient border glow on focus */}
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-violet-500/[0.06] via-transparent to-cyan-500/[0.06] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-        <div className="relative">
-          <ComposerForm
-            user={user}
-            replyToId={replyToId}
-            onSuccess={onSuccess}
-            inline
-          />
-        </div>
-      </div>
+    <div className="border-b border-white/[0.06]">
+      <button
+        onClick={() => setComposeOpen(true)}
+        className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-white/[0.02] transition-colors"
+      >
+        <UserAvatar
+          src={user.user_metadata?.avatar_url}
+          fallback={user.user_metadata?.display_name || user.user_metadata?.email || "U"}
+          size="sm"
+        />
+        <span className="text-sm text-zinc-500">Share something...</span>
+      </button>
     </div>
   );
 }
@@ -172,15 +176,15 @@ function ComposerForm({
         <UserAvatar
           src={user.user_metadata?.avatar_url}
           fallback={user.user_metadata?.display_name || user.user_metadata?.email || "U"}
-          size="md"
+          size="sm"
         />
 
         <div className="flex-1 min-w-0">
           <Textarea
-            placeholder={replyToId ? "Write a reply..." : "Share something..."}
+            placeholder={replyToId ? "Write a reply..." : "Write a caption..."}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="border-none bg-transparent resize-none p-0 text-[15px] text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 focus-visible:border-none min-h-[60px]"
+            className="border-none bg-transparent resize-none p-0 text-sm text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 focus-visible:border-none min-h-[60px]"
             rows={inline ? 2 : 3}
           />
 
@@ -192,7 +196,7 @@ function ComposerForm({
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.2 }}
-                className={`grid gap-2 mt-3 ${
+                className={`grid gap-1 mt-3 ${
                   media.length === 1
                     ? "grid-cols-1"
                     : "grid-cols-2"
@@ -205,14 +209,14 @@ function ComposerForm({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.2 }}
-                    className={`relative group/media rounded-xl overflow-hidden border border-white/[0.06] ${
+                    className={`relative group/media overflow-hidden ${
                       media.length === 3 && i === 0 ? "row-span-2" : ""
                     }`}
                   >
                     <img
                       src={m.preview}
                       alt=""
-                      className="w-full h-full object-cover rounded-xl max-h-[300px]"
+                      className="w-full h-full object-cover max-h-[300px]"
                     />
                     <button
                       onClick={() => removeMedia(i)}
@@ -240,21 +244,21 @@ function ComposerForm({
             className="hidden"
           />
           <button
-            className="h-9 w-9 flex items-center justify-center rounded-full text-cyan-400 hover:bg-cyan-400/10 hover:shadow-[0_0_12px_rgba(6,182,212,0.15)] transition-all duration-200 disabled:opacity-40 disabled:pointer-events-none"
+            className="h-9 w-9 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-40 disabled:pointer-events-none"
             onClick={() => fileInputRef.current?.click()}
             disabled={media.length >= MAX_IMAGES}
           >
             <ImageIcon className="h-5 w-5" />
           </button>
           <button
-            className="h-9 w-9 flex items-center justify-center rounded-full text-amber-400 hover:bg-amber-400/10 hover:shadow-[0_0_12px_rgba(245,158,11,0.15)] transition-all duration-200 disabled:opacity-40 disabled:pointer-events-none"
+            className="h-9 w-9 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-40 disabled:pointer-events-none"
             disabled
             title="Polls coming soon"
           >
             <BarChart3 className="h-5 w-5" />
           </button>
           <button
-            className="h-9 w-9 flex items-center justify-center rounded-full text-emerald-400 hover:bg-emerald-400/10 hover:shadow-[0_0_12px_rgba(16,185,129,0.15)] transition-all duration-200 disabled:opacity-40 disabled:pointer-events-none"
+            className="h-9 w-9 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-40 disabled:pointer-events-none"
             disabled
             title="Emoji"
           >
@@ -278,7 +282,7 @@ function ComposerForm({
           )}
           <Button
             size="sm"
-            className="rounded-full px-6 font-semibold shadow-md bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white border-0 shadow-violet-500/20 hover:shadow-violet-500/30 transition-all duration-200"
+            className="rounded-lg px-6 font-semibold bg-blue-500 hover:bg-blue-600 text-white border-0 transition-colors"
             onClick={handleSubmit}
             disabled={!canPost || posting}
           >
@@ -287,7 +291,7 @@ function ComposerForm({
             ) : replyToId ? (
               "Reply"
             ) : (
-              "Post"
+              "Share"
             )}
           </Button>
         </div>

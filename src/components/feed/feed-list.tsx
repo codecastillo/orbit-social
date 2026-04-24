@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useRef, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import { PostCard } from "./post-card";
-import { FeedSkeleton } from "@/components/shared/loading-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useFeed } from "@/lib/hooks/use-feed";
 
 interface FeedListProps {
@@ -42,7 +42,7 @@ export function FeedList({ tab }: FeedListProps) {
     [fetchNextPage, hasNextPage, isFetchingNextPage]
   );
 
-  if (isLoading) return <FeedSkeleton />;
+  if (isLoading) return <InstagramFeedSkeleton />;
 
   if (isError) {
     return (
@@ -52,7 +52,7 @@ export function FeedList({ tab }: FeedListProps) {
         action={
           <button
             onClick={() => refetch()}
-            className="text-cyan-400 text-sm font-medium hover:underline"
+            className="text-blue-400 text-sm font-medium hover:underline"
           >
             Retry
           </button>
@@ -77,7 +77,7 @@ export function FeedList({ tab }: FeedListProps) {
   }
 
   return (
-    <div className="space-y-4 px-4 py-4">
+    <div>
       {allPosts.map((post) => (
         <PostCard
           key={post.id}
@@ -96,6 +96,35 @@ export function FeedList({ tab }: FeedListProps) {
           <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
         </div>
       )}
+    </div>
+  );
+}
+
+function InstagramFeedSkeleton() {
+  return (
+    <div>
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="border-b border-white/[0.06]">
+          {/* Header */}
+          <div className="flex items-center gap-3 px-4 py-3">
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="h-3.5 w-24" />
+          </div>
+          {/* Image placeholder */}
+          <Skeleton className="w-full aspect-square" />
+          {/* Actions */}
+          <div className="flex items-center gap-4 px-4 py-3">
+            <Skeleton className="h-6 w-6 rounded" />
+            <Skeleton className="h-6 w-6 rounded" />
+            <Skeleton className="h-6 w-6 rounded" />
+          </div>
+          {/* Caption */}
+          <div className="px-4 pb-4 space-y-2">
+            <Skeleton className="h-3.5 w-20" />
+            <Skeleton className="h-3 w-3/4" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

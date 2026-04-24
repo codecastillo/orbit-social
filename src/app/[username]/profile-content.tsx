@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Grid3X3, LayoutList, Bookmark } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery } from "@tanstack/react-query";
 import { ProfileHeader } from "@/components/profile/profile-header";
+import { ProfileGrid } from "@/components/profile/profile-grid";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { getUserPosts } from "@/lib/queries/posts";
+import { cn } from "@/lib/utils";
 
 interface ProfileContentProps {
   profile: {
@@ -29,15 +32,30 @@ interface ProfileContentProps {
   initialIsFollowing: boolean;
 }
 
+const tabs = [
+  { value: "grid", icon: Grid3X3, label: "Posts" },
+  { value: "list", icon: LayoutList, label: "List" },
+  { value: "saved", icon: Bookmark, label: "Saved" },
+] as const;
+
+type TabValue = (typeof tabs)[number]["value"];
+
 export function ProfileContent({
   profile,
   isOwnProfile,
   initialIsFollowing,
 }: ProfileContentProps) {
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const [activeTab, setActiveTab] = useState<TabValue>("grid");
   const router = useRouter();
   const { user } = useAuth();
   const supabase = createClient();
+
+  const { data: posts = [] } = useQuery({
+    queryKey: ["user-posts", profile.id],
+    queryFn: () => getUserPosts(profile.id),
+    staleTime: 1000 * 60 * 2,
+  });
 
   const handleFollow = async () => {
     if (!user) {
@@ -72,17 +90,13 @@ export function ProfileContent({
     }
   };
 
-  const pillBase =
-    "rounded-full px-5 py-2 text-[13px] font-semibold transition-all border-0 bg-white/[0.05] text-muted-foreground hover:bg-white/[0.08] data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:shadow-primary/10";
-
   return (
     <>
-      {/* Top bar — frosted glass sticky header */}
-      <div className="sticky top-0 z-20 flex items-center gap-4 h-14 px-4 bg-background/60 backdrop-blur-2xl border-b border-white/[0.06]">
-        {/* Back button — frosted glass circle */}
+      {/* Top bar */}
+      <div className="sticky top-0 z-20 flex items-center gap-4 h-14 px-4 bg-background/80 backdrop-blur-xl border-b border-border/40">
         <button
           onClick={() => router.back()}
-          className="h-9 w-9 flex items-center justify-center rounded-full bg-white/[0.05] backdrop-blur-xl hover:bg-white/[0.10] transition-all"
+          className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-muted/50 transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -103,47 +117,46 @@ export function ProfileContent({
         onFollow={handleFollow}
       />
 
-      {/* Tabs — pill-style chips */}
-      <Tabs defaultValue="posts" className="w-full">
-        <TabsList className="w-full justify-start gap-2 rounded-none border-b border-white/[0.06] bg-transparent h-auto px-5 py-3">
-          <TabsTrigger value="posts" className={pillBase}>
-            Posts
-          </TabsTrigger>
-          <TabsTrigger value="replies" className={pillBase}>
-            Replies
-          </TabsTrigger>
-          <TabsTrigger value="clips" className={pillBase}>
-            Clips
-          </TabsTrigger>
-          <TabsTrigger value="likes" className={pillBase}>
-            Likes
-          </TabsTrigger>
-        </TabsList>
+      {/* Instagram-style icon tab bar */}
+      <div className="flex border-t border-border/40">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.value;
+          return (
+            <button
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              className={cn(
+                "flex-1 flex items-center justify-center py-3 relative transition-colors",
+                isActive
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground/70"
+              )}
+              aria-label={tab.label}
+            >
+              <Icon className="h-5 w-5" />
+              {isActive && (
+                <span className="absolute top-0 inset-x-0 h-[1px] bg-foreground" />
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-        <TabsContent value="posts" className="mt-0">
-          <div className="p-8 text-center text-muted-foreground text-sm">
-            No posts yet.
-          </div>
-        </TabsContent>
+      {/* Tab content */}
+      {activeTab === "grid" && <ProfileGrid posts={posts} />}
 
-        <TabsContent value="replies" className="mt-0">
-          <div className="p-8 text-center text-muted-foreground text-sm">
-            No replies yet.
-          </div>
-        </TabsContent>
+      {activeTab === "list" && (
+        <div className="p-8 text-center text-muted-foreground text-sm">
+          No list posts yet.
+        </div>
+      )}
 
-        <TabsContent value="clips" className="mt-0">
-          <div className="p-8 text-center text-muted-foreground text-sm">
-            No clips yet.
-          </div>
-        </TabsContent>
-
-        <TabsContent value="likes" className="mt-0">
-          <div className="p-8 text-center text-muted-foreground text-sm">
-            No likes yet.
-          </div>
-        </TabsContent>
-      </Tabs>
+      {activeTab === "saved" && (
+        <div className="p-8 text-center text-muted-foreground text-sm">
+          No saved posts yet.
+        </div>
+      )}
     </>
   );
 }

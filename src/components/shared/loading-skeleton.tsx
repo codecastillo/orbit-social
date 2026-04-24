@@ -2,21 +2,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function PostSkeleton() {
   return (
-    <div className="p-4 border-b border-border space-y-3">
-      <div className="flex items-center gap-3">
-        <Skeleton className="h-10 w-10 rounded-full" />
-        <div className="space-y-1.5">
-          <Skeleton className="h-3.5 w-28" />
-          <Skeleton className="h-3 w-20" />
-        </div>
+    <div className="border-b border-white/[0.06]">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <Skeleton className="h-8 w-8 rounded-full" />
+        <Skeleton className="h-3.5 w-24" />
       </div>
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-4 w-3/4" />
-      <Skeleton className="h-48 w-full rounded-xl" />
-      <div className="flex gap-6 pt-1">
-        <Skeleton className="h-4 w-12" />
-        <Skeleton className="h-4 w-12" />
-        <Skeleton className="h-4 w-12" />
+      <Skeleton className="w-full aspect-square" />
+      <div className="flex items-center gap-4 px-4 py-3">
+        <Skeleton className="h-6 w-6 rounded" />
+        <Skeleton className="h-6 w-6 rounded" />
+        <Skeleton className="h-6 w-6 rounded" />
+      </div>
+      <div className="px-4 pb-4 space-y-2">
+        <Skeleton className="h-3.5 w-20" />
+        <Skeleton className="h-3 w-3/4" />
       </div>
     </div>
   );

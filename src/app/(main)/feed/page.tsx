@@ -18,49 +18,51 @@ export default function FeedPage() {
 
       {/* Header */}
       <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80">
-        <div className="px-5 pt-5 pb-3">
+        <div className="flex items-center justify-center py-3 border-b border-white/[0.06]">
           <h1
-            className="text-2xl font-extrabold tracking-tight"
+            className="text-lg font-bold tracking-tight"
             style={{ fontFamily: "var(--font-syne), sans-serif" }}
           >
-            Home
+            Orbit
           </h1>
         </div>
 
-        {/* Pill Tab Switcher */}
+        {/* Stories */}
+        <div className="border-b border-white/[0.06]">
+          <StoryBar />
+        </div>
+
+        {/* Inline Composer */}
+        <div className="hidden lg:block">
+          <InlineComposer
+            onSuccess={() =>
+              queryClient.invalidateQueries({ queryKey: ["feed"] })
+            }
+          />
+        </div>
+
+        {/* Tabs */}
         <Tabs
           value={tab}
           onValueChange={(v) => setTab(v as "foryou" | "following")}
           className="w-full"
         >
-          <TabsList className="w-full rounded-none bg-transparent h-auto px-4 pb-3 gap-2 justify-start border-b border-white/[0.06]">
+          <TabsList className="w-full rounded-none bg-transparent h-auto px-0 gap-0 justify-center border-b border-white/[0.06]">
             <TabsTrigger
               value="foryou"
-              className="rounded-full px-6 py-2.5 font-semibold text-sm bg-white/[0.05] text-muted-foreground border border-white/[0.08] transition-all duration-200 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/30 data-[state=active]:shadow-md data-[state=active]:shadow-primary/20 hover:bg-white/[0.08] hover:text-foreground"
+              className="flex-1 rounded-none px-4 py-3 text-sm font-semibold text-zinc-500 border-b-2 border-transparent transition-all duration-200 data-[state=active]:text-zinc-100 data-[state=active]:border-zinc-100"
             >
               For You
             </TabsTrigger>
             <TabsTrigger
               value="following"
-              className="rounded-full px-6 py-2.5 font-semibold text-sm bg-white/[0.05] text-muted-foreground border border-white/[0.08] transition-all duration-200 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/30 data-[state=active]:shadow-md data-[state=active]:shadow-primary/20 hover:bg-white/[0.08] hover:text-foreground"
+              className="flex-1 rounded-none px-4 py-3 text-sm font-semibold text-zinc-500 border-b-2 border-transparent transition-all duration-200 data-[state=active]:text-zinc-100 data-[state=active]:border-zinc-100"
             >
               Following
             </TabsTrigger>
           </TabsList>
 
-          {/* Inline Composer (desktop) */}
-          <div className="hidden lg:block">
-            <InlineComposer
-              onSuccess={() =>
-                queryClient.invalidateQueries({ queryKey: ["feed"] })
-              }
-            />
-          </div>
-
           <TabsContent value="foryou" className="mt-0">
-            <div className="px-4 pt-4">
-              <StoryBar />
-            </div>
             <FeedList tab="foryou" />
           </TabsContent>
 
