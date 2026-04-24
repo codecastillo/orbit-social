@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Grid3X3, Heart, Repeat2, Bookmark, Pin, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, MoreHorizontal, ExternalLink, Star } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { ProfileHeader } from "@/components/profile/profile-header";
-import { ProfileGrid } from "@/components/profile/profile-grid";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
@@ -17,8 +16,11 @@ import {
   getUserPinnedPosts,
 } from "@/lib/queries/posts";
 import { PostCard } from "@/components/feed/post-card";
+import { UserAvatar } from "@/components/shared/user-avatar";
+import type { AvatarBorderStyle } from "@/components/shared/user-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { O, aurora, auroraSoft, panel } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 
 interface ProfileContentProps {
   profile: {
@@ -42,14 +44,31 @@ interface ProfileContentProps {
   initialIsFollowing: boolean;
 }
 
-const tabs = [
-  { value: "posts", icon: Grid3X3, label: "Posts" },
-  { value: "likes", icon: Heart, label: "Likes" },
-  { value: "reposts", icon: Repeat2, label: "Reposts" },
-  { value: "saved", icon: Bookmark, label: "Saved" },
+const TABS = [
+  { value: "posts", label: "Posts" },
+  { value: "likes", label: "Likes" },
+  { value: "reposts", label: "Reposts" },
+  { value: "saved", label: "Saved" },
 ] as const;
 
-type TabValue = (typeof tabs)[number]["value"];
+type TabValue = (typeof TABS)[number]["value"];
+
+function fmtNumber(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
+  return `${n}`;
+}
+
+function splitName(name: string): { first: string; rest: string } {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return { first: parts[0], rest: "" };
+  return { first: parts[0], rest: parts.slice(1).join(" ") };
+}
+
+function joinedYear(iso: string): string {
+  const y = new Date(iso).getFullYear();
+  return `'${y.toString().slice(-2)}`;
+}
 
 export function ProfileContent({
   profile,
@@ -125,72 +144,361 @@ export function ProfileContent({
     }
   };
 
-  const visibleTabs = isOwnProfile ? tabs : tabs.filter((t) => t.value !== "saved");
+  const visibleTabs = useMemo(
+    () => (isOwnProfile ? TABS : TABS.filter((t) => t.value !== "saved")),
+    [isOwnProfile],
+  );
+
+  const accent = profile.theme_color || O.a2;
+  const { first, rest } = splitName(profile.display_name);
+  const avatarBorder = (profile.avatar_border || "none") as AvatarBorderStyle;
 
   return (
-    <div className="min-h-screen pb-20">
-      {/* Back button (mobile) */}
-      <div className="lg:hidden absolute top-3 left-3 z-20">
-        <button
-          onClick={() => router.back()}
-          className="h-10 w-10 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
-      </div>
+    <div
+      style={{
+        color: O.ink,
+        fontFamily: O.sans,
+        display: "flex",
+        flexDirection: "column",
+        gap: 18,
+      }}
+    >
+      {/* Mobile back */}
+      <button
+        onClick={() => router.back()}
+        className="lg:hidden absolute top-3 left-3 z-20 h-10 w-10 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white"
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </button>
 
-      {/* Profile header (existing component handles cover + avatar + meta + follow CTA) */}
-      <ProfileHeader
-        profile={profile}
-        isOwnProfile={isOwnProfile}
-        isFollowing={isFollowing}
-        onFollow={handleFollow}
-      />
-
-      {/* Tabs — segmented pill */}
+      {/* HERO PANEL */}
       <div
-        className="sticky top-0 lg:top-0 z-10 mt-2"
         style={{
-          background: "oklch(0.14 0.02 270 / 0.7)",
-          backdropFilter: "blur(40px) saturate(2)",
-          WebkitBackdropFilter: "blur(40px) saturate(2)",
-          borderBottom: "1px solid oklch(1 0 0 / 0.05)",
+          ...panel(),
+          padding: 0,
+          overflow: "hidden",
+          position: "relative",
         }}
       >
-        <div className="flex items-center gap-1 p-1.5 mx-4 my-3 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
-          {visibleTabs.map((t) => {
-            const isActive = activeTab === t.value;
-            const Icon = t.icon;
-            return (
-              <button
-                key={t.value}
-                onClick={() => setActiveTab(t.value)}
-                className={cn(
-                  "flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-xl text-[12px] font-bold transition-all",
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-[0_4px_14px_oklch(0.623_0.214_259_/_0.4)]"
-                    : "text-muted-foreground hover:text-foreground"
+        {/* Banner */}
+        <div
+          style={{
+            height: 200,
+            background: profile.cover_url
+              ? `url(${profile.cover_url}) center/cover`
+              : aurora,
+            position: "relative",
+          }}
+        >
+          {!profile.cover_url && (
+            <>
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background:
+                    "radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.35), transparent 60%)",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background:
+                    "repeating-linear-gradient(135deg, transparent 0 40px, rgba(255,255,255,0.05) 40px 41px)",
+                }}
+              />
+            </>
+          )}
+        </div>
+
+        {/* Identity row */}
+        <div
+          style={{
+            padding: "0 32px 24px",
+            marginTop: -68,
+            display: "flex",
+            alignItems: "flex-end",
+            gap: 24,
+            flexWrap: "wrap",
+          }}
+        >
+          <div
+            style={{
+              width: 136,
+              height: 136,
+              borderRadius: "50%",
+              padding: 5,
+              background: O.bg,
+              boxShadow: `0 16px 40px rgba(0,0,0,0.5), 0 0 0 2px ${accent}`,
+              flexShrink: 0,
+            }}
+          >
+            <UserAvatar
+              src={profile.avatar_url}
+              fallback={profile.display_name}
+              size="xl"
+              avatarBorder={avatarBorder}
+            />
+          </div>
+
+          <div style={{ flex: 1, paddingBottom: 14, minWidth: 0 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              <Display size={32}>
+                {rest ? (
+                  <>
+                    {first} <Acc>{rest}</Acc>
+                  </>
+                ) : (
+                  first
                 )}
+              </Display>
+              {profile.is_verified && (
+                <Star
+                  fill={O.a3}
+                  stroke={O.a3}
+                  style={{ width: 18, height: 18 }}
+                />
+              )}
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: O.ink3,
+                marginTop: 4,
+                fontFamily: O.mono,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+              }}
+            >
+              @{profile.username}
+              {profile.location && ` · ${profile.location}`} · ON ORBIT SINCE{" "}
+              {joinedYear(profile.created_at)}
+            </div>
+            {profile.bio && (
+              <p
+                style={{
+                  fontSize: 14.5,
+                  color: O.ink2,
+                  marginTop: 12,
+                  maxWidth: 580,
+                  lineHeight: 1.55,
+                }}
               >
-                <Icon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{t.label}</span>
-              </button>
-            );
-          })}
+                {profile.bio}
+              </p>
+            )}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              paddingBottom: 14,
+              flexWrap: "wrap",
+            }}
+          >
+            {!isOwnProfile && (
+              <PillBtn primary={!isFollowing} size="lg" onClick={handleFollow}>
+                {isFollowing ? "Following ✓" : "+ Follow"}
+              </PillBtn>
+            )}
+            {!isOwnProfile && (
+              <Link href={`/messages?to=${profile.username}`}>
+                <PillBtn size="lg">Message</PillBtn>
+              </Link>
+            )}
+            {isOwnProfile && (
+              <Link href="/settings/profile">
+                <PillBtn primary size="lg">
+                  Edit profile
+                </PillBtn>
+              </Link>
+            )}
+            <PillBtn
+              size="lg"
+              style={{ width: 44, justifyContent: "center", padding: "14px 0" }}
+            >
+              <MoreHorizontal style={{ width: 16, height: 16 }} />
+            </PillBtn>
+          </div>
+        </div>
+
+        {/* Stats strip */}
+        <div
+          style={{
+            display: "flex",
+            gap: 0,
+            padding: "0 32px 24px",
+            borderTop: `1px solid ${O.hair}`,
+            paddingTop: 20,
+            flexWrap: "wrap",
+            rowGap: 14,
+          }}
+        >
+          {[
+            ["posts", profile.post_count],
+            ["orbit", profile.follower_count],
+            ["mutuals", profile.following_count],
+          ].map(([label, n], i) => (
+            <div
+              key={label as string}
+              style={{
+                flex: 1,
+                minWidth: 90,
+                paddingLeft: i ? 24 : 0,
+                borderLeft: i ? `1px solid ${O.hair}` : "none",
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: O.serif,
+                  fontStyle: "italic",
+                  fontSize: 30,
+                  fontWeight: 400,
+                  lineHeight: 1,
+                  background: aurora,
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                {fmtNumber(n as number)}
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: O.ink3,
+                  marginTop: 4,
+                  fontFamily: O.mono,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {label as string}
+              </div>
+            </div>
+          ))}
+          {profile.website && (
+            <div
+              style={{
+                marginLeft: "auto",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 11,
+                  color: O.ink3,
+                  fontFamily: O.mono,
+                  letterSpacing: "0.08em",
+                }}
+              >
+                ALSO ON
+              </span>
+              <a
+                href={profile.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: "5px 11px",
+                  borderRadius: 99,
+                  background: O.glass,
+                  border: `1px solid ${O.hair}`,
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: O.ink2,
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <ExternalLink style={{ width: 11, height: 11 }} />
+                {(() => {
+                  try {
+                    return new URL(profile.website).hostname.replace(/^www\./, "");
+                  } catch {
+                    return profile.website;
+                  }
+                })()}
+              </a>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="px-3 pt-2">
+      {/* TABS */}
+      <div
+        style={{
+          ...panel({ borderRadius: 16 }),
+          padding: 5,
+          display: "flex",
+          gap: 4,
+        }}
+      >
+        {visibleTabs.map((t) => {
+          const isActive = activeTab === t.value;
+          return (
+            <button
+              key={t.value}
+              onClick={() => setActiveTab(t.value)}
+              style={{
+                flex: 1,
+                textAlign: "center",
+                padding: "10px 0",
+                borderRadius: 12,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                background: isActive ? auroraSoft : "transparent",
+                border: isActive
+                  ? `1px solid ${O.hair2}`
+                  : "1px solid transparent",
+                color: isActive ? O.ink : O.ink3,
+                fontFamily: "inherit",
+                transition: "all 0.15s",
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* CONTENT */}
+      <div>
         {activeTab === "posts" && (
           <>
             {pinnedPosts.length > 0 && (
-              <div className="mb-3 space-y-2">
-                <div className="flex items-center gap-2 px-2">
-                  <Pin className="h-3.5 w-3.5 text-amber-300" />
-                  <span className="text-[11px] uppercase tracking-wider font-bold text-amber-300">
-                    Pinned
-                  </span>
+              <div
+                style={{
+                  marginBottom: 16,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontFamily: O.mono,
+                    letterSpacing: "0.14em",
+                    color: "#ffd76a",
+                    textTransform: "uppercase",
+                    fontWeight: 700,
+                    paddingLeft: 8,
+                  }}
+                >
+                  ◇&nbsp;&nbsp;Pinned
                 </div>
                 {pinnedPosts.map((p: any) => (
                   <PostCard key={p.id} post={p} />
@@ -198,9 +506,11 @@ export function ProfileContent({
               </div>
             )}
             {posts.length === 0 && pinnedPosts.length === 0 ? (
-              <EmptyTab icon={<Grid3X3 className="h-6 w-6" />} label="No posts yet" />
+              <EmptyTab label="No posts yet" />
             ) : (
-              <div className="space-y-2">
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 8 }}
+              >
                 {posts.map((p: any) => (
                   <PostCard key={p.id} post={p} />
                 ))}
@@ -209,57 +519,79 @@ export function ProfileContent({
           </>
         )}
 
-        {activeTab === "likes" && (
-          loadingLikes ? <ListSkeleton /> :
-          likedPosts.length === 0 ? <EmptyTab icon={<Heart className="h-6 w-6" />} label="No likes yet" /> :
-          <div className="space-y-2">{likedPosts.map((p: any) => <PostCard key={p.id} post={p} />)}</div>
-        )}
+        {activeTab === "likes" &&
+          (loadingLikes ? (
+            <ListSkeleton />
+          ) : likedPosts.length === 0 ? (
+            <EmptyTab label="No likes yet" />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {likedPosts.map((p: any) => (
+                <PostCard key={p.id} post={p} />
+              ))}
+            </div>
+          ))}
 
-        {activeTab === "reposts" && (
-          loadingReposts ? <ListSkeleton /> :
-          repostedPosts.length === 0 ? <EmptyTab icon={<Repeat2 className="h-6 w-6" />} label="No reposts yet" /> :
-          <div className="space-y-2">{repostedPosts.map((p: any) => <PostCard key={p.id} post={p} />)}</div>
-        )}
+        {activeTab === "reposts" &&
+          (loadingReposts ? (
+            <ListSkeleton />
+          ) : repostedPosts.length === 0 ? (
+            <EmptyTab label="No reposts yet" />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {repostedPosts.map((p: any) => (
+                <PostCard key={p.id} post={p} />
+              ))}
+            </div>
+          ))}
 
-        {activeTab === "saved" && isOwnProfile && (
-          loadingSaved ? <ListSkeleton /> :
-          savedPosts.length === 0 ? <EmptyTab icon={<Bookmark className="h-6 w-6" />} label="Nothing saved yet" /> :
-          <div className="space-y-2">{savedPosts.map((p: any) => <PostCard key={p.id} post={p} />)}</div>
-        )}
+        {activeTab === "saved" &&
+          isOwnProfile &&
+          (loadingSaved ? (
+            <ListSkeleton />
+          ) : savedPosts.length === 0 ? (
+            <EmptyTab label="Nothing saved yet" />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {savedPosts.map((p: any) => (
+                <PostCard key={p.id} post={p} />
+              ))}
+            </div>
+          ))}
       </div>
     </div>
   );
 }
 
-function EmptyTab({ icon, label }: { icon: React.ReactNode; label: string }) {
+function EmptyTab({ label }: { label: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="h-16 w-16 rounded-3xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-muted-foreground/50 mb-4">
-        {icon}
-      </div>
-      <p className="text-sm font-semibold text-foreground/80">{label}</p>
-      <p className="text-xs text-muted-foreground/70 mt-1">
-        <Sparkles className="inline h-3 w-3 mr-1 -mt-0.5" />
-        Anything posted will show up here
-      </p>
+    <div
+      style={{
+        textAlign: "center",
+        padding: "60px 20px",
+        color: O.ink3,
+      }}
+    >
+      <Eyebrow>◇&nbsp;&nbsp;NOTHING HERE YET</Eyebrow>
+      <p style={{ fontSize: 14, marginTop: 12 }}>{label}</p>
     </div>
   );
 }
 
 function ListSkeleton() {
   return (
-    <div className="space-y-2">
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-3">
-          <div className="flex gap-3">
-            <Skeleton className="h-10 w-10 rounded-2xl" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-3 w-32" />
-              <Skeleton className="h-3 w-20" />
-            </div>
+        <div
+          key={i}
+          style={{ ...panel(), padding: 16, display: "flex", gap: 12 }}
+        >
+          <Skeleton className="h-10 w-10 rounded-2xl" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-3/4" />
           </div>
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-3/4" />
         </div>
       ))}
     </div>
