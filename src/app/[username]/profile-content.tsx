@@ -9,7 +9,8 @@ import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileGrid } from "@/components/profile/profile-grid";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { getUserPosts } from "@/lib/queries/posts";
+import { getUserPosts, getUserLikedPosts, getUserBookmarkedPosts, getUserRepostedPosts } from "@/lib/queries/posts";
+import { PostCard } from "@/components/feed/post-card";
 import { cn } from "@/lib/utils";
 
 const syne = { fontFamily: "var(--font-syne), sans-serif" };
@@ -58,6 +59,27 @@ export function ProfileContent({
     queryKey: ["user-posts", profile.id],
     queryFn: () => getUserPosts(profile.id),
     staleTime: 1000 * 60 * 2,
+  });
+
+  const { data: likedPosts = [] } = useQuery({
+    queryKey: ["user-liked-posts", profile.id],
+    queryFn: () => getUserLikedPosts(profile.id),
+    enabled: activeTab === "likes",
+    staleTime: 1000 * 60,
+  });
+
+  const { data: repostedPosts = [] } = useQuery({
+    queryKey: ["user-reposted-posts", profile.id],
+    queryFn: () => getUserRepostedPosts(profile.id),
+    enabled: activeTab === "reposts",
+    staleTime: 1000 * 60,
+  });
+
+  const { data: savedPosts = [] } = useQuery({
+    queryKey: ["user-saved-posts", profile.id],
+    queryFn: () => getUserBookmarkedPosts(profile.id),
+    enabled: activeTab === "saved" && isOwnProfile,
+    staleTime: 1000 * 60,
   });
 
   const handleFollow = async () => {
@@ -174,45 +196,57 @@ export function ProfileContent({
       )}
 
       {activeTab === "likes" && (
-        <div className="p-16 text-center">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-white/[0.04] mb-4">
-            <Heart className="h-7 w-7 text-muted-foreground/30" />
+        likedPosts.length > 0 ? (
+          <div className="divide-y divide-white/[0.06]">
+            {likedPosts.map((post) => (
+              <PostCard key={post.id} post={post} isLiked={true} />
+            ))}
           </div>
-          <p className="text-sm font-semibold text-muted-foreground" style={syne}>
-            No liked posts yet
-          </p>
-          <p className="text-xs text-muted-foreground/50 mt-1.5 max-w-[220px] mx-auto">
-            Posts you like will appear here.
-          </p>
-        </div>
+        ) : (
+          <div className="p-16 text-center">
+            <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-white/[0.04] mb-4">
+              <Heart className="h-7 w-7 text-muted-foreground/30" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground">No liked posts yet</p>
+            <p className="text-xs text-muted-foreground/50 mt-1.5">Posts you like will appear here.</p>
+          </div>
+        )
       )}
 
       {activeTab === "reposts" && (
-        <div className="p-16 text-center">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-white/[0.04] mb-4">
-            <Repeat2 className="h-7 w-7 text-muted-foreground/30" />
+        repostedPosts.length > 0 ? (
+          <div className="divide-y divide-white/[0.06]">
+            {repostedPosts.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))}
           </div>
-          <p className="text-sm font-semibold text-muted-foreground" style={syne}>
-            No reposts yet
-          </p>
-          <p className="text-xs text-muted-foreground/50 mt-1.5 max-w-[220px] mx-auto">
-            Posts you repost will appear here.
-          </p>
-        </div>
+        ) : (
+          <div className="p-16 text-center">
+            <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-white/[0.04] mb-4">
+              <Repeat2 className="h-7 w-7 text-muted-foreground/30" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground">No reposts yet</p>
+            <p className="text-xs text-muted-foreground/50 mt-1.5">Posts you repost will appear here.</p>
+          </div>
+        )
       )}
 
       {activeTab === "saved" && isOwnProfile && (
-        <div className="p-16 text-center">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-white/[0.04] mb-4">
-            <Bookmark className="h-7 w-7 text-muted-foreground/30" />
+        savedPosts.length > 0 ? (
+          <div className="divide-y divide-white/[0.06]">
+            {savedPosts.map((post) => (
+              <PostCard key={post.id} post={post} isBookmarked={true} />
+            ))}
           </div>
-          <p className="text-sm font-semibold text-muted-foreground" style={syne}>
-            No saved posts yet
-          </p>
-          <p className="text-xs text-muted-foreground/50 mt-1.5 max-w-[220px] mx-auto">
-            Tap the bookmark icon to save posts here.
-          </p>
-        </div>
+        ) : (
+          <div className="p-16 text-center">
+            <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-white/[0.04] mb-4">
+              <Bookmark className="h-7 w-7 text-muted-foreground/30" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground">No saved posts yet</p>
+            <p className="text-xs text-muted-foreground/50 mt-1.5">Tap the bookmark icon to save posts here.</p>
+          </div>
+        )
       )}
     </>
   );

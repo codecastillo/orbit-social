@@ -225,6 +225,67 @@ export async function getUserPosts(userId: string, cursor?: string, limit = 20) 
   return data as PostWithAuthor[];
 }
 
+export async function getUserLikedPosts(userId: string, limit = 50) {
+  const { data: likes, error: likesError } = await supabase
+    .from("post_likes")
+    .select("post_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (likesError) throw likesError;
+  if (!likes || likes.length === 0) return [];
+
+  const postIds = likes.map((l) => l.post_id);
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .in("id", postIds)
+    .eq("is_hidden", false);
+
+  if (error) throw error;
+  // Maintain the liked order
+  const postMap = new Map((data || []).map((p) => [p.id, p]));
+  return postIds.map((id) => postMap.get(id)).filter(Boolean) as PostWithAuthor[];
+}
+
+export async function getUserBookmarkedPosts(userId: string, limit = 50) {
+  const { data: bookmarks, error: bmError } = await supabase
+    .from("bookmarks")
+    .select("post_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (bmError) throw bmError;
+  if (!bookmarks || bookmarks.length === 0) return [];
+
+  const postIds = bookmarks.map((b) => b.post_id);
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .in("id", postIds)
+    .eq("is_hidden", false);
+
+  if (error) throw error;
+  const postMap = new Map((data || []).map((p) => [p.id, p]));
+  return postIds.map((id) => postMap.get(id)).filter(Boolean) as PostWithAuthor[];
+}
+
+export async function getUserRepostedPosts(userId: string, limit = 50) {
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .eq("user_id", userId)
+    .eq("type", "repost")
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return data as PostWithAuthor[];
+}
+
 export async function toggleLike(userId: string, postId: string, isLiked: boolean) {
   if (isLiked) {
     const { error } = await supabase
