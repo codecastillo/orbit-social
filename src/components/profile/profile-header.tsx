@@ -17,6 +17,8 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { FollowButton } from "@/components/shared/follow-button";
 import { formatNumber } from "@/lib/utils/format";
 
+const syne = { fontFamily: "var(--font-syne), sans-serif" };
+
 interface ProfileHeaderProps {
   profile: {
     id: string;
@@ -47,21 +49,19 @@ export function ProfileHeader({
   onEdit,
 }: ProfileHeaderProps) {
   return (
-    <div className="px-5 sm:px-7 pt-6 pb-4">
-      {/* Row 1: Avatar + Stats */}
-      <div className="flex items-center gap-6 sm:gap-10">
+    <div className="px-5 pt-6 pb-4">
+      {/* Avatar + Stats row */}
+      <div className="flex items-center gap-5">
         {/* Avatar */}
-        <div className="shrink-0">
-          <UserAvatar
-            src={profile.avatar_url}
-            fallback={profile.display_name}
-            size="xl"
-            className="h-20 w-20 sm:h-24 sm:w-24"
-          />
-        </div>
+        <UserAvatar
+          src={profile.avatar_url}
+          fallback={profile.display_name}
+          size="xl"
+          className="h-20 w-20 shrink-0"
+        />
 
-        {/* Stats */}
-        <div className="flex flex-1 justify-around">
+        {/* Stats — compact, not spread */}
+        <div className="flex items-center gap-6">
           {[
             { value: profile.post_count, label: "Posts" },
             { value: profile.follower_count, label: "Followers" },
@@ -69,12 +69,12 @@ export function ProfileHeader({
           ].map((stat) => (
             <button
               key={stat.label}
-              className="flex flex-col items-center gap-0.5"
+              className="flex flex-col items-center gap-0.5 hover:opacity-80 transition-opacity"
             >
-              <span className="text-lg font-bold leading-tight">
+              <span className="text-xl font-extrabold leading-tight" style={syne}>
                 {formatNumber(stat.value)}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-[11px] text-muted-foreground font-medium">
                 {stat.label}
               </span>
             </button>
@@ -82,25 +82,25 @@ export function ProfileHeader({
         </div>
       </div>
 
-      {/* Row 2: Display name + verified */}
-      <div className="mt-4 flex items-center gap-1.5">
-        <h1 className="text-sm font-bold leading-tight">
-          {profile.display_name}
-        </h1>
-        {profile.is_verified && (
-          <BadgeCheck className="h-4 w-4 text-primary fill-primary/20" />
-        )}
+      {/* Name + Username */}
+      <div className="mt-4">
+        <div className="flex items-center gap-1.5">
+          <h1 className="text-base font-bold" style={syne}>
+            {profile.display_name}
+          </h1>
+          {profile.is_verified && (
+            <BadgeCheck className="h-4 w-4 text-primary fill-primary/20" />
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">@{profile.username}</p>
       </div>
 
-      {/* Row 2b: Username */}
-      <p className="text-sm text-muted-foreground">@{profile.username}</p>
-
-      {/* Row 3: Bio */}
+      {/* Bio */}
       {profile.bio && (
-        <p className="mt-1 text-sm leading-snug">{profile.bio}</p>
+        <p className="mt-2 text-sm leading-relaxed">{profile.bio}</p>
       )}
 
-      {/* Row 4: Website */}
+      {/* Website */}
       {profile.website &&
         (() => {
           try {
@@ -112,7 +112,7 @@ export function ProfileHeader({
                 href={profile.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-1 flex items-center gap-1 text-sm text-primary hover:underline"
+                className="mt-1.5 inline-flex items-center gap-1 text-sm text-primary hover:underline"
               >
                 <LinkIcon className="h-3.5 w-3.5" />
                 {url.hostname}
@@ -123,12 +123,12 @@ export function ProfileHeader({
           }
         })()}
 
-      {/* Row 5: Action buttons */}
+      {/* Action buttons */}
       <div className="mt-4 flex items-center gap-2">
         {isOwnProfile ? (
           <Button
             variant="outline"
-            className="flex-1 rounded-lg h-9 text-sm font-semibold"
+            className="flex-1 rounded-xl h-10 text-sm font-semibold"
             onClick={onEdit}
           >
             Edit Profile
@@ -138,11 +138,11 @@ export function ProfileHeader({
             <FollowButton
               isFollowing={isFollowing}
               onToggle={onFollow}
-              className="flex-1 rounded-lg h-9"
+              className="flex-1 rounded-xl h-10"
             />
             <Button
               variant="outline"
-              className="flex-1 rounded-lg h-9 text-sm font-semibold"
+              className="flex-1 rounded-xl h-10 text-sm font-semibold"
             >
               <MessageCircle className="h-4 w-4 mr-1.5" />
               Message
@@ -152,7 +152,7 @@ export function ProfileHeader({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="rounded-lg h-9 w-9"
+                  className="rounded-xl h-10 w-10"
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
