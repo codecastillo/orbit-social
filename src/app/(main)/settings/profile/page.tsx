@@ -143,7 +143,8 @@ export default function EditProfilePage() {
     }
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return data.publicUrl;
+    // Add cache-buster to force browser to show updated image
+    return `${data.publicUrl}?t=${Date.now()}`;
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -288,12 +289,7 @@ export default function EditProfilePage() {
 
         {/* Avatar */}
         <div className="px-4 -mt-12">
-          <button
-            type="button"
-            onClick={() => avatarInputRef.current?.click()}
-            className="relative group"
-            disabled={uploadingAvatar}
-          >
+          <div className="relative inline-block cursor-pointer" onClick={() => !uploadingAvatar && avatarInputRef.current?.click()}>
             <UserAvatar
               src={avatarUrl}
               fallback={displayName || "?"}
@@ -301,18 +297,18 @@ export default function EditProfilePage() {
               avatarBorder={avatarBorder}
               className="border-4 border-background"
             />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
               {uploadingAvatar ? (
                 <Loader2 className="h-5 w-5 animate-spin text-white" />
               ) : (
                 <Camera className="h-5 w-5 text-white" />
               )}
             </div>
-          </button>
+          </div>
           <input
             ref={avatarInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp,image/gif"
             onChange={handleAvatarUpload}
             className="hidden"
           />
