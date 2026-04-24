@@ -95,20 +95,23 @@ export default function AccountSettingsPage() {
 
     setDeleting(true);
 
-    // Sign out and let backend handle deletion
-    // In production, this would call an API route that uses the service role key
-    const { error } = await supabase.rpc("delete_user_account", {
-      user_id: user.id,
-    });
+    try {
+      const res = await fetch("/api/delete-account", { method: "POST" });
+      const data = await res.json();
 
-    if (error) {
-      toast.error("Failed to delete account. Please contact support.");
+      if (!res.ok) {
+        toast.error(data.error || "Failed to delete account.");
+        setDeleting(false);
+        return;
+      }
+
+      await supabase.auth.signOut();
+      toast.success("Account deleted.");
+      router.push("/login");
+    } catch {
+      toast.error("Failed to delete account. Please try again.");
       setDeleting(false);
-      return;
     }
-
-    await supabase.auth.signOut();
-    router.push("/login");
   };
 
   if (authLoading) {
