@@ -2,20 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useMemo } from "react";
 import {
   Home,
   Compass,
-  Clapperboard,
+  Globe,
+  Play,
+  Calendar,
   MessageCircle,
   Bell,
-  Calendar,
-  Radio,
-  Plus,
-  Settings,
   LogOut,
-  Users,
+  Settings,
+  MoreHorizontal,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
 import { useUnreadCount } from "@/lib/hooks/use-notifications";
 import { useCurrentProfile } from "@/lib/hooks/use-profile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,19 +28,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useUIStore } from "@/lib/stores/ui-store";
+import { O, aurora, auroraSoft, panel } from "@/lib/design/orbit";
+import { PillBtn } from "@/components/orbit/primitives";
 
-const primaryNav = [
+interface NavItem {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+}
+
+const NAV: NavItem[] = [
   { label: "Home", href: "/feed", icon: Home },
   { label: "Discover", href: "/explore", icon: Compass },
-  { label: "Clips", href: "/reels", icon: Clapperboard },
+  { label: "Rooms", href: "/communities", icon: Globe },
+  { label: "Live", href: "/live", icon: Play },
+  { label: "Events", href: "/events", icon: Calendar },
   { label: "Messages", href: "/messages", icon: MessageCircle },
   { label: "Notifications", href: "/notifications", icon: Bell },
-];
-
-const secondaryNav = [
-  { label: "Spaces", href: "/communities", icon: Users },
-  { label: "Events", href: "/events", icon: Calendar },
-  { label: "Live", href: "/live", icon: Radio },
 ];
 
 export function Sidebar() {
@@ -50,147 +54,237 @@ export function Sidebar() {
   const { data: unreadCount } = useUnreadCount();
   const { data: profile } = useCurrentProfile();
 
+  const activeHref = useMemo(
+    () =>
+      NAV.find((n) => pathname === n.href || pathname.startsWith(n.href + "/"))
+        ?.href ?? "",
+    [pathname],
+  );
+
   return (
-    <aside className="fixed left-0 top-0 h-full w-[76px] flex-col items-center z-40 hidden lg:flex py-5 bg-[oklch(0.16_0.02_270_/_0.6)] backdrop-blur-2xl border-r border-white/[0.06]">
-      {/* Logo — rounded-2xl chip with primary glow */}
+    <aside
+      className="fixed left-6 top-6 bottom-6 w-[260px] z-40 hidden lg:flex flex-col"
+      style={{ ...panel(), padding: "24px 18px", gap: 4 }}
+    >
+      {/* Logo block */}
       <Link
         href="/feed"
-        className="flex items-center justify-center h-11 w-11 rounded-2xl bg-gradient-to-br from-primary to-primary/60 shadow-[0_0_24px_oklch(0.623_0.214_259_/_0.45)] mb-4 group"
-        title="Orbit"
+        className="flex items-center gap-[10px] px-2 pb-[18px] pt-1"
       >
-        <span className="text-lg font-extrabold text-primary-foreground tracking-tight group-hover:scale-110 transition-transform">
-          O
-        </span>
+        <div
+          className="relative"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 10,
+            background: aurora,
+            boxShadow: `0 4px 14px -2px ${O.a2}80, inset 0 1px 0 rgba(255,255,255,0.3)`,
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              inset: 4,
+              borderRadius: 6,
+              border: "1.5px solid rgba(255,255,255,0.5)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: 9,
+              left: 9,
+              width: 4,
+              height: 4,
+              borderRadius: "50%",
+              background: "white",
+            }}
+          />
+        </div>
+        <div>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              letterSpacing: "-0.02em",
+              color: O.ink,
+            }}
+          >
+            Orbit
+          </div>
+          <div
+            style={{
+              fontSize: 9.5,
+              color: O.ink3,
+              fontFamily: O.mono,
+              letterSpacing: "0.14em",
+              marginTop: -2,
+            }}
+          >
+            EVERYONE&apos;S RADIUS
+          </div>
+        </div>
       </Link>
 
-      {/* Primary nav */}
-      <nav className="flex flex-col items-center gap-1.5">
-        {primaryNav.map((item) => (
-          <NavItem
-            key={item.href}
-            item={item}
-            pathname={pathname}
-            badge={item.label === "Notifications" ? unreadCount : undefined}
-          />
-        ))}
+      {/* Nav */}
+      <nav className="flex flex-col gap-1 flex-1">
+        {NAV.map((item) => {
+          const isActive = activeHref === item.href;
+          const Icon = item.icon;
+          const badge =
+            item.label === "Notifications" && unreadCount && unreadCount > 0
+              ? unreadCount
+              : null;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="relative"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                padding: "11px 14px",
+                borderRadius: 14,
+                fontSize: 14,
+                fontWeight: isActive ? 600 : 500,
+                background: isActive ? auroraSoft : "transparent",
+                border: isActive
+                  ? `1px solid ${O.hair2}`
+                  : "1px solid transparent",
+                color: isActive ? O.ink : O.ink2,
+                boxShadow: isActive
+                  ? "inset 0 1px 0 rgba(255,255,255,0.06)"
+                  : "none",
+              }}
+            >
+              <Icon style={{ width: 18, height: 18 }} strokeWidth={1.8} />
+              <span>{item.label}</span>
+              {badge && (
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    background: O.a2,
+                    color: "white",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: "2px 7px",
+                    borderRadius: 99,
+                  }}
+                >
+                  {badge > 9 ? "9+" : badge}
+                </span>
+              )}
+              {isActive && (
+                <span
+                  style={{
+                    position: "absolute",
+                    left: -19,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: 3,
+                    height: 18,
+                    borderRadius: 2,
+                    background: aurora,
+                    boxShadow: `0 0 12px ${O.a2}`,
+                  }}
+                />
+              )}
+            </Link>
+          );
+        })}
       </nav>
 
-      <div className="w-9 h-px bg-white/[0.06] my-4" />
-
-      {/* Secondary nav */}
-      <nav className="flex flex-col items-center gap-1.5">
-        {secondaryNav.map((item) => (
-          <NavItem key={item.href} item={item} pathname={pathname} />
-        ))}
-      </nav>
-
-      <div className="flex-1" />
-
-      {/* Compose */}
-      <button
-        onClick={() => setComposeOpen(true)}
-        title="Compose"
-        className="flex items-center justify-center h-12 w-12 rounded-2xl bg-primary text-primary-foreground shadow-[0_8px_24px_oklch(0.623_0.214_259_/_0.4)] hover:shadow-[0_8px_32px_oklch(0.623_0.214_259_/_0.55)] hover:scale-105 active:scale-95 transition-all duration-200 mb-4"
+      {/* Footer block — compose + user */}
+      <div
+        style={{
+          marginTop: 18,
+          paddingTop: 18,
+          borderTop: `1px solid ${O.hair}`,
+        }}
       >
-        <Plus className="h-5 w-5" strokeWidth={2.5} />
-      </button>
-
-      {/* User */}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          className="flex items-center justify-center rounded-2xl hover:bg-white/[0.06] transition-colors p-1 group cursor-pointer"
-          title={profile?.display_name || "Profile"}
+        <PillBtn
+          primary
+          size="lg"
+          onClick={() => setComposeOpen(true)}
+          style={{ width: "100%", justifyContent: "center" }}
         >
-          <Avatar className="h-10 w-10 rounded-2xl ring-2 ring-white/[0.08] group-hover:ring-primary/40 transition-all">
-            <AvatarImage src={profile?.avatar_url || undefined} className="rounded-2xl" />
-            <AvatarFallback className="rounded-2xl text-sm font-semibold bg-primary/15 text-primary">
-              {profile?.display_name?.[0]?.toUpperCase() ||
-                user?.email?.[0]?.toUpperCase() ||
-                "U"}
-            </AvatarFallback>
-          </Avatar>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="start"
-          side="right"
-          className="w-56 rounded-2xl shadow-2xl border-border/50 ml-3"
-        >
-          <div className="px-3 py-2.5 border-b border-border/50">
-            <p className="text-sm font-semibold truncate text-foreground">
-              {profile?.display_name || user?.email}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">
-              @{profile?.username || "user"}
-            </p>
-          </div>
-          {profile?.username && (
-            <Link href={`/${profile.username}`}>
+          + Compose
+        </PillBtn>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="cursor-pointer"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "14px 4px 0",
+              width: "100%",
+              background: "transparent",
+              border: "none",
+              color: O.ink,
+              textAlign: "left",
+            }}
+          >
+              <Avatar className="h-9 w-9 rounded-full">
+                <AvatarImage src={profile?.avatar_url || undefined} />
+                <AvatarFallback
+                  style={{
+                    background: aurora,
+                    color: "white",
+                    fontWeight: 700,
+                    fontSize: 14,
+                  }}
+                >
+                  {profile?.display_name?.[0]?.toUpperCase() ||
+                    user?.email?.[0]?.toUpperCase() ||
+                    "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: O.ink,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {profile?.display_name || "You"}
+                </div>
+                <div style={{ fontSize: 11, color: O.ink3 }}>
+                  @{profile?.username || "you"}
+                </div>
+              </div>
+              <MoreHorizontal style={{ width: 16, height: 16, color: O.ink3 }} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" side="top" className="w-56 rounded-2xl">
+            {profile?.username && (
+              <Link href={`/${profile.username}`}>
+                <DropdownMenuItem className="cursor-pointer rounded-lg">
+                  View Profile
+                </DropdownMenuItem>
+              </Link>
+            )}
+            <Link href="/settings">
               <DropdownMenuItem className="cursor-pointer rounded-lg">
-                View Profile
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
               </DropdownMenuItem>
             </Link>
-          )}
-          <Link href="/settings">
-            <DropdownMenuItem className="cursor-pointer rounded-lg">
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={signOut}
+              className="text-destructive cursor-pointer rounded-lg"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
             </DropdownMenuItem>
-          </Link>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={signOut}
-            className="text-destructive cursor-pointer rounded-lg"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </aside>
-  );
-}
-
-function NavItem({
-  item,
-  pathname,
-  badge,
-}: {
-  item: { label: string; href: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }> };
-  pathname: string;
-  badge?: number;
-}) {
-  const isActive =
-    pathname === item.href || pathname.startsWith(item.href + "/");
-  const Icon = item.icon;
-
-  return (
-    <Link
-      href={item.href}
-      title={item.label}
-      className={cn(
-        "relative flex items-center justify-center h-11 w-11 rounded-2xl transition-all duration-200 group",
-        isActive
-          ? "bg-primary/15"
-          : "text-muted-foreground hover:bg-white/[0.06]"
-      )}
-    >
-      {isActive && (
-        <span className="absolute -left-[5px] top-1/2 -translate-y-1/2 h-7 w-[3px] rounded-full bg-primary shadow-[0_0_12px_oklch(0.623_0.214_259_/_0.7)]" />
-      )}
-      <span className="relative flex-shrink-0">
-        <Icon
-          className={cn(
-            "h-[20px] w-[20px] transition-colors",
-            isActive ? "text-primary" : "group-hover:text-foreground"
-          )}
-          strokeWidth={isActive ? 2.4 : 1.8}
-        />
-        {!!badge && badge > 0 && (
-          <span className="absolute -top-1.5 -right-2 flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[9px] font-bold leading-none text-white bg-destructive rounded-full ring-2 ring-background">
-            {badge > 9 ? "9+" : badge}
-          </span>
-        )}
-      </span>
-    </Link>
   );
 }

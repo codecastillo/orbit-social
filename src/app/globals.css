@@ -49,9 +49,9 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Dark-first: the app is always dark */
+/* Dark-first: the app is always dark — Orbit Glass tokens */
 :root {
-  --background: oklch(0.14 0.005 260);
+  --background: #070818;
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.17 0.005 260);
   --card-foreground: oklch(0.985 0 0);
@@ -108,7 +108,7 @@
   }
   h1, h2, h3, h4, h5, h6,
   [data-heading] {
-    font-family: var(--font-syne), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
     font-weight: 700;
   }
   p, span, div, button, input, textarea, label, a, li {
