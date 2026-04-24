@@ -27,7 +27,6 @@ export function FeedList({ tab }: FeedListProps) {
     (node: HTMLDivElement | null) => {
       if (observerRef.current) observerRef.current.disconnect();
       if (!node) return;
-
       observerRef.current = new IntersectionObserver(
         (entries) => {
           if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
@@ -36,13 +35,12 @@ export function FeedList({ tab }: FeedListProps) {
         },
         { rootMargin: "400px" }
       );
-
       observerRef.current.observe(node);
     },
     [fetchNextPage, hasNextPage, isFetchingNextPage]
   );
 
-  if (isLoading) return <InstagramFeedSkeleton />;
+  if (isLoading) return <FeedSkeleton />;
 
   if (isError) {
     return (
@@ -50,10 +48,7 @@ export function FeedList({ tab }: FeedListProps) {
         title="Something went wrong"
         description="Failed to load posts. Try again."
         action={
-          <button
-            onClick={() => refetch()}
-            className="text-blue-400 text-sm font-medium hover:underline"
-          >
+          <button onClick={() => refetch()} className="text-primary text-sm font-medium hover:underline">
             Retry
           </button>
         }
@@ -77,7 +72,7 @@ export function FeedList({ tab }: FeedListProps) {
   }
 
   return (
-    <div>
+    <div className="divide-y divide-white/[0.06]">
       {allPosts.map((post) => (
         <PostCard
           key={post.id}
@@ -88,40 +83,36 @@ export function FeedList({ tab }: FeedListProps) {
         />
       ))}
 
-      {/* Infinite scroll trigger */}
       <div ref={loadMoreRef} className="h-1" />
 
       {isFetchingNextPage && (
         <div className="flex justify-center py-6">
-          <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       )}
     </div>
   );
 }
 
-function InstagramFeedSkeleton() {
+function FeedSkeleton() {
   return (
-    <div>
+    <div className="divide-y divide-white/[0.06]">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="border-b border-white/[0.06]">
-          {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-3">
-            <Skeleton className="h-8 w-8 rounded-full" />
-            <Skeleton className="h-3.5 w-24" />
+        <div key={i} className="p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-10 rounded-full" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-3.5 w-28" />
+              <Skeleton className="h-3 w-20" />
+            </div>
           </div>
-          {/* Image placeholder */}
-          <Skeleton className="w-full aspect-square" />
-          {/* Actions */}
-          <div className="flex items-center gap-4 px-4 py-3">
-            <Skeleton className="h-6 w-6 rounded" />
-            <Skeleton className="h-6 w-6 rounded" />
-            <Skeleton className="h-6 w-6 rounded" />
-          </div>
-          {/* Caption */}
-          <div className="px-4 pb-4 space-y-2">
-            <Skeleton className="h-3.5 w-20" />
-            <Skeleton className="h-3 w-3/4" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-56 w-full rounded-xl" />
+          <div className="flex gap-6">
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="h-4 w-12" />
           </div>
         </div>
       ))}
