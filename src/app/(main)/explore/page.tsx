@@ -53,21 +53,21 @@ function TrendingHashtagsSection() {
   if (!hashtags || hashtags.length === 0) return null;
 
   return (
-    <div className="px-4 py-4">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="px-5 py-5">
+      <div className="flex items-center gap-2 mb-3.5">
         <TrendingUp className="h-4 w-4 text-primary" />
-        <h2 className="text-sm font-semibold text-muted-foreground">Trending</h2>
+        <h2 className="section-label">Trending</h2>
       </div>
       <div className="flex flex-wrap gap-2">
         {hashtags.map((tag) => (
           <Link
             key={tag.id}
             href={`/explore?q=%23${tag.name}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
+            className="chip-gradient"
           >
             <Hash className="h-3.5 w-3.5" />
             {tag.name}
-            <span className="text-xs text-primary/60 ml-0.5">
+            <span className="text-[11px] opacity-60 ml-0.5 tabular-nums">
               {tag.post_count}
             </span>
           </Link>
@@ -103,12 +103,12 @@ function PopularPostsSection() {
   if (!posts || posts.length === 0) return null;
 
   return (
-    <div className="px-4 py-4">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="px-5 py-5">
+      <div className="flex items-center gap-2 mb-3.5">
         <Sparkles className="h-4 w-4 text-amber-400" />
-        <h2 className="text-sm font-semibold text-muted-foreground">Popular Posts</h2>
+        <h2 className="section-label">Popular</h2>
       </div>
-      <div className="grid grid-cols-3 gap-1">
+      <div className="grid grid-cols-3 gap-1.5">
         {posts.map((post: any) => {
           const media = post.post_media?.[0];
           const hasImage = media && (media.type === "image" || media.type === "video");
@@ -117,28 +117,33 @@ function PopularPostsSection() {
             <Link
               key={post.id}
               href={`/post/${post.id}`}
-              className="group relative aspect-square rounded-md overflow-hidden bg-muted/30 hover:opacity-90 transition-opacity"
+              className="group relative aspect-square rounded-xl overflow-hidden bg-white/[0.03] border border-white/[0.06] shadow-md shadow-black/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-black/30 hover:border-white/[0.12]"
             >
               {hasImage ? (
                 <img
                   src={media.thumbnail_url || media.url}
                   alt=""
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               ) : (
-                <div className="h-full w-full flex items-center justify-center p-2 bg-gradient-to-br from-muted/40 to-muted/20">
-                  <p className="text-xs text-muted-foreground line-clamp-4 text-center leading-relaxed">
+                <div className="h-full w-full flex items-center justify-center p-3 bg-gradient-to-br from-primary/10 via-purple-500/5 to-transparent">
+                  <p className="text-xs text-foreground/70 line-clamp-5 text-center leading-relaxed font-medium">
                     {post.content?.slice(0, 120) || ""}
                   </p>
                 </div>
               )}
 
-              {/* Hover overlay */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                <div className="flex items-center gap-3 text-white text-xs font-medium">
-                  <span>{post.like_count ?? 0} likes</span>
-                  <span>{post.comment_count ?? 0} comments</span>
-                </div>
+              {/* Gradient fade + stats overlay */}
+              <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-white text-[11px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="inline-flex items-center gap-1 tabular-nums">
+                  <span className="text-rose-400">♥</span>
+                  {post.like_count ?? 0}
+                </span>
+                <span className="inline-flex items-center gap-1 tabular-nums">
+                  <span className="text-sky-400">◌</span>
+                  {post.comment_count ?? 0}
+                </span>
               </div>
             </Link>
           );
@@ -222,11 +227,11 @@ export default function ExplorePage() {
           {/* People to Follow */}
           {!suggestionsError && (suggestionsLoading ||
             (suggestions && suggestions.length > 0)) && (
-            <div className="mt-2 px-4 pb-6">
-              <h2 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-muted-foreground/70" />
-                People to Follow
-              </h2>
+            <div className="mt-2 px-5 pb-8 pt-5">
+              <div className="flex items-center gap-2 mb-3.5">
+                <Sparkles className="h-4 w-4 text-violet-400" />
+                <h2 className="section-label">People to follow</h2>
+              </div>
 
               {suggestionsLoading ? (
                 <div className="space-y-3">

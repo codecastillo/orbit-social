@@ -19,14 +19,19 @@ export default function FeedPage() {
 
       {/* Header */}
       <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80">
-        <div className="flex flex-col items-center justify-center py-4 border-b border-white/[0.06]">
+        <div className="relative flex flex-col items-center justify-center py-4 shadow-[0_1px_0_oklch(1_0_0_/_0.06)]">
           <h1
-            className="text-lg font-bold tracking-tight"
-            style={{ fontFamily: "var(--font-syne), sans-serif" }}
+            className="text-lg font-extrabold tracking-tight"
+            style={{
+              fontFamily: "var(--font-syne), sans-serif",
+              background: "linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.6) 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
           >
             Orbit
           </h1>
-          <div className="mt-1.5 h-[2px] w-8 rounded-full bg-gradient-to-r from-primary/0 via-primary/60 to-primary/0" />
+          <div className="mt-1.5 h-[2px] w-10 rounded-full bg-gradient-to-r from-primary/0 via-primary to-primary/0 shadow-[0_0_12px_oklch(0.623_0.214_259_/_0.6)]" />
         </div>
 
         {/* Moments */}
