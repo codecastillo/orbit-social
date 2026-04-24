@@ -73,33 +73,7 @@ export function UserAvatar({
         </AvatarFallback>
       </Avatar>
 
-      {/* Animated glow keyframe styles */}
-      {avatarBorder === "animated-glow" && (
-        <style jsx global>{`
-          .avatar-animated-glow {
-            background: conic-gradient(
-              from var(--glow-angle, 0deg),
-              #f43f5e,
-              #a855f7,
-              #3b82f6,
-              #10b981,
-              #eab308,
-              #f43f5e
-            );
-            animation: avatar-glow-spin 3s linear infinite;
-          }
-          @keyframes avatar-glow-spin {
-            to {
-              --glow-angle: 360deg;
-            }
-          }
-          @property --glow-angle {
-            syntax: "<angle>";
-            initial-value: 0deg;
-            inherits: false;
-          }
-        `}</style>
-      )}
+      {/* Animated glow styles are in globals.css */}
     </div>
   );
 }

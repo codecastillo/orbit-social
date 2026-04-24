@@ -117,18 +117,16 @@ export function Sidebar() {
 
       {/* User Menu */}
       <DropdownMenu>
-        <DropdownMenuTrigger>
-          <button
-            className="flex items-center justify-center rounded-xl hover:bg-white/[0.06] transition-all duration-200 p-1 group cursor-pointer"
-            title={profile?.display_name || "Profile"}
-          >
-            <Avatar className="h-9 w-9 ring-2 ring-white/[0.08] group-hover:ring-primary/30 transition-all">
-              <AvatarImage src={profile?.avatar_url || undefined} />
-              <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
-                {profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"}
-              </AvatarFallback>
-            </Avatar>
-          </button>
+        <DropdownMenuTrigger
+          className="flex items-center justify-center rounded-xl hover:bg-white/[0.06] transition-all duration-200 p-1 group cursor-pointer"
+          title={profile?.display_name || "Profile"}
+        >
+          <Avatar className="h-9 w-9 ring-2 ring-white/[0.08] group-hover:ring-primary/30 transition-all">
+            <AvatarImage src={profile?.avatar_url || undefined} />
+            <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+              {profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"}
+            </AvatarFallback>
+          </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="start"

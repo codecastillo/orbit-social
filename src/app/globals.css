@@ -133,6 +133,16 @@
   50% { transform: translateY(-12px); }
 }
 
+@keyframes avatar-glow-spin {
+  to { --glow-angle: 360deg; }
+}
+
+@property --glow-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
 @keyframes grain {
   0%, 100% { transform: translate(0, 0); }
   10% { transform: translate(-5%, -10%); }
@@ -320,6 +330,14 @@
     );
     background-size: 200% 100%;
     animation: shimmer 2s ease-in-out infinite;
+  }
+
+  .avatar-animated-glow {
+    background: conic-gradient(
+      from var(--glow-angle, 0deg),
+      #f43f5e, #a855f7, #3b82f6, #10b981, #eab308, #f43f5e
+    );
+    animation: avatar-glow-spin 3s linear infinite;
   }
 
   .scrollbar-hide {
