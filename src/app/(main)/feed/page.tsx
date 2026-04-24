@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InlineComposer } from "@/components/feed/post-composer";
 import { PostComposer } from "@/components/feed/post-composer";
 import { FeedList } from "@/components/feed/feed-list";
+import { MagazineFeed } from "@/components/feed/magazine-feed";
 import { StoryBar } from "@/components/stories/story-bar";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -63,7 +64,7 @@ export default function FeedPage() {
           </TabsList>
 
           <TabsContent value="foryou" className="mt-0">
-            <FeedList tab="foryou" />
+            <MagazineFeed />
           </TabsContent>
 
           <TabsContent value="following" className="mt-0">
