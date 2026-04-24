@@ -150,6 +150,9 @@ export default function SignUpPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [dobMonth, setDobMonth] = useState("");
+  const [dobDay, setDobDay] = useState("");
+  const [dobYear, setDobYear] = useState("");
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const supabase = createClient();
@@ -176,6 +179,14 @@ export default function SignUpPage() {
   });
 
   const passwordValue = watch("password", "");
+
+  const updateDob = (month: string, day: string, year: string) => {
+    if (month && day && year) {
+      setValue("dateOfBirth", `${year}-${month}-${day}`, { shouldValidate: true });
+    } else {
+      setValue("dateOfBirth", "", { shouldValidate: false });
+    }
+  };
   const fullNameValue = watch("fullName", "");
   const usernameValue = watch("username", "");
   const agreeToTerms = watch("agreeToTerms");
@@ -499,17 +510,54 @@ export default function SignUpPage() {
                       )}
                     </div>
 
-                    {/* Date of Birth */}
+                    {/* Date of Birth — month/day/year dropdowns */}
                     <div className="space-y-2">
-                      <Label htmlFor="dateOfBirth" className="text-[13px] text-muted-foreground font-medium">
+                      <Label className="text-[13px] text-muted-foreground font-medium">
                         Date of Birth
                       </Label>
-                      <Input
-                        id="dateOfBirth"
-                        type="date"
-                        {...register("dateOfBirth")}
-                        className="input-premium"
-                      />
+                      <div className="grid grid-cols-3 gap-2">
+                        <select
+                          className="input-premium text-sm appearance-none cursor-pointer"
+                          value={dobMonth}
+                          onChange={(e) => {
+                            setDobMonth(e.target.value);
+                            updateDob(e.target.value, dobDay, dobYear);
+                          }}
+                        >
+                          <option value="">Month</option>
+                          {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, i) => (
+                            <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>
+                          ))}
+                        </select>
+                        <select
+                          className="input-premium text-sm appearance-none cursor-pointer"
+                          value={dobDay}
+                          onChange={(e) => {
+                            setDobDay(e.target.value);
+                            updateDob(dobMonth, e.target.value, dobYear);
+                          }}
+                        >
+                          <option value="">Day</option>
+                          {Array.from({ length: 31 }, (_, i) => (
+                            <option key={i + 1} value={String(i + 1).padStart(2, "0")}>{i + 1}</option>
+                          ))}
+                        </select>
+                        <select
+                          className="input-premium text-sm appearance-none cursor-pointer"
+                          value={dobYear}
+                          onChange={(e) => {
+                            setDobYear(e.target.value);
+                            updateDob(dobMonth, dobDay, e.target.value);
+                          }}
+                        >
+                          <option value="">Year</option>
+                          {Array.from({ length: 100 }, (_, i) => {
+                            const y = new Date().getFullYear() - i;
+                            return <option key={y} value={String(y)}>{y}</option>;
+                          })}
+                        </select>
+                      </div>
+                      <input type="hidden" {...register("dateOfBirth")} />
                       {errors.dateOfBirth && (
                         <p className="text-xs text-destructive mt-1">{errors.dateOfBirth.message}</p>
                       )}
