@@ -112,17 +112,21 @@ export function FeedList({ tab }: FeedListProps) {
   }
 
   return (
-    <div className="divide-y divide-white/[0.06]">
-      {allPosts.map((post) => (
-        <PostCard
-          key={post.id}
-          post={post}
-          isLiked={post.user_has_liked}
-          isBookmarked={post.user_has_bookmarked}
-          isReposted={post.user_has_reposted}
-          onUpdate={() => refetch()}
-          allUserPosts={allPosts}
-        />
+    <div className="space-y-0">
+      {allPosts.map((post, index) => (
+        <div key={post.id}>
+          <PostCard
+            post={post}
+            isLiked={post.user_has_liked}
+            isBookmarked={post.user_has_bookmarked}
+            isReposted={post.user_has_reposted}
+            onUpdate={() => refetch()}
+            allUserPosts={allPosts}
+          />
+          {index < allPosts.length - 1 && (
+            <div className="mx-5 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+          )}
+        </div>
       ))}
 
       <div ref={loadMoreRef} className="h-1" />
@@ -138,9 +142,9 @@ export function FeedList({ tab }: FeedListProps) {
 
 function FeedSkeleton() {
   return (
-    <div className="divide-y divide-white/[0.06]">
+    <div className="space-y-0">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="p-4 space-y-3">
+        <div key={i} className="p-5 space-y-3">
           <div className="flex items-center gap-3">
             <Skeleton className="h-10 w-10 rounded-full" />
             <div className="space-y-1.5">

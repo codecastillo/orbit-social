@@ -39,7 +39,7 @@ export function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 glass lg:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden" style={{ background: "oklch(1 0 0 / 6%)", backdropFilter: "blur(80px) saturate(2)", WebkitBackdropFilter: "blur(80px) saturate(2)", borderTop: "1px solid oklch(1 0 0 / 10%)", boxShadow: "0 -4px 30px oklch(0 0 0 / 30%)" }}>
       <div className="flex items-center justify-around h-16 px-2 pb-[env(safe-area-inset-bottom)]">
         {items.map((item) => {
           const isCompose = item.href === "#compose";
@@ -74,13 +74,13 @@ export function BottomNav() {
               <Icon
                 className={cn(
                   "h-6 w-6 transition-all duration-200",
-                  isActive && "text-primary drop-shadow-[0_0_8px_oklch(0.623_0.214_259_/_50%)]"
+                  isActive && "text-primary drop-shadow-[0_0_10px_oklch(0.623_0.214_259_/_60%)]"
                 )}
                 strokeWidth={isActive ? 2.5 : 1.8}
                 fill={isActive ? "currentColor" : "none"}
               />
               {isActive && (
-                <span className="h-1 w-1 rounded-full bg-primary shadow-[0_0_6px_oklch(0.623_0.214_259_/_80%)]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_oklch(0.623_0.214_259_/_80%)]" />
               )}
             </Link>
           );

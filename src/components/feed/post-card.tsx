@@ -370,7 +370,10 @@ export function PostCard({
 
   return (
     <article
-      className={cn("p-4 transition-colors hover:bg-white/[0.02]", !compact && "cursor-pointer")}
+      className={cn(
+        "p-5 transition-all hover:bg-white/[0.02] border-l-3 border-l-transparent hover:border-l-primary/60 rounded-l-sm",
+        !compact && "cursor-pointer"
+      )}
       onClick={compact ? undefined : () => router.push(`/post/${displayPost.id}`)}
     >
       {/* Boosted indicator */}
@@ -422,7 +425,7 @@ export function PostCard({
                 <span className="truncate max-w-[100px]">{displayPost.location}</span>
               </Link>
             )}
-            <span className="text-muted-foreground/50 text-[13px] shrink-0">· {formatTimeAgo(post.created_at)}</span>
+            <span className="text-muted-foreground/50 text-[12px] shrink-0 bg-white/[0.04] rounded-full px-2 py-0.5">{formatTimeAgo(post.created_at)}</span>
 
             <div className="ml-auto shrink-0">
               <DropdownMenu>
@@ -565,7 +568,7 @@ export function PostCard({
           {(!displayPost.content_warning || spoilerRevealed) && displayHasMedia && displayPost.post_media.some((m) => !isAudioMediaItem(m.url)) && (
             <div
               className={cn(
-                "mt-3 rounded-xl overflow-hidden border border-white/[0.06]",
+                "mt-3 rounded-2xl overflow-hidden border border-white/[0.06] shadow-md shadow-black/20",
                 displayPost.post_media.filter((m) => !isAudioMediaItem(m.url)).length > 1 && "grid gap-0.5",
                 displayPost.post_media.filter((m) => !isAudioMediaItem(m.url)).length === 2 && "grid-cols-2",
                 displayPost.post_media.filter((m) => !isAudioMediaItem(m.url)).length >= 3 && "grid-cols-2 grid-rows-2",
@@ -602,7 +605,7 @@ export function PostCard({
           {/* Actions */}
           <div className="flex items-center justify-between mt-3 -ml-2" onClick={(e) => e.stopPropagation()}>
             {/* Left actions */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               {/* Like */}
               <div className="relative" onMouseEnter={() => {}} onMouseLeave={() => {}}>
                 {!compact && <ReactionPicker onSelect={handleReaction} currentReaction={userReaction} />}
@@ -757,7 +760,7 @@ function PollDisplay({
 function PostContent({ content }: { content: string }) {
   const parts = content.split(/([@#]\w+)/g);
   return (
-    <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+    <p className="text-[15px] leading-[1.6] whitespace-pre-wrap break-words">
       {parts.map((part, i) => {
         if (part.startsWith("#")) {
           const tag = part.slice(1);

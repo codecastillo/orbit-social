@@ -101,7 +101,7 @@ export function ProfileHeader({
   return (
     <div className="relative" style={accentStyle}>
       {/* Cover photo or gradient */}
-      <div className="h-36 sm:h-44 relative overflow-hidden">
+      <div className="h-44 sm:h-52 relative overflow-hidden">
         {profile.cover_url ? (
           <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
         ) : (
@@ -116,14 +116,14 @@ export function ProfileHeader({
             }
           >
             {!themeColor && (
-              <div className="w-full h-full bg-gradient-to-br from-primary/20 via-purple-500/15 to-blue-500/10" />
+              <div className="w-full h-full bg-gradient-to-br from-primary/25 via-purple-500/20 via-60% to-cyan-500/15" />
             )}
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
       </div>
 
-      <div className="relative px-5 -mt-12 pb-5">
+      <div className="relative px-5 -mt-12 pb-5 space-y-4">
         {/* Avatar + Stats row */}
         <div className="flex items-end gap-5">
           {/* Avatar */}
@@ -131,7 +131,7 @@ export function ProfileHeader({
             src={profile.avatar_url}
             fallback={profile.display_name}
             size="xl"
-            className="h-24 w-24 shrink-0 ring-4 ring-background shadow-xl"
+            className="h-24 w-24 shrink-0 ring-4 ring-background shadow-xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.4)]"
             avatarBorder={avatarBorder}
           />
 
@@ -146,7 +146,7 @@ export function ProfileHeader({
                 key={stat.label}
                 className="flex flex-col items-center gap-0.5 hover:opacity-80 transition-opacity"
               >
-                <span className="text-xl font-extrabold leading-tight" style={syne}>
+                <span className="text-2xl font-extrabold leading-tight" style={syne}>
                   {formatNumber(stat.value)}
                 </span>
                 <span className="text-[11px] text-muted-foreground font-medium">
@@ -158,7 +158,7 @@ export function ProfileHeader({
         </div>
 
         {/* Name + Username */}
-        <div className="mt-4">
+        <div>
           <div className="flex items-center gap-1.5">
             <h1 className="text-xl font-extrabold" style={syne}>
               {profile.display_name}
@@ -178,11 +178,11 @@ export function ProfileHeader({
 
         {/* Bio */}
         {profile.bio && (
-          <p className="mt-3 text-[14px] leading-relaxed">{profile.bio}</p>
+          <p className="text-[14px] leading-[1.7] max-w-md">{profile.bio}</p>
         )}
 
         {/* Website + Join date */}
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           {profile.website &&
             (() => {
               try {
@@ -213,7 +213,7 @@ export function ProfileHeader({
         </div>
 
         {/* Action buttons */}
-        <div className="mt-5 flex items-center gap-2">
+        <div className="flex items-center gap-2">
           {isOwnProfile ? (
             <>
               <Button

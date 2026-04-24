@@ -63,7 +63,7 @@ export function Sidebar() {
       <div className="w-8 h-px bg-white/[0.08] my-2" />
 
       {/* Navigation */}
-      <nav className="flex-1 flex flex-col items-center gap-1 overflow-y-auto scrollbar-hide py-1">
+      <nav className="flex-1 flex flex-col items-center gap-1.5 overflow-y-auto scrollbar-hide py-1">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
@@ -76,12 +76,12 @@ export function Sidebar() {
               className={cn(
                 "relative flex items-center justify-center h-11 w-11 rounded-xl transition-all duration-200 group",
                 isActive
-                  ? "bg-primary/15 shadow-[0_0_16px_oklch(0.623_0.214_259_/_20%)]"
-                  : "text-muted-foreground hover:bg-white/[0.06] hover:shadow-[0_0_12px_oklch(0.623_0.214_259_/_10%)]"
+                  ? "bg-primary/20 shadow-[0_0_20px_oklch(0.623_0.214_259_/_30%)]"
+                  : "text-muted-foreground hover:bg-white/[0.08] hover:shadow-[0_0_14px_oklch(0.623_0.214_259_/_12%)]"
               )}
             >
               {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary shadow-[0_0_8px_oklch(0.623_0.214_259_/_60%)]" />
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[4px] h-5 rounded-r-full bg-primary shadow-[0_0_12px_oklch(0.623_0.214_259_/_70%)]" />
               )}
               <span className="relative flex-shrink-0">
                 <Icon
@@ -109,6 +109,7 @@ export function Sidebar() {
         onClick={() => setComposeOpen(true)}
         title="Compose"
         className="flex items-center justify-center h-11 w-11 rounded-full bg-primary shadow-lg glow-box hover:scale-105 hover:shadow-[0_0_24px_oklch(0.623_0.214_259_/_40%)] active:scale-95 transition-all duration-200 mb-2 cursor-pointer"
+        style={{ animation: "pulse-subtle 3s ease-in-out infinite" }}
       >
         <Plus className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
       </button>
@@ -118,10 +119,10 @@ export function Sidebar() {
       {/* User Menu */}
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="flex items-center justify-center rounded-xl hover:bg-white/[0.06] transition-all duration-200 p-1 group cursor-pointer"
+          className="flex items-center justify-center rounded-xl hover:bg-white/[0.08] transition-all duration-200 p-1 group cursor-pointer"
           title={profile?.display_name || "Profile"}
         >
-          <Avatar className="h-9 w-9 ring-2 ring-white/[0.08] group-hover:ring-primary/30 transition-all">
+          <Avatar className="h-9 w-9 ring-2 ring-white/[0.08] group-hover:ring-primary/40 group-hover:shadow-[0_0_14px_oklch(0.623_0.214_259_/_25%)] transition-all">
             <AvatarImage src={profile?.avatar_url || undefined} />
             <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
               {profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"}

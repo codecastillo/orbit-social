@@ -710,7 +710,7 @@ export default function SignUpPage() {
               {currentStep < 2 ? (
                 <Button
                   type="button"
-                  className={`h-12 rounded-full text-[15px] font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 ${
+                  className={`h-12 rounded-full text-[15px] font-bold bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all ${
                     currentStep === 0 ? "w-full" : "flex-1"
                   }`}
                   onClick={goNext}
@@ -721,7 +721,7 @@ export default function SignUpPage() {
               ) : (
                 <Button
                   type="submit"
-                  className="flex-1 h-12 rounded-full text-[15px] font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25"
+                  className="flex-1 h-12 rounded-full text-[15px] font-bold bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all"
                   disabled={isSubmitting || !agreeToTerms}
                 >
                   {isSubmitting ? (

@@ -165,7 +165,7 @@ export default function ExplorePage() {
   return (
     <div className="min-h-screen">
       {/* Search bar - prominent, at the very top */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl px-4 pt-4 pb-3 border-b border-border/40">
+      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-2xl px-5 pt-4 pb-3 shadow-[0_1px_0_oklch(1_0_0_/_0.06)]">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input

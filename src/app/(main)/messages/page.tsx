@@ -18,8 +18,8 @@ export default function MessagesPage() {
   return (
     <div className="min-h-screen">
       {/* Header -- frosted glass with pen icon */}
-      <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 border-b border-white/[0.06]">
-        <div className="flex items-center justify-between px-5 py-4">
+      <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 shadow-[0_1px_0_oklch(1_0_0_/_0.06)]">
+        <div className="flex items-center justify-between h-14 px-5">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
               <MessageCircle className="h-4.5 w-4.5 text-blue-400" />

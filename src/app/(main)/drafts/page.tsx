@@ -41,8 +41,8 @@ export default function DraftsPage() {
   if (!hydrated) {
     return (
       <div className="min-h-screen">
-        <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 border-b border-white/[0.06]">
-          <div className="flex items-center gap-3 px-5 py-4">
+        <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 shadow-[0_1px_0_oklch(1_0_0_/_0.06)]">
+          <div className="flex items-center gap-3 h-14 px-5">
             <div className="h-5 w-5 rounded bg-muted animate-pulse" />
             <div className="h-5 w-24 rounded bg-muted animate-pulse" />
           </div>
@@ -59,8 +59,8 @@ export default function DraftsPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 border-b border-white/[0.06]">
-        <div className="flex items-center justify-between px-5 py-4">
+      <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 shadow-[0_1px_0_oklch(1_0_0_/_0.06)]">
+        <div className="flex items-center justify-between h-14 px-5">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-slate-500/20 to-zinc-500/20 flex items-center justify-center">
               <FileText className="h-4.5 w-4.5 text-slate-400" />

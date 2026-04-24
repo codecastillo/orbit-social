@@ -127,7 +127,7 @@ export function ProfileContent({
   return (
     <>
       {/* Top bar */}
-      <div className="sticky top-0 z-20 flex items-center gap-4 h-14 px-4 bg-background/80 backdrop-blur-xl border-b border-white/[0.06]">
+      <div className="sticky top-0 z-20 flex items-center gap-4 h-14 px-5 bg-background/80 backdrop-blur-2xl shadow-[0_1px_0_oklch(1_0_0_/_0.06)]">
         <button
           onClick={() => router.back()}
           className="h-9 w-9 flex items-center justify-center rounded-full bg-white/[0.05] hover:bg-white/[0.08] transition-colors"
@@ -158,7 +158,7 @@ export function ProfileContent({
       </div>
 
       {/* Tab bar */}
-      <div className="flex border-t border-b border-white/[0.06]">
+      <div className="flex shadow-[0_1px_0_oklch(1_0_0_/_0.06)]">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.value;
@@ -168,7 +168,7 @@ export function ProfileContent({
               key={tab.value}
               onClick={() => setActiveTab(tab.value)}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-3.5 relative transition-colors",
+                "flex-1 flex items-center justify-center gap-2 h-12 relative transition-colors",
                 isActive
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground/70"
@@ -178,7 +178,7 @@ export function ProfileContent({
               <Icon className={cn("h-4 w-4", isActive && "text-primary")} />
               <span className="text-[12px] font-semibold">{tab.label}</span>
               {isActive && (
-                <span className="absolute bottom-0 inset-x-4 h-[2px] bg-primary rounded-full" />
+                <span className="absolute bottom-0 inset-x-4 h-[3px] bg-primary rounded-full" />
               )}
             </button>
           );

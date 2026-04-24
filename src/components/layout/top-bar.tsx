@@ -7,7 +7,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 
 export function TopBar() {
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between h-14 px-4 glass lg:hidden">
+    <header className="sticky top-0 z-30 flex items-center justify-between h-14 px-4 glass shadow-[0_2px_16px_oklch(0_0_0_/_25%)] lg:hidden" style={{ borderBottom: "none" }}>
       {/* Logo */}
       <Link href="/feed" className="flex items-center gap-2 flex-shrink-0">
         <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm glow-box">
@@ -33,7 +33,7 @@ export function TopBar() {
         <NotificationBell />
         <Link
           href="/messages"
-          className="h-9 w-9 flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] transition-colors"
+          className="h-9 w-9 flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.10] hover:shadow-[0_0_10px_oklch(1_0_0_/_8%)] transition-all duration-200"
         >
           <MessageCircle className="h-[18px] w-[18px] text-foreground" />
         </Link>

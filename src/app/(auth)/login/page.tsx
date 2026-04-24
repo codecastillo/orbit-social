@@ -284,7 +284,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-5">
               <Input
                 type="text"
                 inputMode="numeric"
@@ -302,7 +302,7 @@ export default function LoginPage() {
               <Button
                 onClick={handleMfaVerify}
                 disabled={mfaCode.length !== 6 || mfaVerifying}
-                className="w-full h-12 rounded-full text-[15px] font-bold shadow-lg shadow-primary/20"
+                className="w-full h-12 rounded-full text-[15px] font-bold bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all"
               >
                 {mfaVerifying ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -471,7 +471,7 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              className="w-full h-12 rounded-full text-[15px] font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25"
+              className="w-full h-12 rounded-full text-[15px] font-bold bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all"
               disabled={isSubmitting || isLocked}
             >
               {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Log In"}

@@ -45,9 +45,9 @@ export function PostComposer() {
 
   return (
     <Dialog open={composeOpen} onOpenChange={(open) => setComposeOpen(open)}>
-      <DialogContent className="sm:max-w-[520px] p-0 gap-0 bg-zinc-900 border-white/[0.1] rounded-xl overflow-hidden shadow-2xl">
-        <div className="text-center py-3 border-b border-white/[0.06]">
-          <span className="text-sm font-semibold text-zinc-100">Create new post</span>
+      <DialogContent className="sm:max-w-[520px] p-0 gap-0 bg-zinc-900 border-white/[0.1] rounded-2xl overflow-hidden shadow-2xl">
+        <div className="text-center py-4 border-b border-white/[0.06] bg-white/[0.02]">
+          <span className="text-sm font-bold text-zinc-100 tracking-tight">Create new post</span>
         </div>
         {user && (
           <ComposerForm
@@ -87,7 +87,7 @@ export function InlineComposer({
     <div className="border-b border-white/[0.06]">
       <button
         onClick={() => setComposeOpen(true, communityId)}
-        className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-white/[0.02] transition-colors cursor-pointer"
+        className="flex items-center gap-3 w-full px-4 py-4 text-left hover:bg-white/[0.02] border border-transparent hover:border-white/[0.08] hover:shadow-[0_0_20px_oklch(0.623_0.214_259/0.06)] transition-all cursor-pointer"
       >
         <UserAvatar
           src={profile?.avatar_url}
@@ -844,6 +844,7 @@ function ComposerForm({
             className="h-9 w-9 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-40 disabled:pointer-events-none"
             onClick={() => fileInputRef.current?.click()}
             disabled={media.length >= MAX_IMAGES}
+            title="Add photo"
           >
             <ImageIcon className="h-5 w-5" />
           </button>
@@ -997,10 +998,10 @@ function ComposerForm({
           <Button
             size="sm"
             className={cn(
-              "rounded-lg px-6 font-semibold border-0 transition-colors",
+              "rounded-lg px-6 font-semibold border-0 transition-all",
               showSchedule && scheduledAt
                 ? "bg-amber-500 hover:bg-amber-600 text-white"
-                : "bg-blue-500 hover:bg-blue-600 text-white"
+                : "btn-gradient"
             )}
             onClick={handleSubmit}
             disabled={!canPost || posting || (showSchedule && !scheduledAt)}
