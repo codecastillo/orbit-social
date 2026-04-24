@@ -133,7 +133,7 @@ export default function PrivacySettingsPage() {
 
         <Button
           onClick={handleSave}
-          className="w-full"
+          className="w-full h-10 rounded-xl font-semibold text-sm px-5 cursor-pointer"
           disabled={saving}
         >
           {saving ? (

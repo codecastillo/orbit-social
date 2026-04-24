@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getUserPosts, getUserLikedPosts, getUserBookmarkedPosts, getUserRepostedPosts, getUserPinnedPosts } from "@/lib/queries/posts";
 import { PostCard } from "@/components/feed/post-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const syne = { fontFamily: "var(--font-syne), sans-serif" };
@@ -69,21 +70,21 @@ export function ProfileContent({
     staleTime: 1000 * 60 * 2,
   });
 
-  const { data: likedPosts = [] } = useQuery({
+  const { data: likedPosts = [], isLoading: isLoadingLikes } = useQuery({
     queryKey: ["user-liked-posts", profile.id],
     queryFn: () => getUserLikedPosts(profile.id),
     enabled: activeTab === "likes",
     staleTime: 1000 * 60,
   });
 
-  const { data: repostedPosts = [] } = useQuery({
+  const { data: repostedPosts = [], isLoading: isLoadingReposts } = useQuery({
     queryKey: ["user-reposted-posts", profile.id],
     queryFn: () => getUserRepostedPosts(profile.id),
     enabled: activeTab === "reposts",
     staleTime: 1000 * 60,
   });
 
-  const { data: savedPosts = [] } = useQuery({
+  const { data: savedPosts = [], isLoading: isLoadingSaved } = useQuery({
     queryKey: ["user-saved-posts", profile.id],
     queryFn: () => getUserBookmarkedPosts(profile.id),
     enabled: activeTab === "saved" && isOwnProfile,
@@ -221,7 +222,9 @@ export function ProfileContent({
       )}
 
       {activeTab === "likes" && (
-        likedPosts.length > 0 ? (
+        isLoadingLikes ? (
+          <ProfileTabSkeleton />
+        ) : likedPosts.length > 0 ? (
           <div className="divide-y divide-white/[0.06]">
             {likedPosts.map((post) => (
               <PostCard key={post.id} post={post} isLiked={true} />
@@ -239,7 +242,9 @@ export function ProfileContent({
       )}
 
       {activeTab === "reposts" && (
-        repostedPosts.length > 0 ? (
+        isLoadingReposts ? (
+          <ProfileTabSkeleton />
+        ) : repostedPosts.length > 0 ? (
           <div className="divide-y divide-white/[0.06]">
             {repostedPosts.map((post) => (
               <PostCard key={post.id} post={post} />
@@ -257,7 +262,9 @@ export function ProfileContent({
       )}
 
       {activeTab === "saved" && isOwnProfile && (
-        savedPosts.length > 0 ? (
+        isLoadingSaved ? (
+          <ProfileTabSkeleton />
+        ) : savedPosts.length > 0 ? (
           <div className="divide-y divide-white/[0.06]">
             {savedPosts.map((post) => (
               <PostCard key={post.id} post={post} isBookmarked={true} />
@@ -274,5 +281,30 @@ export function ProfileContent({
         )
       )}
     </>
+  );
+}
+
+function ProfileTabSkeleton() {
+  return (
+    <div className="divide-y divide-white/[0.06]">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-10 rounded-full" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-3.5 w-28" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+          </div>
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <div className="flex gap-6 pt-1">
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="h-4 w-12" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

@@ -479,7 +479,7 @@ export default function EditProfilePage() {
             <Button
               type="button"
               variant="outline"
-              className="mt-2 rounded-xl h-10"
+              className="mt-2 rounded-xl h-10 px-5 font-semibold text-sm cursor-pointer"
               onClick={() => setQrOpen(true)}
             >
               <QrCode className="h-4 w-4 mr-2" />
@@ -490,7 +490,7 @@ export default function EditProfilePage() {
           <div className="pt-2 pb-6">
             <Button
               type="submit"
-              className="w-full"
+              className="w-full h-10 rounded-xl font-semibold text-sm px-5 cursor-pointer"
               disabled={isSubmitting || uploadingAvatar || uploadingCover}
             >
               {isSubmitting ? (

@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Upload, X } from "lucide-react";
 import {
   Dialog,
@@ -78,8 +79,10 @@ export function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reels"] });
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
       resetForm();
       onOpenChange(false);
+      toast.success("Reel posted");
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : "Failed to post reel.");

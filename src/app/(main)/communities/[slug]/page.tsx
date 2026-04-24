@@ -112,6 +112,7 @@ export default function CommunityDetailPage({
       {isMember && user && (
         <div className="border-b border-border p-4">
           <InlineComposer
+            communityId={community.id}
             onSuccess={() => refetchPosts()}
           />
         </div>

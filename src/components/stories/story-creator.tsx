@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { ImagePlus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -36,6 +37,7 @@ export function StoryCreator({ open, onOpenChange }: StoryCreatorProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["stories"] });
       handleClose();
+      toast.success("Moment posted");
     },
   });
 

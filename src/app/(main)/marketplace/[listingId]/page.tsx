@@ -15,6 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { formatTimeAgo } from "@/lib/utils/format";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { getOrCreateDMConversation } from "@/lib/queries/messages";
 import {
   getListingById,
   type ListingWithSeller,
@@ -35,9 +37,11 @@ export default function ListingDetailPage({
 }) {
   const { listingId } = use(params);
   const router = useRouter();
+  const { user } = useAuth();
   const [listing, setListing] = useState<ListingWithSeller | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [messagingSeller, setMessagingSeller] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -52,6 +56,19 @@ export default function ListingDetailPage({
     }
     load();
   }, [listingId]);
+
+  const handleMessageSeller = async () => {
+    if (!user || !listing) return;
+    setMessagingSeller(true);
+    try {
+      const conversationId = await getOrCreateDMConversation(user.id, listing.seller_id);
+      router.push(`/messages/${conversationId}`);
+    } catch {
+      console.error("Failed to start conversation");
+    } finally {
+      setMessagingSeller(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -211,9 +228,14 @@ export default function ListingDetailPage({
               </p>
             </div>
           </div>
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleMessageSeller}
+            disabled={messagingSeller || !user || user.id === listing.seller_id}
+          >
             <MessageCircleIcon className="h-4 w-4" />
-            Message Seller
+            {messagingSeller ? "Opening..." : "Message Seller"}
           </Button>
         </div>
       </div>

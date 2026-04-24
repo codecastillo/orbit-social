@@ -2,7 +2,8 @@ import { create } from "zustand";
 
 interface UIStore {
   composeOpen: boolean;
-  setComposeOpen: (open: boolean) => void;
+  composeCommunityId: string | undefined;
+  setComposeOpen: (open: boolean, communityId?: string) => void;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
   mobileMenuOpen: boolean;
@@ -11,7 +12,9 @@ interface UIStore {
 
 export const useUIStore = create<UIStore>((set) => ({
   composeOpen: false,
-  setComposeOpen: (open) => set({ composeOpen: open }),
+  composeCommunityId: undefined,
+  setComposeOpen: (open, communityId) =>
+    set({ composeOpen: open, composeCommunityId: open ? communityId : undefined }),
   sidebarCollapsed: false,
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   mobileMenuOpen: false,

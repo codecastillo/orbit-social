@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell, CheckCheck, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NotificationItem } from "@/components/notifications/notification-item";
@@ -11,7 +11,7 @@ import { markAllAsRead } from "@/lib/queries/notifications";
 
 export default function NotificationsPage() {
   const { user } = useAuth();
-  const { data: notifications, isLoading } = useNotifications();
+  const { data: notifications, isLoading, isError, refetch } = useNotifications();
   const { data: unreadCount } = useUnreadCount();
   const queryClient = useQueryClient();
 
@@ -25,7 +25,7 @@ export default function NotificationsPage() {
   return (
     <div className="min-h-screen">
       {/* Header — frosted glass with bell icon and unread badge */}
-      <div className="sticky top-0 z-10 bg-background/60 backdrop-blur-2xl border-b border-white/[0.06]">
+      <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 border-b border-white/[0.06]">
         <div className="flex items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center relative">
@@ -36,7 +36,7 @@ export default function NotificationsPage() {
                 </span>
               )}
             </div>
-            <h2 className="text-xl font-bold tracking-tight">Notifications</h2>
+            <h1 className="text-xl font-extrabold tracking-tight">Notifications</h1>
           </div>
           {!!unreadCount && unreadCount > 0 && (
             <Button
@@ -52,7 +52,23 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center px-5">
+          <div className="h-16 w-16 rounded-2xl bg-destructive/10 flex items-center justify-center mb-5">
+            <AlertCircle className="h-7 w-7 text-destructive" />
+          </div>
+          <p className="text-lg font-semibold text-foreground/80">Something went wrong</p>
+          <p className="text-sm mt-1.5 text-muted-foreground/70">
+            Failed to load notifications. Please try again.
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="text-primary text-sm font-medium hover:underline mt-3"
+          >
+            Retry
+          </button>
+        </div>
+      ) : isLoading ? (
         <div className="p-4 space-y-2">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
@@ -68,12 +84,12 @@ export default function NotificationsPage() {
           ))}
         </div>
       ) : !notifications || notifications.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+        <div className="flex flex-col items-center justify-center py-20">
           <div className="h-16 w-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mb-5">
-            <Bell className="h-7 w-7 opacity-40" />
+            <Bell className="h-7 w-7 text-muted-foreground/40" />
           </div>
-          <p className="text-lg font-semibold text-foreground/80">All caught up</p>
-          <p className="text-sm mt-1.5 text-muted-foreground/70">
+          <p className="text-base font-semibold text-muted-foreground">All caught up</p>
+          <p className="text-sm text-muted-foreground/60 mt-1.5">
             No new notifications right now.
           </p>
         </div>

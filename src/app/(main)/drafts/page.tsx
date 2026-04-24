@@ -40,14 +40,16 @@ export default function DraftsPage() {
 
   if (!hydrated) {
     return (
-      <div className="border-x border-border min-h-screen">
-        <div className="p-4 border-b border-border flex items-center gap-3">
-          <div className="h-5 w-5 rounded bg-muted animate-pulse" />
-          <div className="h-5 w-24 rounded bg-muted animate-pulse" />
+      <div className="min-h-screen">
+        <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3 px-5 py-4">
+            <div className="h-5 w-5 rounded bg-muted animate-pulse" />
+            <div className="h-5 w-24 rounded bg-muted animate-pulse" />
+          </div>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="p-5 space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-24 rounded-xl bg-muted/30 animate-pulse" />
+            <div key={i} className="h-24 rounded-xl bg-white/[0.03] animate-pulse" />
           ))}
         </div>
       </div>
@@ -55,31 +57,33 @@ export default function DraftsPage() {
   }
 
   return (
-    <div className="border-x border-border min-h-screen">
-      <div className="p-4 border-b border-border flex items-center gap-3">
-        <Link
-          href="/feed"
-          className="text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <h2 className="text-lg font-semibold">Drafts</h2>
-        {drafts.length > 0 && (
-          <span className="text-sm text-muted-foreground ml-auto">
-            {drafts.length} draft{drafts.length !== 1 ? "s" : ""}
-          </span>
-        )}
+    <div className="min-h-screen">
+      {/* Header */}
+      <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-slate-500/20 to-zinc-500/20 flex items-center justify-center">
+              <FileText className="h-4.5 w-4.5 text-slate-400" />
+            </div>
+            <h1 className="text-xl font-extrabold tracking-tight">Drafts</h1>
+          </div>
+          {drafts.length > 0 && (
+            <span className="text-sm text-muted-foreground">
+              {drafts.length} draft{drafts.length !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
       </div>
 
       {drafts.length === 0 ? (
-        <div className="flex flex-col items-center py-16 text-center px-5">
-          <div className="h-14 w-14 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-            <FileText className="h-6 w-6 text-muted-foreground/50" />
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="h-16 w-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mb-5">
+            <FileText className="h-7 w-7 text-muted-foreground/40" />
           </div>
-          <h3 className="text-base font-semibold text-zinc-300 mb-1">
+          <p className="text-base font-semibold text-muted-foreground">
             No drafts yet
-          </h3>
-          <p className="text-sm text-muted-foreground max-w-xs">
+          </p>
+          <p className="text-sm text-muted-foreground/60 mt-1.5 max-w-xs text-center">
             When you save a post as a draft, it will appear here so you can
             finish and publish it later.
           </p>

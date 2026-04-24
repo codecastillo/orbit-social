@@ -95,12 +95,12 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-zinc-950/60 backdrop-blur-2xl border-b border-white/[0.06]">
+      <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 border-b border-white/[0.06]">
         <div className="flex items-center gap-3 px-5 py-4">
           <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-zinc-400/20 to-zinc-500/20 flex items-center justify-center">
             <Settings className="h-4.5 w-4.5 text-zinc-400" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-zinc-100" style={{ fontFamily: "var(--font-syne), sans-serif" }}>Settings</h1>
+          <h1 className="text-xl font-extrabold tracking-tight">Settings</h1>
         </div>
       </div>
 

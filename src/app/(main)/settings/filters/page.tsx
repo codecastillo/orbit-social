@@ -47,17 +47,12 @@ export default function FiltersPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-zinc-950/60 backdrop-blur-2xl border-b border-white/[0.06]">
+      <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 border-b border-white/[0.06]">
         <div className="flex items-center gap-3 px-5 py-4">
           <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-pink-500/20 to-rose-500/20 flex items-center justify-center">
             <Filter className="h-4.5 w-4.5 text-pink-400" />
           </div>
-          <h1
-            className="text-xl font-bold tracking-tight text-zinc-100"
-            style={{ fontFamily: "var(--font-syne), sans-serif" }}
-          >
-            Word Filters
-          </h1>
+          <h1 className="text-xl font-extrabold tracking-tight">Word Filters</h1>
         </div>
       </div>
 
@@ -95,7 +90,7 @@ export default function FiltersPage() {
           <Button
             onClick={handleAdd}
             disabled={!newWord.trim()}
-            className="rounded-xl bg-pink-500 hover:bg-pink-600 text-white shrink-0"
+            className="rounded-xl h-10 px-5 font-semibold text-sm cursor-pointer bg-pink-500 hover:bg-pink-600 text-white shrink-0"
           >
             <Plus className="h-4 w-4 mr-1" />
             Add
@@ -104,12 +99,12 @@ export default function FiltersPage() {
 
         {/* Blocked words list */}
         {blockedWords.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800">
-              <Filter className="h-6 w-6 text-zinc-500" />
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="h-16 w-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mb-5">
+              <Filter className="h-7 w-7 text-muted-foreground/40" />
             </div>
-            <p className="text-zinc-300 font-medium">No blocked words</p>
-            <p className="text-sm text-zinc-500 mt-1">
+            <p className="text-base font-semibold text-muted-foreground">No blocked words</p>
+            <p className="text-sm text-muted-foreground/60 mt-1.5">
               Add words above to filter them from your feed.
             </p>
           </div>

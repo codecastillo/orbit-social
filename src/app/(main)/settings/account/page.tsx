@@ -197,7 +197,7 @@ export default function AccountSettingsPage() {
               )}
             </div>
 
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className="h-10 rounded-xl font-semibold text-sm px-5 cursor-pointer">
               {isSubmitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
@@ -226,6 +226,7 @@ export default function AccountSettingsPage() {
             <Button
               variant="destructive"
               onClick={() => setDeleteDialogOpen(true)}
+              className="h-10 rounded-xl font-semibold text-sm px-5 cursor-pointer"
             >
               Delete Account
             </Button>

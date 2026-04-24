@@ -218,7 +218,7 @@ export function ProfileHeader({
             <>
               <Button
                 variant="outline"
-                className="flex-1 rounded-xl h-10 text-sm font-semibold"
+                className="flex-1 rounded-xl h-10 px-5 text-sm font-semibold cursor-pointer"
                 onClick={() => router.push("/settings/profile")}
               >
                 Edit Profile
@@ -246,7 +246,7 @@ export function ProfileHeader({
               />
               <Button
                 variant="outline"
-                className="flex-1 rounded-xl h-10 text-sm font-semibold"
+                className="flex-1 rounded-xl h-10 px-5 text-sm font-semibold cursor-pointer"
               >
                 <MessageCircle className="h-4 w-4 mr-1.5" />
                 Message

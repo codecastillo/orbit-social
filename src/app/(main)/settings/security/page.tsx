@@ -151,17 +151,12 @@ export default function SecurityPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-zinc-950/60 backdrop-blur-2xl border-b border-white/[0.06]">
+      <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 border-b border-white/[0.06]">
         <div className="flex items-center gap-3 px-5 py-4">
           <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center">
             <Shield className="h-4.5 w-4.5 text-red-400" />
           </div>
-          <h1
-            className="text-xl font-bold tracking-tight text-zinc-100"
-            style={{ fontFamily: "var(--font-syne), sans-serif" }}
-          >
-            Security
-          </h1>
+          <h1 className="text-xl font-extrabold tracking-tight">Security</h1>
         </div>
       </div>
 
@@ -203,7 +198,7 @@ export default function SecurityPage() {
             <div className="px-5 pb-5">
               <Button
                 onClick={handleEnrollMfa}
-                className="rounded-xl bg-blue-500 hover:bg-blue-600 text-white"
+                className="rounded-xl h-10 px-5 font-semibold text-sm cursor-pointer bg-blue-500 hover:bg-blue-600 text-white"
               >
                 <KeyRound className="h-4 w-4 mr-2" />
                 Enable 2FA
@@ -218,7 +213,7 @@ export default function SecurityPage() {
                 onClick={handleDisableMfa}
                 disabled={isDisabling}
                 variant="destructive"
-                className="rounded-xl"
+                className="rounded-xl h-10 px-5 font-semibold text-sm cursor-pointer"
               >
                 {isDisabling ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />

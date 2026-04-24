@@ -40,10 +40,11 @@ export function PostComposer() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const composeOpen = useUIStore((s) => s.composeOpen);
+  const composeCommunityId = useUIStore((s) => s.composeCommunityId);
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
 
   return (
-    <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
+    <Dialog open={composeOpen} onOpenChange={(open) => setComposeOpen(open)}>
       <DialogContent className="sm:max-w-[520px] p-0 gap-0 bg-zinc-900 border-white/[0.1] rounded-xl overflow-hidden shadow-2xl">
         <div className="text-center py-3 border-b border-white/[0.06]">
           <span className="text-sm font-semibold text-zinc-100">Create new post</span>
@@ -51,9 +52,13 @@ export function PostComposer() {
         {user && (
           <ComposerForm
             user={user}
+            communityId={composeCommunityId}
             onSuccess={() => {
               setComposeOpen(false);
               queryClient.invalidateQueries({ queryKey: ["feed"] });
+              if (composeCommunityId) {
+                queryClient.invalidateQueries({ queryKey: ["community-posts", composeCommunityId] });
+              }
             }}
           />
         )}
@@ -64,9 +69,11 @@ export function PostComposer() {
 
 export function InlineComposer({
   replyToId,
+  communityId,
   onSuccess,
 }: {
   replyToId?: string;
+  communityId?: string;
   onSuccess?: () => void;
 }) {
   const { user } = useAuth();
@@ -79,7 +86,7 @@ export function InlineComposer({
   return (
     <div className="border-b border-white/[0.06]">
       <button
-        onClick={() => setComposeOpen(true)}
+        onClick={() => setComposeOpen(true, communityId)}
         className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-white/[0.02] transition-colors cursor-pointer"
       >
         <UserAvatar
@@ -96,11 +103,13 @@ export function InlineComposer({
 function ComposerForm({
   user,
   replyToId,
+  communityId,
   onSuccess,
   inline = false,
 }: {
   user: { id: string; user_metadata: Record<string, string> };
   replyToId?: string;
+  communityId?: string;
   onSuccess?: () => void;
   inline?: boolean;
 }) {
@@ -350,6 +359,7 @@ function ComposerForm({
           location: location.trim() || undefined,
           visibility,
           contentWarning: showContentWarning && contentWarning.trim() ? contentWarning.trim() : undefined,
+          communityId,
         }
       );
 

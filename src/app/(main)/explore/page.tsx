@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { Search, Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Sparkles, TrendingUp, Hash, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { SearchResults } from "@/components/explore/search-results";
 import { UserSuggestionCard } from "@/components/explore/user-suggestion-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { getSuggestedUsers } from "@/lib/queries/social";
-import { cn } from "@/lib/utils";
+import {
+  getSuggestedUsers,
+  getTrendingHashtags,
+  getTrendingPosts,
+} from "@/lib/queries/social";
 import { PeopleYouMayKnow } from "@/components/shared/people-you-may-know";
 
 function useDebounce(value: string, delay: number) {
@@ -23,60 +27,123 @@ function useDebounce(value: string, delay: number) {
   return debounced;
 }
 
-// Gradient palettes for mosaic tiles
-const gradients = [
-  "from-violet-500/60 to-fuchsia-500/60",
-  "from-cyan-500/60 to-blue-500/60",
-  "from-orange-400/60 to-rose-500/60",
-  "from-emerald-500/60 to-teal-500/60",
-  "from-pink-500/60 to-purple-500/60",
-  "from-amber-400/60 to-orange-500/60",
-  "from-indigo-500/60 to-violet-500/60",
-  "from-rose-400/60 to-pink-500/60",
-  "from-teal-400/60 to-cyan-500/60",
-  "from-fuchsia-500/60 to-purple-600/60",
-  "from-sky-400/60 to-indigo-500/60",
-  "from-lime-400/60 to-emerald-500/60",
-];
+function TrendingHashtagsSection() {
+  const { data: hashtags, isLoading } = useQuery({
+    queryKey: ["trending-hashtags"],
+    queryFn: () => getTrendingHashtags(12),
+    staleTime: 1000 * 60 * 5,
+  });
 
-// Repeating mosaic pattern: some items span 2 rows or 2 cols
-// Pattern repeats every 9 items in a 3-column grid
-function getMosaicSpan(index: number): { colSpan: number; rowSpan: number } {
-  const pos = index % 9;
-  // Position 0: large tile (2x2)
-  if (pos === 0) return { colSpan: 2, rowSpan: 2 };
-  // Position 5: tall tile (1x2)
-  if (pos === 5) return { colSpan: 1, rowSpan: 2 };
-  // Everything else: 1x1
-  return { colSpan: 1, rowSpan: 1 };
-}
+  if (isLoading) {
+    return (
+      <div className="px-4 py-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-20 rounded-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-function MosaicGrid() {
-  const tiles = useMemo(
-    () =>
-      Array.from({ length: 18 }).map((_, i) => ({
-        id: i,
-        gradient: gradients[i % gradients.length],
-        span: getMosaicSpan(i),
-      })),
-    []
-  );
+  if (!hashtags || hashtags.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-3 auto-rows-[140px] gap-[2px]">
-      {tiles.map((tile) => (
-        <div
-          key={tile.id}
-          className={cn(
-            "bg-gradient-to-br rounded-sm overflow-hidden cursor-pointer hover:opacity-80 transition-opacity",
-            tile.gradient
-          )}
-          style={{
-            gridColumn: `span ${tile.span.colSpan}`,
-            gridRow: `span ${tile.span.rowSpan}`,
-          }}
-        />
-      ))}
+    <div className="px-4 py-4">
+      <div className="flex items-center gap-2 mb-3">
+        <TrendingUp className="h-4 w-4 text-primary" />
+        <h2 className="text-sm font-semibold text-muted-foreground">Trending</h2>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {hashtags.map((tag) => (
+          <Link
+            key={tag.id}
+            href={`/explore?q=%23${tag.name}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
+          >
+            <Hash className="h-3.5 w-3.5" />
+            {tag.name}
+            <span className="text-xs text-primary/60 ml-0.5">
+              {tag.post_count}
+            </span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PopularPostsSection() {
+  const { data: posts, isLoading } = useQuery({
+    queryKey: ["trending-posts"],
+    queryFn: () => getTrendingPosts(9),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="px-4 py-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-4 w-28" />
+        </div>
+        <div className="grid grid-cols-3 gap-1">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-square rounded-md" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!posts || posts.length === 0) return null;
+
+  return (
+    <div className="px-4 py-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Sparkles className="h-4 w-4 text-amber-400" />
+        <h2 className="text-sm font-semibold text-muted-foreground">Popular Posts</h2>
+      </div>
+      <div className="grid grid-cols-3 gap-1">
+        {posts.map((post: any) => {
+          const media = post.post_media?.[0];
+          const hasImage = media && (media.type === "image" || media.type === "video");
+
+          return (
+            <Link
+              key={post.id}
+              href={`/post/${post.id}`}
+              className="group relative aspect-square rounded-md overflow-hidden bg-muted/30 hover:opacity-90 transition-opacity"
+            >
+              {hasImage ? (
+                <img
+                  src={media.thumbnail_url || media.url}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center p-2 bg-gradient-to-br from-muted/40 to-muted/20">
+                  <p className="text-xs text-muted-foreground line-clamp-4 text-center leading-relaxed">
+                    {post.content?.slice(0, 120) || ""}
+                  </p>
+                </div>
+              )}
+
+              {/* Hover overlay */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                <div className="flex items-center gap-3 text-white text-xs font-medium">
+                  <span>{post.like_count ?? 0} likes</span>
+                  <span>{post.comment_count ?? 0} comments</span>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -86,7 +153,7 @@ export default function ExplorePage() {
   const debouncedQuery = useDebounce(query.trim(), 300);
   const { user } = useAuth();
 
-  const { data: suggestions, isLoading: suggestionsLoading } = useQuery({
+  const { data: suggestions, isLoading: suggestionsLoading, isError: suggestionsError, refetch: refetchSuggestions } = useQuery({
     queryKey: ["suggested-users", user?.id],
     queryFn: () => getSuggestedUsers(user!.id, 8),
     enabled: !!user?.id && debouncedQuery.length === 0,
@@ -121,15 +188,44 @@ export default function ExplorePage() {
             <PeopleYouMayKnow />
           </div>
 
-          {/* Mosaic explore grid */}
-          <MosaicGrid />
+          {/* Trending Hashtags */}
+          <div className="border-b border-white/[0.06]">
+            <TrendingHashtagsSection />
+          </div>
 
-          {/* Suggested people */}
-          {(suggestionsLoading ||
+          {/* Popular Posts */}
+          <div className="border-b border-white/[0.06]">
+            <PopularPostsSection />
+          </div>
+
+          {/* Error state */}
+          {suggestionsError && (
+            <div className="flex flex-col items-center py-12 text-center px-5">
+              <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center mb-3">
+                <AlertCircle className="h-5 w-5 text-destructive" />
+              </div>
+              <p className="text-sm font-medium text-foreground/80">
+                Something went wrong
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Failed to load suggestions. Try again.
+              </p>
+              <button
+                onClick={() => refetchSuggestions()}
+                className="text-primary text-sm font-medium hover:underline mt-3"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* People to Follow */}
+          {!suggestionsError && (suggestionsLoading ||
             (suggestions && suggestions.length > 0)) && (
-            <div className="mt-6 px-4 pb-6">
-              <h2 className="text-sm font-semibold text-muted-foreground mb-3">
-                Suggested for you
+            <div className="mt-2 px-4 pb-6">
+              <h2 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-muted-foreground/70" />
+                People to Follow
               </h2>
 
               {suggestionsLoading ? (
@@ -155,7 +251,7 @@ export default function ExplorePage() {
             </div>
           )}
 
-          {!suggestionsLoading &&
+          {!suggestionsLoading && !suggestionsError &&
             (!suggestions || suggestions.length === 0) && (
               <div className="flex flex-col items-center py-12 text-center px-5">
                 <div className="h-12 w-12 rounded-full bg-muted/30 flex items-center justify-center mb-3">

@@ -54,14 +54,27 @@ export default function ScheduledPostsPage() {
     enabled: !!user?.id,
   });
 
-  if (isLoading) {
-    return (
-      <div className="px-4 py-8">
-        <div className="flex items-center gap-3 mb-6">
-          <Clock className="h-5 w-5 text-primary" />
-          <h1 className="text-xl font-bold">Scheduled Posts</h1>
+  return (
+    <div className="min-h-screen">
+      {/* Header */}
+      <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
+              <Clock className="h-4.5 w-4.5 text-violet-400" />
+            </div>
+            <h1 className="text-xl font-extrabold tracking-tight">Scheduled</h1>
+          </div>
+          {posts && posts.length > 0 && (
+            <span className="text-sm text-muted-foreground">
+              ({posts.length})
+            </span>
+          )}
         </div>
-        <div className="space-y-3">
+      </div>
+
+      {isLoading ? (
+        <div className="p-5 space-y-3">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
@@ -69,35 +82,21 @@ export default function ScheduledPostsPage() {
             />
           ))}
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="px-4 py-8 max-w-2xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <Clock className="h-5 w-5 text-primary" />
-        <h1 className="text-xl font-bold">Scheduled Posts</h1>
-        {posts && posts.length > 0 && (
-          <span className="text-sm text-muted-foreground">
-            ({posts.length})
-          </span>
-        )}
-      </div>
-
-      {!posts || posts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <CalendarClock className="mb-4 h-12 w-12 text-muted-foreground/40" />
-          <h2 className="text-lg font-medium text-zinc-300">
+      ) : !posts || posts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="h-16 w-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mb-5">
+            <CalendarClock className="h-7 w-7 text-muted-foreground/40" />
+          </div>
+          <p className="text-base font-semibold text-muted-foreground">
             No scheduled posts
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground max-w-xs">
+          </p>
+          <p className="text-sm text-muted-foreground/60 mt-1.5 max-w-xs text-center">
             Schedule posts from the composer to have them published
             automatically at a specific time.
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="p-5 space-y-3">
           <AnimatePresence mode="popLayout">
             {posts.map((post) => (
               <ScheduledPostCard key={post.id} post={post} />
@@ -220,7 +219,7 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
             />
             <Button
               size="sm"
-              className="rounded-lg px-3 bg-primary hover:bg-primary/90 text-primary-foreground border-0"
+              className="rounded-xl px-3 bg-primary hover:bg-primary/90 text-primary-foreground border-0"
               onClick={handleReschedule}
               disabled={reschedMutation.isPending}
             >
@@ -233,7 +232,7 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
             <Button
               size="sm"
               variant="ghost"
-              className="rounded-lg px-3"
+              className="rounded-xl px-3"
               onClick={() => setEditingTime(false)}
             >
               Cancel
@@ -247,7 +246,7 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
         <Button
           size="sm"
           variant="ghost"
-          className="rounded-lg text-xs gap-1.5 text-zinc-400 hover:text-white"
+          className="rounded-xl text-xs gap-1.5 text-zinc-400 hover:text-white"
           onClick={() => setEditingTime(!editingTime)}
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -256,7 +255,7 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
         <Button
           size="sm"
           variant="ghost"
-          className="rounded-lg text-xs gap-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+          className="rounded-xl text-xs gap-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
           onClick={() => publishMutation.mutate()}
           disabled={publishMutation.isPending}
         >
@@ -271,7 +270,7 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
         <Button
           size="sm"
           variant="ghost"
-          className="rounded-lg text-xs gap-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+          className="rounded-xl text-xs gap-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10"
           onClick={() => deleteMutation.mutate()}
           disabled={deleteMutation.isPending}
         >

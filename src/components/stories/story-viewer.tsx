@@ -287,7 +287,7 @@ export function StoryViewer({
               aria-label="Pause story"
             />
             <button
-              className="w-2/3 h-full"
+              className="w-1/3 h-full"
               onClick={goToNextStory}
               onMouseDown={() => setPaused(true)}
               onMouseUp={() => setPaused(false)}

@@ -79,6 +79,7 @@ export async function createPost(
     visibility?: "public" | "close_friends";
     contentWarning?: string;
     location?: string;
+    communityId?: string;
   }
 ) {
   const postType =
@@ -103,6 +104,7 @@ export async function createPost(
       visibility: options?.visibility || "public",
       content_warning: options?.contentWarning || null,
       location: options?.location || null,
+      community_id: options?.communityId || null,
       ...(options?.scheduledAt
         ? { scheduled_at: options.scheduledAt, is_hidden: true }
         : {}),
