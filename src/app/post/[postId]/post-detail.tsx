@@ -19,6 +19,7 @@ import {
   getPostComments,
   getCommentReplies,
   checkUserInteractions,
+  checkUserReposted,
   createPost,
   type PostWithAuthor,
 } from "@/lib/queries/posts";
@@ -29,7 +30,7 @@ function CommentWithReplies({
   onUpdate,
 }: {
   comment: PostWithAuthor;
-  interactions: { likedPostIds: Set<string>; bookmarkedPostIds: Set<string> };
+  interactions: { likedPostIds: Set<string>; bookmarkedPostIds: Set<string>; repostedPostIds: Set<string> };
   onUpdate: () => void;
 }) {
   const { user } = useAuth();
@@ -74,6 +75,7 @@ function CommentWithReplies({
         post={comment}
         isLiked={interactions.likedPostIds.has(comment.id)}
         isBookmarked={interactions.bookmarkedPostIds.has(comment.id)}
+        isReposted={interactions.repostedPostIds.has(comment.id)}
         onUpdate={onUpdate}
         compact
       />
@@ -165,13 +167,22 @@ export function PostDetail({ postId }: { postId: string }) {
   const [interactions, setInteractions] = useState<{
     likedPostIds: Set<string>;
     bookmarkedPostIds: Set<string>;
-  }>({ likedPostIds: new Set(), bookmarkedPostIds: new Set() });
+    repostedPostIds: Set<string>;
+  }>({ likedPostIds: new Set(), bookmarkedPostIds: new Set(), repostedPostIds: new Set() });
 
   useEffect(() => {
-    if (!user || !post || !comments) return;
+    if (!user || !post) return;
 
-    const allPostIds = [post.id, ...comments.map((c) => c.id)];
-    checkUserInteractions(user.id, allPostIds).then(setInteractions);
+    const allPostIds = [post.id, ...(comments || []).map((c) => c.id)];
+    Promise.all([
+      checkUserInteractions(user.id, allPostIds),
+      checkUserReposted(user.id, allPostIds),
+    ]).then(([interactionData, repostedIds]) => {
+      setInteractions({
+        ...interactionData,
+        repostedPostIds: repostedIds,
+      });
+    });
   }, [user, post, comments]);
 
   if (postLoading) {
@@ -217,6 +228,7 @@ export function PostDetail({ postId }: { postId: string }) {
         post={post}
         isLiked={interactions.likedPostIds.has(post.id)}
         isBookmarked={interactions.bookmarkedPostIds.has(post.id)}
+        isReposted={interactions.repostedPostIds.has(post.id)}
         onUpdate={() => queryClient.invalidateQueries({ queryKey: ["post", postId] })}
       />
 
