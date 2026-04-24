@@ -45,23 +45,70 @@ export function PostComposer() {
 
   return (
     <Dialog open={composeOpen} onOpenChange={(open) => setComposeOpen(open)}>
-      <DialogContent className="sm:max-w-[520px] p-0 gap-0 bg-zinc-900 border-white/[0.1] rounded-2xl overflow-hidden shadow-2xl">
-        <div className="text-center py-4 border-b border-white/[0.06] bg-white/[0.02]">
-          <span className="text-sm font-bold text-zinc-100 tracking-tight">Create new post</span>
-        </div>
-        {user && (
-          <ComposerForm
-            user={user}
-            communityId={composeCommunityId}
-            onSuccess={() => {
-              setComposeOpen(false);
-              queryClient.invalidateQueries({ queryKey: ["feed"] });
-              if (composeCommunityId) {
-                queryClient.invalidateQueries({ queryKey: ["community-posts", composeCommunityId] });
-              }
+      <DialogContent
+        className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-[580px] w-[92vw]"
+        style={{ boxShadow: "none" }}
+      >
+        <div
+          style={{
+            background: "rgba(18,16,32,0.82)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.14)",
+            borderRadius: 22,
+            boxShadow:
+              "0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 100px rgba(255,95,174,0.15)",
+            overflow: "hidden",
+            color: "#fff",
+            fontFamily: '"Geist", -apple-system, "Inter", system-ui, sans-serif',
+          }}
+        >
+          <div
+            style={{
+              padding: "18px 24px 14px",
+              borderBottom: "1px solid rgba(255,255,255,0.09)",
+              background: "linear-gradient(180deg, rgba(255,255,255,0.03), transparent)",
             }}
-          />
-        )}
+          >
+            <div
+              style={{
+                fontFamily: '"Geist Mono", ui-monospace, monospace',
+                fontSize: 10.5,
+                letterSpacing: "0.18em",
+                color: "rgba(255,255,255,0.5)",
+                textTransform: "uppercase",
+                fontWeight: 500,
+              }}
+            >
+              ◇&nbsp;&nbsp;NEW POST
+            </div>
+            <div
+              style={{
+                fontSize: 17,
+                fontWeight: 600,
+                marginTop: 4,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Create a post
+            </div>
+          </div>
+          {user && (
+            <ComposerForm
+              user={user}
+              communityId={composeCommunityId}
+              onSuccess={() => {
+                setComposeOpen(false);
+                queryClient.invalidateQueries({ queryKey: ["feed"] });
+                if (composeCommunityId) {
+                  queryClient.invalidateQueries({
+                    queryKey: ["community-posts", composeCommunityId],
+                  });
+                }
+              }}
+            />
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -78,25 +125,94 @@ export function InlineComposer({
 }) {
   const { user } = useAuth();
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
-
   const { data: profile } = useCurrentProfileHook();
 
   if (!user) return null;
 
+  const firstName = (profile?.display_name || "").split(" ")[0];
+
   return (
-    <div className="border-b border-white/[0.06]">
-      <button
-        onClick={() => setComposeOpen(true, communityId)}
-        className="flex items-center gap-3 w-full px-4 py-4 text-left hover:bg-white/[0.02] border border-transparent hover:border-white/[0.08] hover:shadow-[0_0_20px_oklch(0.623_0.214_259/0.06)] transition-all cursor-pointer"
+    <button
+      type="button"
+      onClick={() => setComposeOpen(true, communityId)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        width: "100%",
+        padding: 16,
+        borderRadius: 20,
+        background: "rgba(255,255,255,0.05)",
+        backdropFilter: "blur(40px) saturate(180%)",
+        WebkitBackdropFilter: "blur(40px) saturate(180%)",
+        border: "1px solid rgba(255,255,255,0.09)",
+        boxShadow:
+          "inset 0 1px 0 rgba(255,255,255,0.08), 0 14px 40px -20px rgba(0,0,0,0.4), 0 0 40px rgba(255,95,174,0.12)",
+        cursor: "pointer",
+        color: "#fff",
+        fontFamily:
+          '"Geist", -apple-system, "Inter", system-ui, sans-serif',
+        textAlign: "left",
+      }}
+    >
+      <UserAvatar
+        src={profile?.avatar_url}
+        fallback={profile?.display_name || "U"}
+        size="md"
+      />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 15,
+            color: "rgba(255,255,255,0.78)",
+            fontWeight: 400,
+          }}
+        >
+          What&apos;s{" "}
+          <em
+            style={{
+              fontFamily: '"Instrument Serif", Georgia, serif',
+              fontStyle: "italic",
+              fontWeight: 400,
+              background:
+                "linear-gradient(135deg, #8b73ff 0%, #ff5fae 55%, #5fd4ff 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              paddingRight: "0.04em",
+            }}
+          >
+            orbiting
+          </em>{" "}
+          you{firstName ? `, ${firstName}` : ""}?
+        </div>
+        <div
+          style={{
+            fontSize: 11,
+            color: "rgba(255,255,255,0.5)",
+            fontFamily: '"Geist Mono", ui-monospace, monospace',
+            letterSpacing: "0.06em",
+            marginTop: 4,
+          }}
+        >
+          posting to · everyone
+        </div>
+      </div>
+      <span
+        style={{
+          padding: "10px 18px",
+          borderRadius: 99,
+          background:
+            "linear-gradient(135deg, #8b73ff 0%, #ff5fae 55%, #5fd4ff 100%)",
+          color: "#0c0a17",
+          fontWeight: 600,
+          fontSize: 13,
+          boxShadow:
+            "0 6px 20px rgba(255,95,174,0.45), inset 0 1px 0 rgba(255,255,255,0.3)",
+        }}
       >
-        <UserAvatar
-          src={profile?.avatar_url}
-          fallback={profile?.display_name || "U"}
-          size="sm"
-        />
-        <span className="text-sm text-zinc-500">Share something...</span>
-      </button>
-    </div>
+        Compose
+      </span>
+    </button>
   );
 }
 
