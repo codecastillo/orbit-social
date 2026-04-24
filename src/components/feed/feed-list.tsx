@@ -75,7 +75,9 @@ export function FeedList({ tab }: FeedListProps) {
 
   // Client-side ranking for the "For You" tab
   const rankedPosts = useMemo(() => {
-    const raw = data?.pages.flatMap((page) => page.posts) || [];
+    // Filter out replies — only show top-level posts in feed
+    const raw = (data?.pages.flatMap((page) => page.posts) || [])
+      .filter((p) => !p.reply_to_id);
     if (tab === "foryou" && user?.id && raw.length > 1) {
       return rankPosts(raw, user.id, interactionMap);
     }
