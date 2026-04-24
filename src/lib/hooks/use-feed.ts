@@ -14,28 +14,42 @@ export function useFeed(tab: "foryou" | "following") {
   return useInfiniteQuery({
     queryKey: ["feed", tab, user?.id],
     queryFn: async ({ pageParam }) => {
-      if (!user) return { posts: [], nextCursor: null };
+      if (!user) return { posts: [] as PostWithAuthor[], nextCursor: null };
 
-      const posts = await getFeedPosts(user.id, tab, pageParam);
+      try {
+        const posts = await getFeedPosts(user.id, tab, pageParam);
 
-      // Check user interactions for this batch
-      let enrichedPosts = posts;
-      if (posts.length > 0) {
-        const postIds = posts.map((p) => p.id);
-        const { likedPostIds, bookmarkedPostIds } =
-          await checkUserInteractions(user.id, postIds);
+        // Check user interactions for this batch
+        let enrichedPosts = posts;
+        if (posts.length > 0) {
+          try {
+            const postIds = posts.map((p) => p.id);
+            const { likedPostIds, bookmarkedPostIds } =
+              await checkUserInteractions(user.id, postIds);
 
-        enrichedPosts = posts.map((p) => ({
-          ...p,
-          user_has_liked: likedPostIds.has(p.id),
-          user_has_bookmarked: bookmarkedPostIds.has(p.id),
-        }));
+            enrichedPosts = posts.map((p) => ({
+              ...p,
+              user_has_liked: likedPostIds.has(p.id),
+              user_has_bookmarked: bookmarkedPostIds.has(p.id),
+            }));
+          } catch {
+            // If interactions check fails, still show posts without interaction state
+            enrichedPosts = posts.map((p) => ({
+              ...p,
+              user_has_liked: false,
+              user_has_bookmarked: false,
+            }));
+          }
+        }
+
+        const nextCursor =
+          posts.length > 0 ? posts[posts.length - 1].created_at : null;
+
+        return { posts: enrichedPosts, nextCursor };
+      } catch (error) {
+        console.error("Feed fetch error:", error);
+        return { posts: [] as PostWithAuthor[], nextCursor: null };
       }
-
-      const nextCursor =
-        posts.length > 0 ? posts[posts.length - 1].created_at : null;
-
-      return { posts: enrichedPosts, nextCursor };
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,

@@ -261,19 +261,21 @@ export default function SignUpPage() {
 
     // Update profile with the extra fields
     if (authData.user) {
+      // Wait a moment for the DB trigger to create the profile
+      await new Promise((r) => setTimeout(r, 1000));
+
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
           username: data.username.toLowerCase(),
           display_name: data.fullName,
           bio: data.bio || null,
-          date_of_birth: data.dateOfBirth,
         })
         .eq("id", authData.user.id);
 
       if (profileError) {
         console.error("Profile update error:", profileError);
-        // Don't block signup — profile can be completed later
+        toast.error("Profile setup failed — you can update it in Settings.");
       }
     }
 
