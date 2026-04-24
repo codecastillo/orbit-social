@@ -65,9 +65,15 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Use getSession for unconfirmed users, fall back to getUser
+  let user = null;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    user = session.user;
+  } else {
+    const { data: { user: confirmedUser } } = await supabase.auth.getUser();
+    user = confirmedUser;
+  }
 
   const isPublicRoute = publicRoutes.some((route) =>
     pathname.startsWith(route)
