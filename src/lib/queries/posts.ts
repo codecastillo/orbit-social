@@ -323,6 +323,212 @@ export async function deletePost(postId: string) {
   if (error) throw error;
 }
 
+export async function updatePost(postId: string, content: string) {
+  const { data, error } = await supabase
+    .from("posts")
+    .update({ content, updated_at: new Date().toISOString() })
+    .eq("id", postId)
+    .select(POST_SELECT)
+    .single();
+
+  if (error) throw error;
+  return data as PostWithAuthor;
+}
+
+export async function createRepost(userId: string, postId: string) {
+  // Check if already reposted
+  const { data: existing } = await supabase
+    .from("posts")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("type", "repost")
+    .eq("parent_post_id", postId)
+    .maybeSingle();
+
+  if (existing) throw new Error("Already reposted");
+
+  const { data: post, error } = await supabase
+    .from("posts")
+    .insert({
+      user_id: userId,
+      content: null,
+      type: "repost",
+      parent_post_id: postId,
+    })
+    .select(POST_SELECT)
+    .single();
+
+  if (error) throw error;
+
+  // Increment repost count on original post
+  try {
+    const { data: original } = await supabase
+      .from("posts")
+      .select("repost_count")
+      .eq("id", postId)
+      .single();
+
+    if (original) {
+      await supabase
+        .from("posts")
+        .update({ repost_count: (original.repost_count || 0) + 1 })
+        .eq("id", postId);
+    }
+  } catch {
+    // Silent fallback - count will be eventually consistent
+  }
+
+  return post as PostWithAuthor;
+}
+
+export async function undoRepost(userId: string, postId: string) {
+  const { error } = await supabase
+    .from("posts")
+    .delete()
+    .eq("user_id", userId)
+    .eq("type", "repost")
+    .eq("parent_post_id", postId);
+
+  if (error) throw error;
+}
+
+export async function checkUserReposted(userId: string, postIds: string[]) {
+  const { data, error } = await supabase
+    .from("posts")
+    .select("parent_post_id")
+    .eq("user_id", userId)
+    .eq("type", "repost")
+    .in("parent_post_id", postIds);
+
+  if (error) throw error;
+  return new Set(data?.map((r) => r.parent_post_id) ?? []);
+}
+
+export async function getOriginalPost(postId: string) {
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .eq("id", postId)
+    .single();
+
+  if (error) throw error;
+  return data as PostWithAuthor;
+}
+
+export async function getCommentReplies(commentId: string, cursor?: string, limit = 20) {
+  let query = supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .eq("reply_to_id", commentId)
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (cursor) {
+    query = query.gt("created_at", cursor);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data as PostWithAuthor[];
+}
+
+export async function getPostsByHashtag(tag: string, cursor?: string, limit = 20) {
+  // Find the hashtag first
+  const normalizedTag = tag.toLowerCase().replace(/^#/, "");
+
+  const { data: hashtag } = await supabase
+    .from("hashtags")
+    .select("id, post_count")
+    .eq("name", normalizedTag)
+    .single();
+
+  if (!hashtag) return { posts: [] as PostWithAuthor[], postCount: 0 };
+
+  // Get post IDs with this hashtag, then fetch the full posts
+  const { data: postHashtags, error: phError } = await supabase
+    .from("post_hashtags")
+    .select("post_id")
+    .eq("hashtag_id", hashtag.id)
+    .order("post_id", { ascending: false })
+    .limit(limit);
+
+  if (phError) throw phError;
+
+  const postIds = postHashtags?.map((ph) => ph.post_id) ?? [];
+  if (postIds.length === 0) return { posts: [] as PostWithAuthor[], postCount: hashtag.post_count || 0 };
+
+  let postsQuery = supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .in("id", postIds)
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false });
+
+  if (cursor) {
+    postsQuery = postsQuery.lt("created_at", cursor);
+  }
+
+  const { data, error } = await postsQuery;
+  if (error) throw error;
+
+  return { posts: (data ?? []) as PostWithAuthor[], postCount: hashtag.post_count || 0 };
+}
+
+export async function votePoll(userId: string, postId: string, optionIndex: number) {
+  // Check if already voted
+  const { data: existingVote } = await supabase
+    .from("poll_votes")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("post_id", postId)
+    .maybeSingle();
+
+  if (existingVote) throw new Error("Already voted");
+
+  // Insert vote
+  const { error: voteError } = await supabase
+    .from("poll_votes")
+    .insert({
+      user_id: userId,
+      post_id: postId,
+      option_index: optionIndex,
+    });
+
+  if (voteError) throw voteError;
+
+  // Update the poll_data on the post to increment the vote count
+  const { data: post } = await supabase
+    .from("posts")
+    .select("poll_data")
+    .eq("id", postId)
+    .single();
+
+  if (post?.poll_data) {
+    const pollData = post.poll_data as PollData;
+    pollData.options[optionIndex].votes += 1;
+
+    const { error: updateError } = await supabase
+      .from("posts")
+      .update({ poll_data: pollData })
+      .eq("id", postId);
+
+    if (updateError) throw updateError;
+  }
+}
+
+export async function getUserPollVote(userId: string, postId: string) {
+  const { data, error } = await supabase
+    .from("poll_votes")
+    .select("option_index")
+    .eq("user_id", userId)
+    .eq("post_id", postId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.option_index ?? null;
+}
+
 export async function checkUserInteractions(userId: string, postIds: string[]) {
   const [likesResult, bookmarksResult] = await Promise.all([
     supabase

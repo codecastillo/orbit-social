@@ -219,8 +219,27 @@ export async function sendMessage(
   conversationId: string,
   senderId: string,
   content: string,
-  mediaUrl?: string
+  mediaUrl?: string,
+  mediaType?: "image" | "video" | "gif"
 ) {
+  // Determine media type - audio files are stored as 'video' type
+  // since the enum only supports image/video/gif
+  let resolvedMediaType: "image" | "video" | "gif" | null = mediaType || null;
+  if (mediaUrl && !resolvedMediaType) {
+    const lower = mediaUrl.toLowerCase();
+    if (
+      lower.endsWith(".webm") ||
+      lower.endsWith(".mp3") ||
+      lower.endsWith(".ogg") ||
+      lower.endsWith(".m4a") ||
+      lower.endsWith(".wav")
+    ) {
+      resolvedMediaType = "video"; // Store audio as 'video' type since enum is limited
+    } else {
+      resolvedMediaType = "image";
+    }
+  }
+
   const { data: message, error: msgError } = await supabase
     .from("messages")
     .insert({
@@ -228,7 +247,7 @@ export async function sendMessage(
       sender_id: senderId,
       content,
       media_url: mediaUrl || null,
-      media_type: mediaUrl ? "image" : null,
+      media_type: resolvedMediaType,
     })
     .select(
       `

@@ -8,6 +8,7 @@ import {
   MessageCircle,
   CalendarDays,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,6 +19,8 @@ import {
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { FollowButton } from "@/components/shared/follow-button";
 import { formatNumber } from "@/lib/utils/format";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { getMutualFollows } from "@/lib/queries/social";
 
 const syne = { fontFamily: "var(--font-syne), sans-serif" };
 
@@ -56,6 +59,31 @@ export function ProfileHeader({
   onEdit,
 }: ProfileHeaderProps) {
   const router = useRouter();
+  const { user } = useAuth();
+
+  const { data: mutualFollows } = useQuery({
+    queryKey: ["mutual-follows", user?.id, profile.id],
+    queryFn: () => getMutualFollows(user!.id, profile.id, 2),
+    enabled: !!user?.id && !isOwnProfile,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const mutualText = (() => {
+    if (!mutualFollows || mutualFollows.totalCount === 0) return null;
+    const names = mutualFollows.users.map((u) => u.display_name);
+    const remaining = mutualFollows.totalCount - names.length;
+    if (names.length === 1 && remaining === 0) {
+      return `Followed by ${names[0]}`;
+    }
+    if (names.length === 2 && remaining === 0) {
+      return `Followed by ${names[0]} and ${names[1]}`;
+    }
+    if (remaining > 0) {
+      return `Followed by ${names.join(", ")} and ${remaining} ${remaining === 1 ? "other" : "others"}`;
+    }
+    return `Followed by ${names.join(" and ")}`;
+  })();
+
   return (
     <div className="relative">
       {/* Cover photo or gradient */}
@@ -112,6 +140,9 @@ export function ProfileHeader({
             )}
           </div>
           <p className="text-sm text-muted-foreground">@{profile.username}</p>
+          {!isOwnProfile && mutualText && (
+            <p className="text-xs text-muted-foreground/70 mt-1">{mutualText}</p>
+          )}
         </div>
 
         {/* Bio */}

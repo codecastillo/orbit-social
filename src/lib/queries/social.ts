@@ -257,3 +257,182 @@ export async function getTrendingHashtags(limit = 10) {
   if (error) throw error;
   return (data ?? []) as TrendingHashtag[];
 }
+
+// ── Trending Posts ──────────────────────────────────────────────────
+
+export async function getTrendingPosts(limit = 20) {
+  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .eq("is_hidden", false)
+    .gte("created_at", cutoff)
+    .order("like_count", { ascending: false })
+    .limit(limit * 3); // over-fetch so we can re-rank
+
+  if (error) throw error;
+
+  // Re-rank by engagement score: likes + comments*2 + reposts*3
+  const ranked = (data ?? [])
+    .map((post: any) => ({
+      ...post,
+      _engagement: post.like_count + post.comment_count * 2 + post.repost_count * 3,
+    }))
+    .sort((a: any, b: any) => b._engagement - a._engagement)
+    .slice(0, limit);
+
+  return ranked;
+}
+
+// ── Mutual Follows ──────────────────────────────────────────────────
+
+export async function getMutualFollows(
+  userId: string,
+  targetUserId: string,
+  limit = 3
+) {
+  // Get who the current user follows
+  const { data: myFollows, error: err1 } = await supabase
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", userId);
+
+  if (err1) throw err1;
+
+  const myFollowingIds = (myFollows ?? []).map((f) => f.following_id);
+  if (myFollowingIds.length === 0) return { users: [] as ProfileSummary[], totalCount: 0 };
+
+  // Get who follows the target user from the set of people you follow
+  const { data: mutuals, error: err2 } = await supabase
+    .from("follows")
+    .select(`profiles!follows_follower_id_fkey (${PROFILE_SELECT})`)
+    .eq("following_id", targetUserId)
+    .in("follower_id", myFollowingIds);
+
+  if (err2) throw err2;
+
+  const uniqueMap = new Map<string, ProfileSummary>();
+  for (const row of mutuals ?? []) {
+    const p = row.profiles as unknown as ProfileSummary;
+    if (p && !uniqueMap.has(p.id)) {
+      uniqueMap.set(p.id, p);
+    }
+  }
+
+  const allMutuals = Array.from(uniqueMap.values());
+
+  return {
+    users: allMutuals.slice(0, limit),
+    totalCount: allMutuals.length,
+  };
+}
+
+// ── Engagement-based Suggestions ────────────────────────────────────
+
+export async function getEngagementBasedSuggestions(
+  userId: string,
+  limit = 10
+) {
+  // Get current user's following list + blocked + muted
+  const [followsRes, blocksRes, mutesRes, profileRes] = await Promise.all([
+    supabase.from("follows").select("following_id").eq("follower_id", userId),
+    supabase.from("blocks").select("blocked_id").eq("blocker_id", userId),
+    supabase.from("mutes").select("muted_id").eq("user_id", userId),
+    supabase.from("profiles").select("location").eq("id", userId).single(),
+  ]);
+
+  const followingIds = (followsRes.data ?? []).map((f) => f.following_id);
+  const blockedIds = (blocksRes.data ?? []).map((b) => b.blocked_id);
+  const mutedIds = (mutesRes.data ?? []).map((m) => m.muted_id);
+  const userLocation = profileRes.data?.location ?? null;
+
+  const excludeIds = [userId, ...followingIds, ...blockedIds, ...mutedIds];
+
+  // Strategy 1: Users who liked the same posts as you (shared interests)
+  const { data: myLikes } = await supabase
+    .from("likes")
+    .select("post_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  const likedPostIds = (myLikes ?? []).map((l) => l.post_id);
+
+  const sharedInterestMap = new Map<string, number>();
+
+  if (likedPostIds.length > 0) {
+    const { data: coLikers } = await supabase
+      .from("likes")
+      .select("user_id")
+      .in("post_id", likedPostIds)
+      .not("user_id", "in", `(${excludeIds.join(",")})`)
+      .limit(200);
+
+    for (const row of coLikers ?? []) {
+      sharedInterestMap.set(
+        row.user_id,
+        (sharedInterestMap.get(row.user_id) ?? 0) + 1
+      );
+    }
+  }
+
+  // Strategy 2: Users in the same location
+  const locationMap = new Map<string, number>();
+
+  if (userLocation) {
+    const { data: localUsers } = await supabase
+      .from("profiles")
+      .select("id")
+      .ilike("location", `%${userLocation}%`)
+      .not("id", "in", `(${excludeIds.join(",")})`)
+      .limit(50);
+
+    for (const row of localUsers ?? []) {
+      locationMap.set(row.id, 1);
+    }
+  }
+
+  // Combine candidate IDs
+  const candidateIds = new Set([
+    ...sharedInterestMap.keys(),
+    ...locationMap.keys(),
+  ]);
+
+  if (candidateIds.size === 0) {
+    // Fallback: popular users not followed/blocked/muted
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(PROFILE_SELECT)
+      .not("id", "in", `(${excludeIds.join(",")})`)
+      .order("follower_count", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return (data ?? []) as ProfileSummary[];
+  }
+
+  // Fetch profiles for candidates
+  const { data: candidateProfiles, error } = await supabase
+    .from("profiles")
+    .select(PROFILE_SELECT)
+    .in("id", Array.from(candidateIds));
+
+  if (error) throw error;
+
+  // Score candidates: shared_interests * 3 + location * 2 + engagement_weight
+  const scored = (candidateProfiles ?? []).map((p: any) => {
+    const interestScore = (sharedInterestMap.get(p.id) ?? 0) * 3;
+    const locationScore = (locationMap.get(p.id) ?? 0) * 2;
+    // Engagement weight: log of follower count to avoid pure popularity bias
+    const engagementWeight = Math.log2(1 + (p.follower_count ?? 0));
+    return {
+      profile: p as ProfileSummary,
+      score: interestScore + locationScore + engagementWeight,
+    };
+  });
+
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((s) => s.profile);
+}
