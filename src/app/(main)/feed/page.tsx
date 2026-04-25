@@ -81,6 +81,16 @@ export default function FeedPage() {
         {/* Composer doorway */}
         {user && <InlineComposer />}
 
+        {/* Editorial separator */}
+        <div
+          aria-hidden
+          style={{
+            height: 1,
+            background: `linear-gradient(90deg, transparent, ${O.hair2} 20%, ${O.hair2} 80%, transparent)`,
+            margin: "6px 2px",
+          }}
+        />
+
         {/* Pinned live-now signal */}
         <LivePinned />
 

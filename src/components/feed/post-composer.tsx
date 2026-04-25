@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Image as ImageIcon, X, Loader2, BarChart3, Smile, Plus, Minus, Clock, MapPin, FileText, AlertTriangle, Users, Globe, Camera, Calendar, Mic } from "lucide-react";
@@ -59,6 +59,9 @@ export function PostComposer() {
             borderRadius: 22,
             boxShadow:
               "0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 100px rgba(255,95,174,0.15)",
+            display: "flex",
+            flexDirection: "column",
+            maxHeight: "85vh",
             overflow: "hidden",
             color: "#fff",
             fontFamily: '"Geist", -apple-system, "Inter", system-ui, sans-serif',
@@ -94,21 +97,23 @@ export function PostComposer() {
               Create a post
             </div>
           </div>
-          {user && (
-            <ComposerForm
-              user={user}
-              communityId={composeCommunityId}
-              onSuccess={() => {
-                setComposeOpen(false);
-                queryClient.invalidateQueries({ queryKey: ["feed"] });
-                if (composeCommunityId) {
-                  queryClient.invalidateQueries({
-                    queryKey: ["community-posts", composeCommunityId],
-                  });
-                }
-              }}
-            />
-          )}
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+            {user && (
+              <ComposerForm
+                user={user}
+                communityId={composeCommunityId}
+                onSuccess={() => {
+                  setComposeOpen(false);
+                  queryClient.invalidateQueries({ queryKey: ["feed"] });
+                  if (composeCommunityId) {
+                    queryClient.invalidateQueries({
+                      queryKey: ["community-posts", composeCommunityId],
+                    });
+                  }
+                }}
+              />
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -132,10 +137,32 @@ export function InlineComposer({
 
   const firstName = (profile?.display_name || "").split(" ")[0];
 
+  const open = (action: "photo" | "voice" | "event" | "place" | null) =>
+    setComposeOpen(true, { communityId, action: action ?? undefined });
+
+  const CHIPS: {
+    Ico: typeof Camera;
+    c: string;
+    label: string;
+    action: "photo" | "voice" | "event" | "place";
+  }[] = [
+    { Ico: Camera, c: "#ff5fae", label: "photo", action: "photo" },
+    { Ico: Calendar, c: "#5fd4ff", label: "event", action: "event" },
+    { Ico: Mic, c: "#8b73ff", label: "voice", action: "voice" },
+    { Ico: MapPin, c: "#7dffa3", label: "place", action: "place" },
+  ];
+
   return (
-    <button
-      type="button"
-      onClick={() => setComposeOpen(true, communityId)}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => open(null)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          open(null);
+        }
+      }}
       style={{
         display: "flex",
         alignItems: "center",
@@ -198,16 +225,16 @@ export function InlineComposer({
           posting to · everyone
         </div>
       </div>
-      <span className="hidden sm:flex" style={{ gap: 4 }}>
-        {[
-          { Ico: Camera, c: "#ff5fae", label: "photo" },
-          { Ico: Calendar, c: "#5fd4ff", label: "event" },
-          { Ico: Mic, c: "#8b73ff", label: "voice" },
-          { Ico: MapPin, c: "#7dffa3", label: "place" },
-        ].map(({ Ico, c, label }) => (
-          <span
+      <div className="hidden sm:flex" style={{ gap: 4 }}>
+        {CHIPS.map(({ Ico, c, label, action }) => (
+          <button
             key={label}
+            type="button"
             title={label}
+            onClick={(e) => {
+              e.stopPropagation();
+              open(action);
+            }}
             style={{
               width: 36,
               height: 36,
@@ -217,12 +244,14 @@ export function InlineComposer({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              cursor: "pointer",
+              padding: 0,
             }}
           >
             <Ico style={{ width: 16, height: 16, color: c }} strokeWidth={1.8} />
-          </span>
+          </button>
         ))}
-      </span>
+      </div>
       <span
         style={{
           padding: "10px 18px",
@@ -239,7 +268,7 @@ export function InlineComposer({
       >
         Compose
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -419,6 +448,21 @@ function ComposerForm({
 
   const [moderationWarning, setModerationWarning] = useState<string | null>(null);
   const [moderationConfirmed, setModerationConfirmed] = useState(false);
+
+  const consumeComposeAction = useUIStore((s) => s.consumeComposeAction);
+  useEffect(() => {
+    const action = consumeComposeAction();
+    if (!action) return;
+    if (action === "photo") {
+      fileInputRef.current?.click();
+    } else if (action === "event") {
+      setShowSchedule(true);
+    } else if (action === "place") {
+      setShowLocation(true);
+    } else if (action === "voice") {
+      startAudioRecording();
+    }
+  }, [consumeComposeAction, startAudioRecording]);
 
   const handleSubmit = async () => {
     if (!canPost || posting) return;
