@@ -132,6 +132,19 @@
   50% { opacity: 0.8; }
 }
 
+/* Orbit dropdown item hover/highlight */
+.orbit-dropdown-item[data-highlighted] {
+  background: rgba(255, 95, 174, 0.14);
+  color: #ffffff;
+}
+.orbit-dropdown-item[data-variant="destructive"][data-highlighted] {
+  background: rgba(255, 122, 133, 0.14);
+  color: #ff9aa3;
+}
+.orbit-dropdown-item[data-variant="destructive"] svg {
+  color: currentColor;
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-12px); }

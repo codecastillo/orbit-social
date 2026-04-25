@@ -15,22 +15,18 @@ import {
   ArrowRight,
   User,
   Shield,
-  Sparkles,
   Camera,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { fullSignUpSchema, type FullSignUpFormData } from "@/lib/utils/validators";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-
-const syne = { fontFamily: "var(--font-syne), sans-serif" };
+import { O, orbitBg, panel, aurora } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { Field, Input, TextArea } from "@/components/orbit/forms";
 
 const GoogleIcon = () => (
-  <svg className="h-5 w-5 mr-3" viewBox="0 0 24 24">
+  <svg width={18} height={18} viewBox="0 0 24 24">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
@@ -38,53 +34,69 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const steps = [
-  { label: "Account", icon: User },
-  { label: "Security", icon: Shield },
-  { label: "Optional", icon: Sparkles },
-] as const;
+const stepLabels = ["ACCOUNT", "SECURITY", "PROFILE"] as const;
 
 function PasswordStrength({ password }: { password: string }) {
   const checks = [
-    { label: "10+ characters", met: password.length >= 10 },
+    { label: "10+ chars", met: password.length >= 10 },
     { label: "Uppercase", met: /[A-Z]/.test(password) },
     { label: "Lowercase", met: /[a-z]/.test(password) },
     { label: "Number", met: /[0-9]/.test(password) },
-    { label: "Special char", met: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) },
+    { label: "Symbol", met: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) },
   ];
-
   if (!password) return null;
-
   const metCount = checks.filter((c) => c.met).length;
-  const strengthPercent = (metCount / checks.length) * 100;
-  const strengthColor =
-    strengthPercent <= 40
-      ? "bg-red-500"
-      : strengthPercent <= 70
-        ? "bg-amber-500"
-        : "bg-emerald-500";
+  const pct = (metCount / checks.length) * 100;
+  const color = pct <= 40 ? O.a2 : pct <= 70 ? "#ffd76a" : "#7dffa3";
 
   return (
-    <div className="space-y-2.5 pt-1">
-      <div className="h-1 w-full rounded-full bg-white/[0.06] overflow-hidden">
+    <div style={{ marginTop: 10 }}>
+      <div
+        style={{
+          height: 4,
+          borderRadius: 2,
+          background: O.glass2,
+          overflow: "hidden",
+        }}
+      >
         <motion.div
-          className={`h-full rounded-full ${strengthColor}`}
+          style={{
+            height: "100%",
+            borderRadius: 2,
+            background: color,
+            boxShadow: `0 0 10px ${color}66`,
+          }}
           initial={{ width: 0 }}
-          animate={{ width: `${strengthPercent}%` }}
-          transition={{ duration: 0.3 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.25 }}
         />
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 6,
+          marginTop: 10,
+        }}
+      >
         {checks.map((c) => (
           <span
             key={c.label}
-            className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${
-              c.met
-                ? "text-emerald-400 bg-emerald-400/10"
-                : "text-muted-foreground/50 bg-white/[0.03]"
-            }`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 9px",
+              borderRadius: 99,
+              fontSize: 10.5,
+              fontFamily: O.mono,
+              letterSpacing: "0.04em",
+              background: c.met ? "rgba(125,255,163,0.10)" : O.glass,
+              color: c.met ? "#7dffa3" : O.ink4,
+              border: `1px solid ${c.met ? "rgba(125,255,163,0.25)" : O.hair}`,
+            }}
           >
-            {c.met ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
+            {c.met ? <Check style={{ width: 10, height: 10 }} /> : <X style={{ width: 10, height: 10 }} />}
             {c.label}
           </span>
         ))}
@@ -93,50 +105,105 @@ function PasswordStrength({ password }: { password: string }) {
   );
 }
 
-function StepIndicator({ currentStep }: { currentStep: number }) {
+function StepPills({ current }: { current: number }) {
   return (
-    <div className="flex items-center justify-center gap-3">
-      {steps.map((step, i) => {
-        const Icon = step.icon;
-        const isCompleted = i < currentStep;
-        const isActive = i === currentStep;
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        marginTop: 16,
+      }}
+    >
+      {stepLabels.map((label, i) => {
+        const done = i < current;
+        const active = i === current;
         return (
-          <div key={step.label} className="flex items-center gap-3">
+          <div
+            key={label}
+            style={{ display: "flex", alignItems: "center", gap: 10 }}
+          >
             {i > 0 && (
               <div
-                className={`h-[2px] w-8 rounded-full transition-colors duration-300 ${
-                  isCompleted ? "bg-primary" : "bg-white/[0.08]"
-                }`}
+                style={{
+                  width: 22,
+                  height: 1,
+                  background: done ? aurora : O.hair,
+                }}
               />
             )}
-            <div className="flex flex-col items-center gap-1.5">
-              <div
-                className={`h-9 w-9 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  isCompleted
-                    ? "bg-primary text-primary-foreground"
-                    : isActive
-                      ? "bg-primary/20 text-primary ring-2 ring-primary/40"
-                      : "bg-white/[0.05] text-muted-foreground/50"
-                }`}
-              >
-                {isCompleted ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <Icon className="h-4 w-4" />
-                )}
-              </div>
-              <span
-                className={`text-[10px] font-medium transition-colors ${
-                  isActive ? "text-foreground" : "text-muted-foreground/50"
-                }`}
-              >
-                {step.label}
-              </span>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "5px 12px",
+                borderRadius: 99,
+                background: active || done ? aurora : O.glass,
+                border: `1px solid ${active || done ? "transparent" : O.hair2}`,
+                color: active || done ? "white" : O.ink3,
+                fontFamily: O.mono,
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.12em",
+                boxShadow: active
+                  ? `0 4px 16px ${O.a2}55`
+                  : "none",
+              }}
+            >
+              <span>{i + 1}</span>
+              <span>{label}</span>
+              {done && <Check style={{ width: 10, height: 10 }} />}
             </div>
           </div>
         );
       })}
     </div>
+  );
+}
+
+function Shell({ children, maxWidth = 520 }: { children: React.ReactNode; maxWidth?: number }) {
+  return (
+    <main
+      style={{
+        ...orbitBg,
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        padding: 48,
+        color: O.ink,
+        fontFamily: O.sans,
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        style={{ width: "100%", maxWidth }}
+      >
+        <div style={{ textAlign: "center", marginBottom: 18 }}>
+          <Link href="/" style={{ textDecoration: "none" }}>
+            <span
+              style={{
+                fontFamily: O.serif,
+                fontStyle: "italic",
+                fontSize: 36,
+                background: aurora,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              orbit
+            </span>
+          </Link>
+        </div>
+        <div style={{ ...panel({ borderRadius: 24 }), padding: 36 }}>
+          {children}
+        </div>
+      </motion.div>
+    </main>
   );
 }
 
@@ -147,9 +214,7 @@ export default function SignUpPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [dobMonth, setDobMonth] = useState("");
   const [dobDay, setDobDay] = useState("");
   const [dobYear, setDobYear] = useState("");
@@ -179,6 +244,9 @@ export default function SignUpPage() {
   });
 
   const passwordValue = watch("password", "");
+  const fullNameValue = watch("fullName", "");
+  const usernameValue = watch("username", "");
+  const agreeToTerms = watch("agreeToTerms");
 
   const updateDob = (month: string, day: string, year: string) => {
     const m = month.replace(/\D/g, "");
@@ -190,11 +258,7 @@ export default function SignUpPage() {
       setValue("dateOfBirth", "", { shouldValidate: false });
     }
   };
-  const fullNameValue = watch("fullName", "");
-  const usernameValue = watch("username", "");
-  const agreeToTerms = watch("agreeToTerms");
 
-  // Auto-generate username from full name
   useEffect(() => {
     if (fullNameValue && !usernameValue) {
       const generated = fullNameValue
@@ -202,13 +266,10 @@ export default function SignUpPage() {
         .replace(/[^a-z0-9\s_]/g, "")
         .replace(/\s+/g, "_")
         .slice(0, 30);
-      if (generated.length >= 3) {
-        setValue("username", generated);
-      }
+      if (generated.length >= 3) setValue("username", generated);
     }
   }, [fullNameValue, setValue]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Check username availability with debounce
   const checkUsername = useCallback(
     async (username: string) => {
       if (!username || username.length < 3) {
@@ -245,12 +306,10 @@ export default function SignUpPage() {
     const fieldsToValidate = currentStep === 0 ? step1Fields : step2Fields;
     const isValid = await trigger(fieldsToValidate);
     if (!isValid) return;
-
     if (currentStep === 0 && usernameAvailable === false) {
       toast.error("That username is taken");
       return;
     }
-
     setDirection(1);
     setCurrentStep((s) => Math.min(s + 1, 2));
   };
@@ -271,10 +330,8 @@ export default function SignUpPage() {
       toast.error("Image must be under 5MB");
       return;
     }
-    // Show preview immediately
     setAvatarPreview(URL.createObjectURL(file));
-    // Store the file for upload after account creation
-    (window as any).__pendingAvatarFile = file;
+    (window as unknown as { __pendingAvatarFile?: File }).__pendingAvatarFile = file;
   };
 
   const onSubmit = async (data: FullSignUpFormData) => {
@@ -284,467 +341,462 @@ export default function SignUpPage() {
       options: {
         emailRedirectTo: `${window.location.origin}/callback?next=/feed`,
         data: {
-          // These keys match what the DB trigger reads
           full_name: data.fullName,
           username: data.username.toLowerCase(),
           bio: data.bio || null,
         },
       },
     });
-
     if (error) {
       toast.error(error.message);
       return;
     }
-
-    // Redirect to verify email page
     router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
   };
 
   const signUpWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/callback`,
-      },
+      options: { redirectTo: `${window.location.origin}/callback` },
     });
-
     if (error) toast.error(error.message);
   };
 
   const slideVariants = {
-    enter: (dir: number) => ({
-      x: dir > 0 ? 80 : -80,
-      opacity: 0,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-    },
-    exit: (dir: number) => ({
-      x: dir > 0 ? -80 : 80,
-      opacity: 0,
-    }),
+    enter: (dir: number) => ({ x: dir > 0 ? 60 : -60, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit: (dir: number) => ({ x: dir > 0 ? -60 : 60, opacity: 0 }),
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden page-gradient">
-      {/* Ambient glow */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/3 right-1/4 w-[600px] h-[600px] bg-blue-500/[0.04] rounded-full blur-[180px]" />
-        <div className="absolute bottom-1/3 left-1/4 w-[500px] h-[500px] bg-purple-500/[0.03] rounded-full blur-[150px]" />
+    <Shell>
+      <div style={{ textAlign: "center" }}>
+        <Eyebrow accent>◇&nbsp;&nbsp;CREATE · ACCOUNT</Eyebrow>
+        <Display size={32} style={{ marginTop: 10 }}>
+          Join the <Acc>orbit</Acc>.
+        </Display>
+        <p
+          style={{
+            fontSize: 13.5,
+            color: O.ink3,
+            marginTop: 10,
+            lineHeight: 1.55,
+          }}
+        >
+          Small places. People you actually like.
+        </p>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-[480px] space-y-6 relative z-10"
-      >
-        {/* Logo */}
-        <div className="text-center space-y-2">
-          <Link href="/">
-            <span
-              className="text-5xl font-extrabold tracking-tighter inline-block"
-              style={{
-                ...syne,
-                background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.5) 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              Orbit
-            </span>
-          </Link>
-        </div>
+      <StepPills current={currentStep} />
 
-        {/* Main card */}
-        <div className="card-elevated p-8 sm:p-10 space-y-7">
-          <div className="text-center">
-            <h1 className="text-xl font-bold" style={syne}>
-              Create your account
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Join Orbit today
-            </p>
-          </div>
+      <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: 24 }}>
+        <div style={{ minHeight: 340, position: "relative", overflow: "hidden" }}>
+          <AnimatePresence mode="wait" custom={direction}>
+            {currentStep === 0 && (
+              <motion.div
+                key="step-0"
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <PillBtn
+                  size="lg"
+                  type="button"
+                  onClick={signUpWithGoogle}
+                  style={{ width: "100%", justifyContent: "center", gap: 10, marginBottom: 16 }}
+                >
+                  <GoogleIcon />
+                  Sign up with Google
+                </PillBtn>
 
-          {/* Step indicator */}
-          <StepIndicator currentStep={currentStep} />
-
-          {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            <div className="min-h-[320px] relative overflow-hidden">
-              <AnimatePresence mode="wait" custom={direction}>
-                {/* Step 1: Account */}
-                {currentStep === 0 && (
-                  <motion.div
-                    key="step-0"
-                    custom={direction}
-                    variants={slideVariants}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                    className="space-y-5"
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    margin: "16px 0 14px",
+                  }}
+                >
+                  <div style={{ flex: 1, height: 1, background: O.hair }} />
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontFamily: O.mono,
+                      color: O.ink4,
+                      letterSpacing: "0.18em",
+                    }}
                   >
-                    {/* Google button */}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="btn-social"
-                      onClick={signUpWithGoogle}
-                    >
-                      <GoogleIcon />
-                      Sign up with Google
-                    </Button>
+                    OR
+                  </span>
+                  <div style={{ flex: 1, height: 1, background: O.hair }} />
+                </div>
 
-                    <div className="divider-text">
-                      <span className="text-xs text-muted-foreground/60 uppercase tracking-wider font-medium px-2">
-                        or
-                      </span>
-                    </div>
+                <Field label="Display name" error={errors.fullName?.message}>
+                  <Input
+                    type="text"
+                    placeholder="How others will see you"
+                    {...register("fullName")}
+                  />
+                </Field>
 
-                    {/* Display Name */}
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName" className="text-[13px] text-muted-foreground font-medium">
-                        Display Name
-                      </Label>
-                      <Input
-                        id="fullName"
-                        type="text"
-                        placeholder="How others will see you"
-                        {...register("fullName")}
-                        className="input-premium"
-                      />
-                      {errors.fullName && (
-                        <p className="text-xs text-destructive mt-1">{errors.fullName.message}</p>
-                      )}
-                    </div>
+                <Field
+                  label="Username"
+                  error={
+                    errors.username?.message ||
+                    (usernameAvailable === false ? "That handle is taken" : undefined)
+                  }
+                >
+                  <Input
+                    type="text"
+                    placeholder="username"
+                    prefix={<span>@</span>}
+                    {...register("username")}
+                    suffix={
+                      checkingUsername ? (
+                        <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />
+                      ) : usernameAvailable === true && usernameValue.length >= 3 ? (
+                        <Check style={{ width: 14, height: 14, color: "#7dffa3" }} />
+                      ) : usernameAvailable === false ? (
+                        <X style={{ width: 14, height: 14, color: "#ff7a85" }} />
+                      ) : null
+                    }
+                  />
+                </Field>
 
-                    {/* Username */}
-                    <div className="space-y-2">
-                      <Label htmlFor="username" className="text-[13px] text-muted-foreground font-medium">
-                        Username
-                      </Label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 text-sm">
-                          @
-                        </span>
-                        <Input
-                          id="username"
-                          type="text"
-                          placeholder="username"
-                          {...register("username")}
-                          className="input-premium pl-8"
-                        />
-                        {checkingUsername && (
-                          <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground/50" />
-                        )}
-                        {!checkingUsername && usernameAvailable === true && usernameValue.length >= 3 && (
-                          <Check className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-400" />
-                        )}
-                        {!checkingUsername && usernameAvailable === false && (
-                          <X className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-red-400" />
-                        )}
-                      </div>
-                      {usernameAvailable === false && (
-                        <p className="text-xs text-destructive mt-1">This username is taken</p>
-                      )}
-                      {errors.username && (
-                        <p className="text-xs text-destructive mt-1">{errors.username.message}</p>
-                      )}
-                    </div>
+                <Field label="Email address" error={errors.email?.message}>
+                  <Input type="email" placeholder="you@example.com" {...register("email")} />
+                </Field>
 
-                    {/* Email */}
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-[13px] text-muted-foreground font-medium">
-                        Email address
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="you@example.com"
-                        {...register("email")}
-                        className="input-premium"
-                      />
-                      {errors.email && (
-                        <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
-                      )}
-                    </div>
+                <Field label="Date of birth" error={errors.dateOfBirth?.message} hint="Must be at least 13">
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.3fr", gap: 8 }}>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="MM"
+                      maxLength={2}
+                      value={dobMonth}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+                        setDobMonth(v);
+                        updateDob(v, dobDay, dobYear);
+                      }}
+                      style={{ textAlign: "center" }}
+                    />
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="DD"
+                      maxLength={2}
+                      value={dobDay}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+                        setDobDay(v);
+                        updateDob(dobMonth, v, dobYear);
+                      }}
+                      style={{ textAlign: "center" }}
+                    />
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="YYYY"
+                      maxLength={4}
+                      value={dobYear}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        setDobYear(v);
+                        updateDob(dobMonth, dobDay, v);
+                      }}
+                      style={{ textAlign: "center" }}
+                    />
+                  </div>
+                  <input type="hidden" {...register("dateOfBirth")} />
+                </Field>
+              </motion.div>
+            )}
 
-                    {/* Date of Birth — typed inputs */}
-                    <div className="space-y-2">
-                      <Label className="text-[13px] text-muted-foreground font-medium">
-                        Date of Birth
-                      </Label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="MM"
-                          maxLength={2}
-                          value={dobMonth}
-                          onChange={(e) => {
-                            const v = e.target.value.replace(/\D/g, "").slice(0, 2);
-                            setDobMonth(v);
-                            updateDob(v.padStart(2, "0"), dobDay.padStart(2, "0"), dobYear);
-                          }}
-                          className="input-premium text-center text-sm"
-                        />
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="DD"
-                          maxLength={2}
-                          value={dobDay}
-                          onChange={(e) => {
-                            const v = e.target.value.replace(/\D/g, "").slice(0, 2);
-                            setDobDay(v);
-                            updateDob(dobMonth.padStart(2, "0"), v.padStart(2, "0"), dobYear);
-                          }}
-                          className="input-premium text-center text-sm"
-                        />
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="YYYY"
-                          maxLength={4}
-                          value={dobYear}
-                          onChange={(e) => {
-                            const v = e.target.value.replace(/\D/g, "").slice(0, 4);
-                            setDobYear(v);
-                            updateDob(dobMonth.padStart(2, "0"), dobDay.padStart(2, "0"), v);
-                          }}
-                          className="input-premium text-center text-sm"
-                        />
-                      </div>
-                      <input type="hidden" {...register("dateOfBirth")} />
-                      {errors.dateOfBirth && (
-                        <p className="text-xs text-destructive mt-1">{errors.dateOfBirth.message}</p>
-                      )}
-                      <p className="text-[11px] text-muted-foreground/50">You must be at least 13 years old</p>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Step 2: Security */}
-                {currentStep === 1 && (
-                  <motion.div
-                    key="step-1"
-                    custom={direction}
-                    variants={slideVariants}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                    className="space-y-5"
+            {currentStep === 1 && (
+              <motion.div
+                key="step-1"
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div style={{ textAlign: "center", marginBottom: 18 }}>
+                  <div
+                    style={{
+                      width: 56,
+                      height: 56,
+                      margin: "0 auto 12px",
+                      borderRadius: "50%",
+                      background: `${O.a3}15`,
+                      border: `1px solid ${O.a3}44`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: O.a3,
+                    }}
                   >
-                    <div className="text-center pb-2">
-                      <Shield className="h-8 w-8 mx-auto text-primary/60 mb-2" />
-                      <p className="text-sm text-muted-foreground">
-                        Choose a strong password to protect your account
-                      </p>
-                    </div>
+                    <Shield style={{ width: 22, height: 22 }} />
+                  </div>
+                  <p style={{ fontSize: 13, color: O.ink3, margin: 0 }}>
+                    Pick a password you&apos;ll remember — long beats clever.
+                  </p>
+                </div>
 
-                    {/* Password */}
-                    <div className="space-y-2">
-                      <Label htmlFor="password" className="text-[13px] text-muted-foreground font-medium">
-                        Password
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="password"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Create a strong password"
-                          {...register("password")}
-                          className="input-premium pr-12"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground"
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                      <PasswordStrength password={passwordValue} />
-                      {errors.password && (
-                        <p className="text-xs text-destructive mt-1">{errors.password.message}</p>
-                      )}
-                    </div>
+                <Field label="Password" error={errors.password?.message}>
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Create a strong password"
+                    {...register("password")}
+                    suffix={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: O.ink3,
+                          cursor: "pointer",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        {showPassword ? (
+                          <EyeOff style={{ width: 15, height: 15 }} />
+                        ) : (
+                          <Eye style={{ width: 15, height: 15 }} />
+                        )}
+                      </button>
+                    }
+                  />
+                </Field>
+                <PasswordStrength password={passwordValue} />
 
-                    {/* Confirm Password */}
-                    <div className="space-y-2">
-                      <Label htmlFor="confirmPassword" className="text-[13px] text-muted-foreground font-medium">
-                        Confirm Password
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="confirmPassword"
-                          type={showConfirmPassword ? "text" : "password"}
-                          placeholder="Repeat your password"
-                          {...register("confirmPassword")}
-                          className="input-premium pr-12"
-                        />
+                <div style={{ marginTop: 18 }}>
+                  <Field label="Confirm password" error={errors.confirmPassword?.message}>
+                    <Input
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Repeat your password"
+                      {...register("confirmPassword")}
+                      suffix={
                         <button
                           type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground"
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: O.ink3,
+                            cursor: "pointer",
+                            padding: 0,
+                            display: "flex",
+                            alignItems: "center",
+                          }}
                         >
-                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                      {errors.confirmPassword && (
-                        <p className="text-xs text-destructive mt-1">{errors.confirmPassword.message}</p>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Step 3: Optional */}
-                {currentStep === 2 && (
-                  <motion.div
-                    key="step-2"
-                    custom={direction}
-                    variants={slideVariants}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                    className="space-y-5"
-                  >
-                    <div className="text-center pb-2">
-                      <p className="text-sm text-muted-foreground">
-                        Almost done! Add a photo and bio.
-                      </p>
-                    </div>
-
-                    {/* Profile Picture */}
-                    <div className="flex justify-center">
-                      <div
-                        className="relative cursor-pointer group"
-                        onClick={() => avatarInputRef.current?.click()}
-                      >
-                        <div className="h-24 w-24 rounded-full bg-white/[0.04] border-2 border-white/[0.08] flex items-center justify-center overflow-hidden">
-                          {avatarPreview ? (
-                            <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                          {showConfirmPassword ? (
+                            <EyeOff style={{ width: 15, height: 15 }} />
                           ) : (
-                            <User className="h-10 w-10 text-muted-foreground/30" />
+                            <Eye style={{ width: 15, height: 15 }} />
                           )}
-                        </div>
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Camera className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center border-2 border-background">
-                          <Camera className="h-3 w-3 text-white" />
-                        </div>
-                      </div>
-                      <input
-                        ref={avatarInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
-                        onChange={handleAvatarSelect}
-                        className="hidden"
-                      />
-                    </div>
-                    <p className="text-center text-xs text-muted-foreground/50">
-                      Tap to add a profile photo
-                    </p>
+                        </button>
+                      }
+                    />
+                  </Field>
+                </div>
+              </motion.div>
+            )}
 
-                    {/* Bio */}
-                    <div className="space-y-2">
-                      <Label htmlFor="bio" className="text-[13px] text-muted-foreground font-medium">
-                        Bio
-                        <span className="text-muted-foreground/40 ml-1">(optional)</span>
-                      </Label>
-                      <Textarea
-                        id="bio"
-                        placeholder="Tell us about yourself..."
-                        {...register("bio")}
-                        className="input-premium min-h-24 resize-none"
-                        maxLength={160}
-                      />
-                      {errors.bio && (
-                        <p className="text-xs text-destructive mt-1">{errors.bio.message}</p>
+            {currentStep === 2 && (
+              <motion.div
+                key="step-2"
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div style={{ textAlign: "center", marginBottom: 18 }}>
+                  <p style={{ fontSize: 13, color: O.ink3, margin: 0 }}>
+                    Almost in. Add a face and a line.
+                  </p>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <div
+                    onClick={() => avatarInputRef.current?.click()}
+                    style={{ position: "relative", cursor: "pointer" }}
+                  >
+                    <div
+                      style={{
+                        width: 96,
+                        height: 96,
+                        borderRadius: "50%",
+                        background: O.glass,
+                        border: `1px solid ${O.hair2}`,
+                        overflow: "hidden",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {avatarPreview ? (
+                        <img src={avatarPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <User style={{ width: 36, height: 36, color: O.ink4 }} />
                       )}
                     </div>
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: -4,
+                        right: -4,
+                        width: 30,
+                        height: 30,
+                        borderRadius: "50%",
+                        background: aurora,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "white",
+                        boxShadow: `0 6px 18px ${O.a2}66`,
+                      }}
+                    >
+                      <Camera style={{ width: 12, height: 12 }} />
+                    </div>
+                  </div>
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    onChange={handleAvatarSelect}
+                    className="hidden"
+                  />
+                </div>
+                <p
+                  style={{
+                    textAlign: "center",
+                    fontSize: 11,
+                    color: O.ink4,
+                    fontFamily: O.mono,
+                    letterSpacing: "0.08em",
+                    marginTop: 8,
+                    marginBottom: 20,
+                  }}
+                >
+                  TAP TO ADD A PHOTO
+                </p>
 
-                    {/* Terms checkbox */}
-                    <label className="flex items-start gap-3 cursor-pointer group pt-2">
-                      <input
-                        type="checkbox"
-                        {...register("agreeToTerms")}
-                        className="mt-0.5 h-4 w-4 rounded border-white/10 bg-white/[0.05] text-primary focus:ring-primary/30 accent-primary"
-                      />
-                      <span className="text-[12px] text-muted-foreground leading-snug">
-                        I agree to the{" "}
-                        <span className="text-primary cursor-pointer hover:underline">Terms of Service</span>
-                        {" "}and{" "}
-                        <span className="text-primary cursor-pointer hover:underline">Privacy Policy</span>.
-                        You must be at least 13 years old to use Orbit.
-                      </span>
-                    </label>
-                    {errors.agreeToTerms && (
-                      <p className="text-xs text-destructive">{errors.agreeToTerms.message}</p>
-                    )}
-                  </motion.div>
+                <Field
+                  label="Bio"
+                  hint="Optional"
+                  error={errors.bio?.message}
+                >
+                  <TextArea
+                    placeholder="Tell us about yourself…"
+                    {...register("bio")}
+                    rows={3}
+                    maxLength={160}
+                  />
+                </Field>
+
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                    marginTop: 8,
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    {...register("agreeToTerms")}
+                    style={{
+                      marginTop: 3,
+                      width: 16,
+                      height: 16,
+                      accentColor: O.a2,
+                    }}
+                  />
+                  <span style={{ fontSize: 12, color: O.ink3, lineHeight: 1.5 }}>
+                    I agree to the{" "}
+                    <span style={{ color: O.a3, cursor: "pointer" }}>Terms of Service</span>{" "}
+                    and{" "}
+                    <span style={{ color: O.a3, cursor: "pointer" }}>Privacy Policy</span>.
+                  </span>
+                </label>
+                {errors.agreeToTerms && (
+                  <p style={{ fontSize: 11, color: "#ff7a85", marginTop: 6 }}>
+                    {errors.agreeToTerms.message}
+                  </p>
                 )}
-              </AnimatePresence>
-            </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-            {/* Navigation buttons */}
-            <div className="flex items-center gap-3 pt-2">
-              {currentStep > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1 h-12 rounded-full text-[15px] font-semibold"
-                  onClick={goBack}
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
-              )}
-
-              {currentStep < 2 ? (
-                <Button
-                  type="button"
-                  className={`h-12 rounded-full text-[15px] font-bold bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all ${
-                    currentStep === 0 ? "w-full" : "flex-1"
-                  }`}
-                  onClick={goNext}
-                >
-                  Next
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            marginTop: 20,
+          }}
+        >
+          {currentStep > 0 && (
+            <PillBtn type="button" size="lg" onClick={goBack} style={{ flex: 1, justifyContent: "center" }}>
+              <ArrowLeft style={{ width: 14, height: 14 }} />
+              Back
+            </PillBtn>
+          )}
+          {currentStep < 2 ? (
+            <PillBtn
+              primary
+              type="button"
+              size="lg"
+              onClick={goNext}
+              style={{ flex: currentStep === 0 ? "1 0 100%" : 1, justifyContent: "center" }}
+            >
+              Next
+              <ArrowRight style={{ width: 14, height: 14 }} />
+            </PillBtn>
+          ) : (
+            <PillBtn
+              primary
+              type="submit"
+              size="lg"
+              disabled={isSubmitting || !agreeToTerms}
+              style={{ flex: 1, justifyContent: "center" }}
+            >
+              {isSubmitting ? (
+                <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" />
               ) : (
-                <Button
-                  type="submit"
-                  className="flex-1 h-12 rounded-full text-[15px] font-bold bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all"
-                  disabled={isSubmitting || !agreeToTerms}
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    "Create Account"
-                  )}
-                </Button>
+                "Create account →"
               )}
-            </div>
-          </form>
+            </PillBtn>
+          )}
         </div>
+      </form>
 
-        {/* Footer link */}
-        <div className="card-elevated p-5">
-          <p className="text-center text-[15px] text-muted-foreground">
-            Already have an account?{" "}
-            <Link href="/login" className="text-primary font-semibold hover:underline">
-              Log in
-            </Link>
-          </p>
-        </div>
-      </motion.div>
-    </div>
+      <p
+        style={{
+          marginTop: 24,
+          textAlign: "center",
+          fontSize: 13,
+          color: O.ink3,
+        }}
+      >
+        Already have an account?{" "}
+        <Link href="/login" style={{ color: O.a3, textDecoration: "none", fontWeight: 600 }}>
+          Sign in →
+        </Link>
+      </p>
+    </Shell>
   );
 }

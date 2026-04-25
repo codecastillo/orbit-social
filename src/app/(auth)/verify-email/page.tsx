@@ -7,7 +7,8 @@ import { Mail, Loader2, CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
+import { O, orbitBg, panel, aurora } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
@@ -28,93 +29,183 @@ export default function VerifyEmailPage() {
       toast.error("Failed to resend. Try again later.");
     } else {
       setResent(true);
-      toast.success("Verification email sent!");
+      toast.success("Verification email sent");
       setTimeout(() => setResent(false), 30000);
     }
   };
 
+  const steps = [
+    "Open your email inbox.",
+    "Tap the link from Orbit.",
+    "You'll land back here, signed in.",
+  ];
+
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden page-gradient">
+    <main
+      style={{
+        ...orbitBg,
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        padding: 48,
+        color: O.ink,
+        fontFamily: O.sans,
+      }}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-md text-center space-y-6"
+        style={{ width: "100%", maxWidth: 460 }}
       >
-        {/* Icon */}
-        <div className="flex justify-center">
-          <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
-            <Mail className="h-10 w-10 text-primary" />
-          </div>
+        <div style={{ textAlign: "center", marginBottom: 18 }}>
+          <Link href="/" style={{ textDecoration: "none" }}>
+            <span
+              style={{
+                fontFamily: O.serif,
+                fontStyle: "italic",
+                fontSize: 36,
+                background: aurora,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              orbit
+            </span>
+          </Link>
         </div>
 
-        {/* Heading */}
-        <div>
-          <h1
-            className="text-2xl font-extrabold tracking-tight"
-            style={{ fontFamily: "var(--font-syne), sans-serif" }}
+        <div style={{ ...panel({ borderRadius: 24 }), padding: 40, textAlign: "center" }}>
+          <div
+            style={{
+              width: 72,
+              height: 72,
+              margin: "0 auto 16px",
+              borderRadius: "50%",
+              background: `${O.a3}15`,
+              border: `1px solid ${O.a3}44`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: O.a3,
+            }}
           >
-            Check your email
-          </h1>
-          <p className="text-muted-foreground mt-3 text-[15px] leading-relaxed">
+            <Mail style={{ width: 30, height: 30 }} strokeWidth={1.8} />
+          </div>
+
+          <Eyebrow accent>◇&nbsp;&nbsp;VERIFY · EMAIL</Eyebrow>
+          <Display size={32} style={{ marginTop: 10 }}>
+            Check your <Acc>inbox</Acc>.
+          </Display>
+          <p
+            style={{
+              fontSize: 13.5,
+              color: O.ink3,
+              marginTop: 10,
+              lineHeight: 1.55,
+            }}
+          >
             We sent a verification link to
-            <br />
-            <span className="text-foreground font-semibold">{email}</span>
           </p>
-        </div>
+          {email && (
+            <div
+              style={{
+                marginTop: 8,
+                padding: "7px 14px",
+                borderRadius: 99,
+                background: O.glass,
+                border: `1px solid ${O.hair2}`,
+                fontFamily: O.mono,
+                fontSize: 12,
+                color: O.ink,
+                display: "inline-flex",
+              }}
+            >
+              {email}
+            </div>
+          )}
 
-        {/* Instructions */}
-        <div className="card-elevated p-6 text-left space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-              <span className="text-xs font-bold text-primary">1</span>
-            </div>
-            <p className="text-sm text-muted-foreground">Open your email inbox</p>
+          <div
+            style={{
+              ...panel({ borderRadius: 18 }),
+              padding: 18,
+              marginTop: 24,
+              textAlign: "left",
+            }}
+          >
+            {steps.map((text, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  padding: "10px 0",
+                  borderTop: i ? `1px solid ${O.hair}` : "none",
+                }}
+              >
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    background: O.glass,
+                    border: `1px solid ${O.a2}44`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontFamily: O.mono,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: O.a2,
+                    flexShrink: 0,
+                  }}
+                >
+                  {i + 1}
+                </div>
+                <span style={{ fontSize: 13.5, color: O.ink2 }}>{text}</span>
+              </div>
+            ))}
           </div>
-          <div className="flex items-start gap-3">
-            <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-              <span className="text-xs font-bold text-primary">2</span>
-            </div>
-            <p className="text-sm text-muted-foreground">Click the verification link in the email from Orbit</p>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-              <span className="text-xs font-bold text-primary">3</span>
-            </div>
-            <p className="text-sm text-muted-foreground">You'll be redirected to your feed automatically</p>
-          </div>
-        </div>
 
-        {/* Resend */}
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground/60">
-            Didn't receive the email? Check your spam folder or
-          </p>
-          <Button
-            variant="outline"
-            className="rounded-xl h-10 px-6 font-semibold cursor-pointer"
+          <PillBtn
+            size="lg"
             onClick={handleResend}
             disabled={resending || resent}
+            style={{
+              marginTop: 20,
+              width: "100%",
+              justifyContent: "center",
+              ...(resent
+                ? {
+                    border: "1px solid rgba(125,255,163,0.4)",
+                    color: "#7dffa3",
+                  }
+                : {}),
+            }}
           >
             {resending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />
             ) : resent ? (
-              <CheckCircle className="h-4 w-4 mr-2 text-emerald-400" />
+              <CheckCircle style={{ width: 14, height: 14 }} />
             ) : (
-              <Mail className="h-4 w-4 mr-2" />
+              <Mail style={{ width: 14, height: 14 }} />
             )}
-            {resent ? "Email sent!" : "Resend verification email"}
-          </Button>
-        </div>
+            {resent ? "Sent — check again in 30s" : "Resend verification"}
+          </PillBtn>
 
-        {/* Back to login */}
-        <p className="text-sm text-muted-foreground/50">
-          Wrong email?{" "}
-          <Link href="/signup" className="text-primary hover:underline font-medium">
-            Sign up again
-          </Link>
-        </p>
+          <p style={{ marginTop: 20, fontSize: 13, color: O.ink3 }}>
+            Wrong email?{" "}
+            <Link
+              href="/signup"
+              style={{ color: O.a3, textDecoration: "none", fontWeight: 600 }}
+            >
+              Start over →
+            </Link>
+          </p>
+        </div>
       </motion.div>
-    </div>
+    </main>
   );
 }

@@ -10,14 +10,14 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { loginSchema, type LoginFormData } from "@/lib/utils/validators";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { createLoginEvent } from "@/lib/queries/security";
+import { O, orbitBg, panel, aurora } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { Field, Input } from "@/components/orbit/forms";
 
 const LOCKOUT_KEY = "orbit_login_lockout";
 const MAX_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 
 interface LockoutData {
   attempts: number;
@@ -45,7 +45,7 @@ function clearLockoutData() {
 }
 
 const GoogleIcon = () => (
-  <svg className="h-5 w-5 mr-3" viewBox="0 0 24 24">
+  <svg width={18} height={18} viewBox="0 0 24 24">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
@@ -53,17 +53,71 @@ const GoogleIcon = () => (
   </svg>
 );
 
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <main
+      style={{
+        ...orbitBg,
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        padding: 48,
+        color: O.ink,
+        fontFamily: O.sans,
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        style={{ width: "100%", maxWidth: 460 }}
+      >
+        <div style={{ textAlign: "center", marginBottom: 18 }}>
+          <Link href="/" style={{ textDecoration: "none" }}>
+            <span
+              style={{
+                fontFamily: O.serif,
+                fontStyle: "italic",
+                fontSize: 36,
+                background: aurora,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              orbit
+            </span>
+          </Link>
+        </div>
+        <div style={{ ...panel({ borderRadius: 24 }), padding: 40 }}>
+          {children}
+        </div>
+        <p
+          style={{
+            textAlign: "center",
+            marginTop: 14,
+            fontSize: 11,
+            color: O.ink4,
+            fontFamily: O.mono,
+            letterSpacing: "0.08em",
+          }}
+        >
+          ◇&nbsp;&nbsp;SECURE · END-TO-END
+        </p>
+      </motion.div>
+    </main>
+  );
+}
+
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
-  // Account lockout state
   const [isLocked, setIsLocked] = useState(false);
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
   const [attemptsLeft, setAttemptsLeft] = useState(MAX_ATTEMPTS);
 
-  // MFA challenge state
   const [mfaRequired, setMfaRequired] = useState(false);
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState("");
@@ -77,7 +131,6 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
-  // Check lockout status on mount and update countdown
   const checkLockout = useCallback(() => {
     const data = getLockoutData();
     if (data.lockedUntil && data.lockedUntil > Date.now()) {
@@ -85,7 +138,6 @@ export default function LoginPage() {
       setLockoutRemaining(data.lockedUntil - Date.now());
       setAttemptsLeft(0);
     } else if (data.lockedUntil && data.lockedUntil <= Date.now()) {
-      // Lockout expired
       clearLockoutData();
       setIsLocked(false);
       setAttemptsLeft(MAX_ATTEMPTS);
@@ -98,7 +150,6 @@ export default function LoginPage() {
     checkLockout();
   }, [checkLockout]);
 
-  // Countdown timer
   useEffect(() => {
     if (!isLocked) return;
     const interval = setInterval(() => {
@@ -118,22 +169,20 @@ export default function LoginPage() {
   const recordFailedAttempt = () => {
     const data = getLockoutData();
     data.attempts += 1;
-
     if (data.attempts >= MAX_ATTEMPTS) {
       data.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
       setIsLocked(true);
       setLockoutRemaining(LOCKOUT_DURATION_MS);
     }
-
     setLockoutData(data);
     setAttemptsLeft(MAX_ATTEMPTS - data.attempts);
   };
 
   const formatCountdown = (ms: number) => {
     const totalSeconds = Math.ceil(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
   const onSubmit = async (data: LoginFormData) => {
@@ -150,12 +199,7 @@ export default function LoginPage() {
       return;
     }
 
-    // Check if MFA is required
-    if (
-      signInData.session &&
-      signInData.session.user
-    ) {
-      // Check for MFA factors
+    if (signInData.session && signInData.session.user) {
       const { data: factors } = await supabase.auth.mfa.listFactors();
       if (factors && factors.totp.length > 0) {
         const verifiedFactor = factors.totp.find(
@@ -167,17 +211,10 @@ export default function LoginPage() {
           return;
         }
       }
-
-      // No MFA required, clear lockout and proceed
       clearLockoutData();
-
-      // Log successful login
       try {
         await createLoginEvent(signInData.session.user.id, "success");
-      } catch {
-        // Non-blocking
-      }
-
+      } catch {}
       router.push("/feed");
       router.refresh();
     }
@@ -186,40 +223,28 @@ export default function LoginPage() {
   const handleMfaVerify = async () => {
     if (mfaCode.length !== 6 || !mfaFactorId) return;
     setMfaVerifying(true);
-
     try {
       const { data: challengeData, error: challengeError } =
         await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
-
       if (challengeError) throw challengeError;
 
-      const { data: verifyData, error: verifyError } =
-        await supabase.auth.mfa.verify({
-          factorId: mfaFactorId,
-          challengeId: challengeData.id,
-          code: mfaCode,
-        });
-
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: mfaFactorId,
+        challengeId: challengeData.id,
+        code: mfaCode,
+      });
       if (verifyError) throw verifyError;
 
       clearLockoutData();
-
-      // Log successful login
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-          await createLoginEvent(user.id, "success");
-        }
-      } catch {
-        // Non-blocking
-      }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) await createLoginEvent(user.id, "success");
+      } catch {}
 
       router.push("/feed");
       router.refresh();
-    } catch (err: any) {
-      toast.error(err.message || "Invalid verification code");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Invalid verification code");
       setMfaCode("");
     } finally {
       setMfaVerifying(false);
@@ -229,278 +254,322 @@ export default function LoginPage() {
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/callback`,
-      },
+      options: { redirectTo: `${window.location.origin}/callback` },
     });
-
     if (error) toast.error(error.message);
   };
 
-  // MFA Challenge Screen
+  // MFA screen
   if (mfaRequired) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden page-gradient">
-        <div className="fixed inset-0 pointer-events-none">
-          <div className="absolute top-1/4 left-1/3 w-[600px] h-[600px] bg-blue-500/[0.04] rounded-full blur-[180px]" />
-          <div className="absolute bottom-1/4 right-1/3 w-[500px] h-[500px] bg-purple-500/[0.03] rounded-full blur-[150px]" />
+      <Shell>
+        <div style={{ textAlign: "center" }}>
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              margin: "0 auto 16px",
+              borderRadius: "50%",
+              background: `${O.a3}15`,
+              border: `1px solid ${O.a3}44`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: O.a3,
+            }}
+          >
+            <ShieldCheck style={{ width: 26, height: 26 }} />
+          </div>
+          <Eyebrow accent>◆&nbsp;&nbsp;TWO-FACTOR</Eyebrow>
+          <Display size={28} style={{ marginTop: 10 }}>
+            Verify it&apos;s <Acc>you</Acc>.
+          </Display>
+          <p
+            style={{
+              fontSize: 13.5,
+              color: O.ink3,
+              marginTop: 10,
+              lineHeight: 1.55,
+            }}
+          >
+            Enter the 6-digit code from your authenticator app.
+          </p>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-[440px] space-y-6 relative z-10"
+        <div style={{ marginTop: 24 }}>
+          <Field label="Code">
+            <Input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={mfaCode}
+              onChange={(e) =>
+                setMfaCode(e.target.value.replace(/\D/g, ""))
+              }
+              placeholder="000000"
+              style={{
+                textAlign: "center",
+                fontSize: 22,
+                letterSpacing: "0.3em",
+                fontFamily: O.mono,
+              }}
+              autoFocus
+            />
+          </Field>
+        </div>
+
+        <PillBtn
+          primary
+          size="lg"
+          onClick={handleMfaVerify}
+          disabled={mfaCode.length !== 6 || mfaVerifying}
+          style={{
+            width: "100%",
+            justifyContent: "center",
+            marginTop: 12,
+          }}
         >
-          <div className="text-center space-y-2">
-            <Link href="/">
-              <span
-                className="text-5xl font-extrabold tracking-tighter inline-block"
-                style={{
-                  fontFamily: "var(--font-syne), sans-serif",
-                  background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.5) 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                Orbit
-              </span>
-            </Link>
-          </div>
+          {mfaVerifying ? (
+            <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" />
+          ) : (
+            "Verify →"
+          )}
+        </PillBtn>
 
-          <div className="card-elevated p-8 sm:p-10 space-y-7">
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-500/10">
-                <ShieldCheck className="h-7 w-7 text-blue-400" />
-              </div>
-              <h1
-                className="text-xl font-bold"
-                style={{ fontFamily: "var(--font-syne), sans-serif" }}
-              >
-                Two-Factor Authentication
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Enter the 6-digit code from your authenticator app
-              </p>
-            </div>
-
-            <div className="space-y-5">
-              <Input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                value={mfaCode}
-                onChange={(e) =>
-                  setMfaCode(e.target.value.replace(/\D/g, ""))
-                }
-                placeholder="000000"
-                className="input-premium text-center text-2xl tracking-[0.4em] font-mono h-14"
-                autoFocus
-              />
-
-              <Button
-                onClick={handleMfaVerify}
-                disabled={mfaCode.length !== 6 || mfaVerifying}
-                className="w-full h-12 rounded-full text-[15px] font-bold bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all"
-              >
-                {mfaVerifying ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  "Verify"
-                )}
-              </Button>
-
-              <button
-                onClick={() => {
-                  setMfaRequired(false);
-                  setMfaCode("");
-                  setMfaFactorId(null);
-                }}
-                className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Back to login
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      </div>
+        <button
+          type="button"
+          onClick={() => {
+            setMfaRequired(false);
+            setMfaCode("");
+            setMfaFactorId(null);
+          }}
+          style={{
+            width: "100%",
+            marginTop: 14,
+            padding: "10px 0",
+            background: "transparent",
+            border: "none",
+            fontSize: 12.5,
+            color: O.ink3,
+            cursor: "pointer",
+            fontFamily: O.mono,
+            letterSpacing: "0.04em",
+          }}
+        >
+          ← BACK TO SIGN IN
+        </button>
+      </Shell>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden page-gradient">
-      {/* Ambient glow */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/3 w-[600px] h-[600px] bg-blue-500/[0.04] rounded-full blur-[180px]" />
-        <div className="absolute bottom-1/4 right-1/3 w-[500px] h-[500px] bg-purple-500/[0.03] rounded-full blur-[150px]" />
+    <Shell>
+      <div style={{ textAlign: "center" }}>
+        <Eyebrow accent>◇&nbsp;&nbsp;SIGN IN</Eyebrow>
+        <Display size={36} style={{ marginTop: 10 }}>
+          Welcome <Acc>back</Acc>.
+        </Display>
+        <p
+          style={{
+            fontSize: 13.5,
+            color: O.ink3,
+            marginTop: 10,
+            lineHeight: 1.55,
+          }}
+        >
+          Pick up where you left off.
+        </p>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-[440px] space-y-6 relative z-10"
-      >
-        {/* Logo */}
-        <div className="text-center space-y-2">
-          <Link href="/">
-            <span
-              className="text-5xl font-extrabold tracking-tighter inline-block"
-              style={{
-                fontFamily: "var(--font-syne), sans-serif",
-                background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.5) 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              Orbit
-            </span>
-          </Link>
-        </div>
-
-        {/* Main card */}
-        <div className="card-elevated p-8 sm:p-10 space-y-7">
-          <div className="text-center">
-            <h1
-              className="text-xl font-bold"
-              style={{ fontFamily: "var(--font-syne), sans-serif" }}
-            >
-              Welcome back
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Sign in to your account
+      {/* Lockout banner */}
+      {isLocked && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          style={{
+            marginTop: 20,
+            padding: 14,
+            borderRadius: 14,
+            background: "rgba(255,122,133,0.08)",
+            border: "1px solid rgba(255,122,133,0.25)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Lock style={{ width: 15, height: 15, color: "#ff7a85" }} />
+            <p style={{ fontSize: 13, fontWeight: 600, color: "#ff9aa3", margin: 0 }}>
+              Account temporarily locked
             </p>
           </div>
-
-          {/* Lockout Banner */}
-          {isLocked && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 space-y-2"
-            >
-              <div className="flex items-center gap-2">
-                <Lock className="h-4 w-4 text-red-400" />
-                <p className="text-sm font-medium text-red-300">
-                  Account temporarily locked
-                </p>
-              </div>
-              <p className="text-xs text-red-400/70">
-                Too many failed login attempts. Try again in{" "}
-                <span className="font-mono font-bold text-red-300">
-                  {formatCountdown(lockoutRemaining)}
-                </span>
-              </p>
-            </motion.div>
-          )}
-
-          {/* Google button */}
-          <Button
-            variant="outline"
-            className="btn-social"
-            onClick={signInWithGoogle}
-            disabled={isLocked}
+          <p
+            style={{
+              fontSize: 12,
+              color: "#ff9aa3",
+              opacity: 0.75,
+              marginTop: 6,
+              marginBottom: 0,
+            }}
           >
-            <GoogleIcon />
-            Continue with Google
-          </Button>
+            Too many failed attempts. Try again in{" "}
+            <span style={{ fontFamily: O.mono, fontWeight: 700, color: "#ff7a85" }}>
+              {formatCountdown(lockoutRemaining)}
+            </span>
+            .
+          </p>
+        </motion.div>
+      )}
 
-          {/* Divider */}
-          <div className="divider-text">
-            <span className="text-xs text-muted-foreground/60 uppercase tracking-wider font-medium px-2">or</span>
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-[13px] text-muted-foreground font-medium">
-                Email address
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                {...register("email")}
-                className="input-premium"
-                disabled={isLocked}
-              />
-              {errors.email && (
-                <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-[13px] text-muted-foreground font-medium">
-                  Password
-                </Label>
-                <span className="text-xs text-primary hover:underline cursor-pointer font-medium">
-                  Forgot password?
-                </span>
-              </div>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  {...register("password")}
-                  className="input-premium pr-12"
-                  disabled={isLocked}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="text-xs text-destructive mt-1">{errors.password.message}</p>
-              )}
-            </div>
-
-            {/* Failed attempts warning */}
-            {!isLocked && attemptsLeft < MAX_ATTEMPTS && attemptsLeft > 0 && (
-              <p className="text-xs text-amber-400">
-                {attemptsLeft} attempt{attemptsLeft !== 1 ? "s" : ""} remaining
-                before temporary lockout
-              </p>
-            )}
-
-            <Button
-              type="submit"
-              className="w-full h-12 rounded-full text-[15px] font-bold bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all"
-              disabled={isSubmitting || isLocked}
-            >
-              {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Log In"}
-            </Button>
-          </form>
-
-          {/* Divider */}
-          <div className="divider-text">
-            <span className="text-xs text-muted-foreground/60 px-2">&nbsp;</span>
-          </div>
-
-          {/* Create account */}
-          <div className="flex justify-center">
-            <Link href="/signup">
-              <Button
-                variant="outline"
-                className="h-11 rounded-full px-8 text-[15px] font-bold border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50"
-              >
-                Create new account
-              </Button>
-            </Link>
-          </div>
+      {/* Attempts warning */}
+      {!isLocked && attemptsLeft < MAX_ATTEMPTS && attemptsLeft > 0 && (
+        <div
+          style={{
+            marginTop: 20,
+            padding: "8px 14px",
+            borderRadius: 99,
+            background: "rgba(255,215,106,0.08)",
+            border: "1px solid rgba(255,215,106,0.24)",
+            fontFamily: O.mono,
+            fontSize: 10.5,
+            letterSpacing: "0.12em",
+            color: "#ffd76a",
+            textAlign: "center",
+          }}
+        >
+          ◆&nbsp;&nbsp;{attemptsLeft} ATTEMPT{attemptsLeft !== 1 ? "S" : ""} LEFT
         </div>
+      )}
 
-        {/* Footer */}
-        <p className="text-center text-[13px] text-muted-foreground/50">
-          Secure login powered by Orbit
-        </p>
-      </motion.div>
-    </div>
+      {/* Google */}
+      <div style={{ marginTop: 20 }}>
+        <PillBtn
+          size="lg"
+          onClick={signInWithGoogle}
+          disabled={isLocked}
+          style={{ width: "100%", justifyContent: "center", gap: 10 }}
+        >
+          <GoogleIcon />
+          Continue with Google
+        </PillBtn>
+      </div>
+
+      {/* Divider */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          margin: "20px 0 18px",
+        }}
+      >
+        <div style={{ flex: 1, height: 1, background: O.hair }} />
+        <span
+          style={{
+            fontSize: 10.5,
+            fontFamily: O.mono,
+            color: O.ink4,
+            letterSpacing: "0.18em",
+          }}
+        >
+          OR
+        </span>
+        <div style={{ flex: 1, height: 1, background: O.hair }} />
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <Field label="Email" error={errors.email?.message}>
+          <Input
+            type="email"
+            placeholder="you@example.com"
+            {...register("email")}
+            disabled={isLocked}
+          />
+        </Field>
+
+        <Field
+          label="Password"
+          error={errors.password?.message}
+          hint={
+            <Link
+              href="#"
+              style={{
+                color: O.a3,
+                textDecoration: "none",
+                fontFamily: O.sans,
+                fontSize: 11,
+                fontWeight: 500,
+                letterSpacing: "normal",
+                textTransform: "none",
+              }}
+            >
+              Forgot password?
+            </Link>
+          }
+        >
+          <Input
+            type={showPassword ? "text" : "password"}
+            placeholder="Enter your password"
+            {...register("password")}
+            disabled={isLocked}
+            suffix={
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: O.ink3,
+                  cursor: "pointer",
+                  padding: 0,
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                {showPassword ? (
+                  <EyeOff style={{ width: 15, height: 15 }} />
+                ) : (
+                  <Eye style={{ width: 15, height: 15 }} />
+                )}
+              </button>
+            }
+          />
+        </Field>
+
+        <PillBtn
+          primary
+          size="lg"
+          type="submit"
+          disabled={isSubmitting || isLocked}
+          style={{ width: "100%", justifyContent: "center", marginTop: 8 }}
+        >
+          {isSubmitting ? (
+            <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" />
+          ) : (
+            "Sign in →"
+          )}
+        </PillBtn>
+      </form>
+
+      {/* Footer */}
+      <p
+        style={{
+          marginTop: 24,
+          textAlign: "center",
+          fontSize: 13,
+          color: O.ink3,
+        }}
+      >
+        No account?{" "}
+        <Link
+          href="/signup"
+          style={{
+            color: O.a3,
+            textDecoration: "none",
+            fontWeight: 600,
+          }}
+        >
+          Create one →
+        </Link>
+      </p>
+    </Shell>
   );
 }
