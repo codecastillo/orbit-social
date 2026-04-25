@@ -30,17 +30,17 @@ export default function FeedPage() {
   const { user } = useAuth();
 
   return (
-    <div
-      className="grid gap-[18px] w-full grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]"
-      style={{
-        color: O.ink,
-        fontFamily: O.sans,
-      }}
-    >
+    <>
       <PostComposer />
-
-      {/* MIDDLE — main feed column */}
-      <main className="flex flex-col gap-4 min-w-0">
+      <div
+        className="grid gap-[18px] w-full grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px]"
+        style={{
+          color: O.ink,
+          fontFamily: O.sans,
+        }}
+      >
+        {/* MIDDLE — main feed column */}
+        <main className="flex flex-col gap-4 min-w-0">
         {/* Tabs panel */}
         <div
           style={{
@@ -98,8 +98,8 @@ export default function FeedPage() {
         <FeedList tab={tab} />
       </main>
 
-      {/* RIGHT RAIL */}
-      <aside className="hidden lg:flex flex-col gap-[14px] sticky top-6 h-fit">
+        {/* RIGHT RAIL */}
+        <aside className="hidden md:flex flex-col gap-[14px] sticky top-6 h-fit">
         {/* Search */}
         <div style={{ ...panel(), padding: 18 }}>
           <Link
@@ -134,10 +134,11 @@ export default function FeedPage() {
           </Link>
         </div>
 
-        <TrendingCard />
-        <PeopleToOrbitCard />
-      </aside>
-    </div>
+          <TrendingCard />
+          <PeopleToOrbitCard />
+        </aside>
+      </div>
+    </>
   );
 }
 

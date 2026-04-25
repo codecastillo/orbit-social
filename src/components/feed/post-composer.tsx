@@ -47,7 +47,7 @@ export function PostComposer() {
     <Dialog open={composeOpen} onOpenChange={(open) => setComposeOpen(open)}>
       <DialogContent
         showCloseButton={false}
-        className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-[580px] w-[92vw] ring-0"
+        className="p-0 gap-0 border-0 bg-transparent shadow-none !max-w-[680px] sm:!max-w-[680px] w-[94vw] ring-0"
         style={{ boxShadow: "none" }}
       >
         <div
@@ -1017,8 +1017,8 @@ function ComposerForm({
       )}
 
       {/* Actions Bar */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06]">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-t border-white/[0.06]">
+        <div className="flex items-center gap-1 flex-wrap min-w-0">
           <input
             ref={fileInputRef}
             type="file"
