@@ -10,8 +10,19 @@ import {
   useSpring,
 } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 import { O, aurora, auroraSoft, orbitBg, panel } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+
+async function signInWithGoogle() {
+  const supabase = createClient();
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: `${window.location.origin}/callback` },
+  });
+  if (error) toast.error(error.message);
+}
 
 /* ─── Shared: Reveal on scroll ──────────────────────────────────── */
 
@@ -158,9 +169,7 @@ function TopNav() {
           className="hidden md:flex"
         >
           {["Products", "Ecosystem", "Pricing", "Manifesto", "Help"].map((l) => (
-            <span key={l} style={{ cursor: "pointer" }}>
-              {l}
-            </span>
+            <span key={l}>{l}</span>
           ))}
         </div>
 
@@ -317,7 +326,9 @@ function HeroSection() {
                 <ArrowRight style={{ width: 14, height: 14 }} />
               </PillBtn>
             </Link>
-            <PillBtn size="lg">Sign in with Google</PillBtn>
+            <PillBtn size="lg" onClick={signInWithGoogle}>
+              Sign in with Google
+            </PillBtn>
           </div>
           <div
             style={{
@@ -1284,15 +1295,7 @@ function Footer() {
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                   {col.links.map((l) => (
                     <li key={l} style={{ marginBottom: 8 }}>
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: O.ink2,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {l}
-                      </span>
+                      <span style={{ fontSize: 12, color: O.ink2 }}>{l}</span>
                     </li>
                   ))}
                 </ul>

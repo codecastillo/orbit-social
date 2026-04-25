@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
@@ -27,15 +27,13 @@ export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
-  // Simple debounce via timeout
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setSearchQuery(val);
-    clearTimeout((handleSearchChange as unknown as { timer: ReturnType<typeof setTimeout> }).timer);
-    (handleSearchChange as unknown as { timer: ReturnType<typeof setTimeout> }).timer = setTimeout(
-      () => setDebouncedQuery(val),
-      300
-    );
+    setSearchQuery(e.target.value);
   };
 
   const { data: users, isLoading } = useQuery({

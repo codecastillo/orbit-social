@@ -490,7 +490,7 @@ export default function LoginPage() {
           error={errors.password?.message}
           hint={
             <Link
-              href="#"
+              href="/forgot-password"
               style={{
                 color: O.a3,
                 textDecoration: "none",

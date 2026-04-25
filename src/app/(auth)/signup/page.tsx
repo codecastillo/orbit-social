@@ -726,10 +726,7 @@ export default function SignUpPage() {
                     }}
                   />
                   <span style={{ fontSize: 12, color: O.ink3, lineHeight: 1.5 }}>
-                    I agree to the{" "}
-                    <span style={{ color: O.a3, cursor: "pointer" }}>Terms of Service</span>{" "}
-                    and{" "}
-                    <span style={{ color: O.a3, cursor: "pointer" }}>Privacy Policy</span>.
+                    I agree to the Terms of Service and Privacy Policy.
                   </span>
                 </label>
                 {errors.agreeToTerms && (

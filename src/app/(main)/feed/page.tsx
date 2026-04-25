@@ -309,6 +309,7 @@ function TrendingCard() {
 function PeopleToOrbitCard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [justFollowed, setJustFollowed] = useState<Set<string>>(new Set());
 
   const { data: people } = useQuery({
     queryKey: ["suggested-users", user?.id, 3],
@@ -366,10 +367,11 @@ function PeopleToOrbitCard() {
               </div>
             </Link>
             <FollowButton
-              isFollowing={false}
+              isFollowing={justFollowed.has(p.id)}
               size="sm"
               onToggle={async () => {
                 if (!user) return;
+                setJustFollowed((s) => new Set(s).add(p.id));
                 await followUser(user.id, p.id);
                 await queryClient.invalidateQueries({
                   queryKey: ["suggested-users", user.id, 3],

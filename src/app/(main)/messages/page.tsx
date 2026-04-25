@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Search, Users } from "lucide-react";
 import { Input as BareInput } from "@/components/ui/input";
 import { ConversationList } from "@/components/messages/conversation-list";
@@ -15,6 +15,23 @@ export default function MessagesPage() {
   const { data: conversations, isLoading, isError, refetch } = useConversations();
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [newConvoDialogOpen, setNewConvoDialogOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filteredConversations = useMemo(() => {
+    if (!conversations) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return conversations;
+    return conversations.filter((c) => {
+      const name = c.is_group ? c.name : c.other_member?.display_name;
+      const username = c.other_member?.username;
+      const lastMsg = c.last_message?.content;
+      return (
+        (name && name.toLowerCase().includes(q)) ||
+        (username && username.toLowerCase().includes(q)) ||
+        (lastMsg && lastMsg.toLowerCase().includes(q))
+      );
+    });
+  }, [conversations, search]);
 
   return (
     <div
@@ -84,6 +101,8 @@ export default function MessagesPage() {
           <Search style={{ width: 16, height: 16, color: O.ink3 }} />
           <BareInput
             placeholder="Search conversations…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             className="flex-1 border-0 bg-transparent h-9 text-sm text-white placeholder:text-white/40 focus-visible:ring-0"
           />
         </div>
@@ -98,7 +117,7 @@ export default function MessagesPage() {
           />
         ) : (
           <ConversationList
-            conversations={conversations ?? []}
+            conversations={filteredConversations}
             isLoading={isLoading}
           />
         )}
