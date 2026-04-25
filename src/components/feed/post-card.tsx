@@ -70,6 +70,9 @@ import { ReactionPicker, ReactionCountsDisplay } from "./reaction-picker";
 import { PostInsights, computeUserAverages } from "./post-insights";
 import { AudioPlayer } from "@/components/feed/audio-player";
 import { isAudioMediaItem } from "@/lib/utils/audio";
+import { O, panel } from "@/lib/design/orbit";
+import { VerifiedStar } from "@/components/orbit/verified-star";
+import { HashtagPill } from "@/components/orbit/hashtag-pill";
 
 interface PostCardProps {
   post: PostWithAuthor;
@@ -368,66 +371,130 @@ export function PostCard({
     }
   };
 
+  const firstHashtag = useMemo(() => {
+    const c = displayedContent || displayPost.content || "";
+    const m = c.match(/#(\w+)/);
+    return m ? m[1] : null;
+  }, [displayedContent, displayPost.content]);
+
   return (
     <article
-      className={cn(
-        "p-5 transition-all hover:bg-white/[0.02] border-l-3 border-l-transparent hover:border-l-primary/60 rounded-l-sm",
-        !compact && "cursor-pointer"
-      )}
+      className={!compact ? "cursor-pointer" : undefined}
+      style={{
+        ...panel(),
+        padding: compact ? 16 : 22,
+        position: "relative",
+        color: O.ink,
+        fontFamily: O.sans,
+      }}
       onClick={compact ? undefined : () => router.push(`/post/${displayPost.id}`)}
     >
+      {/* Pinned / NEAR YOU — absolute top-right */}
+      {post.is_pinned && !compact && (
+        <div
+          style={{
+            position: "absolute",
+            top: 18,
+            right: 22,
+            fontFamily: O.mono,
+            fontSize: 10,
+            letterSpacing: "0.14em",
+            color: O.a3,
+            fontWeight: 500,
+            pointerEvents: "none",
+          }}
+        >
+          ◆&nbsp;&nbsp;NEAR YOU
+        </div>
+      )}
+
       {/* Boosted indicator */}
       {isBoosted && (
-        <div className="flex items-center gap-1.5 ml-10 mb-1 text-[11px] text-amber-400/80 font-medium">
+        <div className="flex items-center gap-1.5 mb-2" style={{ color: "#ffd76a", fontFamily: O.mono, fontSize: 10.5, letterSpacing: "0.1em" }}>
           <Sparkles className="h-3 w-3" />
-          <span>Promoted</span>
+          <span>PROMOTED</span>
         </div>
       )}
 
       {/* Repost indicator */}
       {(isRepostType || repostedByUsername) && (
-        <div className="flex items-center gap-2 ml-10 mb-1 text-[13px] text-muted-foreground">
+        <div className="flex items-center gap-2 mb-2" style={{ color: O.ink3, fontSize: 12.5 }}>
           <Repeat2 className="h-3.5 w-3.5" />
-          <span>
-            Reposted by @{repostedByUsername || profile.username}
-          </span>
+          <span>Reposted by @{repostedByUsername || profile.username}</span>
         </div>
       )}
 
-      {/* Pinned indicator */}
-      {post.is_pinned && (
-        <div className="flex items-center gap-1.5 ml-10 mb-1 text-[11px] text-muted-foreground font-medium">
-          <Pin className="h-3 w-3" />
-          <span>Pinned</span>
-        </div>
-      )}
-
-      <div className="flex gap-3">
+      <div className="flex" style={{ gap: 12, marginBottom: 14 }}>
         {/* Avatar */}
-        <Link href={`/${displayProfile.username}`} onClick={(e) => e.stopPropagation()} className="shrink-0 pt-0.5">
+        <Link href={`/${displayProfile.username}`} onClick={(e) => e.stopPropagation()} className="shrink-0">
           <UserAvatar src={displayProfile.avatar_url} fallback={displayProfile.display_name} size="md" />
         </Link>
 
         <div className="flex-1 min-w-0">
-          {/* Header: name, username, time, menu */}
-          <div className="flex items-center gap-1.5">
-            <Link href={`/${displayProfile.username}`} onClick={(e) => e.stopPropagation()} className="font-bold text-[15px] hover:underline truncate">
-              {displayProfile.display_name}
-            </Link>
-            <span className="text-muted-foreground text-[13px] truncate">@{displayProfile.username}</span>
-            {displayPost.location && (
-              <Link
-                href={`/location/${encodeURIComponent(displayPost.location)}`}
-                onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-0.5 text-muted-foreground/60 text-[12px] hover:text-muted-foreground transition-colors shrink-0"
+          {/* Header: name + verified, subline, right-side hashtag + menu */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Link
+                  href={`/${displayProfile.username}`}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: O.ink,
+                    textDecoration: "none",
+                    letterSpacing: "-0.005em",
+                  }}
+                  className="truncate hover:underline"
+                >
+                  {displayProfile.display_name}
+                </Link>
+                {displayProfile.is_verified && <VerifiedStar size={12} />}
+              </div>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  color: O.ink3,
+                  fontFamily: O.sans,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  flexWrap: "wrap",
+                  marginTop: 2,
+                }}
               >
-                <MapPin className="h-3 w-3" />
-                <span className="truncate max-w-[100px]">{displayPost.location}</span>
-              </Link>
-            )}
-            <span className="text-muted-foreground/50 text-[12px] shrink-0 bg-white/[0.04] rounded-full px-2 py-0.5">{formatTimeAgo(post.created_at)}</span>
+                <span>@{displayProfile.username}</span>
+                <span style={{ color: O.ink4 }}>·</span>
+                <span>{formatTimeAgo(post.created_at)}</span>
+                {displayPost.location && (
+                  <>
+                    <span style={{ color: O.ink4 }}>·</span>
+                    <Link
+                      href={`/location/${encodeURIComponent(displayPost.location)}`}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        color: O.ink4,
+                        textDecoration: "none",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 3,
+                      }}
+                    >
+                      via {displayPost.location}
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
 
-            <div className="ml-auto shrink-0">
+            {/* Right-aligned hashtag pill (hidden if pinned uses that space) */}
+            {firstHashtag && !post.is_pinned && (
+              <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
+                <HashtagPill tag={firstHashtag} />
+              </div>
+            )}
+
+            <div className="shrink-0">
               <DropdownMenu>
                 <DropdownMenuTrigger onClick={(e) => e.stopPropagation()}>
                   <div className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors">
@@ -602,52 +669,99 @@ export function PostCard({
 
           </div>{/* End of clickable content area */}
 
-          {/* Actions */}
-          <div className="flex items-center justify-between mt-3 -ml-2" onClick={(e) => e.stopPropagation()}>
-            {/* Left actions */}
-            <div className="flex items-center gap-2">
-              {/* Like */}
-              <div className="relative" onMouseEnter={() => {}} onMouseLeave={() => {}}>
-                {!compact && <ReactionPicker onSelect={handleReaction} currentReaction={userReaction} />}
-                <button onClick={handleLike} className={cn("flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-colors", userReaction ? "text-rose-500" : isLiked ? "text-rose-500" : "text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10")}>
-                  <motion.span animate={animateHeart ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.3 }}>
-                    {userReaction ? (
-                      <span className="text-[16px] leading-none">{REACTION_EMOJI[userReaction]}</span>
-                    ) : (
-                      <Heart className={cn("h-[18px] w-[18px]", isLiked && "fill-current")} />
-                    )}
-                  </motion.span>
-                  {likeCount > 0 && <span>{formatNumber(likeCount)}</span>}
-                </button>
-              </div>
-
-              {/* Comment / Reply count */}
-              <button onClick={(e) => { e.stopPropagation(); if (!compact) router.push(`/post/${displayPost.id}`); }} className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] text-muted-foreground hover:text-sky-400 hover:bg-sky-500/10 transition-colors">
-                <MessageCircle className="h-[18px] w-[18px]" />
-                {post.comment_count > 0 && <span>{formatNumber(post.comment_count)}</span>}
+          {/* Actions — order: heart, chat, retweet, bookmark, [views] */}
+          <div
+            className="flex items-center"
+            style={{ gap: 4, marginTop: 12, color: O.ink2, fontSize: 12.5 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Like */}
+            <div className="relative">
+              {!compact && <ReactionPicker onSelect={handleReaction} currentReaction={userReaction} />}
+              <button
+                onClick={handleLike}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full transition-colors",
+                  userReaction || isLiked
+                    ? "text-rose-400"
+                    : "hover:text-rose-300 hover:bg-rose-500/10"
+                )}
+                style={{ padding: "6px 12px" }}
+              >
+                <motion.span animate={animateHeart ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.3 }}>
+                  {userReaction ? (
+                    <span style={{ fontSize: 15, lineHeight: 1 }}>{REACTION_EMOJI[userReaction]}</span>
+                  ) : (
+                    <Heart className={cn("h-[15px] w-[15px]", isLiked && "fill-current")} />
+                  )}
+                </motion.span>
+                {likeCount > 0 && <span>{formatNumber(likeCount)}</span>}
               </button>
-
-              {/* Repost — only on full posts, not comments */}
-              {!compact && (
-                <button onClick={handleRepost} className={cn("flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-colors", isReposted ? "text-emerald-500" : "text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10")}>
-                  <Repeat2 className="h-[18px] w-[18px]" />
-                  {repostCount > 0 && <span>{formatNumber(repostCount)}</span>}
-                </button>
-              )}
-
-              {/* Share — only on full posts */}
-              {!compact && (
-                <button onClick={handleShare} className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] text-muted-foreground hover:text-sky-400 hover:bg-sky-500/10 transition-colors">
-                  <Share2 className="h-[18px] w-[18px]" />
-                </button>
-              )}
             </div>
 
-            {/* Bookmark — only on full posts */}
+            {/* Comment / Reply */}
+            <button
+              onClick={(e) => { e.stopPropagation(); if (!compact) router.push(`/post/${displayPost.id}`); }}
+              className="flex items-center gap-1.5 rounded-full hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
+              style={{ padding: "6px 12px" }}
+            >
+              <MessageCircle className="h-[15px] w-[15px]" />
+              {post.comment_count > 0 && <span>{formatNumber(post.comment_count)}</span>}
+            </button>
+
+            {/* Repost */}
             {!compact && (
-              <button onClick={handleBookmark} className={cn("p-1.5 rounded-full transition-colors", isBookmarked ? "text-amber-400" : "text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10")}>
-                <Bookmark className={cn("h-[18px] w-[18px]", isBookmarked && "fill-current")} />
+              <button
+                onClick={handleRepost}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full transition-colors",
+                  isReposted ? "text-emerald-400" : "hover:text-emerald-300 hover:bg-emerald-500/10"
+                )}
+                style={{ padding: "6px 12px" }}
+              >
+                <Repeat2 className="h-[15px] w-[15px]" />
+                {repostCount > 0 && <span>{formatNumber(repostCount)}</span>}
               </button>
+            )}
+
+            {/* Bookmark */}
+            {!compact && (
+              <button
+                onClick={handleBookmark}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full transition-colors",
+                  isBookmarked ? "text-amber-400" : "hover:text-amber-300 hover:bg-amber-500/10"
+                )}
+                style={{ padding: "6px 12px" }}
+              >
+                <Bookmark className={cn("h-[15px] w-[15px]", isBookmarked && "fill-current")} />
+              </button>
+            )}
+
+            {/* Share */}
+            {!compact && (
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-1.5 rounded-full hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
+                style={{ padding: "6px 12px" }}
+              >
+                <Share2 className="h-[15px] w-[15px]" />
+              </button>
+            )}
+
+            {/* Views — right-aligned, mono */}
+            {!compact && (
+              <span
+                style={{
+                  marginLeft: "auto",
+                  fontSize: 11,
+                  color: O.ink4,
+                  fontFamily: O.mono,
+                  letterSpacing: "0.04em",
+                }}
+              >
+                {formatNumber(post.view_count || 0)} views
+              </span>
             )}
           </div>
 

@@ -153,12 +153,16 @@ export function MessageBubble({
         )}
       >
         <div
-          className={cn(
-            "max-w-[75%] rounded-2xl py-1.5 px-1.5",
-            isOwn
-              ? "bg-primary text-primary-foreground rounded-br-md"
-              : "bg-muted/80 text-foreground rounded-bl-md"
-          )}
+          className={cn("max-w-[75%] py-1.5 px-1.5")}
+          style={{
+            borderRadius: isOwn ? "20px 20px 6px 20px" : "20px 20px 20px 6px",
+            background: isOwn
+              ? "linear-gradient(135deg, #8b73ff 0%, #ff5fae 55%, #5fd4ff 100%)"
+              : "rgba(255,255,255,0.08)",
+            border: isOwn ? "none" : "1px solid rgba(255,255,255,0.09)",
+            color: isOwn ? "white" : "rgba(255,255,255,0.92)",
+            boxShadow: isOwn ? "0 6px 18px rgba(255,95,174,0.25)" : "none",
+          }}
         >
           {showSender && !isOwn && message.sender && (
             <p className="text-xs font-medium text-muted-foreground mb-1 px-2.5 pt-1">
@@ -232,12 +236,18 @@ export function MessageBubble({
             )}
             <div
               className={cn(
-                "max-w-[75%] rounded-2xl px-4 py-2",
-                isOwn
-                  ? "bg-primary text-primary-foreground rounded-br-md"
-                  : "bg-muted/80 text-foreground rounded-bl-md",
+                "max-w-[75%] px-4 py-2 text-white",
                 message.is_pinned && "ring-1 ring-amber-500/20"
               )}
+              style={{
+                borderRadius: isOwn ? "20px 20px 6px 20px" : "20px 20px 20px 6px",
+                background: isOwn
+                  ? "linear-gradient(135deg, #8b73ff 0%, #ff5fae 55%, #5fd4ff 100%)"
+                  : "rgba(255,255,255,0.08)",
+                border: isOwn ? "none" : "1px solid rgba(255,255,255,0.09)",
+                color: isOwn ? "white" : "rgba(255,255,255,0.92)",
+                boxShadow: isOwn ? "0 6px 18px rgba(255,95,174,0.25)" : "none",
+              }}
             >
               {showSender && !isOwn && message.sender && (
                 <p className="text-xs font-medium text-muted-foreground mb-1">

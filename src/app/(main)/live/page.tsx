@@ -19,6 +19,7 @@ import {
 import { useAuth } from "@/lib/hooks/use-auth";
 import { O, aurora, panel } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { LiveBadge } from "@/components/orbit/live-badge";
 
 function hueFor(seed: string): number {
   let h = 0;
@@ -226,32 +227,9 @@ function FeaturedLive({
             gap: 8,
           }}
         >
-          <div
-            style={{
-              padding: "6px 12px",
-              borderRadius: 99,
-              background: O.a2,
-              fontSize: 10.5,
-              fontWeight: 800,
-              letterSpacing: "0.12em",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              boxShadow: `0 0 18px ${O.a2}80`,
-              color: "white",
-            }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: "white",
-                animation: "live-pulse 1.4s infinite",
-              }}
-            />
+          <LiveBadge variant="pill" pulse>
             LIVE
-          </div>
+          </LiveBadge>
           <div
             style={{
               padding: "6px 12px",
@@ -335,7 +313,6 @@ function FeaturedLive({
             </div>
           </div>
         </div>
-        <style>{`@keyframes live-pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
       </div>
     </div>
   );
@@ -375,20 +352,9 @@ function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
           }}
         />
         <div
-          style={{
-            position: "absolute",
-            top: 10,
-            left: 10,
-            padding: "3px 8px",
-            borderRadius: 4,
-            background: O.a2,
-            fontSize: 9,
-            fontWeight: 800,
-            letterSpacing: "0.1em",
-            color: "white",
-          }}
+          style={{ position: "absolute", top: 10, left: 10 }}
         >
-          ● LIVE
+          <LiveBadge variant="corner" pulse />
         </div>
         <div
           style={{

@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MoreHorizontal, ExternalLink, Star } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
@@ -21,6 +21,9 @@ import type { AvatarBorderStyle } from "@/components/shared/user-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { O, aurora, auroraSoft, panel } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { VerifiedStar } from "@/components/orbit/verified-star";
+import { StatCluster } from "@/components/orbit/stat-cluster";
+import { AuroraBanner } from "@/components/orbit/aurora-banner";
 
 interface ProfileContentProps {
   profile: {
@@ -181,36 +184,17 @@ export function ProfileContent({
         }}
       >
         {/* Banner */}
-        <div
-          style={{
-            height: 200,
-            background: profile.cover_url
-              ? `url(${profile.cover_url}) center/cover`
-              : aurora,
-            position: "relative",
-          }}
-        >
-          {!profile.cover_url && (
-            <>
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.35), transparent 60%)",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "repeating-linear-gradient(135deg, transparent 0 40px, rgba(255,255,255,0.05) 40px 41px)",
-                }}
-              />
-            </>
-          )}
-        </div>
+        {profile.cover_url ? (
+          <div
+            style={{
+              height: 200,
+              background: `url(${profile.cover_url}) center/cover`,
+              position: "relative",
+            }}
+          />
+        ) : (
+          <AuroraBanner height={200} />
+        )}
 
         {/* Identity row */}
         <div
@@ -260,13 +244,7 @@ export function ProfileContent({
                   first
                 )}
               </Display>
-              {profile.is_verified && (
-                <Star
-                  fill={O.a3}
-                  stroke={O.a3}
-                  style={{ width: 18, height: 18 }}
-                />
-              )}
+              {profile.is_verified && <VerifiedStar size={18} />}
             </div>
             <div
               style={{
@@ -335,56 +313,21 @@ export function ProfileContent({
         <div
           style={{
             display: "flex",
-            gap: 0,
-            padding: "0 32px 24px",
+            padding: "20px 32px 24px",
             borderTop: `1px solid ${O.hair}`,
-            paddingTop: 20,
             flexWrap: "wrap",
             rowGap: 14,
+            alignItems: "flex-end",
+            gap: 18,
           }}
         >
-          {[
-            ["posts", profile.post_count],
-            ["orbit", profile.follower_count],
-            ["mutuals", profile.following_count],
-          ].map(([label, n], i) => (
-            <div
-              key={label as string}
-              style={{
-                flex: 1,
-                minWidth: 90,
-                paddingLeft: i ? 24 : 0,
-                borderLeft: i ? `1px solid ${O.hair}` : "none",
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: O.serif,
-                  fontStyle: "italic",
-                  fontSize: 30,
-                  fontWeight: 400,
-                  lineHeight: 1,
-                  background: aurora,
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                {fmtNumber(n as number)}
-              </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: O.ink3,
-                  marginTop: 4,
-                  fontFamily: O.mono,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                }}
-              >
-                {label as string}
-              </div>
-            </div>
-          ))}
+          <StatCluster
+            items={[
+              { n: profile.post_count, label: "posts" },
+              { n: profile.follower_count, label: "orbit" },
+              { n: profile.following_count, label: "mutuals" },
+            ]}
+          />
           {profile.website && (
             <div
               style={{
