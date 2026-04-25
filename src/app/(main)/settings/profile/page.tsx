@@ -279,7 +279,7 @@ export default function EditProfilePage() {
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        {/* Banner + avatar card */}
+        {/* Banner */}
         <div
           style={{
             marginTop: 28,
@@ -294,16 +294,14 @@ export default function EditProfilePage() {
             onClick={() => coverInputRef.current?.click()}
             disabled={uploadingCover}
             style={{
-              height: 180,
+              height: 220,
+              width: "100%",
               position: "relative",
-              background: coverUrl
-                ? `url(${coverUrl}) center/cover`
-                : aurora,
+              background: coverUrl ? `url(${coverUrl}) center/cover` : aurora,
               backgroundSize: coverUrl ? "cover" : "200% 200%",
               border: "none",
               padding: 0,
               cursor: "pointer",
-              width: "100%",
               display: "block",
             }}
           >
@@ -330,7 +328,6 @@ export default function EditProfilePage() {
                 color: "white",
                 fontSize: 12,
                 fontWeight: 500,
-                cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
@@ -353,140 +350,142 @@ export default function EditProfilePage() {
             onChange={handleCoverUpload}
             className="hidden"
           />
-          <div
+        </div>
+
+        {/* Avatar row sits BELOW the banner, with avatar overlapping via negative margin */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            gap: 16,
+            padding: "0 4px",
+            marginTop: -56,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => avatarInputRef.current?.click()}
+            disabled={uploadingAvatar}
+            aria-label="Change profile photo"
             style={{
-              padding: "14px 24px",
-              display: "flex",
-              alignItems: "center",
-              gap: 16,
-              minHeight: 64,
-              background: "rgba(255,255,255,0.015)",
+              width: 112,
+              height: 112,
+              borderRadius: "50%",
+              padding: 4,
+              background: O.bg,
+              boxShadow: themeColor
+                ? `0 0 0 3px ${themeColor}, 0 0 24px ${themeColor}55, 0 14px 36px rgba(0,0,0,0.5)`
+                : `0 0 0 3px ${O.a2}, 0 0 24px ${O.a2}55, 0 14px 36px rgba(0,0,0,0.5)`,
+              border: "none",
+              cursor: "pointer",
+              flexShrink: 0,
+              display: "block",
+              position: "relative",
+              zIndex: 1,
             }}
           >
-            <button
-              type="button"
-              onClick={() => avatarInputRef.current?.click()}
-              disabled={uploadingAvatar}
-              aria-label="Change profile photo"
+            <div
               style={{
-                width: 112,
-                height: 112,
+                width: "100%",
+                height: "100%",
                 borderRadius: "50%",
-                padding: 4,
-                marginTop: -64,
-                marginBottom: -8,
-                background: O.bg,
-                boxShadow: themeColor
-                  ? `0 0 0 3px ${themeColor}, 0 0 24px ${themeColor}55, 0 14px 36px rgba(0,0,0,0.5)`
-                  : `0 0 0 3px ${O.a2}, 0 0 24px ${O.a2}55, 0 14px 36px rgba(0,0,0,0.5)`,
-                border: "none",
-                cursor: "pointer",
-                flexShrink: 0,
-                display: "block",
+                overflow: "hidden",
+                position: "relative",
+                background: O.glass,
               }}
             >
+              <UserAvatar
+                src={avatarUrl}
+                fallback={displayName || "?"}
+                size="xl"
+                avatarBorder={avatarBorder}
+              />
               <div
+                className="orbit-avatar-edit-overlay"
                 style={{
-                  width: "100%",
-                  height: "100%",
+                  position: "absolute",
+                  inset: 0,
                   borderRadius: "50%",
-                  overflow: "hidden",
-                  position: "relative",
-                  background: O.glass,
+                  background:
+                    "linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.55) 100%)",
+                  display: "flex",
+                  alignItems: "flex-end",
+                  justifyContent: "center",
+                  paddingBottom: 10,
+                  opacity: 0,
+                  transition: "opacity 150ms ease",
+                  color: "white",
+                  pointerEvents: "none",
                 }}
               >
-                <UserAvatar
-                  src={avatarUrl}
-                  fallback={displayName || "?"}
-                  size="xl"
-                  avatarBorder={avatarBorder}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    borderRadius: "50%",
-                    background:
-                      "linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.55) 100%)",
-                    display: "flex",
-                    alignItems: "flex-end",
-                    justifyContent: "center",
-                    paddingBottom: 10,
-                    opacity: 0,
-                    transition: "opacity 150ms ease",
-                    color: "white",
-                    pointerEvents: "none",
-                  }}
-                  className="orbit-avatar-edit-overlay"
-                >
-                  {uploadingAvatar ? (
-                    <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" />
-                  ) : (
-                    <Camera style={{ width: 16, height: 16 }} />
-                  )}
-                </div>
-              </div>
-            </button>
-            <input
-              ref={avatarInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              onChange={handleAvatarUpload}
-              className="hidden"
-            />
-
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontFamily: O.mono,
-                  fontSize: 10.5,
-                  letterSpacing: "0.14em",
-                  color: O.ink4,
-                  textTransform: "uppercase",
-                }}
-              >
-                ◇&nbsp;&nbsp;Profile photo
-              </div>
-              <div
-                style={{
-                  fontSize: 12.5,
-                  color: O.ink3,
-                  marginTop: 4,
-                  lineHeight: 1.4,
-                }}
-              >
-                JPG, PNG, WebP, or GIF · square works best
+                {uploadingAvatar ? (
+                  <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" />
+                ) : (
+                  <Camera style={{ width: 16, height: 16 }} />
+                )}
               </div>
             </div>
+          </button>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={handleAvatarUpload}
+            className="hidden"
+          />
 
-            <button
-              type="button"
-              onClick={() => avatarInputRef.current?.click()}
-              disabled={uploadingAvatar}
+          <div style={{ flex: 1, minWidth: 0, paddingBottom: 6 }}>
+            <div
               style={{
-                padding: "8px 14px",
-                borderRadius: 99,
-                background: "rgba(255,255,255,0.06)",
-                border: `1px solid ${O.hair2}`,
-                color: O.ink,
-                fontSize: 12.5,
-                fontWeight: 500,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 7,
-                fontFamily: "inherit",
-                flexShrink: 0,
+                fontFamily: O.mono,
+                fontSize: 10.5,
+                letterSpacing: "0.14em",
+                color: O.ink3,
+                textTransform: "uppercase",
               }}
             >
-              {uploadingAvatar ? (
-                <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
-              ) : (
-                <Edit3 style={{ width: 12, height: 12 }} strokeWidth={1.8} />
-              )}{" "}
-              Change photo
-            </button>
+              ◇&nbsp;&nbsp;Profile photo
+            </div>
+            <div
+              style={{
+                fontSize: 12.5,
+                color: O.ink3,
+                marginTop: 4,
+                lineHeight: 1.4,
+              }}
+            >
+              JPG, PNG, WebP, or GIF · square works best
+            </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => avatarInputRef.current?.click()}
+            disabled={uploadingAvatar}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 99,
+              background: "rgba(255,255,255,0.06)",
+              border: `1px solid ${O.hair2}`,
+              color: O.ink,
+              fontSize: 12.5,
+              fontWeight: 500,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              fontFamily: "inherit",
+              flexShrink: 0,
+              marginBottom: 6,
+            }}
+          >
+            {uploadingAvatar ? (
+              <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
+            ) : (
+              <Edit3 style={{ width: 12, height: 12 }} strokeWidth={1.8} />
+            )}{" "}
+            Change photo
+          </button>
         </div>
 
         {/* IDENTITY */}
