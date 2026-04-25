@@ -7,20 +7,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Camera,
   Loader2,
-  User,
+  ArrowLeft,
   ArrowRight,
   Check,
-  Sparkles,
-  Music2,
-  Camera as CameraIcon,
-  Gamepad2,
-  Palette,
-  Code2,
-  Dumbbell,
-  Plane,
-  Utensils,
-  BookOpen,
-  Film,
+  Plus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -30,29 +20,33 @@ import {
   onboardingSchema,
   type OnboardingFormData,
 } from "@/lib/utils/validators";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getSuggestedUsers } from "@/lib/queries/social";
-import { cn } from "@/lib/utils";
+import { O, aurora, panel, orbitBg } from "@/lib/design/orbit";
+import {
+  Display,
+  Acc,
+  Eyebrow,
+  PillBtn,
+} from "@/components/orbit/primitives";
+import { Field } from "@/components/orbit/forms";
 
 type Step = 1 | 2 | 3;
 
-const interests = [
-  { id: "music", label: "Music", icon: Music2, color: "from-violet-500/20 to-fuchsia-500/20" },
-  { id: "photo", label: "Photography", icon: CameraIcon, color: "from-amber-500/20 to-orange-500/20" },
-  { id: "gaming", label: "Gaming", icon: Gamepad2, color: "from-emerald-500/20 to-teal-500/20" },
-  { id: "art", label: "Art & Design", icon: Palette, color: "from-pink-500/20 to-rose-500/20" },
-  { id: "tech", label: "Tech", icon: Code2, color: "from-sky-500/20 to-cyan-500/20" },
-  { id: "fitness", label: "Fitness", icon: Dumbbell, color: "from-red-500/20 to-rose-500/20" },
-  { id: "travel", label: "Travel", icon: Plane, color: "from-indigo-500/20 to-violet-500/20" },
-  { id: "food", label: "Food", icon: Utensils, color: "from-yellow-500/20 to-amber-500/20" },
-  { id: "books", label: "Books", icon: BookOpen, color: "from-stone-500/20 to-zinc-500/20" },
-  { id: "film", label: "Film & TV", icon: Film, color: "from-purple-500/20 to-violet-500/20" },
+const INTERESTS: { label: string; hue: number }[] = [
+  { label: "photography", hue: 18 },
+  { label: "making", hue: 290 },
+  { label: "cooking", hue: 50 },
+  { label: "running", hue: 145 },
+  { label: "reading", hue: 220 },
+  { label: "music", hue: 340 },
+  { label: "design", hue: 180 },
+  { label: "writing", hue: 80 },
+  { label: "travel", hue: 200 },
+  { label: "climbing", hue: 25 },
+  { label: "cycling", hue: 130 },
+  { label: "art", hue: 310 },
 ];
 
 export default function OnboardingPage() {
@@ -62,7 +56,9 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<Step>(1);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [selectedInterests, setSelectedInterests] = useState<Set<string>>(new Set());
+  const [selectedInterests, setSelectedInterests] = useState<Set<string>>(
+    new Set(),
+  );
   const [followed, setFollowed] = useState<Set<string>>(new Set());
   const [savingStep1, setSavingStep1] = useState(false);
   const [finishing, setFinishing] = useState(false);
@@ -80,7 +76,9 @@ export default function OnboardingPage() {
   const displayName = watch("displayName", "");
   const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!ALLOWED.includes(file.type)) {
@@ -91,11 +89,8 @@ export default function OnboardingPage() {
       toast.error("Image must be under 5MB");
       return;
     }
+    if (!user) return;
     setUploading(true);
-    if (!user) {
-      setUploading(false);
-      return;
-    }
     const ext = file.name.split(".").pop();
     const path = `${user.id}/avatar.${ext}`;
     const { error } = await supabase.storage
@@ -151,13 +146,11 @@ export default function OnboardingPage() {
     if (!user) return;
     setFinishing(true);
     try {
-      // Persist interests as a JSON column if available; fall back silently
       await supabase
         .from("profiles")
         .update({ interests: Array.from(selectedInterests) })
         .eq("id", user.id);
     } catch {}
-    // Bulk-follow
     if (followed.size > 0) {
       const inserts = Array.from(followed).map((id) => ({
         follower_id: user.id,
@@ -170,148 +163,275 @@ export default function OnboardingPage() {
     router.refresh();
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-10 relative overflow-hidden bg-background">
-      {/* Ambient glow */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-primary/[0.06] rounded-full blur-[200px]" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-violet-500/[0.05] rounded-full blur-[140px]" />
-      </div>
+  const toggleInterest = (label: string) => {
+    const next = new Set(selectedInterests);
+    if (next.has(label)) next.delete(label);
+    else next.add(label);
+    setSelectedInterests(next);
+  };
 
-      <div className="w-full max-w-[520px] relative z-10 space-y-6">
-        {/* Brand + step indicator */}
-        <div className="flex items-center justify-between">
-          <span
-            className="text-3xl font-extrabold tracking-tighter inline-block"
+  const toggleFollow = (id: string) => {
+    const next = new Set(followed);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setFollowed(next);
+  };
+
+  const progress = step === 1 ? 33 : step === 2 ? 66 : 100;
+
+  return (
+    <div
+      style={{
+        ...orbitBg,
+        minHeight: "100vh",
+        color: O.ink,
+        fontFamily: O.sans,
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 460,
+          margin: "0 auto",
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          paddingTop: 32,
+          paddingBottom: 24,
+        }}
+      >
+        {/* Header — back + progress + step indicator */}
+        <header
+          style={{
+            padding: "14px 18px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          {step > 1 ? (
+            <button
+              type="button"
+              onClick={() => setStep((step - 1) as Step)}
+              style={{
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: O.ink2,
+                display: "flex",
+              }}
+            >
+              <ArrowLeft style={{ width: 22, height: 22 }} strokeWidth={1.8} />
+            </button>
+          ) : (
+            <div style={{ width: 22 }} />
+          )}
+          <div
             style={{
-              fontFamily: "var(--font-syne), sans-serif",
-              background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.5) 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
+              flex: 1,
+              height: 4,
+              borderRadius: 99,
+              background: O.glass,
+              position: "relative",
+              overflow: "hidden",
             }}
           >
-            Orbit
+            <motion.div
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                bottom: 0,
+                borderRadius: 99,
+                background: aurora,
+                boxShadow: `0 0 10px ${O.a2}80`,
+              }}
+            />
+          </div>
+          <span
+            style={{
+              fontSize: 11,
+              color: O.ink3,
+              fontFamily: O.mono,
+            }}
+          >
+            {step} / 3
           </span>
-          <StepDots step={step} total={3} />
+        </header>
+
+        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+          <AnimatePresence mode="wait">
+            {step === 1 && (
+              <motion.div
+                key="1"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -16 }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                style={{ flex: 1, display: "flex", flexDirection: "column" }}
+              >
+                <Step1Welcome
+                  avatarUrl={avatarUrl}
+                  uploading={uploading}
+                  onAvatarClick={() => fileInputRef.current?.click()}
+                  onAvatarChange={handleAvatarUpload}
+                  register={register}
+                  errors={errors}
+                  displayName={displayName}
+                  fileInputRef={fileInputRef}
+                  onSubmit={handleSubmit(onStep1Submit)}
+                  saving={savingStep1}
+                />
+              </motion.div>
+            )}
+            {step === 2 && (
+              <motion.div
+                key="2"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -16 }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                style={{ flex: 1, display: "flex", flexDirection: "column" }}
+              >
+                <Step2Interests
+                  selected={selectedInterests}
+                  toggle={toggleInterest}
+                  onNext={() => setStep(3)}
+                />
+              </motion.div>
+            )}
+            {step === 3 && (
+              <motion.div
+                key="3"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -16 }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                style={{ flex: 1, display: "flex", flexDirection: "column" }}
+              >
+                <Step3Follows
+                  followed={followed}
+                  toggle={toggleFollow}
+                  finishing={finishing}
+                  onFinish={finish}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-
-        {/* Card */}
-        <motion.div
-          key={step}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="rounded-3xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-2xl p-6 sm:p-8 shadow-2xl shadow-black/40"
-        >
-          {step === 1 && (
-            <Step1
-              avatarUrl={avatarUrl}
-              uploading={uploading}
-              onAvatarClick={() => fileInputRef.current?.click()}
-              onAvatarChange={handleAvatarUpload}
-              register={register}
-              errors={errors}
-              displayName={displayName}
-              fileInputRef={fileInputRef}
-              onSubmit={handleSubmit(onStep1Submit)}
-              saving={savingStep1}
-            />
-          )}
-
-          {step === 2 && (
-            <Step2
-              selected={selectedInterests}
-              setSelected={setSelectedInterests}
-              onBack={() => setStep(1)}
-              onNext={() => setStep(3)}
-            />
-          )}
-
-          {step === 3 && (
-            <Step3
-              followed={followed}
-              setFollowed={setFollowed}
-              onBack={() => setStep(2)}
-              onFinish={finish}
-              finishing={finishing}
-            />
-          )}
-        </motion.div>
-
-        <p className="text-center text-[12px] text-muted-foreground/60">
-          You can update everything later in Settings.
-        </p>
       </div>
     </div>
   );
 }
 
-function StepDots({ step, total }: { step: Step; total: number }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      {Array.from({ length: total }).map((_, i) => {
-        const idx = (i + 1) as Step;
-        const active = idx === step;
-        const done = idx < step;
-        return (
-          <div
-            key={i}
-            className={cn(
-              "h-1.5 rounded-full transition-all duration-300",
-              active ? "w-8 bg-primary shadow-[0_0_10px_oklch(0.623_0.214_259_/_0.6)]" :
-              done ? "w-1.5 bg-primary/60" : "w-1.5 bg-white/15"
-            )}
-          />
-        );
-      })}
-    </div>
-  );
-}
+/* ─── Step 1 — Welcome + profile setup ────────────────────────── */
 
-/* ───────── Step 1: profile ───────── */
-function Step1(props: any) {
-  const { avatarUrl, uploading, onAvatarClick, onAvatarChange, register, errors, displayName, fileInputRef, onSubmit, saving } = props;
-  return (
-    <div className="space-y-7">
-      <div className="text-center">
-        <h1
-          className="text-2xl font-extrabold tracking-tight"
-          style={{ fontFamily: "var(--font-syne), sans-serif" }}
-        >
-          Welcome to Orbit
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1.5">
-          Set up your profile to get started
-        </p>
-      </div>
+function Step1Welcome(props: any) {
+  const {
+    avatarUrl,
+    uploading,
+    onAvatarClick,
+    onAvatarChange,
+    register,
+    errors,
+    displayName,
+    fileInputRef,
+    onSubmit,
+    saving,
+  } = props;
 
-      {/* Avatar */}
-      <div className="flex justify-center">
-        <button
-          type="button"
-          onClick={onAvatarClick}
-          className="relative group"
-          disabled={uploading}
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        padding: "20px 24px 0",
+      }}
+    >
+      <Eyebrow accent>◇&nbsp;&nbsp;WELCOME TO ORBIT</Eyebrow>
+      <Display size={42} style={{ marginTop: 12 }}>
+        The internet, <Acc>but smaller</Acc>.
+      </Display>
+      <p
+        style={{
+          fontSize: 15,
+          color: O.ink2,
+          lineHeight: 1.55,
+          marginTop: 14,
+        }}
+      >
+        A social app for the people you actually want to keep up with. No
+        infinite feed. No engagement metrics. Just your orbit.
+      </p>
+
+      <form
+        onSubmit={onSubmit}
+        style={{
+          marginTop: 28,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        {/* Avatar */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginBottom: 14,
+          }}
         >
-          <Avatar className="h-28 w-28 rounded-3xl border-[3px] border-white/10 shadow-2xl shadow-black/40">
-            <AvatarImage src={avatarUrl || undefined} className="rounded-3xl object-cover" />
-            <AvatarFallback className="rounded-3xl text-3xl bg-white/[0.04]">
-              {displayName?.[0]?.toUpperCase() || (
-                <User className="h-10 w-10 text-muted-foreground/40" />
+          <button
+            type="button"
+            onClick={onAvatarClick}
+            disabled={uploading}
+            style={{
+              position: "relative",
+              width: 96,
+              height: 96,
+              borderRadius: "50%",
+              padding: 4,
+              border: "none",
+              background: aurora,
+              boxShadow: `0 8px 24px ${O.a2}66, inset 0 1px 0 rgba(255,255,255,0.3)`,
+              cursor: "pointer",
+            }}
+          >
+            <UserAvatar
+              src={avatarUrl}
+              fallback={displayName || "?"}
+              size="lg"
+            />
+            <span
+              style={{
+                position: "absolute",
+                bottom: 0,
+                right: 0,
+                width: 32,
+                height: 32,
+                borderRadius: 10,
+                background: O.bg,
+                border: `2px solid ${O.bg}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {uploading ? (
+                <Loader2
+                  className="animate-spin"
+                  style={{ width: 14, height: 14, color: "white" }}
+                />
+              ) : (
+                <Camera
+                  style={{ width: 14, height: 14, color: "white" }}
+                  strokeWidth={1.8}
+                />
               )}
-            </AvatarFallback>
-          </Avatar>
-          <div className="absolute inset-0 flex items-center justify-center bg-black/55 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity">
-            {uploading ? (
-              <Loader2 className="h-7 w-7 animate-spin text-white" />
-            ) : (
-              <Camera className="h-7 w-7 text-white" />
-            )}
-          </div>
-          <div className="absolute -bottom-1 -right-1 w-9 h-9 rounded-2xl bg-primary flex items-center justify-center shadow-[0_4px_14px_oklch(0.623_0.214_259_/_0.5)] border-2 border-background">
-            <Camera className="h-4 w-4 text-primary-foreground" />
-          </div>
+            </span>
+          </button>
           <input
             ref={fileInputRef}
             type="file"
@@ -319,185 +439,192 @@ function Step1(props: any) {
             onChange={onAvatarChange}
             className="hidden"
           />
-        </button>
-      </div>
+        </div>
 
-      <form onSubmit={onSubmit} className="space-y-4">
         <Field label="Username" error={errors.username?.message}>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/60 text-[15px] font-medium">@</span>
-            <Input
-              placeholder="yourname"
-              {...register("username")}
-              className="h-12 pl-9 pr-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-base placeholder:text-muted-foreground/50 focus:border-primary/40 focus:bg-white/[0.06] transition-all"
-            />
-          </div>
+          <RawInput
+            {...register("username")}
+            placeholder="yourname"
+            prefix="@"
+          />
         </Field>
-
         <Field label="Display name" error={errors.displayName?.message}>
-          <Input
-            placeholder="Your Name"
-            {...register("displayName")}
-            className="h-12 px-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-base placeholder:text-muted-foreground/50 focus:border-primary/40 focus:bg-white/[0.06] transition-all"
-          />
+          <RawInput {...register("displayName")} placeholder="Your Name" />
         </Field>
-
         <Field label="Bio" error={errors.bio?.message}>
-          <Textarea
-            placeholder="A line about you…"
+          <RawTextArea
             {...register("bio")}
+            placeholder="A line about you…"
             rows={3}
-            className="px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-base resize-none placeholder:text-muted-foreground/50 focus:border-primary/40 focus:bg-white/[0.06] transition-all"
           />
         </Field>
 
-        <Button
+        <PillBtn
+          primary
+          size="lg"
           type="submit"
           disabled={saving}
-          className="w-full h-12 rounded-2xl text-[15px] font-bold bg-primary text-primary-foreground shadow-[0_8px_24px_oklch(0.623_0.214_259_/_0.4)] hover:brightness-110"
+          style={{
+            width: "100%",
+            justifyContent: "center",
+            marginTop: 12,
+          }}
         >
           {saving ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Loader2 className="animate-spin" style={{ width: 16, height: 16 }} />
           ) : (
             <>
-              Continue
-              <ArrowRight className="h-4 w-4 ml-2" />
+              Get started <ArrowRight style={{ width: 14, height: 14 }} />
             </>
           )}
-        </Button>
+        </PillBtn>
+        <p
+          style={{
+            textAlign: "center",
+            marginTop: 14,
+            fontSize: 12,
+            color: O.ink3,
+          }}
+        >
+          You can update everything later in Settings.
+        </p>
       </form>
     </div>
   );
 }
 
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-[12px] uppercase tracking-wider font-bold text-muted-foreground">
-        {label}
-      </Label>
-      {children}
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
-  );
-}
+/* ─── Step 2 — interests ─────────────────────────────────────── */
 
-/* ───────── Step 2: interests ───────── */
-function Step2({
+function Step2Interests({
   selected,
-  setSelected,
-  onBack,
+  toggle,
   onNext,
 }: {
   selected: Set<string>;
-  setSelected: (s: Set<string>) => void;
-  onBack: () => void;
+  toggle: (label: string) => void;
   onNext: () => void;
 }) {
-  const toggle = (id: string) => {
-    const next = new Set(selected);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelected(next);
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <div className="inline-flex items-center gap-1.5 px-3 h-7 rounded-full bg-violet-500/10 border border-violet-500/20 mb-3">
-          <Sparkles className="h-3.5 w-3.5 text-violet-300" />
-          <span className="text-[11px] font-bold uppercase tracking-wider text-violet-300">
-            Personalise your feed
-          </span>
-        </div>
-        <h1
-          className="text-2xl font-extrabold tracking-tight"
-          style={{ fontFamily: "var(--font-syne), sans-serif" }}
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div style={{ padding: "20px 24px 0" }}>
+        <Eyebrow>◈&nbsp;&nbsp;PICK A FEW</Eyebrow>
+        <Display size={32} style={{ marginTop: 10 }}>
+          What pulls you <Acc>in</Acc>?
+        </Display>
+        <p
+          style={{
+            fontSize: 14,
+            color: O.ink2,
+            marginTop: 8,
+            lineHeight: 1.55,
+          }}
         >
-          What are you into?
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1.5">
-          Pick a few — we'll surface posts you'll love
+          We&apos;ll seed your orbit with people and rooms around what you choose.
+          Pick 3 or more.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-        {interests.map((it) => {
-          const isOn = selected.has(it.id);
-          const Icon = it.icon;
+      <div
+        style={{
+          flex: 1,
+          padding: "20px 18px",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          alignContent: "flex-start",
+        }}
+      >
+        {INTERESTS.map((it) => {
+          const isOn = selected.has(it.label);
           return (
             <button
-              key={it.id}
-              onClick={() => toggle(it.id)}
-              className={cn(
-                "relative flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all duration-200 active:scale-[0.97]",
-                isOn
-                  ? "bg-primary/10 border-primary/40 shadow-[0_0_20px_oklch(0.623_0.214_259_/_0.2)]"
-                  : "bg-white/[0.03] border-white/[0.06] hover:border-white/15 hover:bg-white/[0.05]"
-              )}
+              key={it.label}
+              type="button"
+              onClick={() => toggle(it.label)}
+              style={{
+                padding: "11px 18px",
+                borderRadius: 99,
+                fontSize: 14,
+                fontWeight: 500,
+                background: isOn
+                  ? `linear-gradient(135deg, oklch(0.55 0.18 ${it.hue})80, oklch(0.4 0.16 ${(it.hue + 60) % 360})80)`
+                  : O.glass,
+                border: `1px solid ${isOn ? "rgba(255,255,255,0.3)" : O.hair}`,
+                color: O.ink,
+                cursor: "pointer",
+                boxShadow: isOn
+                  ? `0 4px 16px oklch(0.55 0.18 ${it.hue} / 0.4), inset 0 1px 0 rgba(255,255,255,0.15)`
+                  : "none",
+                fontFamily: "inherit",
+              }}
             >
-              <div
-                className={cn(
-                  "h-10 w-10 rounded-2xl bg-gradient-to-br flex items-center justify-center transition-all",
-                  it.color
-                )}
-              >
-                <Icon className={cn("h-5 w-5", isOn ? "text-primary" : "text-foreground/80")} />
-              </div>
-              <span className={cn("text-[13px] font-bold", isOn ? "text-primary" : "text-foreground")}>
-                {it.label}
-              </span>
               {isOn && (
-                <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-                  <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />
-                </div>
+                <Check
+                  style={{
+                    width: 12,
+                    height: 12,
+                    display: "inline",
+                    marginRight: 6,
+                    verticalAlign: "middle",
+                  }}
+                  strokeWidth={3}
+                />
               )}
+              {it.label}
             </button>
           );
         })}
       </div>
 
-      <div className="flex items-center gap-2.5 pt-2">
-        <button
-          onClick={onBack}
-          className="h-12 px-5 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-sm font-semibold text-foreground hover:bg-white/[0.08] transition-colors"
+      <div
+        style={{
+          padding: "18px 22px 28px",
+          borderTop: `1px solid ${O.hair}`,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 12,
+            color: O.ink3,
+            marginBottom: 12,
+            textAlign: "center",
+          }}
         >
-          Back
-        </button>
-        <Button
+          {selected.size} of 3 selected
+          {selected.size >= 3 ? " · nice taste" : ""}
+        </div>
+        <PillBtn
+          primary
+          size="lg"
           onClick={onNext}
-          disabled={selected.size === 0}
-          className="flex-1 h-12 rounded-2xl text-[15px] font-bold bg-primary text-primary-foreground shadow-[0_8px_24px_oklch(0.623_0.214_259_/_0.4)] hover:brightness-110 disabled:opacity-50 disabled:shadow-none"
+          disabled={selected.size < 1}
+          style={{ width: "100%", justifyContent: "center" }}
         >
-          Continue
-          <ArrowRight className="h-4 w-4 ml-2" />
-        </Button>
+          Continue <ArrowRight style={{ width: 14, height: 14 }} />
+        </PillBtn>
       </div>
     </div>
   );
 }
 
-/* ───────── Step 3: follows ───────── */
-function Step3({
+/* ─── Step 3 — follows ───────────────────────────────────────── */
+
+function Step3Follows({
   followed,
-  setFollowed,
-  onBack,
-  onFinish,
+  toggle,
   finishing,
+  onFinish,
 }: {
   followed: Set<string>;
-  setFollowed: (s: Set<string>) => void;
-  onBack: () => void;
-  onFinish: () => void;
+  toggle: (id: string) => void;
   finishing: boolean;
+  onFinish: () => void;
 }) {
   const { user } = useAuth();
   const { data: suggestions, isLoading } = useQuery({
@@ -507,111 +634,230 @@ function Step3({
     staleTime: 1000 * 60 * 5,
   });
 
-  const toggle = (id: string) => {
-    const next = new Set(followed);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setFollowed(next);
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <div className="inline-flex items-center gap-1.5 px-3 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/20 mb-3">
-          <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
-          <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-300">
-            Build your feed
-          </span>
-        </div>
-        <h1
-          className="text-2xl font-extrabold tracking-tight"
-          style={{ fontFamily: "var(--font-syne), sans-serif" }}
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div style={{ padding: "20px 24px 0" }}>
+        <Eyebrow>◇&nbsp;&nbsp;BUILD YOUR ORBIT</Eyebrow>
+        <Display size={32} style={{ marginTop: 10 }}>
+          Pick a few <Acc>orbits</Acc> to join.
+        </Display>
+        <p
+          style={{
+            fontSize: 14,
+            color: O.ink2,
+            marginTop: 8,
+            lineHeight: 1.55,
+          }}
         >
-          Follow some people
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1.5">
-          Pick a few to fill your feed instantly
+          Based on what you picked. You can always add more later — and unfollow
+          without anyone knowing.
         </p>
       </div>
 
-      <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 scrollbar-hide">
-        {isLoading ? (
-          Array.from({ length: 5 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.04]"
-            >
-              <div className="h-11 w-11 rounded-2xl bg-white/[0.04] animate-pulse" />
-              <div className="flex-1 space-y-1.5">
-                <div className="h-3 w-28 bg-white/[0.04] rounded animate-pulse" />
-                <div className="h-3 w-20 bg-white/[0.04] rounded animate-pulse" />
-              </div>
-              <div className="h-9 w-20 bg-white/[0.04] rounded-2xl animate-pulse" />
-            </div>
-          ))
-        ) : suggestions && suggestions.length > 0 ? (
-          suggestions.map((p: any) => {
-            const isOn = followed.has(p.id);
-            return (
-              <div
-                key={p.id}
-                className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.06]"
-              >
-                <UserAvatar src={p.avatar_url} fallback={p.display_name} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-foreground truncate">{p.display_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">@{p.username}</p>
-                </div>
-                <button
-                  onClick={() => toggle(p.id)}
-                  className={cn(
-                    "h-9 px-4 rounded-2xl text-[12px] font-bold transition-all active:scale-95",
-                    isOn
-                      ? "bg-white/[0.08] text-foreground border border-white/15"
-                      : "bg-primary text-primary-foreground shadow-[0_4px_12px_oklch(0.623_0.214_259_/_0.4)]"
-                  )}
+      <div
+        style={{
+          flex: 1,
+          overflow: "auto",
+          padding: "18px 16px 0",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {isLoading
+            ? Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    ...panel({ borderRadius: 18 }),
+                    padding: 14,
+                    height: 72,
+                  }}
+                />
+              ))
+            : suggestions && suggestions.length > 0
+              ? suggestions.map((p) => {
+                  const isOn = followed.has(p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      style={{
+                        ...panel({ borderRadius: 18 }),
+                        padding: 14,
+                        display: "flex",
+                        gap: 12,
+                        alignItems: "center",
+                      }}
+                    >
+                      <UserAvatar
+                        src={p.avatar_url}
+                        fallback={p.display_name}
+                        size="md"
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>
+                          {p.display_name}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11.5,
+                            color: O.ink3,
+                            marginTop: 2,
+                          }}
+                        >
+                          @{p.username}
+                        </div>
+                      </div>
+                      <PillBtn
+                        primary={!isOn}
+                        size="sm"
+                        onClick={() => toggle(p.id)}
+                      >
+                        {isOn ? (
+                          <>
+                            <Check style={{ width: 11, height: 11 }} strokeWidth={3} />{" "}
+                            Added
+                          </>
+                        ) : (
+                          <>
+                            <Plus style={{ width: 11, height: 11 }} strokeWidth={2.4} />{" "}
+                            Add
+                          </>
+                        )}
+                      </PillBtn>
+                    </div>
+                  );
+                })
+              : (
+                <p
+                  style={{
+                    textAlign: "center",
+                    fontSize: 13,
+                    color: O.ink3,
+                    padding: "40px 20px",
+                  }}
                 >
-                  {isOn ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 mr-1 inline" />
-                      Following
-                    </>
-                  ) : (
-                    "Follow"
-                  )}
-                </button>
-              </div>
-            );
-          })
-        ) : (
-          <p className="text-center text-sm text-muted-foreground py-8">
-            No suggestions yet — you can find people on Discover.
-          </p>
-        )}
+                  No suggestions yet — you can find people on Discover.
+                </p>
+              )}
+        </div>
       </div>
 
-      <div className="flex items-center gap-2.5">
-        <button
-          onClick={onBack}
-          className="h-12 px-5 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-sm font-semibold text-foreground hover:bg-white/[0.08] transition-colors"
+      <div
+        style={{
+          padding: "18px 22px 28px",
+          borderTop: `1px solid ${O.hair}`,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 12,
+            color: O.ink3,
+            marginBottom: 12,
+            textAlign: "center",
+          }}
         >
-          Back
-        </button>
-        <Button
+          {followed.size} added · find more after setup
+        </div>
+        <PillBtn
+          primary
+          size="lg"
           onClick={onFinish}
           disabled={finishing}
-          className="flex-1 h-12 rounded-2xl text-[15px] font-bold bg-primary text-primary-foreground shadow-[0_8px_24px_oklch(0.623_0.214_259_/_0.4)] hover:brightness-110"
+          style={{ width: "100%", justifyContent: "center" }}
         >
           {finishing ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Loader2 className="animate-spin" style={{ width: 16, height: 16 }} />
           ) : (
             <>
-              {followed.size > 0 ? `Follow ${followed.size} & Finish` : "Skip for now"}
-              <ArrowRight className="h-4 w-4 ml-2" />
+              Enter Orbit <ArrowRight style={{ width: 14, height: 14 }} />
             </>
           )}
-        </Button>
+        </PillBtn>
       </div>
     </div>
   );
 }
+
+/* ─── styled inputs that work with react-hook-form register() ───── */
+
+const RawInput = (function RawInputInner({ prefix, ...rest }: any) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "11px 14px",
+        borderRadius: 12,
+        background: "rgba(255,255,255,0.03)",
+        border: `1px solid ${O.hair2}`,
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
+      }}
+    >
+      {prefix && (
+        <span
+          style={{
+            fontSize: 13.5,
+            color: O.ink3,
+            fontFamily: O.mono,
+            fontWeight: 500,
+          }}
+        >
+          {prefix}
+        </span>
+      )}
+      <input
+        {...rest}
+        style={{
+          flex: 1,
+          fontSize: 14,
+          color: O.ink,
+          fontWeight: 500,
+          letterSpacing: "-0.005em",
+          background: "transparent",
+          border: "none",
+          outline: "none",
+          fontFamily: "inherit",
+          minWidth: 0,
+        }}
+      />
+    </div>
+  );
+});
+
+const RawTextArea = (function RawTextAreaInner({ rows = 3, ...rest }: any) {
+  return (
+    <div
+      style={{
+        padding: "11px 14px",
+        borderRadius: 12,
+        background: "rgba(255,255,255,0.03)",
+        border: `1px solid ${O.hair2}`,
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
+      }}
+    >
+      <textarea
+        {...rest}
+        rows={rows}
+        style={{
+          width: "100%",
+          fontSize: 14,
+          color: O.ink,
+          lineHeight: 1.55,
+          letterSpacing: "-0.005em",
+          background: "transparent",
+          border: "none",
+          outline: "none",
+          fontFamily: "inherit",
+          resize: "vertical",
+          minHeight: rows * 20,
+        }}
+      />
+    </div>
+  );
+});
