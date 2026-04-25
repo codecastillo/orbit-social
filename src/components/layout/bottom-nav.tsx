@@ -40,16 +40,13 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed z-40 lg:hidden"
+      className="fixed z-40 flex lg:hidden justify-around items-center"
       style={{
         left: 14,
         right: 14,
         bottom: 22,
         ...panel({ borderRadius: 28 }),
         padding: "12px 14px",
-        display: "flex",
-        justifyContent: "space-around",
-        alignItems: "center",
       }}
     >
       {items.map((item) => {

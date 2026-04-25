@@ -8,14 +8,12 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 export function TopBar() {
   return (
     <header
-      className="sticky top-0 z-30 lg:hidden"
+      className="sticky top-0 z-30 flex lg:hidden items-center"
       style={{
         padding: "12px 16px 14px",
         background: `linear-gradient(180deg, ${O.bg}cc, ${O.bg}00)`,
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
-        display: "flex",
-        alignItems: "center",
         gap: 10,
         color: O.ink,
         fontFamily: O.sans,

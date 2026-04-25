@@ -77,7 +77,8 @@ export function NewConversationDialog({
       }}
     >
       <DialogContent
-        className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
+        showCloseButton={false}
+        className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto ring-0"
         style={{ boxShadow: "none" }}
       >
         <ModalShell

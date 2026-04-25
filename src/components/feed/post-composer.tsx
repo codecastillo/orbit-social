@@ -46,7 +46,8 @@ export function PostComposer() {
   return (
     <Dialog open={composeOpen} onOpenChange={(open) => setComposeOpen(open)}>
       <DialogContent
-        className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-[580px] w-[92vw]"
+        showCloseButton={false}
+        className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-[580px] w-[92vw] ring-0"
         style={{ boxShadow: "none" }}
       >
         <div

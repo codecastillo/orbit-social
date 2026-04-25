@@ -439,13 +439,12 @@ function ChatRail({ stream }: { stream: LiveStreamWithProfile }) {
     <aside
       style={{
         ...panel(),
-        display: "flex",
-        flexDirection: "column",
         overflow: "hidden",
         height: "fit-content",
         position: "sticky",
         top: 24,
         maxHeight: "calc(100vh - 48px)",
+        flexDirection: "column",
       }}
       className="hidden xl:flex"
     >
@@ -553,7 +552,8 @@ function GoLiveDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
+        showCloseButton={false}
+        className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto ring-0"
         style={{ boxShadow: "none" }}
       >
         <ModalShell

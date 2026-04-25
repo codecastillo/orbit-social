@@ -1,20 +1,42 @@
 "use client";
 
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, CheckCheck, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Bell, CheckCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NotificationItem } from "@/components/notifications/notification-item";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 import { useNotifications, useUnreadCount } from "@/lib/hooks/use-notifications";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { markAllAsRead } from "@/lib/queries/notifications";
+import { O, aurora, auroraSoft, panel } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+
+const FILTERS = [
+  { value: "all", label: "All" },
+  { value: "mentions", label: "Mentions" },
+  { value: "likes", label: "Likes" },
+  { value: "follows", label: "Follows" },
+] as const;
+
+type FilterValue = (typeof FILTERS)[number]["value"];
+
+function isMatchingFilter(notif: any, filter: FilterValue): boolean {
+  if (filter === "all") return true;
+  const t = notif.type;
+  if (filter === "mentions") return t === "mention" || t === "reply";
+  if (filter === "likes") return t === "like" || t === "reaction";
+  if (filter === "follows") return t === "follow";
+  return true;
+}
 
 export default function NotificationsPage() {
   const { user } = useAuth();
   const { data: notifications, isLoading, isError, refetch } = useNotifications();
   const { data: unreadCount } = useUnreadCount();
   const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<FilterValue>("all");
 
   const handleMarkAllRead = async () => {
     if (!user) return;
@@ -23,85 +45,113 @@ export default function NotificationsPage() {
     queryClient.invalidateQueries({ queryKey: ["unread-count", user.id] });
   };
 
+  const filtered = (notifications ?? []).filter((n) => isMatchingFilter(n, filter));
+
   return (
-    <div className="min-h-screen">
-      {/* Header */}
+    <div
+      style={{
+        color: O.ink,
+        fontFamily: O.sans,
+        display: "flex",
+        flexDirection: "column",
+        gap: 18,
+      }}
+    >
+      {/* Editorial hero */}
       <div
-        className="sticky top-0 z-10"
         style={{
-          background: "oklch(0.14 0.02 270 / 0.7)",
-          backdropFilter: "blur(40px) saturate(2)",
-          WebkitBackdropFilter: "blur(40px) saturate(2)",
-          borderBottom: "1px solid oklch(1 0 0 / 0.05)",
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 18,
+          flexWrap: "wrap",
         }}
       >
-        <div className="flex items-center justify-between px-5 pt-5 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-amber-500/25 to-orange-500/20 flex items-center justify-center border border-white/[0.06] relative">
-              <Bell className="h-5 w-5 text-amber-300" />
-              {!!unreadCount && unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[9px] font-bold text-white bg-destructive rounded-full ring-2 ring-background">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </div>
-            <div>
-              <h1
-                className="text-2xl font-extrabold tracking-tight"
-                style={{ fontFamily: "var(--font-syne), sans-serif" }}
-              >
-                Notifications
-              </h1>
-              <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">
-                {unreadCount ? `${unreadCount} new` : "You're all caught up"}
-              </p>
-            </div>
-          </div>
-          {!!unreadCount && unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs font-semibold text-muted-foreground hover:text-foreground rounded-2xl h-9 px-3.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06]"
-              onClick={handleMarkAllRead}
-            >
-              <CheckCheck className="h-3.5 w-3.5 mr-1.5" />
-              Mark all read
-            </Button>
-          )}
+        <div>
+          <Eyebrow accent>
+            ◇&nbsp;&nbsp;ACTIVITY · {unreadCount ? `${unreadCount} NEW` : "ALL READ"}
+          </Eyebrow>
+          <Display size={48} style={{ marginTop: 8 }}>
+            Signals from your <Acc>orbit</Acc>.
+          </Display>
         </div>
+        {!!unreadCount && unreadCount > 0 && (
+          <PillBtn size="lg" onClick={handleMarkAllRead}>
+            <CheckCheck style={{ width: 14, height: 14 }} strokeWidth={1.8} />
+            Mark all read
+          </PillBtn>
+        )}
+      </div>
+
+      {/* Filter tabs */}
+      <div
+        style={{
+          ...panel({ borderRadius: 16 }),
+          padding: 5,
+          display: "flex",
+          gap: 4,
+        }}
+      >
+        {FILTERS.map((f) => {
+          const isActive = filter === f.value;
+          return (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              style={{
+                flex: 1,
+                textAlign: "center",
+                padding: "10px 0",
+                borderRadius: 12,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                background: isActive ? auroraSoft : "transparent",
+                border: isActive
+                  ? `1px solid ${O.hair2}`
+                  : "1px solid transparent",
+                color: isActive ? O.ink : O.ink3,
+                fontFamily: "inherit",
+                transition: "all 0.15s",
+              }}
+            >
+              {f.label}
+            </button>
+          );
+        })}
       </div>
 
       {isError ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center px-5">
-          <div className="h-16 w-16 rounded-2xl bg-destructive/10 flex items-center justify-center mb-5">
-            <AlertCircle className="h-7 w-7 text-destructive" />
-          </div>
-          <p className="text-base font-semibold text-foreground/80">
-            Something went wrong
-          </p>
-          <button
-            onClick={() => refetch()}
-            className="text-primary text-sm font-semibold hover:underline mt-3"
-          >
-            Retry
-          </button>
-        </div>
+        <OrbitErrorState
+          headline="Couldn't"
+          accentWord="reach"
+          sub="Notifications didn't load. Probably a flaky connection — try again."
+          errorCode="ERR · CONN_TIMEOUT"
+          onRetry={() => refetch()}
+        />
       ) : isLoading ? (
-        <div className="p-4 space-y-2">
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: 8 }}
+        >
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="flex items-start gap-3.5 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.04]"
+              style={{
+                ...panel({ borderRadius: 18 }),
+                padding: 14,
+                display: "flex",
+                gap: 14,
+              }}
             >
-              <Skeleton className="h-11 w-11 rounded-2xl shrink-0" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+              <div style={{ flex: 1 }} className="space-y-2">
+                <Skeleton className="h-3.5 w-3/4" />
                 <Skeleton className="h-3 w-16" />
               </div>
             </div>
           ))}
         </div>
-      ) : !notifications || notifications.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <OrbitEmptyState
           icon={Bell}
           accent="#ffd76a"
@@ -110,24 +160,96 @@ export default function NotificationsPage() {
           sub="No new signals in your orbit. Come back later — or go post something and give someone else a reason to show up here."
         />
       ) : (
-        <div className="p-4 space-y-2">
-          {notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className={`relative rounded-2xl border transition-all overflow-hidden ${
-                notification.is_read
-                  ? "bg-white/[0.02] border-white/[0.04] hover:bg-white/[0.04]"
-                  : "bg-primary/[0.04] border-primary/[0.12] hover:bg-primary/[0.06]"
-              }`}
-            >
-              {!notification.is_read && (
-                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary rounded-l-2xl shadow-[0_0_10px_oklch(0.623_0.214_259_/_0.6)]" />
-              )}
-              <NotificationItem notification={notification} />
-            </div>
-          ))}
-        </div>
+        <NotificationsList notifications={filtered} />
       )}
     </div>
+  );
+}
+
+function NotificationsList({ notifications }: { notifications: any[] }) {
+  // Group by NEW vs EARLIER (created within last 12h)
+  const cutoff = Date.now() - 1000 * 60 * 60 * 12;
+  const fresh: any[] = [];
+  const earlier: any[] = [];
+  notifications.forEach((n) => {
+    const t = new Date(n.created_at).getTime();
+    if (t >= cutoff && !n.is_read) fresh.push(n);
+    else earlier.push(n);
+  });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {fresh.length > 0 && (
+        <Section label={`NEW · ${fresh.length}`} accent>
+          <NotificationsSection items={fresh} />
+        </Section>
+      )}
+      {earlier.length > 0 && (
+        <Section label="EARLIER">
+          <NotificationsSection items={earlier} />
+        </Section>
+      )}
+    </div>
+  );
+}
+
+function Section({
+  label,
+  accent,
+  children,
+}: {
+  label: string;
+  accent?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <Eyebrow accent={accent}>◇&nbsp;&nbsp;{label}</Eyebrow>
+      <div
+        style={{
+          ...panel(),
+          padding: 0,
+          marginTop: 12,
+          overflow: "hidden",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function NotificationsSection({ items }: { items: any[] }) {
+  return (
+    <>
+      {items.map((notification, i) => {
+        const isUnread = !notification.is_read;
+        return (
+          <div
+            key={notification.id}
+            style={{
+              position: "relative",
+              borderTop: i ? `1px solid ${O.hair}` : "none",
+              background: isUnread ? `${O.a2}0a` : "transparent",
+            }}
+          >
+            {isUnread && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 3,
+                  background: aurora,
+                  boxShadow: `0 0 12px ${O.a2}80`,
+                }}
+              />
+            )}
+            <NotificationItem notification={notification} />
+          </div>
+        );
+      })}
+    </>
   );
 }
