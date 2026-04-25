@@ -235,8 +235,10 @@ export default function EditProfilePage() {
       style={{
         color: O.ink,
         fontFamily: O.sans,
-        maxWidth: 780,
-        paddingBottom: 48,
+        maxWidth: 820,
+        margin: "0 auto",
+        paddingBottom: 96,
+        width: "100%",
       }}
     >
       {/* Header */}
@@ -354,9 +356,9 @@ export default function EditProfilePage() {
           />
           <div
             style={{
-              padding: "0 24px",
+              padding: "0 28px",
               position: "relative",
-              height: 64,
+              height: 76,
               background: "rgba(255,255,255,0.015)",
             }}
           >
@@ -364,28 +366,66 @@ export default function EditProfilePage() {
               type="button"
               onClick={() => avatarInputRef.current?.click()}
               disabled={uploadingAvatar}
+              aria-label="Change profile photo"
               style={{
                 position: "absolute",
-                left: 24,
-                top: -44,
-                width: 92,
-                height: 92,
+                left: 28,
+                top: -56,
+                width: 124,
+                height: 124,
                 borderRadius: "50%",
-                padding: 4,
+                padding: 5,
                 background: O.bg,
-                border: `4px solid ${O.bg}`,
                 boxShadow: themeColor
-                  ? `0 0 0 2px ${themeColor}, 0 0 24px ${themeColor}66`
-                  : `0 0 0 2px ${O.a2}, 0 0 24px ${O.a2}66`,
+                  ? `0 0 0 3px ${themeColor}, 0 0 28px ${themeColor}66, 0 14px 36px rgba(0,0,0,0.5)`
+                  : `0 0 0 3px ${O.a2}, 0 0 28px ${O.a2}66, 0 14px 36px rgba(0,0,0,0.5)`,
+                border: "none",
                 cursor: "pointer",
+                display: "block",
               }}
             >
-              <UserAvatar
-                src={avatarUrl}
-                fallback={displayName || "?"}
-                size="lg"
-                avatarBorder={avatarBorder}
-              />
+              <div
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  position: "relative",
+                  background: O.glass,
+                }}
+              >
+                <UserAvatar
+                  src={avatarUrl}
+                  fallback={displayName || "?"}
+                  size="xl"
+                  avatarBorder={avatarBorder}
+                />
+                {/* Hover overlay */}
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "50%",
+                    background:
+                      "linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.55) 100%)",
+                    display: "flex",
+                    alignItems: "flex-end",
+                    justifyContent: "center",
+                    paddingBottom: 10,
+                    opacity: 0,
+                    transition: "opacity 150ms ease",
+                    color: "white",
+                    pointerEvents: "none",
+                  }}
+                  className="orbit-avatar-edit-overlay"
+                >
+                  {uploadingAvatar ? (
+                    <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" />
+                  ) : (
+                    <Camera style={{ width: 16, height: 16 }} />
+                  )}
+                </div>
+              </div>
             </button>
             <input
               ref={avatarInputRef}
@@ -401,18 +441,18 @@ export default function EditProfilePage() {
               style={{
                 position: "absolute",
                 right: 24,
-                top: 18,
-                padding: "7px 13px",
+                top: 22,
+                padding: "8px 14px",
                 borderRadius: 99,
                 background: "rgba(255,255,255,0.06)",
                 border: `1px solid ${O.hair2}`,
                 color: O.ink,
-                fontSize: 12,
+                fontSize: 12.5,
                 fontWeight: 500,
                 cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 6,
+                gap: 7,
                 fontFamily: "inherit",
               }}
             >

@@ -137,6 +137,12 @@
   background: rgba(255, 95, 174, 0.14);
   color: #ffffff;
 }
+
+/* Orbit avatar edit overlay reveal on parent button hover */
+button:hover > div > .orbit-avatar-edit-overlay,
+button:focus-visible > div > .orbit-avatar-edit-overlay {
+  opacity: 1;
+}
 .orbit-dropdown-item[data-variant="destructive"][data-highlighted] {
   background: rgba(255, 122, 133, 0.14);
   color: #ff9aa3;
