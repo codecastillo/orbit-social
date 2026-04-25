@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { Users, Search, X, Loader2, ChevronLeft, UserMinus } from "lucide-react";
+import Link from "next/link";
+import { Users, Search, Loader2, UserMinus, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
@@ -14,18 +13,18 @@ import {
   searchUsers,
   type ProfileSummary,
 } from "@/lib/queries/social";
-import { cn } from "@/lib/utils";
+import { O, panel } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { FormSection, Input } from "@/components/orbit/forms";
 
 export default function CloseFriendsPage() {
   const { user } = useAuth();
-  const router = useRouter();
   const [closeFriends, setCloseFriends] = useState<ProfileSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ProfileSummary[]>([]);
   const [searching, setSearching] = useState(false);
 
-  // Load close friends
   useEffect(() => {
     if (!user) return;
     getCloseFriends(user.id)
@@ -41,15 +40,12 @@ export default function CloseFriendsPage() {
         setSearchResults([]);
         return;
       }
-
       setSearching(true);
       try {
         const results = await searchUsers(query, 10);
         const closeFriendIds = new Set(closeFriends.map((f) => f.id));
         setSearchResults(
-          results.filter(
-            (r) => r.id !== user?.id && !closeFriendIds.has(r.id)
-          )
+          results.filter((r) => r.id !== user?.id && !closeFriendIds.has(r.id))
         );
       } catch {
         toast.error("Search failed");
@@ -66,9 +62,9 @@ export default function CloseFriendsPage() {
       await addCloseFriend(user.id, profile.id);
       setCloseFriends((prev) => [profile, ...prev]);
       setSearchResults((prev) => prev.filter((r) => r.id !== profile.id));
-      toast.success(`Added ${profile.display_name} to Close Friends`);
+      toast.success(`Added ${profile.display_name}`);
     } catch {
-      toast.error("Failed to add close friend");
+      toast.error("Failed to add");
     }
   };
 
@@ -77,140 +73,168 @@ export default function CloseFriendsPage() {
     try {
       await removeCloseFriend(user.id, friendId);
       setCloseFriends((prev) => prev.filter((f) => f.id !== friendId));
-      toast.success("Removed from Close Friends");
+      toast.success("Removed");
     } catch {
-      toast.error("Failed to remove close friend");
+      toast.error("Failed to remove");
     }
   };
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-zinc-950/60 backdrop-blur-2xl border-b border-white/[0.06]">
-        <div className="flex items-center gap-3 px-5 py-4">
-          <button
-            onClick={() => router.push("/settings")}
-            className="h-9 w-9 rounded-xl bg-white/[0.04] flex items-center justify-center hover:bg-white/[0.08] transition-colors"
-          >
-            <ChevronLeft className="h-4.5 w-4.5 text-zinc-400" />
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
-              <Users className="h-4.5 w-4.5 text-emerald-400" />
-            </div>
-            <h1
-              className="text-xl font-bold tracking-tight text-zinc-100"
-              style={{ fontFamily: "var(--font-syne), sans-serif" }}
-            >
-              Close Friends
-            </h1>
-          </div>
-        </div>
+    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
+      <Link
+        href="/settings"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          color: O.ink3,
+          fontFamily: O.mono,
+          fontSize: 11,
+          letterSpacing: "0.12em",
+          textDecoration: "none",
+          width: "fit-content",
+        }}
+      >
+        <ArrowLeft style={{ width: 12, height: 12 }} />
+        BACK · SETTINGS
+      </Link>
+
+      <div>
+        <Eyebrow accent>◇&nbsp;&nbsp;SETTINGS · CLOSE FRIENDS</Eyebrow>
+        <Display size={48} style={{ marginTop: 8 }}>
+          Your <Acc>inner</Acc> orbit.
+        </Display>
+        <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>
+          A smaller radius. Posts marked "close friends" only reach this list.
+        </p>
       </div>
 
-      <div className="p-5 space-y-6">
-        <p className="text-sm text-zinc-400">
-          People in your Close Friends list can see posts you share with the
-          Close Friends visibility. Only you can see who is on this list.
-        </p>
-
-        {/* Search to add */}
-        <div>
-          <label className="text-xs font-medium text-zinc-400 mb-1.5 block">
-            Add People
-          </label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              placeholder="Search by name or username..."
-              className="w-full h-10 pl-9 pr-3 rounded-lg text-sm bg-white/[0.04] border border-white/[0.1] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 transition-colors"
-            />
-            {searching && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 animate-spin" />
-            )}
-          </div>
-
-          {searchResults.length > 0 && (
-            <div className="mt-2 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-              {searchResults.map((profile) => (
-                <div
-                  key={profile.id}
-                  className="flex items-center gap-3 p-3 hover:bg-white/[0.04] transition-colors"
-                >
-                  <UserAvatar
-                    src={profile.avatar_url}
-                    fallback={profile.display_name}
-                    size="sm"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-zinc-200 truncate">
-                      {profile.display_name}
-                    </p>
-                    <p className="text-xs text-zinc-500 truncate">
-                      @{profile.username}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleAdd(profile)}
-                    className="rounded-lg px-4 font-semibold bg-emerald-500 hover:bg-emerald-600 text-white border-0 text-xs"
-                  >
-                    Add
-                  </Button>
+      <FormSection title="Add people">
+        <Input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => handleSearch(e.target.value)}
+          placeholder="Search by name or username…"
+          prefix={<Search style={{ width: 14, height: 14 }} />}
+          suffix={
+            searching ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : null
+          }
+        />
+        {searchResults.length > 0 && (
+          <div
+            style={{
+              marginTop: 12,
+              borderRadius: 14,
+              border: `1px solid ${O.hair}`,
+              background: "rgba(255,255,255,0.02)",
+              overflow: "hidden",
+            }}
+          >
+            {searchResults.map((profile, i) => (
+              <div
+                key={profile.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "12px 14px",
+                  borderTop: i ? `1px solid ${O.hair}` : "none",
+                }}
+              >
+                <UserAvatar src={profile.avatar_url} fallback={profile.display_name} size="sm" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13.5, fontWeight: 600, margin: 0, color: O.ink }}>
+                    {profile.display_name}
+                  </p>
+                  <p style={{ fontSize: 11.5, color: O.ink3, margin: "2px 0 0" }}>
+                    @{profile.username}
+                  </p>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                <PillBtn primary size="sm" onClick={() => handleAdd(profile)}>
+                  + Add
+                </PillBtn>
+              </div>
+            ))}
+          </div>
+        )}
+      </FormSection>
 
-        {/* Current close friends list */}
-        <div>
-          <h3 className="text-sm font-medium text-zinc-300 mb-3">
-            Your Close Friends ({closeFriends.length})
-          </h3>
-
+      <div style={{ marginTop: 22 }}>
+        <Eyebrow>◇&nbsp;&nbsp;YOURS · {closeFriends.length}</Eyebrow>
+        <div
+          style={{
+            ...panel({ borderRadius: 18 }),
+            padding: 10,
+            marginTop: 14,
+          }}
+        >
           {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-zinc-500" />
+            <div style={{ display: "flex", justifyContent: "center", padding: 32 }}>
+              <Loader2 style={{ width: 18, height: 18, color: O.ink3 }} className="animate-spin" />
             </div>
           ) : closeFriends.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                <Users className="h-6 w-6 text-emerald-400" />
+            <div style={{ textAlign: "center", padding: "32px 16px", color: O.ink3 }}>
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  margin: "0 auto 12px",
+                  borderRadius: 12,
+                  background: "rgba(125,255,163,0.08)",
+                  border: "1px solid rgba(125,255,163,0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Users style={{ width: 20, height: 20, color: "#7dffa3" }} />
               </div>
-              <p className="text-sm text-zinc-400">
-                No close friends yet. Search above to add people.
+              <p style={{ fontSize: 13, margin: 0, color: O.ink2, fontWeight: 600 }}>
+                No close friends yet.
+              </p>
+              <p style={{ fontSize: 12, margin: "4px 0 0", color: O.ink4 }}>
+                Search above to add someone.
               </p>
             </div>
           ) : (
-            <div className="space-y-1">
-              {closeFriends.map((friend) => (
+            <div>
+              {closeFriends.map((friend, i) => (
                 <div
                   key={friend.id}
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.03] transition-colors"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "10px 12px",
+                    borderTop: i ? `1px solid ${O.hair}` : "none",
+                  }}
                 >
-                  <UserAvatar
-                    src={friend.avatar_url}
-                    fallback={friend.display_name}
-                    size="sm"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-zinc-200 truncate">
+                  <UserAvatar src={friend.avatar_url} fallback={friend.display_name} size="sm" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13.5, fontWeight: 600, margin: 0, color: O.ink }}>
                       {friend.display_name}
                     </p>
-                    <p className="text-xs text-zinc-500 truncate">
+                    <p style={{ fontSize: 11.5, color: O.ink3, margin: "2px 0 0" }}>
                       @{friend.username}
                     </p>
                   </div>
                   <button
                     onClick={() => handleRemove(friend.id)}
-                    className="h-8 w-8 flex items-center justify-center rounded-full text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    title="Remove from Close Friends"
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 10,
+                      border: "none",
+                      background: "transparent",
+                      color: O.ink3,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                    title="Remove"
                   >
-                    <UserMinus className="h-4 w-4" />
+                    <UserMinus style={{ width: 14, height: 14 }} />
                   </button>
                 </div>
               ))}

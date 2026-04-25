@@ -10,19 +10,11 @@ import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { O, panel } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { Field, Input, FormSection, ModalShell } from "@/components/orbit/forms";
 
 const changePasswordSchema = z
   .object({
@@ -65,46 +57,35 @@ export default function AccountSettingsPage() {
   });
 
   const onChangePassword = async (data: ChangePasswordData) => {
-    // Verify current password by re-authenticating
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: user?.email || "",
       password: data.currentPassword,
     });
-
     if (signInError) {
       toast.error("Current password is incorrect");
       return;
     }
-
-    const { error } = await supabase.auth.updateUser({
-      password: data.newPassword,
-    });
-
+    const { error } = await supabase.auth.updateUser({ password: data.newPassword });
     if (error) {
       toast.error("Failed to update password");
       return;
     }
-
-    toast.success("Password updated successfully");
+    toast.success("Password updated");
     reset();
   };
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmation !== "DELETE") return;
     if (!user) return;
-
     setDeleting(true);
-
     try {
       const res = await fetch("/api/delete-account", { method: "POST" });
       const data = await res.json();
-
       if (!res.ok) {
         toast.error(data.error || "Failed to delete account.");
         setDeleting(false);
         return;
       }
-
       await supabase.auth.signOut();
       toast.success("Account deleted.");
       router.push("/login");
@@ -116,173 +97,145 @@ export default function AccountSettingsPage() {
 
   if (authLoading) {
     return (
-      <div className="border-x border-border min-h-screen">
-        <div className="p-4 border-b border-border flex items-center gap-3">
-          <Skeleton className="h-5 w-5 rounded" />
-          <Skeleton className="h-5 w-32" />
-        </div>
-        <div className="p-6 space-y-4">
-          <Skeleton className="h-20 w-full rounded-xl" />
-          <Skeleton className="h-40 w-full rounded-xl" />
-        </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        <Skeleton className="h-16 w-1/2 rounded-xl" />
+        <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
     );
   }
 
   return (
-    <div className="border-x border-border min-h-screen">
-      <div className="p-4 border-b border-border flex items-center gap-3">
-        <Link href="/settings" className="text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <h2 className="text-lg font-semibold">Account</h2>
+    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
+      <Link
+        href="/settings"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          color: O.ink3,
+          fontFamily: O.mono,
+          fontSize: 11,
+          letterSpacing: "0.12em",
+          textDecoration: "none",
+          width: "fit-content",
+        }}
+      >
+        <ArrowLeft style={{ width: 12, height: 12 }} />
+        BACK · SETTINGS
+      </Link>
+
+      <div>
+        <Eyebrow accent>◇&nbsp;&nbsp;SETTINGS · ACCOUNT</Eyebrow>
+        <Display size={48} style={{ marginTop: 8 }}>
+          Your <Acc>account</Acc>.
+        </Display>
+        <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>
+          Email, password, and how to leave.
+        </p>
       </div>
 
-      <div className="p-4 space-y-6">
-        {/* Email Section */}
-        <div className="glass rounded-xl p-4 space-y-2">
-          <h3 className="font-medium">Email Address</h3>
-          <p className="text-sm text-muted-foreground">{user?.email}</p>
-        </div>
+      <FormSection title="Email">
+        <Field label="Signed in as">
+          <Input type="email" value={user?.email || ""} readOnly />
+        </Field>
+        <p style={{ fontSize: 12, color: O.ink4, fontFamily: O.mono, letterSpacing: "0.04em", marginTop: -6 }}>
+          Email changes will be available soon.
+        </p>
+      </FormSection>
 
-        <Separator />
+      <FormSection title="Change password">
+        <form onSubmit={handleSubmit(onChangePassword)}>
+          <Field label="Current password" error={errors.currentPassword?.message}>
+            <Input type="password" placeholder="Enter current password" {...register("currentPassword")} />
+          </Field>
+          <Field label="New password" error={errors.newPassword?.message}>
+            <Input type="password" placeholder="Min 10 chars, mixed case, number, symbol" {...register("newPassword")} />
+          </Field>
+          <Field label="Confirm new password" error={errors.confirmPassword?.message}>
+            <Input type="password" placeholder="Repeat new password" {...register("confirmPassword")} />
+          </Field>
+          <PillBtn primary size="lg" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : "Update password"}
+          </PillBtn>
+        </form>
+      </FormSection>
 
-        {/* Change Password */}
-        <div className="space-y-4">
-          <h3 className="font-medium">Change Password</h3>
-
-          <form onSubmit={handleSubmit(onChangePassword)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                placeholder="Enter current password"
-                {...register("currentPassword")}
-                className="bg-background/50"
-              />
-              {errors.currentPassword && (
-                <p className="text-sm text-destructive">
-                  {errors.currentPassword.message}
-                </p>
-              )}
+      <div style={{ marginTop: 28 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "#ff9aa3", letterSpacing: "-0.01em" }}>
+          Danger zone
+        </h3>
+        <div
+          style={{
+            ...panel({ borderRadius: 18 }),
+            padding: 20,
+            marginTop: 16,
+            border: "1px solid rgba(255,122,133,0.25)",
+            background: "rgba(255,122,133,0.04)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <AlertTriangle style={{ width: 18, height: 18, color: "#ff7a85", flexShrink: 0, marginTop: 2 }} />
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: O.ink, margin: 0 }}>
+                Delete account
+              </p>
+              <p style={{ fontSize: 13, color: O.ink3, margin: "6px 0 14px", lineHeight: 1.5 }}>
+                Permanent. Your orbit, posts, messages, and reactions all go with you.
+              </p>
+              <button
+                onClick={() => setDeleteDialogOpen(true)}
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: 99,
+                  background: "rgba(255,122,133,0.1)",
+                  border: "1px solid rgba(255,122,133,0.4)",
+                  color: "#ff9aa3",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: O.sans,
+                }}
+              >
+                Delete account
+              </button>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">New Password</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                placeholder="Enter new password"
-                {...register("newPassword")}
-                className="bg-background/50"
-              />
-              {errors.newPassword && (
-                <p className="text-sm text-destructive">
-                  {errors.newPassword.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Confirm new password"
-                {...register("confirmPassword")}
-                className="bg-background/50"
-              />
-              {errors.confirmPassword && (
-                <p className="text-sm text-destructive">
-                  {errors.confirmPassword.message}
-                </p>
-              )}
-            </div>
-
-            <Button type="submit" disabled={isSubmitting} className="h-10 rounded-xl font-semibold text-sm px-5 cursor-pointer">
-              {isSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Update Password"
-              )}
-            </Button>
-          </form>
-        </div>
-
-        <Separator />
-
-        {/* Danger Zone */}
-        <div className="space-y-4">
-          <h3 className="font-medium text-destructive">Danger Zone</h3>
-          <div className="glass rounded-xl p-4 border border-destructive/20 space-y-3">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium">Delete Account</p>
-                <p className="text-sm text-muted-foreground">
-                  Permanently delete your account and all associated data. This action
-                  cannot be undone.
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="destructive"
-              onClick={() => setDeleteDialogOpen(true)}
-              className="h-10 rounded-xl font-semibold text-sm px-5 cursor-pointer"
-            >
-              Delete Account
-            </Button>
           </div>
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Account</DialogTitle>
-            <DialogDescription>
-              This will permanently delete your account, posts, and all data.
-              This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-2">
-            <Label htmlFor="deleteConfirmation">
-              Type <span className="font-mono font-bold text-foreground">DELETE</span> to confirm
-            </Label>
-            <Input
-              id="deleteConfirmation"
-              value={deleteConfirmation}
-              onChange={(e) => setDeleteConfirmation(e.target.value)}
-              placeholder="DELETE"
-              className="bg-background/50"
-            />
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDeleteDialogOpen(false);
-                setDeleteConfirmation("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteAccount}
-              disabled={deleteConfirmation !== "DELETE" || deleting}
-            >
-              {deleting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Delete Forever"
-              )}
-            </Button>
-          </DialogFooter>
+        <DialogContent
+          showCloseButton={false}
+          className="p-0 gap-0 border-0 bg-transparent shadow-none !max-w-[520px]"
+        >
+          <ModalShell
+            title="Delete your account"
+            subtitle="This action cannot be undone."
+            danger
+            primaryLabel={deleting ? "Deleting…" : "Delete forever"}
+            onPrimary={handleDeleteAccount}
+            secondaryLabel="Cancel"
+            onSecondary={() => {
+              setDeleteDialogOpen(false);
+              setDeleteConfirmation("");
+            }}
+            canSubmit={deleteConfirmation === "DELETE" && !deleting}
+            loading={deleting}
+            onClose={() => setDeleteDialogOpen(false)}
+          >
+            <p style={{ fontSize: 13.5, color: O.ink3, lineHeight: 1.55, marginTop: 0 }}>
+              Every post, repost, and reaction will be wiped. This cannot be undone.
+            </p>
+            <div style={{ marginTop: 16 }}>
+              <Field label={<>Type <span style={{ fontFamily: O.mono, color: O.ink }}>DELETE</span> to confirm</>}>
+                <Input
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  placeholder="DELETE"
+                />
+              </Field>
+            </div>
+          </ModalShell>
         </DialogContent>
       </Dialog>
     </div>

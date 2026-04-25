@@ -2,146 +2,163 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Lock } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { O } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { FormSection, Toggle } from "@/components/orbit/forms";
 
 export default function PrivacySettingsPage() {
   const { user, loading: authLoading } = useAuth();
   const supabase = createClient();
 
   const [isPrivate, setIsPrivate] = useState(false);
+  const [hideActivity, setHideActivity] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
-
     supabase
       .from("profiles")
-      .select("is_private")
+      .select("is_private, hide_activity")
       .eq("id", user.id)
       .single()
       .then(({ data }) => {
-        if (data) setIsPrivate(data.is_private ?? false);
+        if (data) {
+          setIsPrivate(data.is_private ?? false);
+          setHideActivity(data.hide_activity ?? false);
+        }
         setProfileLoading(false);
       });
   }, [user, supabase]);
 
   const handleSave = async () => {
     if (!user) return;
-
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
       .update({
         is_private: isPrivate,
+        hide_activity: hideActivity,
         updated_at: new Date().toISOString(),
       })
       .eq("id", user.id);
-
-    if (error) {
-      toast.error("Failed to update privacy settings");
-    } else {
-      toast.success("Privacy settings updated");
-    }
+    if (error) toast.error("Failed to update privacy settings");
+    else toast.success("Saved");
     setSaving(false);
   };
 
   if (authLoading || profileLoading) {
     return (
-      <div className="border-x border-border min-h-screen">
-        <div className="p-4 border-b border-border flex items-center gap-3">
-          <Skeleton className="h-5 w-5 rounded" />
-          <Skeleton className="h-5 w-32" />
-        </div>
-        <div className="p-6 space-y-4">
-          <Skeleton className="h-24 w-full rounded-xl" />
-          <Skeleton className="h-32 w-full rounded-xl" />
-        </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        <Skeleton className="h-16 w-1/2 rounded-xl" />
+        <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
     );
   }
 
+  const ToggleRow = ({
+    label,
+    hint,
+    on,
+    onChange,
+  }: {
+    label: string;
+    hint: string;
+    on: boolean;
+    onChange: (v: boolean) => void;
+  }) => (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 18,
+        padding: "14px 0",
+        borderTop: `1px solid ${O.hair}`,
+      }}
+    >
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: O.ink }}>{label}</div>
+        <div style={{ fontSize: 12.5, color: O.ink3, marginTop: 4, lineHeight: 1.45 }}>
+          {hint}
+        </div>
+      </div>
+      <Toggle on={on} onChange={onChange} />
+    </div>
+  );
+
   return (
-    <div className="border-x border-border min-h-screen">
-      <div className="p-4 border-b border-border flex items-center gap-3">
-        <Link href="/settings" className="text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <h2 className="text-lg font-semibold">Privacy</h2>
+    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
+      <Link
+        href="/settings"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          color: O.ink3,
+          fontFamily: O.mono,
+          fontSize: 11,
+          letterSpacing: "0.12em",
+          textDecoration: "none",
+          width: "fit-content",
+        }}
+      >
+        <ArrowLeft style={{ width: 12, height: 12 }} />
+        BACK · SETTINGS
+      </Link>
+
+      <div>
+        <Eyebrow accent>◆&nbsp;&nbsp;SETTINGS · PRIVACY</Eyebrow>
+        <Display size={48} style={{ marginTop: 8 }}>
+          Kept <Acc>quiet</Acc>.
+        </Display>
+        <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>
+          Who can see what, and when. Your radius, your rules.
+        </p>
       </div>
 
-      <div className="p-4 space-y-4">
-        {/* Private Account Toggle */}
-        <div className="glass rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted">
-                <Lock className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="font-medium">Private Account</p>
-                <p className="text-sm text-muted-foreground">
-                  Only approved followers can see your posts
-                </p>
+      <FormSection title="Visibility">
+        <div style={{ paddingTop: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 18,
+              paddingBottom: 14,
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: O.ink }}>Private account</div>
+              <div style={{ fontSize: 12.5, color: O.ink3, marginTop: 4, lineHeight: 1.45 }}>
+                Only approved followers can see your posts. Your profile card stays visible.
               </div>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={isPrivate}
-              onClick={() => setIsPrivate(!isPrivate)}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                isPrivate ? "bg-primary" : "bg-muted"
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
-                  isPrivate ? "translate-x-5" : "translate-x-0"
-                }`}
-              />
-            </button>
+            <Toggle on={isPrivate} onChange={setIsPrivate} />
           </div>
+          <ToggleRow
+            label="Hide activity status"
+            hint="Don't show when you were last online or typing."
+            on={hideActivity}
+            onChange={setHideActivity}
+          />
         </div>
+      </FormSection>
 
-        {/* Explanation */}
-        <div className="glass rounded-xl p-4 space-y-3">
-          <h3 className="font-medium text-sm">What does private mean?</h3>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li className="flex items-start gap-2">
-              <span className="text-muted-foreground mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0 inline-block" />
-              Only people you approve can follow you and see your posts
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-muted-foreground mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0 inline-block" />
-              Your posts will not appear in public feeds or search results
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-muted-foreground mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0 inline-block" />
-              People who already follow you will not be affected
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-muted-foreground mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0 inline-block" />
-              Your profile info (name, bio, avatar) remains visible to everyone
-            </li>
-          </ul>
-        </div>
-
-        <Button
-          onClick={handleSave}
-          className="w-full h-10 rounded-xl font-semibold text-sm px-5 cursor-pointer"
-          disabled={saving}
-        >
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            "Save Changes"
-          )}
-        </Button>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: 10,
+          marginTop: 8,
+        }}
+      >
+        <PillBtn primary size="lg" onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : "Save changes"}
+        </PillBtn>
       </div>
     </div>
   );

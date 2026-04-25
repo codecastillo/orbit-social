@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Activity,
   Monitor,
@@ -9,9 +10,9 @@ import {
   Check,
   AlertTriangle,
   Globe,
+  ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
   getLoginHistory,
@@ -19,6 +20,8 @@ import {
   parseUserAgent,
   type LoginEvent,
 } from "@/lib/queries/security";
+import { O, panel } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow } from "@/components/orbit/primitives";
 
 export default function LoginActivityPage() {
   const { user } = useAuth();
@@ -39,7 +42,7 @@ export default function LoginActivityPage() {
       setEvents((prev) =>
         prev.map((e) => (e.id === eventId ? { ...e, flagged } : e))
       );
-      toast.success(flagged ? "Flagged as suspicious" : "Marked as safe");
+      toast.success(flagged ? "Flagged" : "Marked safe");
     } catch {
       toast.error("Failed to update event");
     }
@@ -66,139 +69,243 @@ export default function LoginActivityPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div style={{ padding: 48, display: "flex", justifyContent: "center" }}>
+        <Loader2 style={{ width: 20, height: 20, color: O.ink3 }} className="animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-zinc-950/60 backdrop-blur-2xl border-b border-white/[0.06]">
-        <div className="flex items-center gap-3 px-5 py-4">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-            <Activity className="h-4.5 w-4.5 text-purple-400" />
-          </div>
-          <h1
-            className="text-xl font-bold tracking-tight text-zinc-100"
-            style={{ fontFamily: "var(--font-syne), sans-serif" }}
-          >
-            Login Activity
-          </h1>
-        </div>
+    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 22 }}>
+      <Link
+        href="/settings/security"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          color: O.ink3,
+          fontFamily: O.mono,
+          fontSize: 11,
+          letterSpacing: "0.12em",
+          textDecoration: "none",
+          width: "fit-content",
+        }}
+      >
+        <ArrowLeft style={{ width: 12, height: 12 }} />
+        BACK · SECURITY
+      </Link>
+
+      <div>
+        <Eyebrow accent>◇&nbsp;&nbsp;SECURITY · ACTIVITY</Eyebrow>
+        <Display size={48} style={{ marginTop: 8 }}>
+          Recent <Acc>activity</Acc>.
+        </Display>
+        <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>
+          Sign-ins to your account, newest first.
+        </p>
       </div>
 
-      <div className="p-5">
-        {events.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800">
-              <Activity className="h-6 w-6 text-zinc-500" />
-            </div>
-            <p className="text-zinc-300 font-medium">No login events</p>
-            <p className="text-sm text-zinc-500 mt-1">
-              Your login history will appear here.
-            </p>
+      {events.length === 0 ? (
+        <div
+          style={{
+            ...panel({ borderRadius: 18 }),
+            padding: "40px 20px",
+            textAlign: "center",
+            color: O.ink3,
+          }}
+        >
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              margin: "0 auto 14px",
+              borderRadius: 12,
+              background: O.glass,
+              border: `1px solid ${O.hair}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Activity style={{ width: 20, height: 20, color: O.ink4 }} />
           </div>
-        ) : (
-          <div className="space-y-3">
-            {events.map((event) => {
-              const { browser, os } = parseUserAgent(event.user_agent);
-              const DeviceIcon = getDeviceIcon(event.user_agent);
-              const isCurrentSession =
-                event.user_agent === navigator.userAgent &&
-                new Date(event.created_at).getTime() >
-                  Date.now() - 60 * 60 * 1000;
+          <p style={{ fontWeight: 600, color: O.ink2, margin: 0 }}>No activity yet</p>
+          <p style={{ fontSize: 12.5, color: O.ink4, margin: "4px 0 0" }}>
+            Your login history will appear here.
+          </p>
+        </div>
+      ) : (
+        <div
+          style={{
+            ...panel({ borderRadius: 18 }),
+            padding: 8,
+          }}
+        >
+          {events.map((event, i) => {
+            const { browser, os } = parseUserAgent(event.user_agent);
+            const DeviceIcon = getDeviceIcon(event.user_agent);
+            const isCurrentSession =
+              typeof navigator !== "undefined" &&
+              event.user_agent === navigator.userAgent &&
+              new Date(event.created_at).getTime() > Date.now() - 60 * 60 * 1000;
 
-              return (
+            const accent =
+              event.status === "failed"
+                ? "#ff7a85"
+                : event.flagged
+                  ? "#ffd76a"
+                  : O.ink3;
+
+            return (
+              <div
+                key={event.id}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 14,
+                  padding: "14px 14px",
+                  borderTop: i ? `1px solid ${O.hair}` : "none",
+                  ...(isCurrentSession
+                    ? {
+                        background: `linear-gradient(135deg, ${O.a1}1a 0%, ${O.a2}0e 50%, ${O.a3}14 100%)`,
+                        borderRadius: 12,
+                      }
+                    : {}),
+                }}
+              >
                 <div
-                  key={event.id}
-                  className={`rounded-2xl border p-4 transition-colors ${
-                    event.flagged
-                      ? "bg-red-500/[0.04] border-red-500/20"
-                      : "bg-white/[0.03] border-white/[0.06]"
-                  }`}
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
+                    background: `${accent}1a`,
+                    border: `1px solid ${accent}33`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
                 >
-                  <div className="flex items-start gap-4">
-                    <div
-                      className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 ${
-                        event.status === "failed"
-                          ? "bg-red-500/10"
-                          : event.flagged
-                            ? "bg-amber-500/10"
-                            : "bg-white/[0.06]"
-                      }`}
-                    >
-                      <DeviceIcon
-                        className={`h-5 w-5 ${
-                          event.status === "failed"
-                            ? "text-red-400"
-                            : event.flagged
-                              ? "text-amber-400"
-                              : "text-zinc-400"
-                        }`}
-                      />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-zinc-200">
-                          {browser} on {os}
-                        </p>
-                        {isCurrentSession && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20">
-                            Current
-                          </span>
-                        )}
-                        {event.status === "failed" && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/10 text-red-400 ring-1 ring-red-500/20">
-                            Failed
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-3 mt-1 text-xs text-zinc-500">
-                        <span>{formatDate(event.created_at)}</span>
-                        {event.ip_address && (
-                          <span className="flex items-center gap-1">
-                            <Globe className="h-3 w-3" />
-                            {event.ip_address}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="flex items-center gap-2 mt-3">
-                        {!event.flagged ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-3 text-xs rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                            onClick={() => handleFlag(event.id, true)}
-                          >
-                            <AlertTriangle className="h-3 w-3 mr-1.5" />
-                            Not me
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-3 text-xs rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
-                            onClick={() => handleFlag(event.id, false)}
-                          >
-                            <Check className="h-3 w-3 mr-1.5" />
-                            This was me
-                          </Button>
-                        )}
-                      </div>
-                    </div>
+                  <DeviceIcon style={{ width: 16, height: 16, color: accent }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: O.ink }}>
+                      {browser} · {os}
+                    </span>
+                    {isCurrentSession && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontFamily: O.mono,
+                          fontWeight: 700,
+                          letterSpacing: "0.12em",
+                          padding: "2px 8px",
+                          borderRadius: 99,
+                          background: "rgba(125,255,163,0.12)",
+                          border: "1px solid rgba(125,255,163,0.25)",
+                          color: "#7dffa3",
+                        }}
+                      >
+                        CURRENT
+                      </span>
+                    )}
+                    {event.status === "failed" && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontFamily: O.mono,
+                          fontWeight: 700,
+                          letterSpacing: "0.12em",
+                          padding: "2px 8px",
+                          borderRadius: 99,
+                          background: "rgba(255,122,133,0.1)",
+                          border: "1px solid rgba(255,122,133,0.3)",
+                          color: "#ff9aa3",
+                        }}
+                      >
+                        FAILED
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      marginTop: 6,
+                      fontSize: 11,
+                      color: O.ink4,
+                      fontFamily: O.mono,
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    <span>{formatDate(event.created_at)}</span>
+                    {event.ip_address && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <Globe style={{ width: 11, height: 11 }} />
+                        {event.ip_address}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    {!event.flagged ? (
+                      <button
+                        onClick={() => handleFlag(event.id, true)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "5px 10px",
+                          borderRadius: 99,
+                          background: "transparent",
+                          border: "1px solid rgba(255,122,133,0.3)",
+                          color: "#ff9aa3",
+                          fontSize: 11.5,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          fontFamily: O.sans,
+                        }}
+                      >
+                        <AlertTriangle style={{ width: 11, height: 11 }} />
+                        Not me
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleFlag(event.id, false)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "5px 10px",
+                          borderRadius: 99,
+                          background: "transparent",
+                          border: "1px solid rgba(125,255,163,0.3)",
+                          color: "#7dffa3",
+                          fontSize: 11.5,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          fontFamily: O.sans,
+                        }}
+                      >
+                        <Check style={{ width: 11, height: 11 }} />
+                        This was me
+                      </button>
+                    )}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
