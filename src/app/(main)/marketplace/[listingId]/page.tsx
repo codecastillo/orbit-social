@@ -2,16 +2,16 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import {
-  ArrowLeftIcon,
-  MapPinIcon,
-  MessageCircleIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
+  ArrowLeft,
+  MapPin,
+  MessageCircle,
+  ChevronLeft,
+  ChevronRight,
+  ImageOff,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { formatTimeAgo } from "@/lib/utils/format";
@@ -21,6 +21,9 @@ import {
   getListingById,
   type ListingWithSeller,
 } from "@/lib/queries/marketplace";
+import { O, panel } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { VerifiedStar } from "@/components/orbit/verified-star";
 
 function formatPrice(price: number, currency = "USD") {
   return new Intl.NumberFormat("en-US", {
@@ -61,7 +64,10 @@ export default function ListingDetailPage({
     if (!user || !listing) return;
     setMessagingSeller(true);
     try {
-      const conversationId = await getOrCreateDMConversation(user.id, listing.seller_id);
+      const conversationId = await getOrCreateDMConversation(
+        user.id,
+        listing.seller_id
+      );
       router.push(`/messages/${conversationId}`);
     } catch {
       console.error("Failed to start conversation");
@@ -72,172 +78,334 @@ export default function ListingDetailPage({
 
   if (loading) {
     return (
-      <div className="border-x border-border min-h-screen">
-        <div className="p-4 border-b border-border">
-          <Skeleton className="h-6 w-6" />
-        </div>
-        <Skeleton className="aspect-square w-full" />
-        <div className="p-4 space-y-4">
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-20 w-full" />
-        </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        <Skeleton className="h-10 w-32 rounded-full" />
+        <Skeleton className="aspect-[4/3] w-full rounded-2xl" />
+        <Skeleton className="h-10 w-64 rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-2xl" />
       </div>
     );
   }
 
   if (!listing) {
     return (
-      <div className="border-x border-border min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Listing not found</p>
+      <div style={{ padding: 48, textAlign: "center", color: O.ink3 }}>
+        <p>Listing not found.</p>
       </div>
     );
   }
 
-  const images = listing.listing_images?.sort(
-    (a, b) => a.sort_order - b.sort_order
-  ) || [];
-  const hasMultipleImages = images.length > 1;
+  const images = listing.listing_images?.sort((a, b) => a.sort_order - b.sort_order) || [];
+  const hasMultiple = images.length > 1;
 
   return (
-    <div className="border-x border-border min-h-screen">
-      {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center gap-3 p-4 border-b border-border bg-background/80 backdrop-blur-xl">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.back()}
-        >
-          <ArrowLeftIcon className="h-5 w-5" />
-        </Button>
-        <h1 className="font-semibold truncate">Listing</h1>
-      </div>
+    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 22 }}>
+      <Link
+        href="/marketplace"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          color: O.ink3,
+          fontFamily: O.mono,
+          fontSize: 11,
+          letterSpacing: "0.12em",
+          textDecoration: "none",
+          width: "fit-content",
+        }}
+      >
+        <ArrowLeft style={{ width: 12, height: 12 }} />
+        BACK · MARKET
+      </Link>
 
-      {/* Image carousel */}
-      <div className="relative aspect-square bg-muted/20">
-        {images.length > 0 ? (
-          <>
-            <Image
-              src={images[currentImageIndex].url}
-              alt={listing.title}
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 100vw, 600px"
-              priority
-            />
-            {hasMultipleImages && (
-              <>
-                <button
-                  onClick={() =>
-                    setCurrentImageIndex((i) =>
-                      i === 0 ? images.length - 1 : i - 1
-                    )
-                  }
-                  className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
-                >
-                  <ChevronLeftIcon className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() =>
-                    setCurrentImageIndex((i) =>
-                      i === images.length - 1 ? 0 : i + 1
-                    )
-                  }
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
-                >
-                  <ChevronRightIcon className="h-4 w-4" />
-                </button>
-                {/* Dots */}
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                  {images.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setCurrentImageIndex(i)}
-                      className={`h-1.5 rounded-full transition-all ${
-                        i === currentImageIndex
-                          ? "w-4 bg-white"
-                          : "w-1.5 bg-white/50"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </>
-        ) : (
-          <div className="h-full flex items-center justify-center text-muted-foreground/30">
-            <svg
-              className="h-20 w-20"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1}
-            >
-              <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-        )}
-      </div>
-
-      {/* Details */}
-      <div className="p-4 space-y-4">
-        {/* Price + condition */}
-        <div className="flex items-center justify-between">
-          <p className="text-2xl font-bold">
-            {formatPrice(listing.price, listing.currency)}
-          </p>
-          <Badge variant="secondary">{listing.condition}</Badge>
-        </div>
-
-        <h2 className="text-lg font-semibold">{listing.title}</h2>
-
-        {/* Location + time */}
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          {listing.location && (
-            <div className="flex items-center gap-1">
-              <MapPinIcon className="h-3.5 w-3.5" />
-              <span>{listing.location}</span>
-            </div>
-          )}
-          <span>Posted {formatTimeAgo(listing.created_at)} ago</span>
-        </div>
-
-        {/* Description */}
-        {listing.description && (
-          <div className="pt-2 border-t border-white/5">
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-              {listing.description}
-            </p>
-          </div>
-        )}
-
-        {/* Seller */}
-        <div className="flex items-center justify-between pt-4 border-t border-white/5">
-          <div className="flex items-center gap-3">
-            <UserAvatar
-              src={listing.profiles.avatar_url}
-              fallback={listing.profiles.display_name || listing.profiles.username}
-              size="md"
-            />
-            <div>
-              <p className="font-medium text-sm">
-                {listing.profiles.display_name || listing.profiles.username}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                @{listing.profiles.username}
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleMessageSeller}
-            disabled={messagingSeller || !user || user.id === listing.seller_id}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1.4fr) 360px",
+          gap: 22,
+        }}
+        className="md:grid-cols-[minmax(0,1.4fr)_360px] grid-cols-1"
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div
+            style={{
+              ...panel({ borderRadius: 22 }),
+              padding: 0,
+              overflow: "hidden",
+              position: "relative",
+              aspectRatio: "4 / 3",
+              background: "rgba(255,255,255,0.02)",
+            }}
           >
-            <MessageCircleIcon className="h-4 w-4" />
-            {messagingSeller ? "Opening..." : "Message Seller"}
-          </Button>
+            {images.length > 0 ? (
+              <>
+                <Image
+                  src={images[currentImageIndex].url}
+                  alt={listing.title}
+                  fill
+                  style={{ objectFit: "cover" }}
+                  sizes="(max-width: 768px) 100vw, 800px"
+                  priority
+                />
+                {hasMultiple && (
+                  <>
+                    <button
+                      onClick={() =>
+                        setCurrentImageIndex((i) =>
+                          i === 0 ? images.length - 1 : i - 1
+                        )
+                      }
+                      style={{
+                        position: "absolute",
+                        left: 14,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: 40,
+                        height: 40,
+                        borderRadius: "50%",
+                        background: "rgba(0,0,0,0.55)",
+                        backdropFilter: "blur(20px)",
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        color: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <ChevronLeft style={{ width: 16, height: 16 }} />
+                    </button>
+                    <button
+                      onClick={() =>
+                        setCurrentImageIndex((i) =>
+                          i === images.length - 1 ? 0 : i + 1
+                        )
+                      }
+                      style={{
+                        position: "absolute",
+                        right: 14,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: 40,
+                        height: 40,
+                        borderRadius: "50%",
+                        background: "rgba(0,0,0,0.55)",
+                        backdropFilter: "blur(20px)",
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        color: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <ChevronRight style={{ width: 16, height: 16 }} />
+                    </button>
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: 16,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        display: "flex",
+                        gap: 6,
+                      }}
+                    >
+                      {images.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setCurrentImageIndex(i)}
+                          style={{
+                            width: i === currentImageIndex ? 18 : 6,
+                            height: 6,
+                            borderRadius: 99,
+                            border: "none",
+                            background:
+                              i === currentImageIndex
+                                ? "white"
+                                : "rgba(255,255,255,0.5)",
+                            cursor: "pointer",
+                            transition: "width 150ms ease",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <div
+                style={{
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: O.ink4,
+                }}
+              >
+                <ImageOff style={{ width: 48, height: 48 }} strokeWidth={1} />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <Eyebrow accent>◆&nbsp;&nbsp;LISTING</Eyebrow>
+            <Display size={36} style={{ marginTop: 10 }}>
+              {listing.title}
+            </Display>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 14,
+                marginTop: 14,
+                flexWrap: "wrap",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: O.serif,
+                  fontStyle: "italic",
+                  fontSize: 36,
+                  color: O.a3,
+                  lineHeight: 1,
+                }}
+              >
+                {formatPrice(listing.price, listing.currency)}
+              </span>
+              <span
+                style={{
+                  padding: "5px 11px",
+                  borderRadius: 99,
+                  background: O.glass,
+                  border: `1px solid ${O.hair2}`,
+                  fontSize: 11,
+                  fontFamily: O.mono,
+                  color: O.ink2,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {listing.condition}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 14,
+                marginTop: 14,
+                fontSize: 12,
+                color: O.ink3,
+                fontFamily: O.mono,
+                letterSpacing: "0.04em",
+              }}
+            >
+              {listing.location && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <MapPin style={{ width: 11, height: 11 }} />
+                  {listing.location}
+                </span>
+              )}
+              <span>· Posted {formatTimeAgo(listing.created_at)}</span>
+            </div>
+
+            {listing.description && (
+              <p
+                style={{
+                  fontSize: 14.5,
+                  color: O.ink2,
+                  lineHeight: 1.6,
+                  marginTop: 18,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {listing.description}
+              </p>
+            )}
+          </div>
         </div>
+
+        {/* Seller rail */}
+        <aside style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ ...panel({ borderRadius: 20 }), padding: 22 }}>
+            <Eyebrow>◇&nbsp;&nbsp;SELLER</Eyebrow>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
+              <UserAvatar
+                src={listing.profiles.avatar_url}
+                fallback={listing.profiles.display_name || listing.profiles.username}
+                size="lg"
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: O.ink }}>
+                    {listing.profiles.display_name || listing.profiles.username}
+                  </p>
+                  {listing.profiles.is_verified && <VerifiedStar size={12} />}
+                </div>
+                <p
+                  style={{
+                    fontSize: 11.5,
+                    color: O.ink3,
+                    margin: "2px 0 0",
+                    fontFamily: O.mono,
+                  }}
+                >
+                  @{listing.profiles.username}
+                </p>
+              </div>
+            </div>
+            <PillBtn
+              primary
+              size="lg"
+              onClick={handleMessageSeller}
+              disabled={
+                messagingSeller || !user || user.id === listing.seller_id
+              }
+              style={{ width: "100%", justifyContent: "center", marginTop: 18 }}
+            >
+              <MessageCircle style={{ width: 14, height: 14 }} />
+              {messagingSeller ? "Opening…" : "Message seller"}
+            </PillBtn>
+          </div>
+
+          <div style={{ ...panel({ borderRadius: 18 }), padding: 18 }}>
+            <Eyebrow>◈&nbsp;&nbsp;DETAILS</Eyebrow>
+            <dl style={{ margin: "12px 0 0", fontSize: 12.5, color: O.ink3 }}>
+              {[
+                ["Category", listing.category],
+                ["Condition", listing.condition],
+                ["Location", listing.location || "—"],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "8px 0",
+                    borderTop: `1px solid ${O.hair}`,
+                  }}
+                >
+                  <dt
+                    style={{
+                      fontFamily: O.mono,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      fontSize: 10.5,
+                      color: O.ink4,
+                    }}
+                  >
+                    {label}
+                  </dt>
+                  <dd style={{ margin: 0, color: O.ink2, fontWeight: 500 }}>
+                    {value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </aside>
       </div>
     </div>
   );

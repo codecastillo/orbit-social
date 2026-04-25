@@ -1,25 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, use } from "react";
+import { Hash } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Hash, Loader2 } from "lucide-react";
 import { PostCard } from "@/components/feed/post-card";
 import { PostSkeleton } from "@/components/shared/loading-skeleton";
-import { EmptyState } from "@/components/shared/empty-state";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
   getPostsByHashtag,
   checkUserInteractions,
-  type PostWithAuthor,
 } from "@/lib/queries/posts";
 import { formatNumber } from "@/lib/utils/format";
-import { use } from "react";
+import { O, panel, aurora } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { OrbitEmptyState } from "@/components/orbit/empty-state";
 
 export default function HashtagPage({ params }: { params: Promise<{ tag: string }> }) {
   const { tag } = use(params);
   const decodedTag = decodeURIComponent(tag);
-  const router = useRouter();
   const { user } = useAuth();
 
   const { data, isLoading } = useQuery({
@@ -42,37 +40,68 @@ export default function HashtagPage({ params }: { params: Promise<{ tag: string 
   }, [user, posts]);
 
   return (
-    <div className="border-x border-border min-h-screen">
-      {/* Header */}
-      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border">
-        <div className="flex items-center gap-4 h-12 px-4">
-          <button
-            onClick={() => router.back()}
-            className="p-1.5 rounded-full hover:bg-accent transition-colors"
+    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
+      <div
+        style={{
+          ...panel({ borderRadius: 22 }),
+          padding: 32,
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: `linear-gradient(135deg, ${O.a1}1a 0%, ${O.a2}14 50%, ${O.a3}1a 100%)`,
+            pointerEvents: "none",
+          }}
+        />
+        <div style={{ position: "relative" }}>
+          <Eyebrow accent>
+            ◆&nbsp;&nbsp;HASHTAG · {formatNumber(postCount)} POST{postCount !== 1 ? "S" : ""}
+          </Eyebrow>
+          <Display size={56} style={{ marginTop: 10, lineHeight: 0.95 }}>
+            <span
+              style={{
+                fontFamily: O.serif,
+                fontStyle: "italic",
+                fontWeight: 400,
+                background: aurora,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                paddingRight: "0.02em",
+              }}
+            >
+              #
+            </span>
+            <Acc>{decodedTag}</Acc>
+          </Display>
+          <p
+            style={{
+              fontSize: 14.5,
+              color: O.ink2,
+              marginTop: 12,
+              maxWidth: 520,
+              lineHeight: 1.55,
+            }}
           >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div>
-            <h2 className="font-semibold flex items-center gap-1">
-              <Hash className="h-4 w-4" />
-              {decodedTag}
-            </h2>
-            <p className="text-[12px] text-muted-foreground">
-              {formatNumber(postCount)} post{postCount !== 1 ? "s" : ""}
-            </p>
+            Everyone in your orbit posting on this tag, freshest first.
+          </p>
+          <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+            <PillBtn primary size="lg">+ Post with #{decodedTag}</PillBtn>
           </div>
         </div>
       </div>
 
-      {/* Posts */}
       {isLoading ? (
-        <div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <PostSkeleton />
           <PostSkeleton />
           <PostSkeleton />
         </div>
       ) : posts.length > 0 ? (
-        <div className="divide-y divide-border">
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {posts.map((post) => (
             <PostCard
               key={post.id}
@@ -83,9 +112,12 @@ export default function HashtagPage({ params }: { params: Promise<{ tag: string 
           ))}
         </div>
       ) : (
-        <EmptyState
-          title="No posts found"
-          description={`No posts with #${decodedTag} yet.`}
+        <OrbitEmptyState
+          icon={Hash}
+          accent={O.a3}
+          headline="Nothing"
+          accentWord="on this tag"
+          sub={`No posts with #${decodedTag} yet. Start the signal.`}
         />
       )}
     </div>

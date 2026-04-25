@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Trash2, FileText, Pencil, MapPin } from "lucide-react";
-import Link from "next/link";
+import { useEffect } from "react";
+import { Trash2, FileText, Pencil, MapPin } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { useDraftsStore, type Draft } from "@/lib/stores/drafts-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { formatTimeAgo } from "@/lib/utils/format";
+import { O, panel } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { OrbitEmptyState } from "@/components/orbit/empty-state";
+
+const DRAFT_ACCENT = "#ff9a3d";
 
 export default function DraftsPage() {
-  const router = useRouter();
   const { drafts, hydrate, hydrated, deleteDraft } = useDraftsStore();
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
 
@@ -20,8 +21,6 @@ export default function DraftsPage() {
   }, [hydrate]);
 
   const handleEdit = (draft: Draft) => {
-    // Open the composer with draft content pre-filled
-    // We store the draft content in sessionStorage for the composer to pick up
     sessionStorage.setItem(
       "orbit_editing_draft",
       JSON.stringify({
@@ -40,16 +39,15 @@ export default function DraftsPage() {
 
   if (!hydrated) {
     return (
-      <div className="min-h-screen">
-        <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 shadow-[0_1px_0_oklch(1_0_0_/_0.06)]">
-          <div className="flex items-center gap-3 h-14 px-5">
-            <div className="h-5 w-5 rounded bg-muted animate-pulse" />
-            <div className="h-5 w-24 rounded bg-muted animate-pulse" />
-          </div>
-        </div>
-        <div className="p-5 space-y-4">
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ height: 68, borderRadius: 16, background: O.glass }} className="animate-pulse" />
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-24 rounded-xl bg-white/[0.03] animate-pulse" />
+            <div
+              key={i}
+              style={{ height: 100, borderRadius: 18, background: "rgba(255,255,255,0.03)" }}
+              className="animate-pulse"
+            />
           ))}
         </div>
       </div>
@@ -57,108 +55,170 @@ export default function DraftsPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 shadow-[0_1px_0_oklch(1_0_0_/_0.06)]">
-        <div className="flex items-center justify-between h-14 px-5">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-slate-500/20 to-zinc-500/20 flex items-center justify-center">
-              <FileText className="h-4.5 w-4.5 text-slate-400" />
-            </div>
-            <h1 className="text-xl font-extrabold tracking-tight">Drafts</h1>
-          </div>
-          {drafts.length > 0 && (
-            <span className="text-sm text-muted-foreground">
-              {drafts.length} draft{drafts.length !== 1 ? "s" : ""}
-            </span>
-          )}
+    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 18,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <Eyebrow accent>◇&nbsp;&nbsp;COMPOSE · DRAFTS · {drafts.length}</Eyebrow>
+          <Display size={48} style={{ marginTop: 8 }}>
+            Unfinished <Acc>thoughts</Acc>.
+          </Display>
+          <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 540 }}>
+            Picked back up when you&apos;re ready. Nothing posted, nothing lost.
+          </p>
         </div>
+        <PillBtn primary size="lg" onClick={() => setComposeOpen(true)}>
+          <Pencil style={{ width: 14, height: 14 }} />
+          New draft
+        </PillBtn>
       </div>
 
       {drafts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="h-16 w-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mb-5">
-            <FileText className="h-7 w-7 text-muted-foreground/40" />
-          </div>
-          <p className="text-base font-semibold text-muted-foreground">
-            No drafts yet
-          </p>
-          <p className="text-sm text-muted-foreground/60 mt-1.5 max-w-xs text-center">
-            When you save a post as a draft, it will appear here so you can
-            finish and publish it later.
-          </p>
-        </div>
+        <OrbitEmptyState
+          icon={FileText}
+          accent={DRAFT_ACCENT}
+          headline="Nothing"
+          accentWord="half-written"
+          sub="Save a post as a draft and it'll show up here. Nothing posted until you say so."
+          ctaLabel="Start a post"
+          ctaIcon={<Pencil style={{ width: 12, height: 12 }} />}
+          onCta={() => setComposeOpen(true)}
+        />
       ) : (
-        <div className="divide-y divide-white/[0.06]">
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {drafts.map((draft) => (
             <div
               key={draft.id}
-              className="p-4 hover:bg-white/[0.02] transition-colors"
+              style={{
+                ...panel({ borderRadius: 18 }),
+                padding: 18,
+                position: "relative",
+                display: "flex",
+                gap: 16,
+                overflow: "hidden",
+              }}
             >
-              <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  {/* Draft content preview */}
-                  {draft.content ? (
-                    <p className="text-[14px] text-zinc-200 line-clamp-3 whitespace-pre-wrap">
-                      {draft.content}
-                    </p>
-                  ) : (
-                    <p className="text-[14px] text-zinc-500 italic">
-                      No text content
-                    </p>
-                  )}
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  bottom: 0,
+                  width: 3,
+                  background: DRAFT_ACCENT,
+                  boxShadow: `0 0 14px ${DRAFT_ACCENT}80`,
+                }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontFamily: O.mono,
+                    fontSize: 10.5,
+                    letterSpacing: "0.12em",
+                    color: DRAFT_ACCENT,
+                    marginBottom: 10,
+                  }}
+                >
+                  ◆&nbsp;&nbsp;DRAFT · {formatTimeAgo(draft.updatedAt || draft.createdAt).toUpperCase()}
+                </div>
 
-                  {/* Location tag */}
-                  {draft.location && (
-                    <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground/60">
-                      <MapPin className="h-3 w-3" />
-                      {draft.location}
-                    </div>
-                  )}
-
-                  {/* Media previews */}
-                  {draft.media.length > 0 && (
-                    <div className="flex gap-1.5 mt-2">
-                      {draft.media.map((m, i) => (
-                        <div
-                          key={i}
-                          className="h-12 w-12 rounded-md bg-zinc-800 border border-white/[0.06] overflow-hidden"
-                        >
-                          <img
-                            src={m.preview}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Timestamp */}
-                  <p className="text-[11px] text-muted-foreground/50 mt-2">
-                    Saved {formatTimeAgo(draft.createdAt)}
-                    {draft.updatedAt !== draft.createdAt &&
-                      ` · Edited ${formatTimeAgo(draft.updatedAt)}`}
+                {draft.content ? (
+                  <p
+                    style={{
+                      fontSize: 14.5,
+                      color: O.ink,
+                      margin: 0,
+                      whiteSpace: "pre-wrap",
+                      lineHeight: 1.5,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {draft.content}
                   </p>
-                </div>
+                ) : (
+                  <p style={{ fontSize: 14, color: O.ink4, margin: 0, fontStyle: "italic" }}>
+                    No text yet — media only.
+                  </p>
+                )}
 
-                {/* Actions */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => handleEdit(draft)}
-                    className="h-8 w-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors"
-                    title="Edit and publish"
+                {draft.location && (
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      marginTop: 10,
+                      fontSize: 11,
+                      color: O.ink3,
+                      fontFamily: O.mono,
+                      letterSpacing: "0.04em",
+                    }}
                   >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(draft.id)}
-                    className="h-8 w-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    title="Delete draft"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                    <MapPin style={{ width: 11, height: 11 }} />
+                    {draft.location}
+                  </div>
+                )}
+
+                {draft.media.length > 0 && (
+                  <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                    {draft.media.map((m, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 8,
+                          overflow: "hidden",
+                          border: `1px solid ${O.hair}`,
+                        }}
+                      >
+                        <img
+                          src={m.preview}
+                          alt=""
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
+                <PillBtn primary size="sm" onClick={() => handleEdit(draft)}>
+                  <Pencil style={{ width: 12, height: 12 }} />
+                  Keep writing
+                </PillBtn>
+                <button
+                  onClick={() => handleDelete(draft.id)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    padding: "7px 14px",
+                    borderRadius: 99,
+                    background: "transparent",
+                    border: `1px solid ${O.hair2}`,
+                    color: "#ff9aa3",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    fontFamily: O.sans,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Trash2 style={{ width: 12, height: 12 }} />
+                  Delete
+                </button>
               </div>
             </div>
           ))}

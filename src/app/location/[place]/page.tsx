@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, MapPin, Loader2 } from "lucide-react";
+import { MapPin, Loader2 } from "lucide-react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { PostCard } from "@/components/feed/post-card";
-import { useAuth } from "@/lib/hooks/use-auth";
 import type { PostWithAuthor } from "@/lib/queries/posts";
+import { O, panel } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { OrbitEmptyState } from "@/components/orbit/empty-state";
 
 const POST_SELECT = `
   *,
@@ -20,13 +20,8 @@ const POST_SELECT = `
   )
 `;
 
-async function getPostsByLocation(
-  location: string,
-  cursor?: string,
-  limit = 20
-) {
+async function getPostsByLocation(location: string, cursor?: string, limit = 20) {
   const supabase = createClient();
-
   let query = supabase
     .from("posts")
     .select(POST_SELECT)
@@ -34,11 +29,7 @@ async function getPostsByLocation(
     .eq("is_hidden", false)
     .order("created_at", { ascending: false })
     .limit(limit);
-
-  if (cursor) {
-    query = query.lt("created_at", cursor);
-  }
-
+  if (cursor) query = query.lt("created_at", cursor);
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as PostWithAuthor[];
@@ -47,7 +38,6 @@ async function getPostsByLocation(
 export default function LocationPage() {
   const params = useParams();
   const place = decodeURIComponent(params.place as string);
-  const { user } = useAuth();
 
   const {
     data,
@@ -69,68 +59,91 @@ export default function LocationPage() {
   const allPosts = data?.pages.flat() ?? [];
 
   return (
-    <div className="min-h-screen border-x border-border">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border/40">
-        <div className="flex items-center gap-3 p-4">
-          <Link
-            href="/explore"
-            className="text-muted-foreground hover:text-foreground transition-colors"
+    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
+      <div
+        style={{
+          ...panel({ borderRadius: 22 }),
+          padding: 32,
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: `linear-gradient(135deg, ${O.a3}1a 0%, ${O.a1}14 50%, ${O.a2}1a 100%)`,
+            pointerEvents: "none",
+          }}
+        />
+        <div style={{ position: "relative" }}>
+          <Eyebrow accent>
+            ◇&nbsp;&nbsp;NEAR · {place.toUpperCase()}
+          </Eyebrow>
+          <Display size={52} style={{ marginTop: 10 }}>
+            Posts from <Acc>{place}</Acc>.
+          </Display>
+          <p
+            style={{
+              fontSize: 14.5,
+              color: O.ink2,
+              marginTop: 12,
+              maxWidth: 540,
+              lineHeight: 1.55,
+            }}
           >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <div className="flex items-center gap-2">
-            <div className="h-9 w-9 rounded-full bg-blue-500/10 flex items-center justify-center">
-              <MapPin className="h-4.5 w-4.5 text-blue-400" />
-            </div>
-            <div>
-              <h1 className="text-base font-bold">{place}</h1>
-              <p className="text-xs text-muted-foreground">
-                {allPosts.length > 0
-                  ? `${allPosts.length}${hasNextPage ? "+" : ""} post${allPosts.length !== 1 ? "s" : ""}`
-                  : "Location"}
-              </p>
+            Posts with this location attached, freshest first.
+          </p>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14 }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "4px 10px",
+                borderRadius: 99,
+                background: O.glass,
+                border: `1px solid ${O.hair2}`,
+                fontSize: 11,
+                fontFamily: O.mono,
+                color: O.ink2,
+                letterSpacing: "0.04em",
+              }}
+            >
+              <MapPin style={{ width: 11, height: 11 }} />
+              {allPosts.length}
+              {hasNextPage ? "+" : ""} POST{allPosts.length !== 1 ? "S" : ""}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Posts */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
+          <Loader2 style={{ width: 20, height: 20, color: O.ink3 }} className="animate-spin" />
         </div>
       ) : allPosts.length === 0 ? (
-        <div className="flex flex-col items-center py-16 text-center px-5">
-          <div className="h-14 w-14 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-            <MapPin className="h-6 w-6 text-muted-foreground/50" />
-          </div>
-          <h3 className="text-base font-semibold text-zinc-300 mb-1">
-            No posts yet
-          </h3>
-          <p className="text-sm text-muted-foreground max-w-xs">
-            No one has posted from {place} yet. Be the first!
-          </p>
-        </div>
+        <OrbitEmptyState
+          icon={MapPin}
+          accent={O.a3}
+          headline="Nothing"
+          accentWord="from here yet"
+          sub={`No one has posted from ${place} yet. Be the first signal.`}
+        />
       ) : (
-        <div className="divide-y divide-white/[0.06]">
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {allPosts.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}
-
           {hasNextPage && (
-            <div className="flex justify-center py-4">
-              <button
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="text-sm text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50"
-              >
+            <div style={{ display: "flex", justifyContent: "center", padding: 14 }}>
+              <PillBtn size="md" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
                 {isFetchingNextPage ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />
                 ) : (
                   "Load more"
                 )}
-              </button>
+              </PillBtn>
             </div>
           )}
         </div>

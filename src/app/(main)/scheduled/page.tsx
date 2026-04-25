@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clock, Send, Pencil, Trash2, CalendarClock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
   getScheduledPosts,
@@ -14,8 +13,13 @@ import {
   deletePost,
   type PostWithAuthor,
 } from "@/lib/queries/posts";
+import { O, panel } from "@/lib/design/orbit";
+import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { OrbitEmptyState } from "@/components/orbit/empty-state";
 
-function formatScheduledDate(dateStr: string): string {
+const SCHED_ACCENT = "#ffd76a";
+
+function formatScheduledDate(dateStr: string): { abs: string; relative: string; overdue: boolean } {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = date.getTime() - now.getTime();
@@ -23,30 +27,24 @@ function formatScheduledDate(dateStr: string): string {
   const diffHours = Math.round(diffMs / (1000 * 60 * 60));
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
+  const overdue = diffMs < 0;
   let relative = "";
-  if (diffMs < 0) {
-    relative = "Overdue";
-  } else if (diffMins < 60) {
-    relative = `in ${diffMins}m`;
-  } else if (diffHours < 24) {
-    relative = `in ${diffHours}h`;
-  } else {
-    relative = `in ${diffDays}d`;
-  }
+  if (overdue) relative = "Overdue";
+  else if (diffMins < 60) relative = `in ${diffMins}m`;
+  else if (diffHours < 24) relative = `in ${diffHours}h`;
+  else relative = `in ${diffDays}d`;
 
-  return `${date.toLocaleDateString(undefined, {
+  const abs = `${date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-  })} at ${date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  })} (${relative})`;
+  })} at ${date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+
+  return { abs, relative, overdue };
 }
 
 export default function ScheduledPostsPage() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
 
   const { data: posts, isLoading } = useQuery({
     queryKey: ["scheduled-posts", user?.id],
@@ -55,48 +53,37 @@ export default function ScheduledPostsPage() {
   });
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <div className="sticky top-0 z-10 backdrop-blur-2xl bg-background/80 shadow-[0_1px_0_oklch(1_0_0_/_0.06)]">
-        <div className="flex items-center justify-between h-14 px-5">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
-              <Clock className="h-4.5 w-4.5 text-violet-400" />
-            </div>
-            <h1 className="text-xl font-extrabold tracking-tight">Scheduled</h1>
-          </div>
-          {posts && posts.length > 0 && (
-            <span className="text-sm text-muted-foreground">
-              ({posts.length})
-            </span>
-          )}
-        </div>
+    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
+      <div>
+        <Eyebrow accent>◆&nbsp;&nbsp;COMPOSE · SCHEDULED · {posts?.length ?? 0}</Eyebrow>
+        <Display size={48} style={{ marginTop: 8 }}>
+          Waiting in the <Acc>wings</Acc>.
+        </Display>
+        <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 540 }}>
+          Posts cued up to publish on their own. Edit, push now, or cancel.
+        </p>
       </div>
 
       {isLoading ? (
-        <div className="p-5 space-y-3">
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-28 rounded-xl bg-white/[0.03] animate-pulse"
+              style={{ height: 120, borderRadius: 18, background: "rgba(255,255,255,0.03)" }}
+              className="animate-pulse"
             />
           ))}
         </div>
       ) : !posts || posts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="h-16 w-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mb-5">
-            <CalendarClock className="h-7 w-7 text-muted-foreground/40" />
-          </div>
-          <p className="text-base font-semibold text-muted-foreground">
-            No scheduled posts
-          </p>
-          <p className="text-sm text-muted-foreground/60 mt-1.5 max-w-xs text-center">
-            Schedule posts from the composer to have them published
-            automatically at a specific time.
-          </p>
-        </div>
+        <OrbitEmptyState
+          icon={CalendarClock}
+          accent={SCHED_ACCENT}
+          headline="Nothing"
+          accentWord="in the queue"
+          sub="Use the composer's schedule option to have posts publish automatically at a time you pick."
+        />
       ) : (
-        <div className="p-5 space-y-3">
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <AnimatePresence mode="popLayout">
             {posts.map((post) => (
               <ScheduledPostCard key={post.id} post={post} />
@@ -112,9 +99,7 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
   const queryClient = useQueryClient();
   const [editingTime, setEditingTime] = useState(false);
   const [newTime, setNewTime] = useState(
-    post.scheduled_at
-      ? new Date(post.scheduled_at).toISOString().slice(0, 16)
-      : ""
+    post.scheduled_at ? new Date(post.scheduled_at).toISOString().slice(0, 16) : ""
   );
 
   const publishMutation = useMutation({
@@ -122,27 +107,26 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scheduled-posts"] });
       queryClient.invalidateQueries({ queryKey: ["feed"] });
-      toast.success("Post published");
+      toast.success("Published");
     },
-    onError: () => toast.error("Failed to publish post"),
+    onError: () => toast.error("Failed to publish"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => deletePost(post.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scheduled-posts"] });
-      toast.success("Scheduled post deleted");
+      toast.success("Deleted");
     },
-    onError: () => toast.error("Failed to delete post"),
+    onError: () => toast.error("Failed to delete"),
   });
 
   const reschedMutation = useMutation({
-    mutationFn: (scheduledAt: string) =>
-      updateScheduledTime(post.id, scheduledAt),
+    mutationFn: (scheduledAt: string) => updateScheduledTime(post.id, scheduledAt),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scheduled-posts"] });
       setEditingTime(false);
-      toast.success("Schedule updated");
+      toast.success("Rescheduled");
     },
     onError: () => toast.error("Failed to update schedule"),
   });
@@ -151,19 +135,19 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
     if (!newTime) return;
     const date = new Date(newTime);
     if (date <= new Date()) {
-      toast.error("Please pick a future date and time");
+      toast.error("Pick a future date and time");
       return;
     }
     reschedMutation.mutate(date.toISOString());
   };
 
-  const contentPreview =
+  const preview =
     post.content && post.content.length > 140
-      ? post.content.slice(0, 140) + "..."
+      ? post.content.slice(0, 140) + "…"
       : post.content;
 
-  const isOverdue =
-    post.scheduled_at && new Date(post.scheduled_at) < new Date();
+  const sched = post.scheduled_at ? formatScheduledDate(post.scheduled_at) : null;
+  const accent = sched?.overdue ? "#ff9a3d" : SCHED_ACCENT;
 
   return (
     <motion.div
@@ -172,115 +156,183 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.2 }}
-      className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4"
+      style={{
+        ...panel({ borderRadius: 18 }),
+        padding: 18,
+        position: "relative",
+        overflow: "hidden",
+      }}
     >
-      {/* Content preview */}
-      <p className="text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap">
-        {contentPreview || (
-          <span className="text-zinc-500 italic">No text content</span>
-        )}
-      </p>
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          bottom: 0,
+          width: 3,
+          background: accent,
+          boxShadow: `0 0 14px ${accent}80`,
+        }}
+      />
 
-      {/* Media indicator */}
-      {post.post_media && post.post_media.length > 0 && (
-        <p className="mt-1.5 text-xs text-zinc-500">
-          {post.post_media.length} media attachment
-          {post.post_media.length > 1 ? "s" : ""}
-        </p>
-      )}
-
-      {/* Scheduled time */}
-      <div className="mt-3 flex items-center gap-2">
-        <Clock className="h-3.5 w-3.5 text-zinc-500" />
-        <span
-          className={`text-xs font-medium ${isOverdue ? "text-amber-400" : "text-zinc-400"}`}
-        >
-          {post.scheduled_at
-            ? formatScheduledDate(post.scheduled_at)
-            : "No time set"}
-        </span>
+      <div
+        style={{
+          fontFamily: O.mono,
+          fontSize: 10.5,
+          letterSpacing: "0.12em",
+          color: accent,
+          marginBottom: 10,
+        }}
+      >
+        ◈&nbsp;&nbsp;{sched ? `${sched.abs.toUpperCase()} · ${sched.relative.toUpperCase()}` : "NO TIME SET"}
       </div>
 
-      {/* Edit time */}
+      <p
+        style={{
+          fontSize: 14.5,
+          color: O.ink,
+          margin: 0,
+          whiteSpace: "pre-wrap",
+          lineHeight: 1.55,
+          display: "-webkit-box",
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}
+      >
+        {preview || <span style={{ color: O.ink4, fontStyle: "italic" }}>Media only — no text.</span>}
+      </p>
+
+      {post.post_media && post.post_media.length > 0 && (
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 11,
+            color: O.ink4,
+            fontFamily: O.mono,
+            letterSpacing: "0.04em",
+          }}
+        >
+          {post.post_media.length} ATTACHMENT{post.post_media.length > 1 ? "S" : ""}
+        </div>
+      )}
+
       <AnimatePresence>
         {editingTime && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.15 }}
-            className="mt-3 flex items-center gap-2"
+            style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12, overflow: "hidden" }}
           >
             <input
               type="datetime-local"
               value={newTime}
               onChange={(e) => setNewTime(e.target.value)}
-              className="flex-1 h-9 px-3 rounded-lg text-sm bg-white/[0.04] border border-white/[0.1] text-zinc-200 focus:outline-none focus:border-primary/50 transition-colors"
+              style={{
+                flex: 1,
+                height: 36,
+                padding: "0 12px",
+                borderRadius: 10,
+                fontFamily: O.sans,
+                fontSize: 13,
+                background: "rgba(255,255,255,0.03)",
+                border: `1px solid ${O.hair2}`,
+                color: O.ink,
+                outline: "none",
+              }}
             />
-            <Button
+            <PillBtn
+              primary
               size="sm"
-              className="rounded-xl px-3 bg-primary hover:bg-primary/90 text-primary-foreground border-0"
               onClick={handleReschedule}
               disabled={reschedMutation.isPending}
             >
               {reschedMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
               ) : (
                 "Save"
               )}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="rounded-xl px-3"
-              onClick={() => setEditingTime(false)}
-            >
+            </PillBtn>
+            <PillBtn size="sm" onClick={() => setEditingTime(false)}>
               Cancel
-            </Button>
+            </PillBtn>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Actions */}
-      <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center gap-2">
-        <Button
-          size="sm"
-          variant="ghost"
-          className="rounded-xl text-xs gap-1.5 text-zinc-400 hover:text-white"
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginTop: 14,
+          paddingTop: 12,
+          borderTop: `1px solid ${O.hair}`,
+        }}
+      >
+        <button
           onClick={() => setEditingTime(!editingTime)}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 12px",
+            borderRadius: 99,
+            background: "transparent",
+            border: `1px solid ${O.hair2}`,
+            color: O.ink2,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: O.sans,
+          }}
         >
-          <Pencil className="h-3.5 w-3.5" />
-          Edit Time
-        </Button>
-        <Button
+          <Pencil style={{ width: 12, height: 12 }} />
+          Reschedule
+        </button>
+
+        <PillBtn
+          primary
           size="sm"
-          variant="ghost"
-          className="rounded-xl text-xs gap-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
           onClick={() => publishMutation.mutate()}
           disabled={publishMutation.isPending}
         >
           {publishMutation.isPending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
           ) : (
-            <Send className="h-3.5 w-3.5" />
+            <Send style={{ width: 12, height: 12 }} />
           )}
-          Publish Now
-        </Button>
-        <div className="flex-1" />
-        <Button
-          size="sm"
-          variant="ghost"
-          className="rounded-xl text-xs gap-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+          Publish now
+        </PillBtn>
+
+        <div style={{ flex: 1 }} />
+
+        <button
           onClick={() => deleteMutation.mutate()}
           disabled={deleteMutation.isPending}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 12px",
+            borderRadius: 99,
+            background: "transparent",
+            border: "1px solid rgba(255,122,133,0.3)",
+            color: "#ff9aa3",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: O.sans,
+          }}
         >
           {deleteMutation.isPending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
           ) : (
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 style={{ width: 12, height: 12 }} />
           )}
           Delete
-        </Button>
+        </button>
       </div>
     </motion.div>
   );
