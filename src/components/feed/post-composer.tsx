@@ -142,14 +142,13 @@ export function InlineComposer({
 
   const CHIPS: {
     Ico: typeof Camera;
-    c: string;
     label: string;
     action: "photo" | "voice" | "event" | "place";
   }[] = [
-    { Ico: Camera, c: "#ff5fae", label: "photo", action: "photo" },
-    { Ico: Calendar, c: "#5fd4ff", label: "event", action: "event" },
-    { Ico: Mic, c: "#8b73ff", label: "voice", action: "voice" },
-    { Ico: MapPin, c: "#7dffa3", label: "place", action: "place" },
+    { Ico: Camera, label: "photo", action: "photo" },
+    { Ico: Calendar, label: "event", action: "event" },
+    { Ico: Mic, label: "voice", action: "voice" },
+    { Ico: MapPin, label: "place", action: "place" },
   ];
 
   return (
@@ -168,14 +167,14 @@ export function InlineComposer({
         alignItems: "center",
         gap: 14,
         width: "100%",
-        padding: 16,
-        borderRadius: 20,
+        padding: 18,
+        borderRadius: 24,
         background: "rgba(255,255,255,0.05)",
         backdropFilter: "blur(40px) saturate(180%)",
         WebkitBackdropFilter: "blur(40px) saturate(180%)",
         border: "1px solid rgba(255,255,255,0.09)",
         boxShadow:
-          "inset 0 1px 0 rgba(255,255,255,0.08), 0 14px 40px -20px rgba(0,0,0,0.4), 0 0 40px rgba(255,95,174,0.12)",
+          "inset 0 1px 0 0 rgba(255,255,255,0.08), inset 0 0 0 1px rgba(255,255,255,0.02), 0 24px 64px -24px rgba(0,0,0,0.4)",
         cursor: "pointer",
         color: "#fff",
         fontFamily:
@@ -188,45 +187,26 @@ export function InlineComposer({
         fallback={profile?.display_name || "U"}
         size="md"
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
+      <div style={{ flex: 1, minWidth: 0, fontSize: 15, color: "rgba(255,255,255,0.5)" }}>
+        What&apos;s{" "}
+        <em
           style={{
-            fontSize: 15,
-            color: "rgba(255,255,255,0.78)",
+            fontFamily: '"Instrument Serif", Georgia, serif',
+            fontStyle: "italic",
             fontWeight: 400,
+            background:
+              "linear-gradient(135deg, #8b73ff 0%, #ff5fae 55%, #5fd4ff 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            paddingRight: "0.04em",
           }}
         >
-          What&apos;s{" "}
-          <em
-            style={{
-              fontFamily: '"Instrument Serif", Georgia, serif',
-              fontStyle: "italic",
-              fontWeight: 400,
-              background:
-                "linear-gradient(135deg, #8b73ff 0%, #ff5fae 55%, #5fd4ff 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              paddingRight: "0.04em",
-            }}
-          >
-            orbiting
-          </em>{" "}
-          you{firstName ? `, ${firstName}` : ""}?
-        </div>
-        <div
-          style={{
-            fontSize: 11,
-            color: "rgba(255,255,255,0.5)",
-            fontFamily: '"Geist Mono", ui-monospace, monospace',
-            letterSpacing: "0.06em",
-            marginTop: 4,
-          }}
-        >
-          posting to · everyone
-        </div>
+          orbiting
+        </em>{" "}
+        you{firstName ? `, ${firstName}` : ""}?
       </div>
-      <div className="hidden sm:flex" style={{ gap: 4 }}>
-        {CHIPS.map(({ Ico, c, label, action }) => (
+      <div className="hidden sm:flex" style={{ gap: 6 }}>
+        {CHIPS.map(({ Ico, label, action }) => (
           <button
             key={label}
             type="button"
@@ -239,22 +219,23 @@ export function InlineComposer({
               width: 36,
               height: 36,
               borderRadius: 12,
-              background: `${c}1a`,
-              border: `1px solid ${c}33`,
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.09)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
               padding: 0,
+              color: "rgba(255,255,255,0.78)",
             }}
           >
-            <Ico style={{ width: 16, height: 16, color: c }} strokeWidth={1.8} />
+            <Ico style={{ width: 16, height: 16 }} strokeWidth={1.8} />
           </button>
         ))}
       </div>
       <span
         style={{
-          padding: "10px 18px",
+          padding: "10px 20px",
           borderRadius: 99,
           background:
             "linear-gradient(135deg, #8b73ff 0%, #ff5fae 55%, #5fd4ff 100%)",
@@ -263,10 +244,9 @@ export function InlineComposer({
           fontSize: 13,
           boxShadow:
             "0 6px 20px rgba(255,95,174,0.45), inset 0 1px 0 rgba(255,255,255,0.3)",
-          marginLeft: 4,
         }}
       >
-        Compose
+        Post
       </span>
     </div>
   );

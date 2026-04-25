@@ -21,6 +21,8 @@ import { Eyebrow } from "@/components/orbit/primitives";
 const TABS = [
   { value: "foryou", label: "For you" },
   { value: "following", label: "Following" },
+  { value: "latest", label: "Latest" },
+  { value: "quiet", label: "Quiet" },
 ] as const;
 
 type TabValue = (typeof TABS)[number]["value"];
@@ -95,7 +97,7 @@ export default function FeedPage() {
         <LivePinned />
 
         {/* Feed */}
-        <FeedList tab={tab} />
+        <FeedList tab={tab === "following" ? "following" : "foryou"} />
       </main>
 
         {/* RIGHT RAIL */}
@@ -247,11 +249,21 @@ function TrendingCard() {
     staleTime: 1000 * 60 * 5,
   });
 
-  if (!tags || tags.length === 0) return null;
-
   return (
     <div style={{ ...panel(), padding: 20 }}>
       <Eyebrow>◈&nbsp;&nbsp;TRENDING IN YOUR ORBIT</Eyebrow>
+      {!tags || tags.length === 0 ? (
+        <div
+          style={{
+            marginTop: 14,
+            fontSize: 12,
+            color: O.ink3,
+            lineHeight: 1.5,
+          }}
+        >
+          Nothing orbiting yet. Post something and kick off a signal.
+        </div>
+      ) : (
       <div style={{ marginTop: 14 }}>
         {tags.map((t, i) => (
           <Link
@@ -289,6 +301,7 @@ function TrendingCard() {
           </Link>
         ))}
       </div>
+      )}
     </div>
   );
 }
@@ -304,11 +317,21 @@ function PeopleToOrbitCard() {
     staleTime: 1000 * 60 * 5,
   });
 
-  if (!people || people.length === 0) return null;
-
   return (
     <div style={{ ...panel(), padding: 20 }}>
       <Eyebrow>◇&nbsp;&nbsp;PEOPLE TO ORBIT</Eyebrow>
+      {!people || people.length === 0 ? (
+        <div
+          style={{
+            marginTop: 12,
+            fontSize: 12,
+            color: O.ink3,
+            lineHeight: 1.5,
+          }}
+        >
+          No suggestions yet. Follow a few people to bring your orbit to life.
+        </div>
+      ) : (
       <div style={{ marginTop: 12 }}>
         {people.map((p) => (
           <div
@@ -356,6 +379,7 @@ function PeopleToOrbitCard() {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }
