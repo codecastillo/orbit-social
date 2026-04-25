@@ -3,7 +3,7 @@
 import { useState, useRef, useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Image as ImageIcon, X, Loader2, BarChart3, Smile, Plus, Minus, Clock, MapPin, FileText, AlertTriangle, Users, Globe } from "lucide-react";
+import { Image as ImageIcon, X, Loader2, BarChart3, Smile, Plus, Minus, Clock, MapPin, FileText, AlertTriangle, Users, Globe, Camera, Calendar, Mic } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -198,6 +198,31 @@ export function InlineComposer({
           posting to · everyone
         </div>
       </div>
+      <span className="hidden sm:flex" style={{ gap: 4 }}>
+        {[
+          { Ico: Camera, c: "#ff5fae", label: "photo" },
+          { Ico: Calendar, c: "#5fd4ff", label: "event" },
+          { Ico: Mic, c: "#8b73ff", label: "voice" },
+          { Ico: MapPin, c: "#7dffa3", label: "place" },
+        ].map(({ Ico, c, label }) => (
+          <span
+            key={label}
+            title={label}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 12,
+              background: `${c}1a`,
+              border: `1px solid ${c}33`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ico style={{ width: 16, height: 16, color: c }} strokeWidth={1.8} />
+          </span>
+        ))}
+      </span>
       <span
         style={{
           padding: "10px 18px",
@@ -209,6 +234,7 @@ export function InlineComposer({
           fontSize: 13,
           boxShadow:
             "0 6px 20px rgba(255,95,174,0.45), inset 0 1px 0 rgba(255,255,255,0.3)",
+          marginLeft: 4,
         }}
       >
         Compose

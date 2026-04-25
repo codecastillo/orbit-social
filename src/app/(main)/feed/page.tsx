@@ -3,13 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, TrendingUp, Play } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { PostComposer } from "@/components/feed/post-composer";
+import { Search, TrendingUp } from "lucide-react";
+import { PostComposer, InlineComposer } from "@/components/feed/post-composer";
 import { FeedList } from "@/components/feed/feed-list";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { useCurrentProfile } from "@/lib/hooks/use-profile";
-import { useUIStore } from "@/lib/stores/ui-store";
 import {
   getTrendingHashtags,
   getSuggestedUsers,
@@ -18,8 +15,8 @@ import { getLiveStreams } from "@/lib/queries/live";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { followUser } from "@/lib/queries/social";
 import { FollowButton } from "@/components/shared/follow-button";
-import { O, aurora, auroraSoft, panel } from "@/lib/design/orbit";
-import { PillBtn, Eyebrow, Acc } from "@/components/orbit/primitives";
+import { O, auroraSoft, panel } from "@/lib/design/orbit";
+import { Eyebrow } from "@/components/orbit/primitives";
 
 const TABS = [
   { value: "foryou", label: "For you" },
@@ -31,14 +28,11 @@ type TabValue = (typeof TABS)[number]["value"];
 export default function FeedPage() {
   const [tab, setTab] = useState<TabValue>("foryou");
   const { user } = useAuth();
-  const { data: profile } = useCurrentProfile();
-  const setComposeOpen = useUIStore((s) => s.setComposeOpen);
 
   return (
     <div
-      className="grid gap-[18px] w-full"
+      className="grid gap-[18px] w-full grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]"
       style={{
-        gridTemplateColumns: "minmax(0, 1fr) 340px",
         color: O.ink,
         fontFamily: O.sans,
       }}
@@ -84,33 +78,8 @@ export default function FeedPage() {
           })}
         </div>
 
-        {/* Composer row */}
-        {user && (
-          <button
-            onClick={() => setComposeOpen(true)}
-            className="text-left"
-            style={{
-              ...panel(),
-              padding: 18,
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              cursor: "pointer",
-              color: O.ink,
-            }}
-          >
-            <UserAvatar
-              src={profile?.avatar_url}
-              fallback={profile?.display_name || "U"}
-              size="md"
-            />
-            <div style={{ flex: 1, fontSize: 15, color: O.ink3 }}>
-              What&apos;s <Acc>orbiting</Acc> you
-              {profile?.display_name ? `, ${profile.display_name.split(" ")[0]}` : ""}?
-            </div>
-            <PillBtn primary>Post</PillBtn>
-          </button>
-        )}
+        {/* Composer doorway */}
+        {user && <InlineComposer />}
 
         {/* Pinned live-now signal */}
         <LivePinned />
@@ -120,7 +89,7 @@ export default function FeedPage() {
       </main>
 
       {/* RIGHT RAIL */}
-      <aside className="hidden xl:flex flex-col gap-[14px] sticky top-6 h-fit">
+      <aside className="hidden lg:flex flex-col gap-[14px] sticky top-6 h-fit">
         {/* Search */}
         <div style={{ ...panel(), padding: 18 }}>
           <Link

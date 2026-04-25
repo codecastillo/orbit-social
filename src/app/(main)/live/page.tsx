@@ -134,6 +134,15 @@ export default function LivePage() {
       <main
         style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}
       >
+        <div>
+          <Eyebrow accent>
+            ◆&nbsp;&nbsp;ON AIR · {streams.length} LIVE
+          </Eyebrow>
+          <Display size={44} style={{ marginTop: 8 }}>
+            Live and <Acc>unrehearsed</Acc>.
+          </Display>
+        </div>
+
         <FeaturedLive stream={featured} onGoLive={() => setGoLiveOpen(true)} />
 
         {others.length > 0 && (
