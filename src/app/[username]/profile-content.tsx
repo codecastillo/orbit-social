@@ -179,34 +179,35 @@ export function ProfileContent({
         style={{
           ...panel(),
           padding: 0,
-          overflow: "hidden",
           position: "relative",
         }}
       >
-        {/* Banner */}
-        {profile.cover_url ? (
-          <div
-            style={{
-              height: 200,
-              background: `url(${profile.cover_url}) center/cover`,
-              position: "relative",
-            }}
-          />
-        ) : (
-          <AuroraBanner height={200} />
-        )}
+        {/* Banner — clipped to top radius only */}
+        <div style={{ borderRadius: "24px 24px 0 0", overflow: "hidden" }}>
+          {profile.cover_url ? (
+            <div
+              style={{
+                height: 200,
+                background: `url(${profile.cover_url}) center/cover`,
+                position: "relative",
+              }}
+            />
+          ) : (
+            <AuroraBanner height={200} />
+          )}
+        </div>
 
-        {/* Identity row */}
+        {/* Identity row — content flows BELOW the banner, only the avatar overlaps */}
         <div
           style={{
             padding: "0 32px 24px",
-            marginTop: -68,
             display: "flex",
-            alignItems: "flex-end",
+            alignItems: "flex-start",
             gap: 24,
             flexWrap: "wrap",
           }}
         >
+          {/* Avatar — uses its OWN negative margin so only it overlaps the banner */}
           <div
             style={{
               width: 136,
@@ -216,6 +217,9 @@ export function ProfileContent({
               background: O.bg,
               boxShadow: `0 16px 40px rgba(0,0,0,0.5), 0 0 0 2px ${accent}`,
               flexShrink: 0,
+              marginTop: -68,
+              position: "relative",
+              zIndex: 1,
             }}
           >
             <UserAvatar
@@ -226,7 +230,7 @@ export function ProfileContent({
             />
           </div>
 
-          <div style={{ flex: 1, paddingBottom: 14, minWidth: 0 }}>
+          <div style={{ flex: 1, paddingTop: 16, minWidth: 0 }}>
             <div
               style={{
                 display: "flex",
@@ -241,7 +245,7 @@ export function ProfileContent({
                     {first} <Acc>{rest}</Acc>
                   </>
                 ) : (
-                  first
+                  first || profile.username
                 )}
               </Display>
               {profile.is_verified && <VerifiedStar size={18} />}
@@ -279,7 +283,7 @@ export function ProfileContent({
             style={{
               display: "flex",
               gap: 8,
-              paddingBottom: 14,
+              paddingTop: 16,
               flexWrap: "wrap",
             }}
           >
