@@ -368,11 +368,11 @@ export default function EditProfilePage() {
             disabled={uploadingAvatar}
             aria-label="Change profile photo"
             style={{
-              width: 112,
-              height: 112,
+              width: 120,
+              height: 120,
               borderRadius: "50%",
-              padding: 4,
-              background: O.bg,
+              padding: 0,
+              background: "transparent",
               boxShadow: themeColor
                 ? `0 0 0 3px ${themeColor}, 0 0 24px ${themeColor}55, 0 14px 36px rgba(0,0,0,0.5)`
                 : `0 0 0 3px ${O.a2}, 0 0 24px ${O.a2}55, 0 14px 36px rgba(0,0,0,0.5)`,
@@ -382,6 +382,7 @@ export default function EditProfilePage() {
               display: "block",
               position: "relative",
               zIndex: 1,
+              overflow: "hidden",
             }}
           >
             <div
@@ -394,12 +395,25 @@ export default function EditProfilePage() {
                 background: O.glass,
               }}
             >
-              <UserAvatar
-                src={avatarUrl}
-                fallback={displayName || "?"}
-                size="xl"
-                avatarBorder={avatarBorder}
-              />
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={displayName || "Profile photo"}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+              ) : (
+                <UserAvatar
+                  src={avatarUrl}
+                  fallback={displayName || "?"}
+                  size="xl"
+                  avatarBorder={avatarBorder}
+                />
+              )}
               <div
                 className="orbit-avatar-edit-overlay"
                 style={{
