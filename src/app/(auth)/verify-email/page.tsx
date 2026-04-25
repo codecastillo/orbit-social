@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Mail, Loader2, CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { createClient } from "@/lib/supabase/client";
 import { O, orbitBg, panel, aurora } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 
@@ -15,22 +14,28 @@ export default function VerifyEmailPage() {
   const email = searchParams.get("email") || "";
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
-  const supabase = createClient();
 
   const handleResend = async () => {
     if (!email) return;
     setResending(true);
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email,
-    });
-    setResending(false);
-    if (error) {
-      toast.error("Failed to resend. Try again later.");
-    } else {
-      setResent(true);
-      toast.success("Verification email sent");
-      setTimeout(() => setResent(false), 30000);
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error || "Failed to resend. Try again later.");
+      } else {
+        setResent(true);
+        toast.success("Verification email sent");
+        setTimeout(() => setResent(false), 30000);
+      }
+    } catch {
+      toast.error("Network error. Try again.");
+    } finally {
+      setResending(false);
     }
   };
 

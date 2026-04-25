@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/publish-scheduled-posts",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/event-reminders",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-stories",
+      "schedule": "15 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-login-activity",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/notification-digest",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}
