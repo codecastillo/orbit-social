@@ -355,9 +355,11 @@ export default function EditProfilePage() {
           />
           <div
             style={{
-              padding: "0 28px",
-              position: "relative",
-              height: 76,
+              padding: "14px 24px",
+              display: "flex",
+              alignItems: "center",
+              gap: 16,
+              minHeight: 64,
               background: "rgba(255,255,255,0.015)",
             }}
           >
@@ -367,19 +369,19 @@ export default function EditProfilePage() {
               disabled={uploadingAvatar}
               aria-label="Change profile photo"
               style={{
-                position: "absolute",
-                left: 28,
-                top: -56,
-                width: 124,
-                height: 124,
+                width: 112,
+                height: 112,
                 borderRadius: "50%",
-                padding: 5,
+                padding: 4,
+                marginTop: -64,
+                marginBottom: -8,
                 background: O.bg,
                 boxShadow: themeColor
-                  ? `0 0 0 3px ${themeColor}, 0 0 28px ${themeColor}66, 0 14px 36px rgba(0,0,0,0.5)`
-                  : `0 0 0 3px ${O.a2}, 0 0 28px ${O.a2}66, 0 14px 36px rgba(0,0,0,0.5)`,
+                  ? `0 0 0 3px ${themeColor}, 0 0 24px ${themeColor}55, 0 14px 36px rgba(0,0,0,0.5)`
+                  : `0 0 0 3px ${O.a2}, 0 0 24px ${O.a2}55, 0 14px 36px rgba(0,0,0,0.5)`,
                 border: "none",
                 cursor: "pointer",
+                flexShrink: 0,
                 display: "block",
               }}
             >
@@ -399,7 +401,6 @@ export default function EditProfilePage() {
                   size="xl"
                   avatarBorder={avatarBorder}
                 />
-                {/* Hover overlay */}
                 <div
                   style={{
                     position: "absolute",
@@ -433,14 +434,36 @@ export default function EditProfilePage() {
               onChange={handleAvatarUpload}
               className="hidden"
             />
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontFamily: O.mono,
+                  fontSize: 10.5,
+                  letterSpacing: "0.14em",
+                  color: O.ink4,
+                  textTransform: "uppercase",
+                }}
+              >
+                ◇&nbsp;&nbsp;Profile photo
+              </div>
+              <div
+                style={{
+                  fontSize: 12.5,
+                  color: O.ink3,
+                  marginTop: 4,
+                  lineHeight: 1.4,
+                }}
+              >
+                JPG, PNG, WebP, or GIF · square works best
+              </div>
+            </div>
+
             <button
               type="button"
               onClick={() => avatarInputRef.current?.click()}
               disabled={uploadingAvatar}
               style={{
-                position: "absolute",
-                right: 24,
-                top: 22,
                 padding: "8px 14px",
                 borderRadius: 99,
                 background: "rgba(255,255,255,0.06)",
@@ -453,6 +476,7 @@ export default function EditProfilePage() {
                 alignItems: "center",
                 gap: 7,
                 fontFamily: "inherit",
+                flexShrink: 0,
               }}
             >
               {uploadingAvatar ? (
