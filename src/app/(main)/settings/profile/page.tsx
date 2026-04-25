@@ -235,10 +235,16 @@ export default function EditProfilePage() {
       style={{
         color: O.ink,
         fontFamily: O.sans,
-        maxWidth: 820,
-        margin: "0 auto",
-        paddingBottom: 96,
         width: "100%",
+        display: "flex",
+        justifyContent: "center",
+        paddingBottom: 96,
+      }}
+    >
+    <div
+      style={{
+        width: "100%",
+        maxWidth: 760,
       }}
     >
       {/* Header */}
@@ -734,6 +740,7 @@ export default function EditProfilePage() {
         open={qrOpen}
         onOpenChange={setQrOpen}
       />
+    </div>
     </div>
   );
 }
