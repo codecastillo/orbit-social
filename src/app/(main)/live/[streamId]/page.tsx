@@ -7,6 +7,7 @@ import { Heart, Send, Share2, X, Gift, Eye, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useStreamPresence } from "@/lib/hooks/use-stream-presence";
 import { createClient } from "@/lib/supabase/client";
 import { getStreamById, type LiveStreamWithProfile } from "@/lib/queries/live";
 import { sendGift, type SentGift } from "@/lib/queries/gifts";
@@ -157,6 +158,11 @@ export default function LiveViewerPage({ params }: Props) {
   const isOwnStream = !!user && !!stream && user.id === stream.user_id;
   const canShowFollow = !!user && !!stream && !isOwnStream;
 
+  const { count: viewerCount } = useStreamPresence(streamId, {
+    isStreamer: isOwnStream,
+    userId: user?.id ?? null,
+  });
+
   const followQueryKey = ["live-follow", user?.id, stream?.user_id];
   const { data: isFollowing = false } = useQuery({
     queryKey: followQueryKey,
@@ -236,7 +242,6 @@ export default function LiveViewerPage({ params }: Props) {
     try {
       const sent = sendGift(streamId, user.id, "star");
       setActiveGifts((g) => [...g, sent]);
-      toast.success("Sent");
     } catch {
       toast.error("Failed to send");
     }
@@ -370,7 +375,7 @@ export default function LiveViewerPage({ params }: Props) {
                 </span>
                 <span className="flex items-center gap-1 px-2 h-7 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 text-white text-[11px] font-semibold tabular-nums">
                   <Eye className="h-3 w-3" />
-                  {stream.viewer_count ?? 0}
+                  {viewerCount}
                 </span>
                 <button
                   onClick={() => router.back()}
@@ -477,6 +482,7 @@ export default function LiveViewerPage({ params }: Props) {
         <DesktopInfoBar
           stream={stream}
           now={now}
+          viewerCount={viewerCount}
           canShowFollow={canShowFollow}
           isFollowing={isFollowing}
           onToggleFollow={handleToggleFollow}
@@ -495,7 +501,7 @@ export default function LiveViewerPage({ params }: Props) {
         <div className="px-5 py-[18px] border-b border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent flex items-start justify-between gap-3">
           <div className="flex items-center gap-2 text-[11px] font-mono tracking-[0.12em] text-cyan-300/90">
             <span>◆</span>
-            ROOM CHAT · {stream.viewer_count ?? 0} IN
+            ROOM CHAT · {viewerCount} IN
           </div>
           <button
             onClick={() => router.back()}
@@ -607,7 +613,6 @@ export default function LiveViewerPage({ params }: Props) {
                   onClick={() => {
                     if (label === "Copy link") {
                       navigator.clipboard.writeText(window.location.href);
-                      toast.success("Link copied");
                       setShareOpen(false);
                     }
                   }}
@@ -630,15 +635,11 @@ export default function LiveViewerPage({ params }: Props) {
             <div className="space-y-1">
               {[
                 { label: "Clear display", onClick: () => { setUiHidden(true); setShareOpen(false); } },
-                { label: "Report stream", onClick: () => toast("Reported"), destructive: true },
               ].map((item) => (
                 <button
                   key={item.label}
                   onClick={item.onClick}
-                  className={cn(
-                    "w-full text-left h-12 px-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] text-sm font-semibold transition-colors",
-                    item.destructive ? "text-destructive" : "text-foreground"
-                  )}
+                  className="w-full text-left h-12 px-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] text-sm font-semibold transition-colors text-foreground"
                 >
                   {item.label}
                 </button>
@@ -680,6 +681,7 @@ function PlaceholderCover({ stream }: { stream: LiveStreamWithProfile }) {
 function DesktopInfoBar({
   stream,
   now,
+  viewerCount,
   canShowFollow,
   isFollowing,
   onToggleFollow,
@@ -687,6 +689,7 @@ function DesktopInfoBar({
 }: {
   stream: LiveStreamWithProfile;
   now: number;
+  viewerCount: number;
   canShowFollow: boolean;
   isFollowing: boolean;
   onToggleFollow: () => Promise<void>;
@@ -736,7 +739,7 @@ function DesktopInfoBar({
             </span>
             <span className="flex items-center gap-1 px-2 h-7 rounded-lg bg-white/[0.05] border border-white/10 text-white/85 text-[11.5px] font-semibold tabular-nums">
               <Eye className="h-3 w-3" />
-              {stream.viewer_count ?? 0}
+              {viewerCount}
             </span>
             <span className="px-2 h-7 inline-flex items-center rounded-lg bg-white/[0.05] border border-white/10 text-white/85 text-[11.5px] font-mono tabular-nums">
               {formatElapsed(stream.started_at, now)}
