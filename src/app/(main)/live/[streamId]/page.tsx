@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Heart, Send, Share2, X, Gift, Eye, Sparkles } from "lucide-react";
@@ -8,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useStreamPresence } from "@/lib/hooks/use-stream-presence";
+import { useStreamHearts } from "@/lib/hooks/use-stream-hearts";
 import { createClient } from "@/lib/supabase/client";
 import { getStreamById, type LiveStreamWithProfile } from "@/lib/queries/live";
 import { sendGift, type SentGift } from "@/lib/queries/gifts";
@@ -35,12 +37,6 @@ const MuxPlayer = dynamic(() => import("@mux/mux-player-react").then((m) => m.de
 
 interface Props {
   params: Promise<{ streamId: string }>;
-}
-
-interface FloatingHeart {
-  id: number;
-  x: number;
-  y: number;
 }
 
 interface ChatMessage {
@@ -135,6 +131,7 @@ function formatElapsed(iso: string | null, now: number): string {
 const MUX_PLAYER_STYLE = {
   "--media-live-button": "none",
   "--top-live-button": "none",
+  "--media-pip-button": "none",
   "--media-object-fit": "contain",
   width: "100%",
   height: "100%",
@@ -206,19 +203,11 @@ export default function LiveViewerPage({ params }: Props) {
   }, [followMutation, isFollowing, user]);
 
   const [comment, setComment] = useState("");
-  const [likeCount, setLikeCount] = useState(0);
-  const [hearts, setHearts] = useState<FloatingHeart[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
   const [uiHidden, setUiHidden] = useState(false);
   const [activeGifts, setActiveGifts] = useState<SentGift[]>([]);
-  const heartIdRef = useRef(0);
 
-  const spawnHeart = useCallback((x: number, y: number) => {
-    const id = heartIdRef.current++;
-    setHearts((h) => [...h, { id, x, y }]);
-    setLikeCount((c) => c + 1);
-    setTimeout(() => setHearts((h) => h.filter((p) => p.id !== id)), 1400);
-  }, []);
+  const { hearts, totalCount: likeCount, sendHeart } = useStreamHearts(streamId);
 
   const handleHeartZoneTap = (e: React.MouseEvent<HTMLDivElement>) => {
     if (uiHidden) {
@@ -226,9 +215,9 @@ export default function LiveViewerPage({ params }: Props) {
       return;
     }
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    spawnHeart(x, y);
+    const xPct = (e.clientX - rect.left) / rect.width;
+    const yPct = (e.clientY - rect.top) / rect.height;
+    sendHeart(xPct, yPct);
   };
 
   const handleSend = async () => {
@@ -268,6 +257,7 @@ export default function LiveViewerPage({ params }: Props) {
                 playbackId={stream.mux_playback_id}
                 autoPlay
                 muted={false}
+                disablePictureInPicture
                 style={MUX_PLAYER_STYLE}
                 metadata={{
                   video_id: stream.id,
@@ -289,6 +279,7 @@ export default function LiveViewerPage({ params }: Props) {
               playbackId={stream.mux_playback_id}
               autoPlay
               muted={false}
+              disablePictureInPicture
               style={MUX_PLAYER_STYLE}
               metadata={{
                 video_id: stream.id,
@@ -304,23 +295,29 @@ export default function LiveViewerPage({ params }: Props) {
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
         </div>
 
-        {/* Mobile heart hit zone — right 30% of screen, hosts floating hearts */}
+        {/* Mobile heart hit zone — right 30% of screen */}
         <div
-          className="lg:hidden absolute top-0 right-0 bottom-0 w-[30%] z-[5] overflow-hidden"
+          className="lg:hidden absolute top-0 right-0 bottom-0 w-[30%] z-[5]"
           onClick={handleHeartZoneTap}
-        >
+        />
+
+        {/* Global floating hearts (every viewer sees every heart) */}
+        <div className="pointer-events-none absolute inset-0 z-[6] overflow-hidden">
           <AnimatePresence>
             {hearts.map((h) => (
               <motion.div
                 key={h.id}
-                initial={{ opacity: 1, y: 0, scale: 0.6 }}
-                animate={{ opacity: 0, y: -180, scale: 1.2, x: (Math.random() - 0.5) * 80 }}
+                initial={{ opacity: 1, y: 0, scale: 0.5 }}
+                animate={{ opacity: 0, y: -200, scale: 1.2, x: (Math.random() - 0.5) * 80 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 1.4, ease: "easeOut" }}
-                style={{ left: h.x, top: h.y, pointerEvents: "none" }}
+                transition={{ duration: 1.5, ease: "easeOut" }}
+                style={{
+                  left: `${h.xPct * 100}%`,
+                  top: `${h.yPct * 100}%`,
+                }}
                 className="absolute"
               >
-                <Heart className="h-9 w-9 text-rose-500 fill-rose-500 drop-shadow-[0_0_10px_rgba(244,63,94,0.7)]" />
+                <Heart className="h-8 w-8 text-rose-500 fill-rose-500 drop-shadow-[0_0_10px_rgba(244,63,94,0.7)]" />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -460,9 +457,7 @@ export default function LiveViewerPage({ params }: Props) {
               </div>
 
               <button
-                onClick={() => {
-                  spawnHeart(window.innerWidth / 2, window.innerHeight - 200);
-                }}
+                onClick={() => sendHeart(0.85, 0.7)}
                 className="flex-shrink-0 h-11 w-11 rounded-2xl bg-white/[0.10] backdrop-blur-xl border border-white/15 flex items-center justify-center text-rose-400 active:scale-90 transition-transform"
               >
                 <Heart className="h-[18px] w-[18px] fill-current" />
@@ -580,11 +575,11 @@ export default function LiveViewerPage({ params }: Props) {
                 </button>
               )}
             </div>
-            <DesktopLikeButton onLike={() => setLikeCount((c) => c + 1)} count={likeCount} />
+            <DesktopLikeButton
+              onLike={() => sendHeart(0.7 + Math.random() * 0.25, 0.6 + Math.random() * 0.3)}
+              count={likeCount}
+            />
           </div>
-          <p className="text-[10.5px] text-white/30 mt-2 px-1">
-            Press Enter to send
-          </p>
         </div>
       </aside>
 
@@ -695,26 +690,32 @@ function DesktopInfoBar({
   onToggleFollow: () => Promise<void>;
   onShare: () => void;
 }) {
+  const profileHref = stream.profiles?.username ? `/${stream.profiles.username}` : "#";
   return (
     <div className="hidden lg:block px-5 pb-5">
       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
         <div className="flex items-center gap-3">
-          <UserAvatar
-            src={stream.profiles?.avatar_url ?? null}
-            fallback={stream.profiles?.display_name ?? "H"}
-            size="md"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <p className="text-[16px] font-bold text-white leading-tight truncate">
-                {stream.profiles?.display_name}
+          <Link
+            href={profileHref}
+            className="flex items-center gap-3 min-w-0 flex-1 group rounded-xl -m-1 p-1 hover:bg-white/[0.03] transition-colors"
+          >
+            <UserAvatar
+              src={stream.profiles?.avatar_url ?? null}
+              fallback={stream.profiles?.display_name ?? "H"}
+              size="md"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <p className="text-[16px] font-bold text-white leading-tight truncate group-hover:underline underline-offset-2">
+                  {stream.profiles?.display_name}
+                </p>
+                {stream.profiles?.is_verified && <VerifiedStar size={14} />}
+              </div>
+              <p className="text-[12.5px] text-white/55 leading-tight truncate mt-0.5">
+                @{stream.profiles?.username}
               </p>
-              {stream.profiles?.is_verified && <VerifiedStar size={14} />}
             </div>
-            <p className="text-[12.5px] text-white/55 leading-tight truncate mt-0.5">
-              @{stream.profiles?.username}
-            </p>
-          </div>
+          </Link>
 
           {canShowFollow && (
             <FollowButton
@@ -726,10 +727,10 @@ function DesktopInfoBar({
 
           <button
             onClick={onShare}
-            className="flex-shrink-0 h-9 w-9 rounded-xl bg-white/[0.05] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/[0.08] hover:text-white transition-colors"
+            className="flex-shrink-0 h-7 w-7 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/[0.08] hover:text-white transition-colors"
             aria-label="Share"
           >
-            <Share2 className="h-4 w-4" />
+            <Share2 className="h-3.5 w-3.5" />
           </button>
 
           <div className="flex items-center gap-1.5 pl-1">
