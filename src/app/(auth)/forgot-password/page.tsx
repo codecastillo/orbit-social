@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { Mail, Loader2, CheckCircle, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
@@ -9,12 +9,17 @@ import { createClient } from "@/lib/supabase/client";
 import { O, orbitBg, panel, aurora } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 import { Field, Input } from "@/components/orbit/forms";
+import {
+  TurnstileWidget,
+  type TurnstileWidgetHandle,
+} from "@/components/auth/turnstile-widget";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,12 +30,15 @@ export default function ForgotPasswordPage() {
     setError(null);
     setSubmitting(true);
 
+    const captchaToken = (await turnstileRef.current?.getToken()) ?? undefined;
+
     const supabase = createClient();
     const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/reset-password`;
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(
       email.trim().toLowerCase(),
-      { redirectTo }
+      { redirectTo, captchaToken }
     );
+    turnstileRef.current?.reset();
 
     setSubmitting(false);
 
@@ -158,6 +166,7 @@ export default function ForgotPasswordPage() {
                 )}
                 {submitting ? "Sending…" : "Send reset link"}
               </PillBtn>
+              <TurnstileWidget ref={turnstileRef} />
             </form>
           )}
 

@@ -24,6 +24,10 @@ import { fullSignUpSchema, type FullSignUpFormData } from "@/lib/utils/validator
 import { O, orbitBg, panel, aurora } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 import { Field, Input, TextArea } from "@/components/orbit/forms";
+import {
+  TurnstileWidget,
+  type TurnstileWidgetHandle,
+} from "@/components/auth/turnstile-widget";
 
 const GoogleIcon = () => (
   <svg width={18} height={18} viewBox="0 0 24 24">
@@ -218,6 +222,7 @@ export default function SignUpPage() {
   const [dobMonth, setDobMonth] = useState("");
   const [dobDay, setDobDay] = useState("");
   const [dobYear, setDobYear] = useState("");
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const supabase = createClient();
@@ -335,11 +340,14 @@ export default function SignUpPage() {
   };
 
   const onSubmit = async (data: FullSignUpFormData) => {
+    const captchaToken = (await turnstileRef.current?.getToken()) ?? undefined;
+
     const { error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
       options: {
         emailRedirectTo: `${window.location.origin}/callback?next=/feed`,
+        captchaToken,
         data: {
           full_name: data.fullName,
           username: data.username.toLowerCase(),
@@ -347,6 +355,7 @@ export default function SignUpPage() {
         },
       },
     });
+    turnstileRef.current?.reset();
     if (error) {
       toast.error(error.message);
       return;
@@ -779,6 +788,7 @@ export default function SignUpPage() {
             </PillBtn>
           )}
         </div>
+        <TurnstileWidget ref={turnstileRef} />
       </form>
 
       <p

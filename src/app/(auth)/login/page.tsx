@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -14,6 +14,10 @@ import { createLoginEvent } from "@/lib/queries/security";
 import { O, orbitBg, panel, aurora } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 import { Field, Input } from "@/components/orbit/forms";
+import {
+  TurnstileWidget,
+  type TurnstileWidgetHandle,
+} from "@/components/auth/turnstile-widget";
 
 const LOCKOUT_KEY = "orbit_login_lockout";
 const MAX_ATTEMPTS = 5;
@@ -122,6 +126,7 @@ export default function LoginPage() {
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState("");
   const [mfaVerifying, setMfaVerifying] = useState(false);
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
   const {
     register,
@@ -188,10 +193,14 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     if (isLocked) return;
 
+    const captchaToken = (await turnstileRef.current?.getToken()) ?? undefined;
+
     const { data: signInData, error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
+      options: { captchaToken },
     });
+    turnstileRef.current?.reset();
 
     if (error) {
       recordFailedAttempt();
@@ -547,6 +556,7 @@ export default function LoginPage() {
             "Sign in →"
           )}
         </PillBtn>
+        <TurnstileWidget ref={turnstileRef} />
       </form>
 
       {/* Footer */}
