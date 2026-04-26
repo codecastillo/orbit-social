@@ -163,9 +163,9 @@ export default function LiveViewerPage({ params }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black overflow-hidden">
-      {/* Phone-aspect viewport */}
-      <div className="relative h-[100dvh] max-w-md mx-auto bg-zinc-950 overflow-hidden">
+    <div className="fixed inset-0 bg-black overflow-hidden lg:flex">
+      {/* Mobile: phone-aspect viewport. Desktop: video left, chat right (lg+). */}
+      <div className="relative h-[100dvh] max-w-md mx-auto bg-zinc-950 overflow-hidden lg:max-w-none lg:flex-1 lg:mx-0">
         {/* Video / cover */}
         <div
           className="absolute inset-0 cursor-pointer select-none"
@@ -266,8 +266,8 @@ export default function LiveViewerPage({ params }: Props) {
               </h1>
             </div>
 
-            {/* Chat overlay */}
-            <div className="absolute left-4 right-20 bottom-[88px] max-h-[42%] overflow-y-auto scrollbar-hide z-10 space-y-1.5 pointer-events-none">
+            {/* Chat overlay (mobile only — desktop has a chat rail) */}
+            <div className="lg:hidden absolute left-4 right-20 bottom-[88px] max-h-[42%] overflow-y-auto scrollbar-hide z-10 space-y-1.5 pointer-events-none">
               <AnimatePresence initial={false}>
                 {messages.slice(-25).map((m) => (
                   <motion.div
@@ -303,8 +303,8 @@ export default function LiveViewerPage({ params }: Props) {
               </span>
             </div>
 
-            {/* Footer — Tip / input / heart / share */}
-            <div className="absolute bottom-0 inset-x-0 p-4 pb-[max(env(safe-area-inset-bottom),16px)] z-10 flex items-center gap-2">
+            {/* Footer — Tip / input / heart / share (mobile only — desktop input lives in chat rail) */}
+            <div className="lg:hidden absolute bottom-0 inset-x-0 p-4 pb-[max(env(safe-area-inset-bottom),16px)] z-10 flex items-center gap-2">
               <button
                 onClick={handleTip}
                 className="flex-shrink-0 h-11 px-3.5 rounded-2xl bg-gradient-to-br from-amber-400 to-rose-500 text-white text-[13px] font-extrabold inline-flex items-center gap-1.5 shadow-[0_4px_16px_rgba(244,63,94,0.4)] active:scale-95 transition-transform"
@@ -364,6 +364,102 @@ export default function LiveViewerPage({ params }: Props) {
           onComplete={(id) => setActiveGifts((g) => g.filter((x) => x.id !== id))}
         />
       </div>
+
+      {/* Desktop chat rail */}
+      <aside className="hidden lg:flex flex-col w-[360px] h-[100dvh] bg-zinc-950 border-l border-white/10">
+        <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider font-bold text-white/50">
+              Stream chat
+            </p>
+            <p className="text-[13px] font-bold text-white mt-0.5">
+              {stream.viewer_count ?? 0} watching
+            </p>
+          </div>
+          <button
+            onClick={() => router.back()}
+            className="h-8 w-8 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-white hover:bg-white/[0.12] transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+          {messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-white/40 text-sm gap-2">
+              <Sparkles className="h-5 w-5" />
+              Be the first to say something.
+            </div>
+          ) : (
+            <AnimatePresence initial={false}>
+              {messages.map((m) => (
+                <motion.div
+                  key={m.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start gap-2.5"
+                >
+                  <UserAvatar src={m.avatarUrl} fallback={m.displayName} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-bold text-white/90 leading-tight">
+                      {m.displayName}{" "}
+                      <span className="text-white/40 font-normal">@{m.username}</span>
+                    </p>
+                    <p className="text-[14px] text-white leading-snug break-words mt-0.5">
+                      {m.content}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )}
+        </div>
+
+        <div className="border-t border-white/10 p-3 flex items-center gap-2">
+          <button
+            onClick={handleTip}
+            className="flex-shrink-0 h-10 px-3 rounded-xl bg-gradient-to-br from-amber-400 to-rose-500 text-white text-[12px] font-extrabold inline-flex items-center gap-1.5 shadow-[0_4px_16px_rgba(244,63,94,0.3)] active:scale-95 transition-transform"
+          >
+            <Gift className="h-4 w-4" />
+            Tip
+          </button>
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              placeholder="Send a message"
+              className="w-full h-10 pl-3.5 pr-10 rounded-xl bg-white/[0.06] border border-white/10 text-white text-[13px] placeholder:text-white/40 focus:outline-none focus:border-primary/60 focus:bg-white/[0.10] transition-all"
+            />
+            {comment.trim() && (
+              <button
+                onClick={handleSend}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center"
+                aria-label="Send"
+              >
+                <Send className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              const id = heartIdRef.current++;
+              setHearts((h) => [
+                ...h,
+                { id, x: window.innerWidth / 2, y: window.innerHeight - 200 },
+              ]);
+              setLikeCount((c) => c + 1);
+              setTimeout(() => setHearts((h) => h.filter((p) => p.id !== id)), 1400);
+            }}
+            className="flex-shrink-0 h-10 w-10 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-rose-400 active:scale-90 transition-transform"
+            aria-label="Like"
+          >
+            <Heart className="h-[16px] w-[16px] fill-current" />
+          </button>
+        </div>
+      </aside>
 
       {/* Share sheet */}
       <Sheet open={shareOpen} onOpenChange={setShareOpen}>

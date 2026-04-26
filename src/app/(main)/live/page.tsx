@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Radio, Send } from "lucide-react";
+import { Radio } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -12,7 +12,7 @@ import {
   getLiveStreams,
   type LiveStreamWithProfile,
 } from "@/lib/queries/live";
-import { O, aurora, panel } from "@/lib/design/orbit";
+import { O, panel } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 import { LiveBadge } from "@/components/orbit/live-badge";
 
@@ -25,9 +25,9 @@ function hueFor(seed: string): number {
   return hues[Math.abs(h) % hues.length];
 }
 
-function elapsedSince(iso: string | null): string {
+function formatElapsed(iso: string | null, now: number): string {
   if (!iso) return "00:00";
-  const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  const sec = Math.floor((now - new Date(iso).getTime()) / 1000);
   if (sec < 0) return "00:00";
   const m = Math.floor(sec / 60);
   const s = sec % 60;
@@ -36,6 +36,15 @@ function elapsedSince(iso: string | null): string {
     return `${h}:${(m % 60).toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   }
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+function useLiveClock(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
 }
 
 export default function LivePage() {
@@ -87,71 +96,62 @@ export default function LivePage() {
       style={{
         color: O.ink,
         fontFamily: O.sans,
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) 320px",
+        display: "flex",
+        flexDirection: "column",
         gap: 18,
+        minWidth: 0,
       }}
-      className="xl:grid-cols-[minmax(0,1fr)_320px] grid-cols-1"
     >
-      {/* Main column */}
-      <main
-        style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}
-      >
+      <div>
+        <Eyebrow accent>
+          ◆&nbsp;&nbsp;ON AIR · {streams.length} LIVE
+        </Eyebrow>
+        <Display size={44} style={{ marginTop: 8 }}>
+          Live and <Acc>unrehearsed</Acc>.
+        </Display>
+      </div>
+
+      <FeaturedLive stream={featured} />
+
+      {others.length > 0 && (
         <div>
-          <Eyebrow accent>
-            ◆&nbsp;&nbsp;ON AIR · {streams.length} LIVE
-          </Eyebrow>
-          <Display size={44} style={{ marginTop: 8 }}>
-            Live and <Acc>unrehearsed</Acc>.
-          </Display>
-        </div>
-
-        <FeaturedLive stream={featured} onGoLive={goToStreamSettings} />
-
-        {others.length > 0 && (
-          <div>
-            <Eyebrow accent>◆&nbsp;&nbsp;ALSO LIVE · {others.length}</Eyebrow>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 14,
-                marginTop: 12,
-              }}
-              className="md:grid-cols-2 grid-cols-1"
-            >
-              {others.map((s) => (
-                <SmallLiveTile key={s.id} stream={s} />
-              ))}
-            </div>
+          <Eyebrow accent>◆&nbsp;&nbsp;ALSO LIVE · {others.length}</Eyebrow>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 14,
+              marginTop: 12,
+            }}
+            className="md:grid-cols-2 grid-cols-1"
+          >
+            {others.map((s) => (
+              <SmallLiveTile key={s.id} stream={s} />
+            ))}
           </div>
-        )}
-      </main>
-
-      {/* Live chat rail */}
-      <ChatRail stream={featured} />
+        </div>
+      )}
     </div>
   );
 }
 
 /* ─── Featured live tile (with overlay header + actions) ─────────── */
 
-function FeaturedLive({
-  stream,
-  onGoLive,
-}: {
-  stream: LiveStreamWithProfile;
-  onGoLive: () => void;
-}) {
+function FeaturedLive({ stream }: { stream: LiveStreamWithProfile }) {
   const hue = hueFor(stream.id);
   const hue2 = (hue + 80) % 360;
+  const now = useLiveClock();
   return (
-    <div
+    <Link
+      href={`/live/${stream.id}`}
       style={{
         ...panel(),
         padding: 0,
         overflow: "hidden",
         position: "relative",
+        textDecoration: "none",
+        color: O.ink,
+        display: "block",
       }}
     >
       <div
@@ -195,23 +195,9 @@ function FeaturedLive({
               letterSpacing: "0.06em",
             }}
           >
-            ◉ {stream.viewer_count ?? 0} watching · {elapsedSince(stream.started_at)}
+            ◉ {stream.viewer_count ?? 0} watching · {formatElapsed(stream.started_at, now)}
           </div>
         </div>
-
-        <PillBtn
-          size="sm"
-          onClick={onGoLive}
-          style={{
-            position: "absolute",
-            top: 18,
-            right: 18,
-            color: "white",
-            background: "rgba(0,0,0,0.4)",
-          }}
-        >
-          <Radio style={{ width: 12, height: 12 }} /> Go live
-        </PillBtn>
 
         {/* Bottom title strip */}
         <div
@@ -259,15 +245,12 @@ function FeaturedLive({
                 flexWrap: "wrap",
               }}
             >
-              <PillBtn>+ Tip</PillBtn>
-              <Link href={`/live/${stream.id}`}>
-                <PillBtn primary>Join the room →</PillBtn>
-              </Link>
+              <PillBtn primary>Join the room →</PillBtn>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -276,6 +259,7 @@ function FeaturedLive({
 function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
   const hue = hueFor(stream.id);
   const hue2 = (hue + 60) % 360;
+  const now = useLiveClock();
   return (
     <Link
       href={`/live/${stream.id}`}
@@ -322,7 +306,7 @@ function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
             color: "white",
           }}
         >
-          {elapsedSince(stream.started_at)}
+          {formatElapsed(stream.started_at, now)}
         </div>
       </div>
       <div
@@ -357,106 +341,6 @@ function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
         </div>
       </div>
     </Link>
-  );
-}
-
-/* ─── chat rail (mock — real chat lives in /live/[streamId]) ───── */
-
-function ChatRail({ stream }: { stream: LiveStreamWithProfile }) {
-  return (
-    <aside
-      style={{
-        ...panel(),
-        overflow: "hidden",
-        height: "fit-content",
-        position: "sticky",
-        top: 24,
-        maxHeight: "calc(100vh - 48px)",
-        flexDirection: "column",
-      }}
-      className="hidden xl:flex"
-    >
-      <div
-        style={{
-          padding: "18px 20px",
-          borderBottom: `1px solid ${O.hair}`,
-        }}
-      >
-        <Eyebrow accent>
-          ◆&nbsp;&nbsp;ROOM CHAT · {stream.viewer_count ?? 0} IN
-        </Eyebrow>
-        <p
-          style={{
-            fontSize: 13,
-            color: O.ink2,
-            marginTop: 6,
-            lineHeight: 1.5,
-          }}
-        >
-          Slow chat — a new message every few seconds. No spam.
-        </p>
-      </div>
-      <div
-        style={{
-          flex: 1,
-          padding: "14px 18px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-          minHeight: 280,
-          color: O.ink3,
-          fontSize: 12.5,
-          textAlign: "center",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Radio style={{ width: 18, height: 18, color: O.ink3 }} />
-        Join the room to chat with the crowd.
-      </div>
-      <div
-        style={{
-          padding: 14,
-          borderTop: `1px solid ${O.hair}`,
-          display: "flex",
-          gap: 8,
-        }}
-      >
-        <Link
-          href={`/live/${stream.id}`}
-          style={{
-            flex: 1,
-            padding: "10px 14px",
-            borderRadius: 99,
-            background: O.glass,
-            border: `1px solid ${O.hair}`,
-            fontSize: 13,
-            color: O.ink3,
-            textDecoration: "none",
-          }}
-        >
-          Say something kind…
-        </Link>
-        <Link href={`/live/${stream.id}`}>
-          <button
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: "50%",
-              background: aurora,
-              border: "none",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: `0 4px 14px ${O.a1}80`,
-              cursor: "pointer",
-            }}
-          >
-            <Send style={{ width: 14, height: 14, color: "white" }} />
-          </button>
-        </Link>
-      </div>
-    </aside>
   );
 }
 
