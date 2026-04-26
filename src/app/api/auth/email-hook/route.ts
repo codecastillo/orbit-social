@@ -56,7 +56,11 @@ function buildLink(payload: SupabaseEmailPayload): string {
 }
 
 export async function POST(req: Request) {
-  const secret = process.env.SUPABASE_AUTH_HOOK_SECRET;
+  const rawSecret = process.env.SUPABASE_AUTH_HOOK_SECRET;
+  // Supabase shows the signing secret as `v1,whsec_<base64>` but the
+  // standardwebhooks SDK only understands `whsec_<base64>` (or raw base64).
+  // Strip the `v1,` versioning prefix before handing it over.
+  const secret = rawSecret?.startsWith("v1,") ? rawSecret.slice(3) : rawSecret;
   const raw = await req.text();
 
   // If a webhook secret is configured, verify the standard-webhooks signature.
