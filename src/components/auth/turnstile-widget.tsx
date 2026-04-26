@@ -32,8 +32,21 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetHandle>(function Turnst
       getToken: () => {
         if (!SITE_KEY) return Promise.resolve(null);
         if (token) return Promise.resolve(token);
+        // Fail fast after 10s instead of hanging the form forever — common
+        // cause of a stuck token is a Turnstile hostname mismatch, which
+        // we want to surface to the user as a Supabase "captcha required"
+        // error rather than as an indefinite spinner.
         return new Promise<string | null>((resolve) => {
-          tokenResolversRef.current.push(resolve);
+          const timer = setTimeout(() => {
+            const idx = tokenResolversRef.current.indexOf(wrapped);
+            if (idx >= 0) tokenResolversRef.current.splice(idx, 1);
+            resolve(null);
+          }, 10000);
+          const wrapped = (t: string) => {
+            clearTimeout(timer);
+            resolve(t);
+          };
+          tokenResolversRef.current.push(wrapped);
         });
       },
       reset: () => {
