@@ -163,7 +163,7 @@ export default function LiveViewerPage({ params }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black overflow-hidden lg:flex">
+    <div className="fixed inset-0 z-50 bg-black overflow-hidden lg:flex">
       {/* Mobile: phone-aspect viewport. Desktop: video left, chat right (lg+). */}
       <div className="relative h-[100dvh] max-w-md mx-auto bg-zinc-950 overflow-hidden lg:max-w-none lg:flex-1 lg:mx-0">
         {/* Video / cover */}
@@ -185,7 +185,27 @@ export default function LiveViewerPage({ params }: Props) {
               }}
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-violet-900/40 via-zinc-900 to-rose-900/40" />
+            <div className="relative w-full h-full overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(139,92,246,0.35),transparent_55%),radial-gradient(circle_at_70%_70%,rgba(244,63,94,0.3),transparent_55%),linear-gradient(180deg,#0a0a14,#000)]" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 text-center px-8">
+                <div className="relative">
+                  <div className="absolute inset-0 -m-3 rounded-full bg-white/10 animate-pulse blur-xl" />
+                  <UserAvatar
+                    src={stream.profiles?.avatar_url ?? null}
+                    fallback={stream.profiles?.display_name ?? "·"}
+                    size="lg"
+                  />
+                </div>
+                <div>
+                  <p className="text-white text-lg font-bold">
+                    {stream.profiles?.display_name}
+                  </p>
+                  <p className="text-white/50 text-sm mt-0.5">
+                    Waiting for the broadcast to start…
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
           {/* Top + bottom gradients for legibility */}
           <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/80 to-transparent" />
@@ -295,8 +315,8 @@ export default function LiveViewerPage({ params }: Props) {
               </AnimatePresence>
             </div>
 
-            {/* Like burst counter (right) */}
-            <div className="absolute right-4 bottom-[112px] z-10 flex flex-col items-center gap-1 pointer-events-none">
+            {/* Like burst counter (right) — mobile only; desktop has chat rail */}
+            <div className="lg:hidden absolute right-4 bottom-[112px] z-10 flex flex-col items-center gap-1 pointer-events-none">
               <Heart className="h-5 w-5 text-rose-400 fill-rose-400 drop-shadow-[0_0_8px_rgba(244,63,94,0.7)]" />
               <span className="text-white text-[12px] font-bold tabular-nums drop-shadow">
                 {likeCount}
@@ -366,30 +386,31 @@ export default function LiveViewerPage({ params }: Props) {
       </div>
 
       {/* Desktop chat rail */}
-      <aside className="hidden lg:flex flex-col w-[360px] h-[100dvh] bg-zinc-950 border-l border-white/10">
-        <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] uppercase tracking-wider font-bold text-white/50">
-              Stream chat
-            </p>
-            <p className="text-[13px] font-bold text-white mt-0.5">
-              {stream.viewer_count ?? 0} watching
-            </p>
+      <aside className="hidden lg:flex flex-col w-[380px] h-[100dvh] bg-[#0a0a12] border-l border-white/[0.08]">
+        <div className="px-5 py-[18px] border-b border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent">
+          <div className="flex items-center gap-2 text-[11px] font-mono tracking-[0.12em] text-cyan-300/90">
+            <span>◆</span>
+            ROOM CHAT · {stream.viewer_count ?? 0} IN
           </div>
-          <button
-            onClick={() => router.back()}
-            className="h-8 w-8 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-white hover:bg-white/[0.12] transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <p className="text-[12.5px] text-white/55 mt-1.5 leading-relaxed">
+            Slow chat — be kind, be real.
+          </p>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+        <div className="flex-1 overflow-y-auto px-4 py-3.5 space-y-3 scrollbar-thin scrollbar-thumb-white/10">
           {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-white/40 text-sm gap-2">
-              <Sparkles className="h-5 w-5" />
-              Be the first to say something.
+            <div className="h-full flex flex-col items-center justify-center text-center gap-3 px-6">
+              <div className="h-12 w-12 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-white/40" />
+              </div>
+              <div>
+                <p className="text-[14px] font-semibold text-white/80">
+                  No messages yet
+                </p>
+                <p className="text-[12px] text-white/40 mt-1 leading-relaxed">
+                  Be the first to say hi.
+                </p>
+              </div>
             </div>
           ) : (
             <AnimatePresence initial={false}>
@@ -398,15 +419,15 @@ export default function LiveViewerPage({ params }: Props) {
                   key={m.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-start gap-2.5"
+                  className="flex items-start gap-2.5 group"
                 >
                   <UserAvatar src={m.avatarUrl} fallback={m.displayName} size="sm" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-bold text-white/90 leading-tight">
-                      {m.displayName}{" "}
-                      <span className="text-white/40 font-normal">@{m.username}</span>
+                    <p className="text-[12px] leading-tight">
+                      <span className="font-bold text-white">{m.displayName}</span>
+                      <span className="text-white/35 font-normal ml-1">@{m.username}</span>
                     </p>
-                    <p className="text-[14px] text-white leading-snug break-words mt-0.5">
+                    <p className="text-[14px] text-white/90 leading-snug break-words mt-0.5">
                       {m.content}
                     </p>
                   </div>
@@ -416,48 +437,53 @@ export default function LiveViewerPage({ params }: Props) {
           )}
         </div>
 
-        <div className="border-t border-white/10 p-3 flex items-center gap-2">
-          <button
-            onClick={handleTip}
-            className="flex-shrink-0 h-10 px-3 rounded-xl bg-gradient-to-br from-amber-400 to-rose-500 text-white text-[12px] font-extrabold inline-flex items-center gap-1.5 shadow-[0_4px_16px_rgba(244,63,94,0.3)] active:scale-95 transition-transform"
-          >
-            <Gift className="h-4 w-4" />
-            Tip
-          </button>
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              placeholder="Send a message"
-              className="w-full h-10 pl-3.5 pr-10 rounded-xl bg-white/[0.06] border border-white/10 text-white text-[13px] placeholder:text-white/40 focus:outline-none focus:border-primary/60 focus:bg-white/[0.10] transition-all"
-            />
-            {comment.trim() && (
-              <button
-                onClick={handleSend}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center"
-                aria-label="Send"
-              >
-                <Send className="h-3.5 w-3.5" />
-              </button>
-            )}
+        <div className="border-t border-white/[0.08] p-3 bg-gradient-to-t from-white/[0.03] to-transparent">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleTip}
+              className="flex-shrink-0 h-10 px-3 rounded-xl bg-gradient-to-br from-amber-400 to-rose-500 text-white text-[12px] font-extrabold inline-flex items-center gap-1.5 shadow-[0_4px_16px_rgba(244,63,94,0.35)] hover:brightness-110 active:scale-95 transition-all"
+            >
+              <Gift className="h-4 w-4" />
+              Tip
+            </button>
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                placeholder="Send a message"
+                className="w-full h-10 pl-4 pr-10 rounded-xl bg-white/[0.05] border border-white/10 text-white text-[13.5px] placeholder:text-white/40 focus:outline-none focus:border-cyan-400/40 focus:bg-white/[0.08] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all"
+              />
+              {comment.trim() && (
+                <button
+                  onClick={handleSend}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg bg-gradient-to-br from-cyan-400 to-violet-500 text-white flex items-center justify-center shadow-[0_2px_8px_rgba(34,211,238,0.3)]"
+                  aria-label="Send"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                const id = heartIdRef.current++;
+                setHearts((h) => [
+                  ...h,
+                  { id, x: window.innerWidth / 2, y: window.innerHeight - 200 },
+                ]);
+                setLikeCount((c) => c + 1);
+                setTimeout(() => setHearts((h) => h.filter((p) => p.id !== id)), 1400);
+              }}
+              className="flex-shrink-0 h-10 w-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 hover:bg-rose-500/15 hover:border-rose-500/30 active:scale-90 transition-all"
+              aria-label="Like"
+            >
+              <Heart className="h-[16px] w-[16px] fill-current" />
+            </button>
           </div>
-          <button
-            onClick={() => {
-              const id = heartIdRef.current++;
-              setHearts((h) => [
-                ...h,
-                { id, x: window.innerWidth / 2, y: window.innerHeight - 200 },
-              ]);
-              setLikeCount((c) => c + 1);
-              setTimeout(() => setHearts((h) => h.filter((p) => p.id !== id)), 1400);
-            }}
-            className="flex-shrink-0 h-10 w-10 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-rose-400 active:scale-90 transition-transform"
-            aria-label="Like"
-          >
-            <Heart className="h-[16px] w-[16px] fill-current" />
-          </button>
+          <p className="text-[10.5px] text-white/30 mt-2 px-1">
+            Press Enter to send · Be kind
+          </p>
         </div>
       </aside>
 
