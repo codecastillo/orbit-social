@@ -15,8 +15,9 @@ export async function POST(request: Request) {
   try {
     mux = await createMuxLiveStream();
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
     console.error("Mux create failed", e);
-    return NextResponse.json({ error: "mux_create_failed" }, { status: 502 });
+    return NextResponse.json({ error: "mux_create_failed", detail: msg }, { status: 502 });
   }
 
   const { data, error } = await supabase
@@ -34,7 +35,10 @@ export async function POST(request: Request) {
 
   if (error || !data) {
     console.error("DB insert failed", error);
-    return NextResponse.json({ error: "db_insert_failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: "db_insert_failed", detail: error?.message ?? null, code: error?.code ?? null },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({
