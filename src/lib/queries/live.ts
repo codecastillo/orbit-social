@@ -52,19 +52,25 @@ export async function getStreamById(streamId: string) {
   return data as unknown as LiveStreamWithProfile;
 }
 
-export async function createStream(userId: string, title: string) {
-  const { data, error } = await supabase
-    .from("live_streams")
-    .insert({
-      user_id: userId,
-      title,
-      status: "idle",
-    })
-    .select(STREAM_SELECT)
-    .single();
+export interface CreatedStreamIngest {
+  streamId: string;
+  rtmpsUrl: string;
+  srtUrl: string;
+  streamKey: string;
+  playbackId: string;
+}
 
-  if (error) throw error;
-  return data as unknown as LiveStreamWithProfile;
+export async function createStream(_userId: string, title: string): Promise<CreatedStreamIngest> {
+  const res = await fetch("/api/live/create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(detail.error ?? `create_stream_failed_${res.status}`);
+  }
+  return (await res.json()) as CreatedStreamIngest;
 }
 
 export async function updateStreamStatus(

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Radio, Send } from "lucide-react";
+import { Radio, Send, Copy, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -15,6 +15,7 @@ import {
   getLiveStreams,
   createStream,
   type LiveStreamWithProfile,
+  type CreatedStreamIngest,
 } from "@/lib/queries/live";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { O, aurora, panel } from "@/lib/design/orbit";
@@ -55,6 +56,7 @@ export default function LivePage() {
   const [goLiveOpen, setGoLiveOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [creating, setCreating] = useState(false);
+  const [ingest, setIngest] = useState<CreatedStreamIngest | null>(null);
 
   const handleGoLive = async () => {
     if (!user) {
@@ -64,14 +66,29 @@ export default function LivePage() {
     if (!title.trim()) return;
     setCreating(true);
     try {
-      const stream = await createStream(user.id, title.trim());
-      setGoLiveOpen(false);
-      setTitle("");
-      router.push(`/live/${stream.id}`);
+      const result = await createStream(user.id, title.trim());
+      setIngest(result);
     } catch {
       toast.error("Failed to create stream");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleOpenViewer = () => {
+    if (!ingest) return;
+    const id = ingest.streamId;
+    setGoLiveOpen(false);
+    setIngest(null);
+    setTitle("");
+    router.push(`/live/${id}`);
+  };
+
+  const handleCloseGoLive = (open: boolean) => {
+    setGoLiveOpen(open);
+    if (!open) {
+      setIngest(null);
+      setTitle("");
     }
   };
 
@@ -107,11 +124,13 @@ export default function LivePage() {
         />
         <GoLiveDialog
           open={goLiveOpen}
-          onOpenChange={setGoLiveOpen}
+          onOpenChange={handleCloseGoLive}
           title={title}
           setTitle={setTitle}
           creating={creating}
           onSubmit={handleGoLive}
+          ingest={ingest}
+          onOpenViewer={handleOpenViewer}
         />
       </>
     );
@@ -171,11 +190,13 @@ export default function LivePage() {
 
       <GoLiveDialog
         open={goLiveOpen}
-        onOpenChange={setGoLiveOpen}
+        onOpenChange={handleCloseGoLive}
         title={title}
         setTitle={setTitle}
         creating={creating}
         onSubmit={handleGoLive}
+        ingest={ingest}
+        onOpenViewer={handleOpenViewer}
       />
     </div>
   );
@@ -509,6 +530,76 @@ function ChatRail({ stream }: { stream: LiveStreamWithProfile }) {
 
 /* ─── Go Live modal ──────────────────────────────────────────────── */
 
+function CopyRow({ value, secret = false }: { value: string; secret?: boolean }) {
+  const [revealed, setRevealed] = useState(!secret);
+  const display = revealed ? value : "•".repeat(Math.min(value.length, 36));
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success("Copied");
+    } catch {
+      toast.error("Copy failed");
+    }
+  };
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "10px 12px",
+        borderRadius: 10,
+        background: "rgba(255,255,255,0.04)",
+        border: `1px solid ${O.hair2}`,
+        fontFamily: O.mono,
+        fontSize: 12,
+      }}
+    >
+      <code
+        style={{
+          flex: 1,
+          color: O.ink,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {display}
+      </code>
+      {secret && (
+        <button
+          type="button"
+          onClick={() => setRevealed((v) => !v)}
+          style={{
+            color: O.ink3,
+            padding: 4,
+            borderRadius: 6,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          {revealed ? <EyeOff style={{ width: 14, height: 14 }} /> : <Eye style={{ width: 14, height: 14 }} />}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={handleCopy}
+        style={{
+          color: O.ink2,
+          padding: 4,
+          borderRadius: 6,
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+        }}
+      >
+        <Copy style={{ width: 14, height: 14 }} />
+      </button>
+    </div>
+  );
+}
+
 function GoLiveDialog({
   open,
   onOpenChange,
@@ -516,6 +607,8 @@ function GoLiveDialog({
   setTitle,
   creating,
   onSubmit,
+  ingest,
+  onOpenViewer,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -523,7 +616,59 @@ function GoLiveDialog({
   setTitle: (s: string) => void;
   creating: boolean;
   onSubmit: () => void;
+  ingest: CreatedStreamIngest | null;
+  onOpenViewer: () => void;
 }) {
+  if (ingest) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          showCloseButton={false}
+          className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto ring-0"
+          style={{ boxShadow: "none" }}
+        >
+          <ModalShell
+            title="Stream ready"
+            subtitle="Paste these into OBS or Belabox, hit Start Streaming, then open the viewer."
+            icon={<Radio style={{ width: 18, height: 18 }} />}
+            accent="#ff5a6a"
+            primaryLabel="Open viewer"
+            secondaryLabel="Close"
+            canSubmit
+            onPrimary={onOpenViewer}
+            onSecondary={() => onOpenChange(false)}
+            onClose={() => onOpenChange(false)}
+          >
+            <Field label="OBS — Server URL (RTMPS)">
+              <CopyRow value={ingest.rtmpsUrl} />
+            </Field>
+            <Field label="OBS — Stream Key">
+              <CopyRow value={ingest.streamKey} secret />
+            </Field>
+            <Field label="Belabox / SRT — single URL (key embedded)">
+              <CopyRow value={ingest.srtUrl} secret />
+            </Field>
+            <div
+              style={{
+                fontSize: 11,
+                color: O.ink3,
+                fontFamily: O.mono,
+                letterSpacing: "0.04em",
+                lineHeight: 1.6,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "rgba(255,90,106,0.06)",
+                border: "1px solid rgba(255,90,106,0.18)",
+              }}
+            >
+              ◆ Stream goes live within ~5s of OBS connecting. Close this
+              dialog and open the viewer to watch yourself.
+            </div>
+          </ModalShell>
+        </DialogContent>
+      </Dialog>
+    );
+  }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent

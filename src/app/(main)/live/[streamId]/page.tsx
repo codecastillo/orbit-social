@@ -19,6 +19,11 @@ import {
 } from "@/components/ui/sheet";
 import { GiftAnimation } from "@/components/live/gift-animation";
 import { cn } from "@/lib/utils";
+import dynamic from "next/dynamic";
+
+const MuxPlayer = dynamic(() => import("@mux/mux-player-react").then((m) => m.default), {
+  ssr: false,
+});
 
 interface Props {
   params: Promise<{ streamId: string }>;
@@ -166,7 +171,22 @@ export default function LiveViewerPage({ params }: Props) {
           className="absolute inset-0 cursor-pointer select-none"
           onClick={handleVideoTap}
         >
-          <div className="w-full h-full bg-gradient-to-br from-violet-900/40 via-zinc-900 to-rose-900/40" />
+          {stream.mux_playback_id ? (
+            <MuxPlayer
+              streamType="live"
+              playbackId={stream.mux_playback_id}
+              autoPlay
+              muted={false}
+              style={{ width: "100%", height: "100%" }}
+              metadata={{
+                video_id: stream.id,
+                video_title: stream.title ?? undefined,
+                viewer_user_id: user?.id ?? undefined,
+              }}
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-violet-900/40 via-zinc-900 to-rose-900/40" />
+          )}
           {/* Top + bottom gradients for legibility */}
           <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/80 to-transparent" />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
