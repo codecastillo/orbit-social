@@ -1,12 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Radio, Copy, Eye, EyeOff, ExternalLink, ChevronLeft } from "lucide-react";
+import {
+  Radio,
+  Copy,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  ChevronLeft,
+  Check,
+  X as XIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { O, panel } from "@/lib/design/orbit";
+import { O, panel, aurora } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow } from "@/components/orbit/primitives";
+import { Toggle } from "@/components/orbit/forms";
+import {
+  LIVE_CATEGORIES,
+  LIVE_LANGUAGES,
+  LIVE_SLOW_MODE_OPTIONS,
+  type LiveCategorySlug,
+  type LiveLanguageCode,
+  type LiveSlowModeSeconds,
+} from "@/lib/constants/live-categories";
 
 interface Credentials {
   streamId: string;
@@ -15,6 +33,13 @@ interface Credentials {
   streamKey: string;
   playbackId: string;
   status: "idle" | "live" | "ended";
+  title: string | null;
+  category: LiveCategorySlug | null;
+  tags: string[];
+  language: LiveLanguageCode;
+  slowModeSeconds: LiveSlowModeSeconds;
+  followersOnlyChat: boolean;
+  mature: boolean;
 }
 
 export default function StreamingSettingsPage() {
@@ -158,6 +183,16 @@ export default function StreamingSettingsPage() {
             </div>
           )}
 
+          <StreamDetailsPanel
+            initial={creds}
+            onSaved={(patch) => setCreds((prev) => (prev ? { ...prev, ...patch } : prev))}
+          />
+
+          <ChatControlsPanel
+            initial={creds}
+            onSaved={(patch) => setCreds((prev) => (prev ? { ...prev, ...patch } : prev))}
+          />
+
           <div style={{ ...panel(), padding: 22, display: "flex", flexDirection: "column", gap: 16 }}>
             <CredField label="OBS — Server URL (RTMPS)" value={creds.rtmpsUrl} />
             <CredField label="OBS — Stream Key" value={creds.streamKey} secret />
@@ -168,6 +203,608 @@ export default function StreamingSettingsPage() {
         </>
       )}
     </div>
+  );
+}
+
+function StreamDetailsPanel({
+  initial,
+  onSaved,
+}: {
+  initial: Credentials;
+  onSaved: (patch: Partial<Credentials>) => void;
+}) {
+  const [title, setTitle] = useState(initial.title ?? "");
+  const [category, setCategory] = useState<LiveCategorySlug | "">(initial.category ?? "");
+  const [tags, setTags] = useState<string[]>(initial.tags ?? []);
+  const [tagDraft, setTagDraft] = useState("");
+  const [language, setLanguage] = useState<LiveLanguageCode>(initial.language);
+  const [mature, setMature] = useState<boolean>(initial.mature);
+  const [saving, setSaving] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const dirty = useMemo(() => {
+    if (title.trim() !== (initial.title ?? "")) return true;
+    if ((category || null) !== (initial.category ?? null)) return true;
+    if (tags.length !== (initial.tags ?? []).length) return true;
+    for (let i = 0; i < tags.length; i++) {
+      if (tags[i] !== initial.tags[i]) return true;
+    }
+    if (language !== initial.language) return true;
+    if (mature !== initial.mature) return true;
+    return false;
+  }, [title, category, tags, language, mature, initial]);
+
+  useEffect(() => {
+    return () => {
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+    };
+  }, []);
+
+  const addTag = (raw: string) => {
+    const cleaned = raw
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9-]/g, "")
+      .slice(0, 20);
+    if (!cleaned) return;
+    if (tags.includes(cleaned)) {
+      setTagDraft("");
+      return;
+    }
+    if (tags.length >= 5) return;
+    setTags([...tags, cleaned]);
+    setTagDraft("");
+  };
+
+  const removeTag = (t: string) => setTags(tags.filter((x) => x !== t));
+
+  const onTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTag(tagDraft);
+    } else if (e.key === "Backspace" && !tagDraft && tags.length > 0) {
+      setTags(tags.slice(0, -1));
+    }
+  };
+
+  const onSave = async () => {
+    if (!dirty || saving) return;
+    setSaving(true);
+    const trimmedTitle = title.trim();
+    const body: Record<string, unknown> = {};
+    if (trimmedTitle !== (initial.title ?? "")) {
+      if (!trimmedTitle) {
+        toast.error("Title can't be empty");
+        setSaving(false);
+        return;
+      }
+      body.title = trimmedTitle;
+    }
+    if ((category || null) !== (initial.category ?? null)) {
+      body.category = category || null;
+    }
+    if (
+      tags.length !== (initial.tags ?? []).length ||
+      tags.some((t, i) => t !== initial.tags[i])
+    ) {
+      body.tags = tags;
+    }
+    if (language !== initial.language) body.language = language;
+    if (mature !== initial.mature) body.mature = mature;
+
+    try {
+      const res = await fetch("/api/live/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.detail ?? json.error ?? `http_${res.status}`);
+      }
+      onSaved({
+        title: trimmedTitle || null,
+        category: (category || null) as LiveCategorySlug | null,
+        tags: [...tags],
+        language,
+        mature,
+      });
+      setSavedFlash(true);
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+      flashTimer.current = setTimeout(() => setSavedFlash(false), 2000);
+    } catch {
+      toast.error("Couldn't save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ ...panel(), padding: 22, display: "flex", flexDirection: "column", gap: 18 }}>
+      <div>
+        <Eyebrow>◆&nbsp;&nbsp;STREAM DETAILS</Eyebrow>
+        <div
+          style={{
+            fontSize: 16,
+            fontWeight: 600,
+            color: O.ink,
+            marginTop: 6,
+            letterSpacing: "-0.01em",
+          }}
+        >
+          What viewers see when you go live
+        </div>
+      </div>
+
+      <FieldLabel label="Title" hint={`${title.length}/100`}>
+        <BareInput
+          value={title}
+          maxLength={100}
+          placeholder="e.g. Building a Twitch clone live"
+          onChange={(e) => setTitle(e.target.value)}
+        />
+      </FieldLabel>
+
+      <FieldLabel label="Category">
+        <BareSelect
+          value={category}
+          onChange={(e) => setCategory(e.target.value as LiveCategorySlug | "")}
+        >
+          <option value="">Pick a category…</option>
+          {LIVE_CATEGORIES.map((c) => (
+            <option key={c.slug} value={c.slug}>
+              {c.emoji}  {c.label}
+            </option>
+          ))}
+        </BareSelect>
+      </FieldLabel>
+
+      <FieldLabel
+        label="Tags"
+        hint={`${tags.length}/5 — lowercase, letters/numbers/hyphen only`}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+            padding: 8,
+            borderRadius: 12,
+            background: "rgba(255,255,255,0.03)",
+            border: `1px solid ${O.hair2}`,
+            minHeight: 44,
+            alignItems: "center",
+          }}
+        >
+          {tags.map((t) => (
+            <span
+              key={t}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "4px 4px 4px 10px",
+                borderRadius: 99,
+                background: "rgba(143,115,255,0.16)",
+                border: "1px solid rgba(143,115,255,0.35)",
+                fontSize: 12,
+                color: O.ink,
+                fontFamily: O.mono,
+              }}
+            >
+              {t}
+              <button
+                type="button"
+                onClick={() => removeTag(t)}
+                aria-label={`Remove ${t}`}
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: "50%",
+                  background: "rgba(255,255,255,0.08)",
+                  border: "none",
+                  color: O.ink2,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <XIcon style={{ width: 10, height: 10 }} />
+              </button>
+            </span>
+          ))}
+          <input
+            value={tagDraft}
+            onChange={(e) => setTagDraft(e.target.value)}
+            onKeyDown={onTagKeyDown}
+            onBlur={() => tagDraft && addTag(tagDraft)}
+            placeholder={tags.length >= 5 ? "Tag limit reached" : "Add tag, press Enter"}
+            disabled={tags.length >= 5}
+            style={{
+              flex: 1,
+              minWidth: 140,
+              padding: "6px 8px",
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              color: O.ink,
+              fontSize: 13,
+              fontFamily: "inherit",
+            }}
+          />
+        </div>
+      </FieldLabel>
+
+      <FieldLabel label="Language">
+        <BareSelect
+          value={language}
+          onChange={(e) => setLanguage(e.target.value as LiveLanguageCode)}
+        >
+          {LIVE_LANGUAGES.map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.flag}  {l.label}
+            </option>
+          ))}
+        </BareSelect>
+      </FieldLabel>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "12px 14px",
+          borderRadius: 12,
+          background: "rgba(255,255,255,0.025)",
+          border: `1px solid ${O.hair2}`,
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: O.ink }}>
+            Mature content
+          </span>
+          <span style={{ fontSize: 11.5, color: O.ink3, lineHeight: 1.4 }}>
+            Stream may contain mature themes (language, violence, suggestive content).
+          </span>
+        </div>
+        <Toggle on={mature} onChange={setMature} />
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          gap: 10,
+          marginTop: 4,
+        }}
+      >
+        {savedFlash && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 12,
+              color: "#5fd4ff",
+              fontFamily: O.mono,
+              letterSpacing: "0.04em",
+            }}
+          >
+            <Check style={{ width: 12, height: 12 }} /> Saved
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={!dirty || saving}
+          style={{
+            padding: "10px 20px",
+            borderRadius: 99,
+            border: "none",
+            background: dirty && !saving ? aurora : "rgba(255,255,255,0.06)",
+            color: dirty && !saving ? "white" : O.ink3,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: dirty && !saving ? "pointer" : "not-allowed",
+            boxShadow:
+              dirty && !saving
+                ? `0 8px 24px -6px ${O.a1}80, inset 0 1px 0 rgba(255,255,255,0.25)`
+                : "none",
+            fontFamily: "inherit",
+            letterSpacing: "-0.005em",
+          }}
+        >
+          {saving ? "Saving…" : "Save details"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ChatControlsPanel({
+  initial,
+  onSaved,
+}: {
+  initial: Credentials;
+  onSaved: (patch: Partial<Credentials>) => void;
+}) {
+  const [slowMode, setSlowMode] = useState<LiveSlowModeSeconds>(initial.slowModeSeconds);
+  const [followersOnly, setFollowersOnly] = useState<boolean>(initial.followersOnlyChat);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const initialRef = useRef({
+    slowMode: initial.slowModeSeconds,
+    followersOnly: initial.followersOnlyChat,
+  });
+
+  useEffect(() => {
+    initialRef.current = {
+      slowMode: initial.slowModeSeconds,
+      followersOnly: initial.followersOnlyChat,
+    };
+  }, [initial.slowModeSeconds, initial.followersOnlyChat]);
+
+  useEffect(() => {
+    return () => {
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, []);
+
+  const persist = (next: { slowMode: LiveSlowModeSeconds; followersOnly: boolean }) => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(async () => {
+      const body: Record<string, unknown> = {};
+      if (next.slowMode !== initialRef.current.slowMode) {
+        body.slow_mode_seconds = next.slowMode;
+      }
+      if (next.followersOnly !== initialRef.current.followersOnly) {
+        body.followers_only_chat = next.followersOnly;
+      }
+      if (Object.keys(body).length === 0) return;
+      try {
+        const res = await fetch("/api/live/me", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          throw new Error(json.detail ?? json.error ?? `http_${res.status}`);
+        }
+        onSaved({
+          slowModeSeconds: next.slowMode,
+          followersOnlyChat: next.followersOnly,
+        });
+        setSavedFlash(true);
+        if (flashTimer.current) clearTimeout(flashTimer.current);
+        flashTimer.current = setTimeout(() => setSavedFlash(false), 2000);
+      } catch {
+        toast.error("Couldn't save");
+      }
+    }, 350);
+  };
+
+  const onSlowModeChange = (v: LiveSlowModeSeconds) => {
+    setSlowMode(v);
+    persist({ slowMode: v, followersOnly });
+  };
+
+  const onFollowersOnlyChange = (v: boolean) => {
+    setFollowersOnly(v);
+    persist({ slowMode, followersOnly: v });
+  };
+
+  return (
+    <div style={{ ...panel(), padding: 22, display: "flex", flexDirection: "column", gap: 18 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <div>
+          <Eyebrow>◆&nbsp;&nbsp;CHAT CONTROLS</Eyebrow>
+          <div
+            style={{
+              fontSize: 16,
+              fontWeight: 600,
+              color: O.ink,
+              marginTop: 6,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            Keep your chat civil
+          </div>
+        </div>
+        {savedFlash && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 12,
+              color: "#5fd4ff",
+              fontFamily: O.mono,
+              letterSpacing: "0.04em",
+            }}
+          >
+            <Check style={{ width: 12, height: 12 }} /> Saved
+          </span>
+        )}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: O.ink,
+            letterSpacing: "-0.005em",
+          }}
+        >
+          Slow mode
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {LIVE_SLOW_MODE_OPTIONS.map((opt) => {
+            const active = slowMode === opt;
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => onSlowModeChange(opt)}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 99,
+                  background: active ? `${O.a3}1f` : "rgba(255,255,255,0.04)",
+                  border: `1px solid ${active ? `${O.a3}66` : O.hair2}`,
+                  color: active ? "#5fd4ff" : O.ink2,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  boxShadow: active ? `0 0 0 3px ${O.a3}14` : "none",
+                  transition: "all 0.15s",
+                }}
+              >
+                {opt === 0 ? "Off" : `${opt}s`}
+              </button>
+            );
+          })}
+        </div>
+        <div
+          style={{
+            fontSize: 11.5,
+            color: O.ink3,
+            lineHeight: 1.4,
+          }}
+        >
+          {slowMode === 0
+            ? "Anyone can chat as fast as they want."
+            : `Viewers must wait ${slowMode}s between messages.`}
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "12px 14px",
+          borderRadius: 12,
+          background: "rgba(255,255,255,0.025)",
+          border: `1px solid ${O.hair2}`,
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: O.ink }}>
+            Followers-only chat
+          </span>
+          <span style={{ fontSize: 11.5, color: O.ink3, lineHeight: 1.4 }}>
+            Only people who follow you can send messages.
+          </span>
+        </div>
+        <Toggle on={followersOnly} onChange={onFollowersOnlyChange} />
+      </div>
+    </div>
+  );
+}
+
+function FieldLabel({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+        }}
+      >
+        <label
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: O.ink,
+            letterSpacing: "-0.005em",
+          }}
+        >
+          {label}
+        </label>
+        {hint && (
+          <span
+            style={{
+              fontSize: 11,
+              color: O.ink3,
+              fontFamily: O.mono,
+              letterSpacing: "0.02em",
+            }}
+          >
+            {hint}
+          </span>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function BareInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      style={{
+        padding: "11px 14px",
+        borderRadius: 12,
+        background: "rgba(255,255,255,0.03)",
+        border: `1px solid ${O.hair2}`,
+        color: O.ink,
+        fontSize: 14,
+        outline: "none",
+        fontFamily: "inherit",
+        width: "100%",
+        ...(props.style ?? {}),
+      }}
+    />
+  );
+}
+
+function BareSelect(props: React.SelectHTMLAttributes<HTMLSelectElement> & { children: React.ReactNode }) {
+  const { children, ...rest } = props;
+  return (
+    <select
+      {...rest}
+      style={{
+        padding: "11px 14px",
+        borderRadius: 12,
+        background: "rgba(255,255,255,0.03)",
+        border: `1px solid ${O.hair2}`,
+        color: O.ink,
+        fontSize: 14,
+        outline: "none",
+        fontFamily: "inherit",
+        width: "100%",
+        appearance: "none",
+        cursor: "pointer",
+        ...(rest.style ?? {}),
+      }}
+    >
+      {children}
+    </select>
   );
 }
 

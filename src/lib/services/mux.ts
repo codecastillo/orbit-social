@@ -49,6 +49,17 @@ export async function deleteMuxLiveStream(muxLiveStreamId: string) {
   await mux.video.liveStreams.delete(muxLiveStreamId);
 }
 
+export function getMuxThumbnailUrl(
+  playbackId: string,
+  opts: { time?: number; width?: number } = {},
+): string {
+  const params = new URLSearchParams();
+  if (opts.width) params.set("width", String(opts.width));
+  if (opts.time !== undefined) params.set("time", String(opts.time));
+  const qs = params.toString();
+  return `https://image.mux.com/${playbackId}/thumbnail.jpg${qs ? "?" + qs : ""}`;
+}
+
 export async function unwrapMuxWebhook(
   body: string,
   signatureHeader: string | null,

@@ -15,6 +15,13 @@ import {
 import { O, panel } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 import { LiveBadge } from "@/components/orbit/live-badge";
+import {
+  LIVE_CATEGORIES,
+  type LiveCategorySlug,
+} from "@/lib/constants/live-categories";
+
+const CATEGORY_LOOKUP: Record<string, (typeof LIVE_CATEGORIES)[number]> =
+  Object.fromEntries(LIVE_CATEGORIES.map((c) => [c.slug, c]));
 
 function hueFor(seed: string): number {
   let h = 0;
@@ -49,6 +56,8 @@ function useLiveClock(): number {
 
 export default function LivePage() {
   const router = useRouter();
+  const [selectedCategory, setSelectedCategory] =
+    useState<LiveCategorySlug | null>(null);
   const { data: streams, isLoading } = useQuery({
     queryKey: ["live-streams"],
     queryFn: getLiveStreams,
@@ -88,8 +97,11 @@ export default function LivePage() {
     );
   }
 
-  const featured = streams[0];
-  const others = streams.slice(1);
+  const filtered = selectedCategory
+    ? streams.filter((s) => s.category === selectedCategory)
+    : streams;
+  const featured = filtered[0];
+  const others = filtered.slice(1);
 
   return (
     <div
@@ -111,26 +123,141 @@ export default function LivePage() {
         </Display>
       </div>
 
-      <FeaturedLive stream={featured} />
+      <CategoryChipRow
+        selected={selectedCategory}
+        onSelect={setSelectedCategory}
+      />
 
-      {others.length > 0 && (
-        <div>
-          <Eyebrow accent>◆&nbsp;&nbsp;ALSO LIVE · {others.length}</Eyebrow>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 14,
-              marginTop: 12,
-            }}
-            className="md:grid-cols-2 grid-cols-1"
-          >
-            {others.map((s) => (
-              <SmallLiveTile key={s.id} stream={s} />
-            ))}
-          </div>
-        </div>
+      {filtered.length === 0 ? (
+        <EmptyCategoryState onShowAll={() => setSelectedCategory(null)} />
+      ) : (
+        <>
+          {featured && <FeaturedLive stream={featured} />}
+
+          {others.length > 0 && (
+            <div>
+              <Eyebrow accent>◆&nbsp;&nbsp;ALSO LIVE · {others.length}</Eyebrow>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 14,
+                  marginTop: 12,
+                }}
+                className="md:grid-cols-2 grid-cols-1"
+              >
+                {others.map((s) => (
+                  <SmallLiveTile key={s.id} stream={s} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
+    </div>
+  );
+}
+
+function CategoryChipRow({
+  selected,
+  onSelect,
+}: {
+  selected: LiveCategorySlug | null;
+  onSelect: (slug: LiveCategorySlug | null) => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 8,
+        overflowX: "auto",
+        paddingBottom: 4,
+        scrollbarWidth: "none",
+        WebkitOverflowScrolling: "touch",
+      }}
+      className="scrollbar-hide"
+    >
+      <CategoryChip
+        active={selected === null}
+        onClick={() => onSelect(null)}
+        emoji="✦"
+        label="All"
+        hue={210}
+      />
+      {LIVE_CATEGORIES.map((c) => (
+        <CategoryChip
+          key={c.slug}
+          active={selected === c.slug}
+          onClick={() => onSelect(c.slug)}
+          emoji={c.emoji}
+          label={c.label}
+          hue={c.hue}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CategoryChip({
+  active,
+  onClick,
+  emoji,
+  label,
+  hue,
+}: {
+  active: boolean;
+  onClick: () => void;
+  emoji: string;
+  label: string;
+  hue: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flexShrink: 0,
+        height: 34,
+        padding: "0 14px",
+        borderRadius: 999,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        fontSize: 12.5,
+        fontWeight: 700,
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+        transition: "background 120ms ease, color 120ms ease, border-color 120ms ease",
+        background: active ? `oklch(0.55 0.18 ${hue} / 0.22)` : "rgba(255,255,255,0.03)",
+        color: active ? `oklch(0.85 0.16 ${hue})` : O.ink2,
+        border: active
+          ? `1px solid oklch(0.65 0.18 ${hue} / 0.5)`
+          : "1px solid rgba(255,255,255,0.08)",
+        fontFamily: O.sans,
+      }}
+    >
+      <span style={{ fontSize: 14 }}>{emoji}</span>
+      {label}
+    </button>
+  );
+}
+
+function EmptyCategoryState({ onShowAll }: { onShowAll: () => void }) {
+  return (
+    <div
+      style={{
+        ...panel(),
+        padding: 28,
+        textAlign: "center",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 12,
+      }}
+    >
+      <p style={{ color: O.ink2, fontSize: 14 }}>
+        No live streams in this category right now
+      </p>
+      <PillBtn onClick={onShowAll}>Show all</PillBtn>
     </div>
   );
 }
@@ -260,6 +387,7 @@ function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
   const hue = hueFor(stream.id);
   const hue2 = (hue + 60) % 360;
   const now = useLiveClock();
+  const category = stream.category ? CATEGORY_LOOKUP[stream.category] : null;
   return (
     <Link
       href={`/live/${stream.id}`}
@@ -334,7 +462,27 @@ function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
           >
             {stream.title}
           </div>
-          <div style={{ fontSize: 11, color: O.ink3 }}>
+          {category && (
+            <div
+              style={{
+                marginTop: 4,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "2px 7px",
+                borderRadius: 6,
+                background: `oklch(0.55 0.18 ${category.hue} / 0.18)`,
+                color: `oklch(0.85 0.16 ${category.hue})`,
+                fontSize: 10.5,
+                fontWeight: 700,
+                lineHeight: 1.2,
+              }}
+            >
+              <span>{category.emoji}</span>
+              {category.label}
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: O.ink3, marginTop: category ? 4 : 0 }}>
             {stream.profiles.display_name.split(" ")[0]} · {stream.viewer_count ?? 0}{" "}
             watching
           </div>

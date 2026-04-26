@@ -16,47 +16,88 @@ export function useStreamHearts(streamId: string): {
 } {
   const [hearts, setHearts] = useState<FloatingHeart[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
+  const broadcastChannelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
 
   useEffect(() => {
     if (!streamId) return;
     const supabase = createClient();
-    const channel = supabase.channel(`hearts:live:${streamId}`, {
+    supabaseRef.current = supabase;
+
+    let cancelled = false;
+    void supabase
+      .from("live_streams")
+      .select("total_likes")
+      .eq("id", streamId)
+      .single()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const initial = (data as { total_likes?: number } | null)?.total_likes;
+        if (typeof initial === "number") setTotalCount(initial);
+      });
+
+    const broadcastChannel = supabase.channel(`hearts:live:${streamId}`, {
       config: { broadcast: { self: true } },
     });
 
-    channel
+    broadcastChannel
       .on("broadcast", { event: "heart" }, (payload) => {
         const { id, xPct, yPct } = payload.payload as FloatingHeart;
         setHearts((h) => [...h, { id, xPct, yPct }]);
-        setTotalCount((c) => c + 1);
         setTimeout(() => {
           setHearts((h) => h.filter((p) => p.id !== id));
         }, 1500);
       })
       .subscribe();
 
-    channelRef.current = channel;
+    broadcastChannelRef.current = broadcastChannel;
+
+    const rowChannel = supabase
+      .channel(`live-stream-row:${streamId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "live_streams",
+          filter: `id=eq.${streamId}`,
+        },
+        (payload) => {
+          const next = (payload.new as { total_likes?: number }).total_likes;
+          if (typeof next === "number") setTotalCount(next);
+        },
+      )
+      .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
-      channelRef.current = null;
+      cancelled = true;
+      supabase.removeChannel(broadcastChannel);
+      supabase.removeChannel(rowChannel);
+      broadcastChannelRef.current = null;
+      supabaseRef.current = null;
     };
   }, [streamId]);
 
-  const sendHeart = useCallback((xPct: number, yPct: number) => {
-    if (!channelRef.current) return;
-    const heart: FloatingHeart = {
-      id: crypto.randomUUID(),
-      xPct: Math.max(0, Math.min(1, xPct)),
-      yPct: Math.max(0, Math.min(1, yPct)),
-    };
-    channelRef.current.send({
-      type: "broadcast",
-      event: "heart",
-      payload: heart,
-    });
-  }, []);
+  const sendHeart = useCallback(
+    (xPct: number, yPct: number) => {
+      if (!broadcastChannelRef.current) return;
+      const heart: FloatingHeart = {
+        id: crypto.randomUUID(),
+        xPct: Math.max(0, Math.min(1, xPct)),
+        yPct: Math.max(0, Math.min(1, yPct)),
+      };
+      broadcastChannelRef.current.send({
+        type: "broadcast",
+        event: "heart",
+        payload: heart,
+      });
+      const supabase = supabaseRef.current;
+      if (supabase) {
+        void supabase.rpc("increment_stream_likes", { p_stream_id: streamId });
+      }
+    },
+    [streamId],
+  );
 
   return { hearts, totalCount, sendHeart };
 }

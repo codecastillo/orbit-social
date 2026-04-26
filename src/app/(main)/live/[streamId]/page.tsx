@@ -30,6 +30,10 @@ import {
 import { GiftAnimation } from "@/components/live/gift-animation";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
+import { LIVE_CATEGORIES } from "@/lib/constants/live-categories";
+
+const CATEGORY_LOOKUP: Record<string, (typeof LIVE_CATEGORIES)[number]> =
+  Object.fromEntries(LIVE_CATEGORIES.map((c) => [c.slug, c]));
 
 const MuxPlayer = dynamic(() => import("@mux/mux-player-react").then((m) => m.default), {
   ssr: false,
@@ -52,13 +56,10 @@ interface ChatMessage {
 function useLiveChat(streamId: string) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase.channel(`live-chat:${streamId}`, {
-      config: { broadcast: { self: true } },
-    });
+    const channel = supabase.channel(`live-chat:${streamId}`);
 
     channel
       .on("broadcast", { event: "chat-message" }, (payload) => {
@@ -67,40 +68,43 @@ function useLiveChat(streamId: string) {
       })
       .subscribe();
 
-    channelRef.current = channel;
-
     return () => {
       supabase.removeChannel(channel);
     };
   }, [streamId]);
 
   const sendMessage = useCallback(
-    async (content: string) => {
-      if (!user || !channelRef.current || !content.trim()) return;
-      const supabase = createClient();
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("username, display_name, avatar_url")
-        .eq("id", user.id)
-        .single();
-
-      const msg: ChatMessage = {
-        id: crypto.randomUUID(),
-        userId: user.id,
-        username: profile?.username ?? "user",
-        displayName: profile?.display_name ?? "User",
-        avatarUrl: profile?.avatar_url ?? null,
-        content: content.trim(),
-        timestamp: Date.now(),
-      };
-
-      await channelRef.current.send({
-        type: "broadcast",
-        event: "chat-message",
-        payload: msg,
-      });
+    async (content: string): Promise<{ ok: true } | { ok: false }> => {
+      const trimmed = content.trim();
+      if (!user || !trimmed) return { ok: false };
+      try {
+        const res = await fetch(`/api/live/${streamId}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: trimmed }),
+        });
+        if (res.ok) return { ok: true };
+        let body: { error?: string; retry_after?: number } = {};
+        try {
+          body = (await res.json()) as { error?: string; retry_after?: number };
+        } catch {}
+        if (res.status === 403 && body.error === "followers_only") {
+          toast.error("Only followers can chat in this stream");
+        } else if (res.status === 429 && body.error === "slow_mode") {
+          const wait = body.retry_after ?? 0;
+          toast.error(`Slow mode — wait ${wait}s`);
+        } else if (res.status === 410 && body.error === "stream_not_live") {
+          toast.error("Stream isn't live");
+        } else {
+          toast.error("Couldn't send");
+        }
+        return { ok: false };
+      } catch {
+        toast.error("Couldn't send");
+        return { ok: false };
+      }
     },
-    [user]
+    [user, streamId],
   );
 
   return { messages, sendMessage };
@@ -222,8 +226,8 @@ export default function LiveViewerPage({ params }: Props) {
 
   const handleSend = async () => {
     if (!user || !comment.trim()) return;
-    await sendMessage(comment.trim());
-    setComment("");
+    const result = await sendMessage(comment.trim());
+    if (result.ok) setComment("");
   };
 
   const handleTip = () => {
@@ -335,33 +339,39 @@ export default function LiveViewerPage({ params }: Props) {
           <div className="lg:hidden">
             {/* Header — rounded-square chips */}
             <div className="absolute top-0 inset-x-0 p-4 flex items-start justify-between gap-3 z-10">
-              <div className="flex items-center gap-2 rounded-2xl bg-white/[0.08] backdrop-blur-xl border border-white/15 p-1.5 pr-3">
-                <UserAvatar
-                  src={stream.profiles?.avatar_url ?? null}
-                  fallback={stream.profiles?.display_name ?? "H"}
-                  size="sm"
-                />
-                <div className="min-w-0">
-                  <p className="text-[13px] font-bold text-white leading-tight truncate">
-                    {stream.profiles?.display_name}
-                  </p>
-                  <p className="text-[11px] text-white/60 leading-tight truncate">
-                    @{stream.profiles?.username}
-                  </p>
+              <div className="flex items-start gap-2 min-w-0 flex-wrap">
+                <div className="flex items-center gap-2 rounded-2xl bg-white/[0.08] backdrop-blur-xl border border-white/15 p-1.5 pr-3">
+                  <UserAvatar
+                    src={stream.profiles?.avatar_url ?? null}
+                    fallback={stream.profiles?.display_name ?? "H"}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-bold text-white leading-tight truncate">
+                      {stream.profiles?.display_name}
+                    </p>
+                    <p className="text-[11px] text-white/60 leading-tight truncate">
+                      @{stream.profiles?.username}
+                    </p>
+                  </div>
+                  {canShowFollow && (
+                    <button
+                      onClick={handleToggleFollow}
+                      disabled={followMutation.isPending}
+                      className={cn(
+                        "ml-1 px-3 h-7 rounded-xl text-[11px] font-bold transition-colors",
+                        isFollowing
+                          ? "bg-white/[0.10] text-white border border-white/15"
+                          : "bg-primary text-primary-foreground shadow-[0_0_12px_oklch(0.623_0.214_259_/_0.5)]"
+                      )}
+                    >
+                      {isFollowing ? "Following" : "Follow"}
+                    </button>
+                  )}
                 </div>
-                {canShowFollow && (
-                  <button
-                    onClick={handleToggleFollow}
-                    disabled={followMutation.isPending}
-                    className={cn(
-                      "ml-1 px-3 h-7 rounded-xl text-[11px] font-bold transition-colors",
-                      isFollowing
-                        ? "bg-white/[0.10] text-white border border-white/15"
-                        : "bg-primary text-primary-foreground shadow-[0_0_12px_oklch(0.623_0.214_259_/_0.5)]"
-                    )}
-                  >
-                    {isFollowing ? "Following" : "Follow"}
-                  </button>
+
+                {stream.category && CATEGORY_LOOKUP[stream.category] && (
+                  <MobileCategoryPill slug={stream.category} />
                 )}
               </div>
 
@@ -443,7 +453,11 @@ export default function LiveViewerPage({ params }: Props) {
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder="Add comment…"
+                  placeholder={
+                    stream.followers_only_chat
+                      ? "Followers can chat"
+                      : "Add comment…"
+                  }
                   className="w-full h-11 pl-4 pr-11 rounded-2xl bg-white/[0.10] backdrop-blur-xl border border-white/15 text-white text-[14px] placeholder:text-white/55 focus:outline-none focus:border-primary/60 focus:bg-white/[0.14] transition-all"
                 />
                 {comment.trim() && (
@@ -562,7 +576,11 @@ export default function LiveViewerPage({ params }: Props) {
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                placeholder="Send a message"
+                placeholder={
+                  stream.followers_only_chat
+                    ? "Followers can chat"
+                    : "Send a message"
+                }
                 className="w-full h-10 pl-4 pr-10 rounded-xl bg-white/[0.05] border border-white/10 text-white text-[13.5px] placeholder:text-white/40 focus:outline-none focus:border-cyan-400/40 focus:bg-white/[0.08] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all"
               />
               {comment.trim() && (
@@ -580,6 +598,11 @@ export default function LiveViewerPage({ params }: Props) {
               count={likeCount}
             />
           </div>
+          {stream.slow_mode_seconds > 0 && (
+            <p className="mt-2 text-[11px] text-white/45 leading-tight">
+              Slow mode: 1 message per {stream.slow_mode_seconds}s.
+            </p>
+          )}
         </div>
       </aside>
 
@@ -753,8 +776,60 @@ function DesktopInfoBar({
             {stream.title}
           </h1>
         )}
+
+        {(stream.category || (stream.tags && stream.tags.length > 0)) && (
+          <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+            {stream.category && CATEGORY_LOOKUP[stream.category] && (
+              <CategoryPill slug={stream.category} />
+            )}
+            {stream.tags?.slice(0, 5).map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center h-6 px-2 rounded-md bg-white/[0.05] border border-white/10 text-white/70 text-[11px] font-semibold"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+function CategoryPill({ slug }: { slug: string }) {
+  const cat = CATEGORY_LOOKUP[slug];
+  if (!cat) return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-md text-[11px] font-bold"
+      style={{
+        background: `oklch(0.55 0.18 ${cat.hue} / 0.22)`,
+        color: `oklch(0.85 0.16 ${cat.hue})`,
+        border: `1px solid oklch(0.65 0.18 ${cat.hue} / 0.4)`,
+      }}
+    >
+      <span>{cat.emoji}</span>
+      {cat.label}
+    </span>
+  );
+}
+
+function MobileCategoryPill({ slug }: { slug: string }) {
+  const cat = CATEGORY_LOOKUP[slug];
+  if (!cat) return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1 h-7 px-2.5 rounded-xl backdrop-blur-md text-[11px] font-bold"
+      style={{
+        background: `oklch(0.55 0.18 ${cat.hue} / 0.32)`,
+        color: "white",
+        border: `1px solid oklch(0.7 0.16 ${cat.hue} / 0.5)`,
+      }}
+    >
+      <span>{cat.emoji}</span>
+      {cat.label}
+    </span>
   );
 }
 

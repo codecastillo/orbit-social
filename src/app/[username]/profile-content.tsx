@@ -15,6 +15,7 @@ import {
   getUserRepostedPosts,
   getUserPinnedPosts,
 } from "@/lib/queries/posts";
+import { getUserVods, type VodRow } from "@/lib/queries/vods";
 import { PostCard } from "@/components/feed/post-card";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import type { AvatarBorderStyle } from "@/components/shared/user-avatar";
@@ -115,6 +116,12 @@ export function ProfileContent({
     queryFn: () => getUserBookmarkedPosts(profile.id),
     enabled: activeTab === "saved" && isOwnProfile,
     staleTime: 1000 * 60,
+  });
+
+  const { data: vods = [] } = useQuery({
+    queryKey: ["user-vods", profile.id],
+    queryFn: () => getUserVods(profile.id),
+    staleTime: 1000 * 60 * 2,
   });
 
   const handleFollow = async () => {
@@ -506,7 +513,177 @@ export function ProfileContent({
             </div>
           ))}
       </div>
+
+      {vods.length > 0 && <PastStreamsSection vods={vods} />}
     </div>
+  );
+}
+
+function formatDuration(seconds: number | null): string {
+  if (!seconds || seconds <= 0) return "0:00";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, "0")}:${s
+      .toString()
+      .padStart(2, "0")}`;
+  }
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return "just now";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const d = Math.floor(hr / 24);
+  if (d < 30) return `${d}d ago`;
+  const mo = Math.floor(d / 30);
+  if (mo < 12) return `${mo}mo ago`;
+  const y = Math.floor(d / 365);
+  return `${y}y ago`;
+}
+
+function PastStreamsSection({ vods }: { vods: VodRow[] }) {
+  return (
+    <div style={{ ...panel(), padding: 24, marginTop: 4 }}>
+      <div style={{ marginBottom: 18 }}>
+        <Eyebrow accent>◇&nbsp;&nbsp;PAST STREAMS</Eyebrow>
+        <Display size={22} style={{ marginTop: 8 }}>
+          On the <Acc>record</Acc>
+        </Display>
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          gap: 16,
+        }}
+      >
+        {vods.map((vod) => (
+          <VodCard key={vod.id} vod={vod} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function VodCard({ vod }: { vod: VodRow }) {
+  return (
+    <Link
+      href={`/vod/${vod.id}`}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        textDecoration: "none",
+        color: "inherit",
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          aspectRatio: "16 / 9",
+          borderRadius: 14,
+          overflow: "hidden",
+          background: O.glass,
+          border: `1px solid ${O.hair}`,
+        }}
+      >
+        {vod.thumbnail_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={vod.thumbnail_url}
+            alt={vod.title ?? "Past stream"}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              background: auroraSoft,
+            }}
+          />
+        )}
+        {vod.duration_seconds ? (
+          <span
+            style={{
+              position: "absolute",
+              bottom: 8,
+              right: 8,
+              padding: "3px 8px",
+              borderRadius: 8,
+              background: "rgba(0,0,0,0.7)",
+              backdropFilter: "blur(8px)",
+              color: O.ink,
+              fontFamily: O.mono,
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.02em",
+            }}
+          >
+            {formatDuration(vod.duration_seconds)}
+          </span>
+        ) : null}
+      </div>
+      <div>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: O.ink,
+            lineHeight: 1.35,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {vod.title ?? "Untitled stream"}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            marginTop: 6,
+          }}
+        >
+          {vod.category && (
+            <span
+              style={{
+                padding: "2px 8px",
+                borderRadius: 99,
+                background: O.glass,
+                border: `1px solid ${O.hair}`,
+                fontSize: 10.5,
+                color: O.ink2,
+                fontWeight: 500,
+              }}
+            >
+              {vod.category}
+            </span>
+          )}
+          <span
+            style={{
+              fontSize: 11.5,
+              color: O.ink3,
+              fontFamily: O.mono,
+              letterSpacing: "0.04em",
+            }}
+          >
+            {fmtNumber(vod.view_count)} views · {timeAgo(vod.created_at)}
+          </span>
+        </div>
+      </div>
+    </Link>
   );
 }
 

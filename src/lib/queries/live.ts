@@ -14,6 +14,13 @@ export interface LiveStreamWithProfile {
   started_at: string | null;
   ended_at: string | null;
   created_at: string;
+  total_likes: number;
+  category: string | null;
+  tags: string[];
+  language: string;
+  slow_mode_seconds: number;
+  followers_only_chat: boolean;
+  mature: boolean;
   profiles: {
     id: string;
     username: string;
