@@ -6,6 +6,7 @@ const publicRoutes = [
   "/login",
   "/signup",
   "/callback",
+  "/auth",
   "/verify-email",
   "/forgot-password",
   "/reset-password",
