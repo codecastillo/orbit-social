@@ -126,6 +126,59 @@ export function moderateContent(text: string): ModerationResult {
 }
 
 /**
+ * Enhanced moderation: regex pre-filter + LLM check for borderline cases.
+ *
+ * Decision tree:
+ *  - regex flagged HIGH severity → return regex result (skip LLM, save tokens)
+ *  - regex clean and content is short/trivial (< 12 chars) → return regex result
+ *  - otherwise → call LLM, return the more severe of the two results
+ *
+ * If the API endpoint is unreachable or returns an error, falls back to
+ * regex-only — never blocks the user on AI failure.
+ */
+export async function moderateContentEnhanced(
+  text: string
+): Promise<ModerationResult> {
+  const regexResult = moderateContent(text);
+
+  // High-confidence regex flag — no need to consult LLM.
+  if (regexResult.severity === "high" && regexResult.flagged) {
+    return regexResult;
+  }
+
+  // Trivial content — skip the LLM.
+  if (text.trim().length < 12) {
+    return regexResult;
+  }
+
+  try {
+    const res = await fetch("/api/moderation/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) return regexResult;
+    const llm = (await res.json()) as ModerationResult & { reason?: string };
+
+    // Merge: take the more severe of the two.
+    const severityOrder: Record<ModerationResult["severity"], number> = {
+      low: 0,
+      medium: 1,
+      high: 2,
+    };
+    const llmIsMoreSevere =
+      severityOrder[llm.severity] > severityOrder[regexResult.severity];
+
+    if (llm.flagged && llmIsMoreSevere) return llm;
+    if (regexResult.flagged) return regexResult;
+    if (llm.flagged) return llm;
+    return regexResult;
+  } catch {
+    return regexResult;
+  }
+}
+
+/**
  * Flag content for admin review in the database.
  */
 export async function flagContentForReview(

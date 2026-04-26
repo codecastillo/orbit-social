@@ -19,7 +19,11 @@ import { useAudioRecorder } from "@/lib/hooks/use-audio-recorder";
 import { formatDuration, generateWaveformBars, getAudioExtension } from "@/lib/utils/audio";
 import { cn } from "@/lib/utils";
 import { useDraftsStore } from "@/lib/stores/drafts-store";
-import { moderateContent, flagContentForReview } from "@/lib/services/auto-moderation";
+import {
+  moderateContent,
+  moderateContentEnhanced,
+  flagContentForReview,
+} from "@/lib/services/auto-moderation";
 
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
@@ -447,13 +451,12 @@ function ComposerForm({
   const handleSubmit = async () => {
     if (!canPost || posting) return;
 
-    // Auto-moderation check
+    // Auto-moderation check (regex pre-filter + LLM for borderline content)
     if (content.trim() && !moderationConfirmed) {
-      const result = moderateContent(content.trim());
+      const result = await moderateContentEnhanced(content.trim());
       if (result.flagged) {
         if (result.severity === "high") {
           toast.error(result.reason || "Content violates community guidelines");
-          // Auto-flag for admin review after posting (if user proceeds)
           setModerationWarning(result.reason || "Content may violate guidelines");
           return;
         }
