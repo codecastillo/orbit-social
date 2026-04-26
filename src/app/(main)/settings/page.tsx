@@ -12,6 +12,7 @@ import {
   KeyRound,
   Filter,
   Users,
+  Radio,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
@@ -97,6 +98,19 @@ const sections: Section[] = [
         title: "Close Friends",
         description: "Manage your close friends list for private sharing",
         hue: "#7dffa3",
+      },
+    ],
+  },
+  {
+    label: "Broadcasting",
+    eyebrow: "◇  BROADCASTING",
+    items: [
+      {
+        href: "/settings/streaming",
+        icon: Radio,
+        title: "Streaming",
+        description: "Get your OBS / Belabox / mobile stream credentials",
+        hue: "#ff5a6a",
       },
     ],
   },
