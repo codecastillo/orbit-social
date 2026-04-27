@@ -7,12 +7,13 @@ import Link from "next/link";
 import {
   Users,
   Pin,
+  PinOff,
   ChevronDown,
   ChevronUp,
-  ShieldCheck,
-  Lock,
+  Ban,
   ArrowLeft,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useMessages } from "@/lib/hooks/use-messages";
 import {
@@ -23,6 +24,7 @@ import {
   unpinMessage,
   type Message,
 } from "@/lib/queries/messages";
+import { blockUser } from "@/lib/queries/social";
 import { createClient } from "@/lib/supabase/client";
 import { ChatWindow } from "@/components/messages/chat-window";
 import { MessageInput } from "@/components/messages/message-input";
@@ -48,7 +50,6 @@ interface OtherUser {
 
 interface ConversationInfo {
   is_group: boolean;
-  is_encrypted: boolean;
   name: string | null;
   avatar_url: string | null;
   created_by: string;
@@ -71,8 +72,10 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [loadingOther, setLoadingOther] = useState(true);
   const [conversationInfo, setConversationInfo] = useState<ConversationInfo | null>(null);
   const [groupMembers, setGroupMembers] = useState<OtherUser[]>([]);
-  const [isEncrypted, setIsEncrypted] = useState(false);
   const [pinnedMessages, setPinnedMessages] = useState<Message[]>([]);
+  const [isPinned, setIsPinned] = useState(false);
+  const [pinSaving, setPinSaving] = useState(false);
+  const [blockSaving, setBlockSaving] = useState(false);
   const [pinnedExpanded, setPinnedExpanded] = useState(false);
 
   const webrtc = useWebRTC(conversationId, user?.id ?? "");
@@ -83,13 +86,20 @@ export default function ChatPage({ params }: ChatPageProps) {
       const supabase = createClient();
       const { data: conv } = await supabase
         .from("conversations")
-        .select("is_group, is_encrypted, name, avatar_url, created_by")
+        .select("is_group, name, avatar_url, created_by")
         .eq("id", conversationId)
         .single();
 
+      const { data: membership } = await supabase
+        .from("conversation_members")
+        .select("is_pinned")
+        .eq("conversation_id", conversationId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (membership) setIsPinned(membership.is_pinned ?? false);
+
       if (conv) {
         setConversationInfo(conv);
-        setIsEncrypted(conv.is_encrypted ?? false);
 
         if (conv.is_group) {
           const { data: members } = await supabase
@@ -203,14 +213,42 @@ export default function ChatPage({ params }: ChatPageProps) {
     }
   };
 
-  const toggleEncryption = async () => {
+  const togglePin = async () => {
+    if (!user || pinSaving) return;
+    setPinSaving(true);
+    const next = !isPinned;
+    setIsPinned(next);
     const supabase = createClient();
-    const next = !isEncrypted;
     const { error } = await supabase
-      .from("conversations")
-      .update({ is_encrypted: next })
-      .eq("id", conversationId);
-    if (!error) setIsEncrypted(next);
+      .from("conversation_members")
+      .update({ is_pinned: next })
+      .eq("conversation_id", conversationId)
+      .eq("user_id", user.id);
+    setPinSaving(false);
+    if (error) {
+      console.error("pin conversation failed", error);
+      setIsPinned(!next);
+      toast.error("Couldn't update pin");
+      return;
+    }
+    toast.success(next ? "Conversation pinned" : "Pin removed");
+  };
+
+  const handleBlock = async () => {
+    if (!user || !otherUser || blockSaving) return;
+    const ok = window.confirm(`Block @${otherUser.username}? They won't be able to message you.`);
+    if (!ok) return;
+    setBlockSaving(true);
+    try {
+      await blockUser(user.id, otherUser.id);
+      toast.success(`@${otherUser.username} blocked`);
+      router.push("/messages");
+    } catch (e) {
+      console.error("block failed", e);
+      toast.error("Couldn't block user");
+    } finally {
+      setBlockSaving(false);
+    }
   };
 
   const handlePinMessage = async (messageId: string, isPinned: boolean) => {
@@ -333,18 +371,21 @@ export default function ChatPage({ params }: ChatPageProps) {
             </div>
           )}
 
-          <button
-            onClick={toggleEncryption}
-            className={cn(
-              "h-10 w-10 rounded-2xl flex items-center justify-center transition-colors shrink-0 border",
-              isEncrypted
-                ? "text-emerald-300 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20"
-                : "text-muted-foreground bg-white/[0.04] border-white/[0.06] hover:bg-white/[0.08]"
-            )}
-            title={isEncrypted ? "Encryption enabled" : "Enable encryption"}
-          >
-            <Lock className="h-4 w-4" />
-          </button>
+          {!isGroup && (
+            <button
+              onClick={togglePin}
+              disabled={pinSaving}
+              className={cn(
+                "h-10 w-10 rounded-2xl flex items-center justify-center transition-colors shrink-0 border",
+                isPinned
+                  ? "text-amber-300 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20"
+                  : "text-muted-foreground bg-white/[0.04] border-white/[0.06] hover:bg-white/[0.08]"
+              )}
+              title={isPinned ? "Unpin conversation" : "Pin conversation"}
+            >
+              {isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+            </button>
+          )}
 
           {!loadingOther && callPeer && (
             <CallButton
@@ -353,15 +394,6 @@ export default function ChatPage({ params }: ChatPageProps) {
             />
           )}
         </div>
-
-        {isEncrypted && (
-          <div className="flex items-center gap-2 px-5 py-2 bg-emerald-500/[0.06] border-t border-emerald-500/10">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-300 shrink-0" />
-            <span className="text-[11px] font-semibold text-emerald-300">
-              Messages are end-to-end encrypted
-            </span>
-          </div>
-        )}
 
         {pinnedMessages.length > 0 && (
           <div className="border-t border-amber-500/10 bg-amber-500/[0.04]">
@@ -547,54 +579,42 @@ export default function ChatPage({ params }: ChatPageProps) {
           <div style={{ marginTop: 18 }}>
             <Eyebrow>◈&nbsp;&nbsp;ACTIONS</Eyebrow>
             <div style={{ marginTop: 10 }}>
-              <button
-                type="button"
-                onClick={toggleEncryption}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  fontSize: 13,
-                  color: isEncrypted ? "#7dffa3" : O.ink2,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  cursor: "pointer",
-                  background: "transparent",
-                  border: "none",
-                  fontFamily: "inherit",
-                  textAlign: "left",
-                }}
-              >
-                <Lock style={{ width: 14, height: 14 }} strokeWidth={1.8} />
-                {isEncrypted ? "Encryption on" : "Enable encryption"}
-              </button>
-              {!isGroup && otherUser && (
+              {!isGroup && (
                 <button
                   type="button"
+                  onClick={togglePin}
+                  disabled={pinSaving}
                   style={{
                     width: "100%",
                     padding: "10px 12px",
                     borderRadius: 12,
                     fontSize: 13,
-                    color: O.ink2,
+                    color: isPinned ? "#ffd86a" : O.ink2,
                     display: "flex",
                     alignItems: "center",
                     gap: 12,
-                    cursor: "pointer",
+                    cursor: pinSaving ? "default" : "pointer",
                     background: "transparent",
                     border: "none",
                     fontFamily: "inherit",
                     textAlign: "left",
+                    opacity: pinSaving ? 0.6 : 1,
                   }}
+                  className="hover:bg-white/5"
                 >
-                  <Pin style={{ width: 14, height: 14 }} strokeWidth={1.8} />
-                  Pin conversation
+                  {isPinned ? (
+                    <PinOff style={{ width: 14, height: 14 }} strokeWidth={1.8} />
+                  ) : (
+                    <Pin style={{ width: 14, height: 14 }} strokeWidth={1.8} />
+                  )}
+                  {isPinned ? "Unpin conversation" : "Pin conversation"}
                 </button>
               )}
               {!isGroup && otherUser && (
                 <button
                   type="button"
+                  onClick={handleBlock}
+                  disabled={blockSaving}
                   style={{
                     width: "100%",
                     padding: "10px 12px",
@@ -604,14 +624,16 @@ export default function ChatPage({ params }: ChatPageProps) {
                     display: "flex",
                     alignItems: "center",
                     gap: 12,
-                    cursor: "pointer",
+                    cursor: blockSaving ? "default" : "pointer",
                     background: "transparent",
                     border: "none",
                     fontFamily: "inherit",
                     textAlign: "left",
+                    opacity: blockSaving ? 0.6 : 1,
                   }}
+                  className="hover:bg-white/5"
                 >
-                  <ShieldCheck style={{ width: 14, height: 14 }} strokeWidth={1.8} />
+                  <Ban style={{ width: 14, height: 14 }} strokeWidth={1.8} />
                   Block @{otherUser.username}
                 </button>
               )}
