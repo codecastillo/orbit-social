@@ -266,7 +266,7 @@ export default function LiveViewerPage({ params }: Props) {
 
   if (!stream) {
     return (
-      <div className="fixed inset-0 bg-black flex items-center justify-center">
+      <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
         <div className="h-8 w-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
       </div>
     );
