@@ -202,6 +202,14 @@ export async function getMyJoinRequestStatus(communityId: string, userId: string
   return (data?.status as "pending" | "approved" | "rejected" | null) ?? null;
 }
 
+export async function deleteCommunity(communityId: string) {
+  const { error } = await supabase
+    .from("communities")
+    .delete()
+    .eq("id", communityId);
+  if (error) throw error;
+}
+
 export async function leaveCommunity(communityId: string, userId: string) {
   const { error } = await supabase
     .from("community_members")

@@ -1,18 +1,44 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, Calendar, ChevronDown, ChevronUp, Shield, Lock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  Users,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  Shield,
+  Lock,
+  MoreHorizontal,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/utils/format";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
 import {
   joinCommunity,
   leaveCommunity,
+  deleteCommunity,
   getMyJoinRequestStatus,
   type Community,
   type CommunityMember,
@@ -32,12 +58,15 @@ export function CommunityHeader({
   onMembershipChange,
 }: CommunityHeaderProps) {
   const { user } = useAuth();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [joining, setJoining] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [requestStatus, setRequestStatus] = useState<
     "pending" | "approved" | "rejected" | null
   >(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const isMember = userRole !== null;
   const isOwner = userRole === "owner";
@@ -163,6 +192,21 @@ export function CommunityHeader({
     (!isMember &&
       (policy === "invite" || requestStatus === "pending"));
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteCommunity(community.id);
+      toast.success(`Deleted ${community.name}`);
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
+      router.push("/communities");
+    } catch {
+      toast.error("Couldn't delete the room");
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
+
   return (
     <div className="border-b border-border">
       {/* Cover image */}
@@ -198,17 +242,43 @@ export function CommunityHeader({
             )}
           </div>
 
-          <Button
-            variant={isMember ? "outline" : "default"}
-            onClick={handleJoinToggle}
-            disabled={buttonDisabled}
-            className="mt-10"
-          >
-            {policy === "invite" && !isMember && !isOwner && (
-              <Lock className="h-3.5 w-3.5" />
+          <div className="mt-10 flex items-center gap-2">
+            <Button
+              variant={isMember ? "outline" : "default"}
+              onClick={handleJoinToggle}
+              disabled={buttonDisabled}
+            >
+              {policy === "invite" && !isMember && !isOwner && (
+                <Lock className="h-3.5 w-3.5" />
+              )}
+              {buttonLabel}
+            </Button>
+            {isOwner && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label="Room options"
+                  className={cn(
+                    "inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background hover:bg-accent transition-colors"
+                  )}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onSelect={() => setConfirmDelete(true)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete room
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled>
+                    More owner tools soon
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
-            {buttonLabel}
-          </Button>
+          </div>
         </div>
 
         <h1 className="text-xl font-bold">{community.name}</h1>
@@ -296,6 +366,35 @@ export function CommunityHeader({
           </div>
         )}
       </div>
+
+      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete this room?</DialogTitle>
+            <DialogDescription>
+              This permanently removes <strong>{community.name}</strong>, all
+              of its members, and any pending join requests. Posts in this
+              room will be detached but not deleted. You can&apos;t undo this.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDelete(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting…" : "Delete room"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
