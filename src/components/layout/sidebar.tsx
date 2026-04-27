@@ -16,7 +16,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useUnreadCount } from "@/lib/hooks/use-notifications";
+import { useUnreadCount, useUnreadMessagesCount } from "@/lib/hooks/use-notifications";
 import { useCurrentProfile } from "@/lib/hooks/use-profile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -52,6 +52,7 @@ export function Sidebar() {
   const { user, signOut } = useAuth();
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
   const { data: unreadCount } = useUnreadCount();
+  const { data: unreadMessages } = useUnreadMessagesCount();
   const { data: profile } = useCurrentProfile();
 
   const activeHref = useMemo(
@@ -134,7 +135,9 @@ export function Sidebar() {
           const badge =
             item.label === "Notifications" && unreadCount && unreadCount > 0
               ? unreadCount
-              : null;
+              : item.label === "Messages" && unreadMessages && unreadMessages > 0
+                ? unreadMessages
+                : null;
           return (
             <Link
               key={item.href}

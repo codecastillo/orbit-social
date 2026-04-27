@@ -68,3 +68,58 @@ export function useUnreadCount() {
     refetchInterval: 60_000,
   });
 }
+
+export function useUnreadMessagesCount() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["unread-messages-count", user?.id],
+    queryFn: async () => {
+      if (!user) return 0;
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc("unread_conversation_count", {
+        p_user_id: user.id,
+      });
+      if (error) throw error;
+      return (data as number) ?? 0;
+    },
+    enabled: !!user,
+    staleTime: 15_000,
+    refetchInterval: 60_000,
+  });
+
+  // Realtime: any new message or read receipt change should invalidate the count
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+
+    const messagesChannel = supabase
+      .channel(`unread-messages:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: ["unread-messages-count", user.id],
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "conversation_members", filter: `user_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: ["unread-messages-count", user.id],
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messagesChannel);
+    };
+  }, [user, queryClient]);
+
+  return query;
+}
