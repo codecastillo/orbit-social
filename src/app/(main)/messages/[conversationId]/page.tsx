@@ -8,8 +8,6 @@ import {
   Users,
   Pin,
   PinOff,
-  ChevronDown,
-  ChevronUp,
   Ban,
   ArrowLeft,
 } from "lucide-react";
@@ -76,7 +74,6 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [isPinned, setIsPinned] = useState(false);
   const [pinSaving, setPinSaving] = useState(false);
   const [blockSaving, setBlockSaving] = useState(false);
-  const [pinnedExpanded, setPinnedExpanded] = useState(false);
 
   const webrtc = useWebRTC(conversationId, user?.id ?? "");
 
@@ -395,51 +392,6 @@ export default function ChatPage({ params }: ChatPageProps) {
           )}
         </div>
 
-        {pinnedMessages.length > 0 && (
-          <div className="border-t border-amber-500/10 bg-amber-500/[0.04]">
-            <button
-              onClick={() => setPinnedExpanded(!pinnedExpanded)}
-              className="flex items-center gap-2 w-full px-5 py-2 text-left hover:bg-amber-500/[0.08] transition-colors"
-            >
-              <Pin className="h-3.5 w-3.5 text-amber-300 shrink-0" />
-              <span className="text-[11px] font-semibold text-amber-300">
-                {pinnedMessages.length} pinned message
-                {pinnedMessages.length !== 1 ? "s" : ""}
-              </span>
-              {pinnedExpanded ? (
-                <ChevronUp className="h-3.5 w-3.5 text-amber-300 ml-auto" />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5 text-amber-300 ml-auto" />
-              )}
-            </button>
-            {pinnedExpanded && (
-              <div className="px-5 pb-3 space-y-2">
-                {pinnedMessages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className="flex items-start gap-2 p-2.5 rounded-2xl bg-amber-500/[0.06] border border-amber-500/15"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-bold text-amber-200">
-                        {msg.sender?.display_name}
-                      </p>
-                      <p className="text-xs text-foreground/85 mt-0.5 line-clamp-2">
-                        {msg.content || "Media"}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handlePinMessage(msg.id, true)}
-                      className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                      title="Unpin"
-                    >
-                      <Pin className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Body */}

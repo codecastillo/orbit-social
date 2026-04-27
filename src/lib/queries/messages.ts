@@ -25,6 +25,7 @@ export interface ConversationWithPreview {
   } | null;
   last_read_at?: string | null;
   unread: boolean;
+  is_pinned: boolean;
 }
 
 export interface Message {
@@ -52,7 +53,7 @@ export async function getConversations(
   // Get all conversations the user is a member of
   const { data: memberships, error: memberError } = await supabase
     .from("conversation_members")
-    .select("conversation_id, last_read_at, is_muted")
+    .select("conversation_id, last_read_at, is_muted, is_pinned")
     .eq("user_id", userId);
 
   if (memberError) throw memberError;
@@ -120,6 +121,7 @@ export async function getConversations(
       other_member: otherMember,
       last_read_at: membership?.last_read_at || null,
       unread,
+      is_pinned: membership?.is_pinned ?? false,
     });
   }
 

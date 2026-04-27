@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Users, ShieldCheck } from "lucide-react";
+import { Users, Pin } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { formatTimeAgo } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
@@ -56,101 +56,121 @@ export function ConversationList({
     );
   }
 
+  const pinned = conversations.filter((c) => c.is_pinned);
+  const others = conversations.filter((c) => !c.is_pinned);
+
   return (
-    <div className="divide-y divide-border">
-      {conversations.map((conversation) => {
-        const isGroup = conversation.is_group;
-        const displayName = isGroup
-          ? conversation.name || "Group Chat"
-          : conversation.other_member?.display_name || conversation.name || "Unknown";
-        const avatarUrl = isGroup
-          ? conversation.avatar_url
-          : conversation.other_member?.avatar_url || conversation.avatar_url;
+    <div>
+      {pinned.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 px-4 pt-3 pb-2 text-amber-300/80">
+            <Pin className="h-3 w-3" />
+            <span className="text-[10px] font-mono tracking-[0.14em] font-semibold">
+              PINNED · {pinned.length}
+            </span>
+          </div>
+          <div className="divide-y divide-border">
+            {pinned.map((c) => (
+              <ConversationRow key={c.id} conversation={c} />
+            ))}
+          </div>
+          {others.length > 0 && (
+            <div className="flex items-center gap-2 px-4 pt-4 pb-2 text-muted-foreground border-t border-border">
+              <span className="text-[10px] font-mono tracking-[0.14em] font-semibold">
+                ALL · {others.length}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="divide-y divide-border">
+        {others.map((c) => (
+          <ConversationRow key={c.id} conversation={c} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
-        let preview = "";
-        if (conversation.last_message) {
-          if (conversation.last_message.is_deleted) {
-            preview = "Message deleted";
-          } else {
-            preview = conversation.last_message.content || "Sent media";
-          }
-        }
+function ConversationRow({ conversation }: { conversation: ConversationWithPreview }) {
+  const isGroup = conversation.is_group;
+  const displayName = isGroup
+    ? conversation.name || "Group Chat"
+    : conversation.other_member?.display_name || conversation.name || "Unknown";
+  const avatarUrl = isGroup
+    ? conversation.avatar_url
+    : conversation.other_member?.avatar_url || conversation.avatar_url;
 
-        return (
-          <Link
-            key={conversation.id}
-            href={`/messages/${conversation.id}`}
+  let preview = "";
+  if (conversation.last_message) {
+    if (conversation.last_message.is_deleted) {
+      preview = "Message deleted";
+    } else {
+      preview = conversation.last_message.content || "Sent media";
+    }
+  }
+
+  return (
+    <Link
+      href={`/messages/${conversation.id}`}
+      className={cn(
+        "flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors",
+        conversation.unread && "bg-muted/30"
+      )}
+    >
+      {isGroup ? (
+        avatarUrl ? (
+          <UserAvatar src={avatarUrl} fallback={displayName} size="lg" />
+        ) : (
+          <div className="h-12 w-12 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center shrink-0">
+            <Users className="h-5 w-5 text-violet-400" />
+          </div>
+        )
+      ) : (
+        <UserAvatar src={avatarUrl} fallback={displayName} size="lg" />
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {conversation.is_pinned && (
+              <Pin className="h-3 w-3 text-amber-400 shrink-0" />
+            )}
+            <span
+              className={cn(
+                "text-sm truncate",
+                conversation.unread
+                  ? "font-semibold text-foreground"
+                  : "font-medium text-foreground"
+              )}
+            >
+              {displayName}
+            </span>
+            {isGroup && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">
+                Group
+              </span>
+            )}
+          </div>
+          {conversation.last_message && (
+            <span className="text-xs text-muted-foreground shrink-0">
+              {formatTimeAgo(conversation.last_message.created_at)}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <p
             className={cn(
-              "flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors",
-              conversation.unread && "bg-muted/30"
+              "text-sm truncate",
+              conversation.unread ? "text-foreground/80" : "text-muted-foreground"
             )}
           >
-            {isGroup ? (
-              avatarUrl ? (
-                <UserAvatar
-                  src={avatarUrl}
-                  fallback={displayName}
-                  size="lg"
-                />
-              ) : (
-                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center shrink-0">
-                  <Users className="h-5 w-5 text-violet-400" />
-                </div>
-              )
-            ) : (
-              <UserAvatar
-                src={avatarUrl}
-                fallback={displayName}
-                size="lg"
-              />
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span
-                    className={cn(
-                      "text-sm truncate",
-                      conversation.unread
-                        ? "font-semibold text-foreground"
-                        : "font-medium text-foreground"
-                    )}
-                  >
-                    {displayName}
-                  </span>
-                  {isGroup && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">
-                      Group
-                    </span>
-                  )}
-                  {conversation.is_encrypted && (
-                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                  )}
-                </div>
-                {conversation.last_message && (
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {formatTimeAgo(conversation.last_message.created_at)}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <p
-                  className={cn(
-                    "text-sm truncate",
-                    conversation.unread
-                      ? "text-foreground/80"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  {preview}
-                </p>
-                {conversation.unread && (
-                  <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
-                )}
-              </div>
-            </div>
-          </Link>
-        );
-      })}
-    </div>
+            {preview}
+          </p>
+          {conversation.unread && (
+            <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+          )}
+        </div>
+      </div>
+    </Link>
   );
 }
