@@ -24,13 +24,17 @@ export function useNotifications() {
     staleTime: 30_000,
   });
 
-  // Realtime subscription
+  // Realtime subscription. Channel name is randomized per mount so a re-run
+  // (e.g. when `user` flips from null → user) never collides with the prior
+  // not-yet-cleaned-up channel — supabase-js otherwise reuses the cached
+  // RealtimeChannel and throws "cannot add postgres_changes callbacks after
+  // subscribed".
   useEffect(() => {
     if (!user) return;
 
     const supabase = createClient();
     const channel = supabase
-      .channel(`notifications:${user.id}`)
+      .channel(`notifications:${user.id}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {
@@ -75,7 +79,7 @@ export function useUnreadCount() {
     if (!user) return;
     const supabase = createClient();
     const channel = supabase
-      .channel(`sidebar-notif-count:${user.id}`)
+      .channel(`sidebar-notif-count:${user.id}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {
@@ -125,7 +129,7 @@ export function useUnreadMessagesCount() {
     const supabase = createClient();
 
     const messagesChannel = supabase
-      .channel(`unread-messages:${user.id}`)
+      .channel(`unread-messages:${user.id}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },

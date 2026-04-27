@@ -47,7 +47,7 @@ export function CommunityHeader({
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel(`community-${community.id}`)
+      .channel(`community-${community.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

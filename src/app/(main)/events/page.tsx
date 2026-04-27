@@ -88,7 +88,7 @@ export default function EventsPage() {
   // Realtime: keep attendee_count in sync across the feed.
   useEffect(() => {
     const channel = supabase
-      .channel("events-feed")
+      .channel(`events-feed-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "events" },

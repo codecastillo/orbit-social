@@ -111,7 +111,7 @@ export default function EventDetailPage({
     if (!eventId) return;
 
     const channel = supabase
-      .channel(`event-${eventId}`)
+      .channel(`event-${eventId}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {
