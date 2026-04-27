@@ -15,24 +15,46 @@ interface NotificationItemProps {
 
 function getNotificationText(notification: NotificationWithActor): string {
   const name = notification.profiles.display_name || notification.profiles.username;
+  const entity = notification.entity_type;
 
   switch (notification.type) {
     case "like":
-      return `${name} liked your post`;
+      return `${name} liked your ${entity === "comment" ? "comment" : "post"}`;
     case "comment":
+      if (entity === "event") return `${name} replied to your event comment`;
+      if (entity === "comment") return `${name} replied to your comment`;
       return `${name} replied to your post`;
+    case "quote":
+      return `${name} quoted your post`;
     case "follow":
       return `${name} followed you`;
     case "mention":
+      if (entity === "event") return `${name} mentioned you in an event`;
+      if (entity === "community") return `${name} mentioned you in a room`;
       return `${name} mentioned you`;
     case "repost":
       return `${name} reposted your post`;
+    case "message":
+      return `${name} sent you a message`;
+    case "story_reaction":
+      return `${name} reacted to your story`;
+    case "live_started":
+      return `${name} just went live`;
+    case "community_invite":
+      return `${name} invited you to a room`;
+    case "event_invite":
+      // Used by 00017 for "new RSVP on your event" — surface that meaning.
+      if (entity === "event") return `${name} RSVP'd to your event`;
+      return `${name} invited you to an event`;
+    case "event_reminder":
+      return `Heads up — your event starts soon`;
     default:
       return `${name} interacted with you`;
   }
 }
 
 function getNotificationHref(notification: NotificationWithActor): string {
+  const entity = notification.entity_type;
   switch (notification.type) {
     case "follow":
       return `/${notification.profiles.username}`;
@@ -40,7 +62,35 @@ function getNotificationHref(notification: NotificationWithActor): string {
     case "comment":
     case "mention":
     case "repost":
+    case "quote":
+      if (entity === "event" && notification.entity_id) {
+        return `/events/${notification.entity_id}`;
+      }
+      if (entity === "community" && notification.entity_id) {
+        return `/communities/${notification.entity_id}`;
+      }
       return notification.entity_id ? `/post/${notification.entity_id}` : "/notifications";
+    case "message":
+      return notification.entity_id
+        ? `/messages/${notification.entity_id}`
+        : "/messages";
+    case "live_started":
+      return notification.entity_id
+        ? `/live/${notification.entity_id}`
+        : "/live";
+    case "community_invite":
+      return notification.entity_id
+        ? `/communities/${notification.entity_id}`
+        : "/communities";
+    case "event_invite":
+    case "event_reminder":
+      return notification.entity_id
+        ? `/events/${notification.entity_id}`
+        : "/events";
+    case "story_reaction":
+      return notification.entity_id
+        ? `/stories/${notification.entity_id}`
+        : "/notifications";
     default:
       return "/notifications";
   }

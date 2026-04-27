@@ -6,7 +6,19 @@ export interface NotificationWithActor {
   id: string;
   user_id: string;
   actor_id: string;
-  type: "like" | "comment" | "follow" | "mention" | "repost";
+  type:
+    | "like"
+    | "comment"
+    | "follow"
+    | "mention"
+    | "repost"
+    | "quote"
+    | "message"
+    | "story_reaction"
+    | "live_started"
+    | "community_invite"
+    | "event_invite"
+    | "event_reminder";
   entity_type: string | null;
   entity_id: string | null;
   is_read: boolean;
