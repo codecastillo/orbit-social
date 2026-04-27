@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { TopBar } from "@/components/layout/top-bar";
 import { EmailVerificationBanner } from "@/components/shared/email-verification-banner";
+import { PostComposer } from "@/components/feed/post-composer";
 import { orbitBg } from "@/lib/design/orbit";
 
 export default function MainLayout({
@@ -21,6 +22,7 @@ export default function MainLayout({
         {children}
       </main>
 
+      <PostComposer />
       <BottomNav />
     </div>
   );

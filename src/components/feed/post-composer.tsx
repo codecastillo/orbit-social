@@ -237,21 +237,6 @@ export function InlineComposer({
           </button>
         ))}
       </div>
-      <span
-        style={{
-          padding: "10px 20px",
-          borderRadius: 99,
-          background:
-            "linear-gradient(135deg, #8b73ff 0%, #ff5fae 55%, #5fd4ff 100%)",
-          color: "#0c0a17",
-          fontWeight: 600,
-          fontSize: 13,
-          boxShadow:
-            "0 6px 20px rgba(255,95,174,0.45), inset 0 1px 0 rgba(255,255,255,0.3)",
-        }}
-      >
-        Post
-      </span>
     </div>
   );
 }
@@ -1165,30 +1150,45 @@ function ComposerForm({
               {charCount}/{MAX_POST_LENGTH}
             </span>
           )}
-          <Button
-            size="sm"
-            className={cn(
-              "rounded-lg px-6 font-semibold border-0 transition-all",
-              showSchedule && scheduledAt
-                ? "bg-amber-500 hover:bg-amber-600 text-white"
-                : "btn-gradient"
-            )}
+          <button
+            type="button"
             onClick={handleSubmit}
             disabled={!canPost || posting || (showSchedule && !scheduledAt)}
+            style={{
+              padding: "10px 22px",
+              borderRadius: 99,
+              border: 0,
+              cursor: "pointer",
+              background:
+                showSchedule && scheduledAt
+                  ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
+                  : "linear-gradient(135deg, #8b73ff 0%, #ff5fae 55%, #5fd4ff 100%)",
+              color: "#0c0a17",
+              fontWeight: 600,
+              fontSize: 13,
+              boxShadow:
+                "0 6px 20px rgba(255,95,174,0.45), inset 0 1px 0 rgba(255,255,255,0.3)",
+              opacity: !canPost || posting || (showSchedule && !scheduledAt) ? 0.45 : 1,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              transition: "opacity 0.15s, transform 0.15s",
+            }}
+            className="hover:enabled:scale-[1.02] active:enabled:scale-[0.98]"
           >
             {posting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : showSchedule && scheduledAt ? (
               <>
-                <Clock className="h-3.5 w-3.5 mr-1.5" />
+                <Clock className="h-3.5 w-3.5" />
                 Schedule
               </>
             ) : replyToId ? (
               "Reply"
             ) : (
-              "Share"
+              "Post"
             )}
-          </Button>
+          </button>
         </div>
       </div>
     </div>

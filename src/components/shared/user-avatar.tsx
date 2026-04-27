@@ -67,8 +67,14 @@ export function UserAvatar({
           className
         )}
       >
-        <AvatarImage src={src || undefined} />
-        <AvatarFallback className="bg-muted text-muted-foreground">
+        <AvatarImage src={src || undefined} className="object-cover" />
+        <AvatarFallback
+          className="text-white font-semibold"
+          style={{
+            background:
+              "linear-gradient(135deg, #a78bfa 0%, #f472b6 50%, #67e8f9 100%)",
+          }}
+        >
           {fallback.slice(0, 2).toUpperCase()}
         </AvatarFallback>
       </Avatar>

@@ -3,7 +3,15 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MoreHorizontal, ExternalLink } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, ExternalLink, Copy, Share2, UserX, VolumeX, Flag } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { FollowListDialog } from "@/components/profile/follow-list-dialog";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
@@ -81,6 +89,7 @@ export function ProfileContent({
 }: ProfileContentProps) {
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [activeTab, setActiveTab] = useState<TabValue>("posts");
+  const [followListOpen, setFollowListOpen] = useState<null | "followers" | "following">(null);
   const router = useRouter();
   const { user } = useAuth();
   const supabase = createClient();
@@ -268,7 +277,7 @@ export function ProfileContent({
               }}
             >
               @{profile.username}
-              {profile.location && ` · ${profile.location}`} · ON ORBIT SINCE{" "}
+              {profile.location && ` · ${profile.location}`} · IN ORBIT SINCE{" "}
               {joinedYear(profile.created_at)}
             </div>
             {profile.bio && (
@@ -311,12 +320,91 @@ export function ProfileContent({
                 </PillBtn>
               </Link>
             )}
-            <PillBtn
-              size="lg"
-              style={{ width: 44, justifyContent: "center", padding: "14px 0" }}
-            >
-              <MoreHorizontal style={{ width: 16, height: 16 }} />
-            </PillBtn>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="More options"
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 999,
+                  border: `1px solid ${O.hair}`,
+                  background: O.glass,
+                  color: O.ink,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+                className="hover:bg-white/10 transition-colors"
+              >
+                <MoreHorizontal style={{ width: 16, height: 16 }} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 rounded-2xl">
+                <DropdownMenuItem
+                  className="cursor-pointer rounded-lg"
+                  onClick={() => {
+                    const url = `${window.location.origin}/${profile.username}`;
+                    void navigator.clipboard.writeText(url);
+                    toast.success("Profile link copied");
+                  }}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy profile link
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer rounded-lg"
+                  onClick={async () => {
+                    const url = `${window.location.origin}/${profile.username}`;
+                    const title = profile.display_name || `@${profile.username}`;
+                    if (
+                      typeof navigator !== "undefined" &&
+                      typeof (navigator as Navigator & { share?: (d: ShareData) => Promise<void> }).share === "function"
+                    ) {
+                      try {
+                        await (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share({
+                          title,
+                          url,
+                        });
+                        return;
+                      } catch {
+                        /* fall through to clipboard */
+                      }
+                    }
+                    void navigator.clipboard.writeText(url);
+                    toast.success("Link copied — paste anywhere to share");
+                  }}
+                >
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share profile
+                </DropdownMenuItem>
+                {!isOwnProfile && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="cursor-pointer rounded-lg"
+                      onClick={() => toast.message("Mute coming soon")}
+                    >
+                      <VolumeX className="mr-2 h-4 w-4" />
+                      Mute @{profile.username}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer rounded-lg"
+                      onClick={() => toast.message("Block coming soon")}
+                    >
+                      <UserX className="mr-2 h-4 w-4" />
+                      Block @{profile.username}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer rounded-lg"
+                      onClick={() => toast.message("Report coming soon")}
+                    >
+                      <Flag className="mr-2 h-4 w-4" />
+                      Report
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -335,8 +423,8 @@ export function ProfileContent({
           <StatCluster
             items={[
               { n: profile.post_count, label: "posts" },
-              { n: profile.follower_count, label: "orbit" },
-              { n: profile.following_count, label: "mutuals" },
+              { n: profile.follower_count, label: "orbit", onClick: () => setFollowListOpen("followers") },
+              { n: profile.following_count, label: "mutuals", onClick: () => setFollowListOpen("following") },
             ]}
           />
           {profile.website && (
@@ -515,6 +603,15 @@ export function ProfileContent({
       </div>
 
       {vods.length > 0 && <PastStreamsSection vods={vods} />}
+
+      <FollowListDialog
+        open={followListOpen !== null}
+        onOpenChange={(o) => {
+          if (!o) setFollowListOpen(null);
+        }}
+        userId={profile.id}
+        kind={followListOpen ?? "followers"}
+      />
     </div>
   );
 }

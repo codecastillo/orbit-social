@@ -1,7 +1,7 @@
 import { O, aurora } from "@/lib/design/orbit";
 import { formatNumber } from "@/lib/utils/format";
 
-type StatItem = { n: number; label: string };
+type StatItem = { n: number; label: string; onClick?: () => void };
 
 export function StatCluster({
   items,
@@ -15,8 +15,11 @@ export function StatCluster({
   return (
     <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
       {items.map((item, i) => (
-        <div
+        <button
           key={item.label}
+          type="button"
+          onClick={item.onClick}
+          disabled={!item.onClick}
           style={{
             paddingLeft: divider && i > 0 ? 32 : 0,
             borderLeft:
@@ -24,7 +27,14 @@ export function StatCluster({
             display: "flex",
             flexDirection: "column",
             gap: 2,
+            background: "transparent",
+            border: 0,
+            color: "inherit",
+            textAlign: "left",
+            cursor: item.onClick ? "pointer" : "default",
+            padding: divider && i > 0 ? "0 0 0 32px" : 0,
           }}
+          className={item.onClick ? "hover:opacity-80 transition-opacity" : ""}
         >
           <div
             style={{
@@ -51,7 +61,7 @@ export function StatCluster({
           >
             {item.label}
           </div>
-        </div>
+        </button>
       ))}
     </div>
   );

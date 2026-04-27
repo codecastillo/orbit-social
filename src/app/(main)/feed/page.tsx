@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, TrendingUp } from "lucide-react";
-import { PostComposer, InlineComposer } from "@/components/feed/post-composer";
+import { InlineComposer } from "@/components/feed/post-composer";
 import { FeedList } from "@/components/feed/feed-list";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
@@ -33,7 +33,6 @@ export default function FeedPage() {
 
   return (
     <>
-      <PostComposer />
       <div
         className="grid gap-[18px] w-full grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px]"
         style={{

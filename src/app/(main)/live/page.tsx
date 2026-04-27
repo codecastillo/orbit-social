@@ -24,9 +24,12 @@ import {
   LIVE_GAMES,
   LIVE_GAMES_BY_SLUG,
   coverArtUrl,
+  isLiveGameSlug,
   type LiveGameSlug,
 } from "@/lib/constants/live-games";
 import { getMuxLiveThumbnailUrl } from "@/lib/services/mux";
+import { CategoryPickerDialog } from "@/components/live/category-picker-dialog";
+import { isLiveCategorySlug } from "@/lib/constants/live-categories";
 
 const CATEGORY_LOOKUP: Record<string, (typeof LIVE_CATEGORIES)[number]> =
   Object.fromEntries(LIVE_CATEGORIES.map((c) => [c.slug, c]));
@@ -169,6 +172,7 @@ export default function LivePage() {
           <RecommendedCategoriesRail
             streams={streams}
             onPickGame={(slug) => setFilter({ kind: "game", slug })}
+            onPickCategory={(slug) => setFilter({ kind: "category", slug })}
           />
 
           {others.length > 0 && (
@@ -312,41 +316,44 @@ function EmptyCategoryState({
 function RecommendedCategoriesRail({
   streams,
   onPickGame,
+  onPickCategory,
 }: {
   streams: LiveStreamWithProfile[];
   onPickGame: (slug: LiveGameSlug) => void;
+  onPickCategory: (slug: LiveCategorySlug) => void;
 }) {
-  const games = LIVE_GAMES.slice(0, 6);
+  const [pickerOpen, setPickerOpen] = useState(false);
   return (
     <div>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
         <Eyebrow accent>◆&nbsp;&nbsp;RECOMMENDED CATEGORIES</Eyebrow>
-        <Link
-          href="#"
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
           style={{
             fontSize: 11.5,
-            color: O.ink3,
-            textDecoration: "none",
+            color: O.ink2,
+            background: "transparent",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
             fontFamily: O.mono,
             letterSpacing: "0.06em",
           }}
+          className="hover:text-cyan-300 transition-colors"
         >
           VIEW ALL
-        </Link>
+        </button>
       </div>
       <div
         style={{
-          display: "flex",
+          display: "grid",
           gap: 12,
-          overflowX: "auto",
-          paddingBottom: 6,
           marginTop: 12,
-          scrollbarWidth: "none",
-          WebkitOverflowScrolling: "touch",
+          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
         }}
-        className="scrollbar-hide"
       >
-        {games.map((g) => {
+        {LIVE_GAMES.map((g) => {
           const liveCount = streams.filter((s) => s.game_slug === g.slug).length;
           return (
             <GameCard
@@ -360,6 +367,19 @@ function RecommendedCategoriesRail({
           );
         })}
       </div>
+      <CategoryPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        value={{ category: null, gameSlug: null }}
+        onSave={(next) => {
+          setPickerOpen(false);
+          if (next.gameSlug && isLiveGameSlug(next.gameSlug)) {
+            onPickGame(next.gameSlug);
+          } else if (next.category && isLiveCategorySlug(next.category)) {
+            onPickCategory(next.category);
+          }
+        }}
+      />
     </div>
   );
 }
