@@ -26,6 +26,7 @@ import {
   coverArtUrl,
   type LiveGameSlug,
 } from "@/lib/constants/live-games";
+import { getMuxLiveThumbnailUrl } from "@/lib/services/mux";
 
 const CATEGORY_LOOKUP: Record<string, (typeof LIVE_CATEGORIES)[number]> =
   Object.fromEntries(LIVE_CATEGORIES.map((c) => [c.slug, c]));
@@ -468,6 +469,44 @@ function GameCard({
   );
 }
 
+/* ─── Live thumbnail (Mux still frame, refreshes every 30s) ─────── */
+
+function LiveThumbnail({
+  playbackId,
+  alt,
+}: {
+  playbackId: string | null;
+  alt: string;
+}) {
+  const [tick, setTick] = useState(0);
+  const [errored, setErrored] = useState(false);
+
+  useEffect(() => {
+    if (!playbackId || errored) return;
+    const id = setInterval(() => setTick((t) => t + 1), 30000);
+    return () => clearInterval(id);
+  }, [playbackId, errored]);
+
+  if (!playbackId || errored) return null;
+  const src = getMuxLiveThumbnailUrl(playbackId);
+  return (
+    <img
+      key={tick}
+      src={src}
+      alt={alt}
+      onError={() => setErrored(true)}
+      draggable={false}
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+      }}
+    />
+  );
+}
+
 /* ─── Featured live tile (with overlay header + actions) ─────────── */
 
 function FeaturedLive({ stream }: { stream: LiveStreamWithProfile }) {
@@ -494,6 +533,7 @@ function FeaturedLive({ stream }: { stream: LiveStreamWithProfile }) {
           position: "relative",
         }}
       >
+        <LiveThumbnail playbackId={stream.mux_playback_id} alt={stream.title || "Live"} />
         <div
           style={{
             position: "absolute",
@@ -612,6 +652,7 @@ function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
           position: "relative",
         }}
       >
+        <LiveThumbnail playbackId={stream.mux_playback_id} alt={stream.title || "Live"} />
         <div
           style={{
             position: "absolute",

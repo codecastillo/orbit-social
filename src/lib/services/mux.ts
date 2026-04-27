@@ -60,6 +60,23 @@ export function getMuxThumbnailUrl(
   return `https://image.mux.com/${playbackId}/thumbnail.jpg${qs ? "?" + qs : ""}`;
 }
 
+export function getMuxLiveThumbnailUrl(
+  playbackId: string,
+  opts: { width?: number; height?: number; refreshSeconds?: number } = {},
+): string {
+  const width = opts.width ?? 640;
+  const height = opts.height ?? 360;
+  const refresh = opts.refreshSeconds ?? 30;
+  const bucket = Math.floor(Date.now() / (refresh * 1000));
+  const params = new URLSearchParams({
+    width: String(width),
+    height: String(height),
+    fit_mode: "smartcrop",
+    time: String(bucket),
+  });
+  return `https://image.mux.com/${playbackId}/thumbnail.jpg?${params.toString()}`;
+}
+
 export async function unwrapMuxWebhook(
   body: string,
   signatureHeader: string | null,
