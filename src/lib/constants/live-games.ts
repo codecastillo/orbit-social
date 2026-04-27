@@ -1,20 +1,59 @@
+// Note: a small handful of games (esp. fresh releases or category-style entries
+// like Pokémon) don't have public Twitch box-art on the static CDN. For those
+// we set `coverUrl` to a reliable Steam library cover (or vendor CDN). When
+// `coverUrl` is set it wins; otherwise we hit the Twitch box-art endpoint.
 export const LIVE_GAMES = [
   { slug: "valorant", label: "VALORANT", boxArtLabel: "VALORANT", category: "gaming", accentHue: 0 },
   { slug: "minecraft", label: "Minecraft", boxArtLabel: "Minecraft", category: "gaming", accentHue: 130 },
   { slug: "fortnite", label: "Fortnite", boxArtLabel: "Fortnite", category: "gaming", accentHue: 270 },
   { slug: "gta-v", label: "Grand Theft Auto V", boxArtLabel: "Grand Theft Auto V", category: "gaming", accentHue: 200 },
   { slug: "cod-warzone", label: "Call of Duty: Warzone", boxArtLabel: "Call of Duty: Warzone", category: "gaming", accentHue: 30 },
-  { slug: "cod-mw3", label: "Call of Duty: MWIII", boxArtLabel: "Call of Duty: Modern Warfare III", category: "gaming", accentHue: 25 },
+  {
+    slug: "cod-mw3",
+    label: "Call of Duty: MWIII",
+    boxArtLabel: "Call of Duty: Modern Warfare III",
+    coverUrl: "https://cdn.akamai.steamstatic.com/steam/apps/2519060/library_600x900_2x.jpg",
+    category: "gaming",
+    accentHue: 25,
+  },
   { slug: "apex-legends", label: "Apex Legends", boxArtLabel: "Apex Legends", category: "gaming", accentHue: 5 },
   { slug: "lol", label: "League of Legends", boxArtLabel: "League of Legends", category: "gaming", accentHue: 220 },
   { slug: "cs2", label: "Counter-Strike 2", boxArtLabel: "Counter-Strike", category: "gaming", accentHue: 45 },
-  { slug: "overwatch-2", label: "Overwatch 2", boxArtLabel: "Overwatch 2", category: "gaming", accentHue: 35 },
-  { slug: "marvel-rivals", label: "Marvel Rivals", boxArtLabel: "Marvel Rivals", category: "gaming", accentHue: 350 },
+  {
+    slug: "overwatch-2",
+    label: "Overwatch 2",
+    boxArtLabel: "Overwatch 2",
+    coverUrl: "https://cdn.akamai.steamstatic.com/steam/apps/2357570/library_600x900_2x.jpg",
+    category: "gaming",
+    accentHue: 35,
+  },
+  {
+    slug: "marvel-rivals",
+    label: "Marvel Rivals",
+    boxArtLabel: "Marvel Rivals",
+    coverUrl: "https://cdn.akamai.steamstatic.com/steam/apps/2767030/library_600x900_2x.jpg",
+    category: "gaming",
+    accentHue: 350,
+  },
   { slug: "roblox", label: "Roblox", boxArtLabel: "Roblox", category: "gaming", accentHue: 0 },
-  { slug: "free-fire", label: "Garena Free Fire", boxArtLabel: "Free Fire", category: "gaming", accentHue: 20 },
+  {
+    slug: "free-fire",
+    label: "Garena Free Fire",
+    boxArtLabel: "Free Fire",
+    coverUrl: "https://cdn.akamai.steamstatic.com/steam/apps/3590120/library_600x900_2x.jpg",
+    category: "gaming",
+    accentHue: 20,
+  },
   { slug: "pubg", label: "PUBG: Battlegrounds", boxArtLabel: "PUBG: BATTLEGROUNDS", category: "gaming", accentHue: 50 },
   { slug: "rocket-league", label: "Rocket League", boxArtLabel: "Rocket League", category: "gaming", accentHue: 195 },
-  { slug: "fc-25", label: "EA Sports FC 25", boxArtLabel: "EA Sports FC 25", category: "gaming", accentHue: 145 },
+  {
+    slug: "fc-25",
+    label: "EA Sports FC 25",
+    boxArtLabel: "EA Sports FC 25",
+    coverUrl: "https://cdn.akamai.steamstatic.com/steam/apps/2669320/library_600x900_2x.jpg",
+    category: "gaming",
+    accentHue: 145,
+  },
   { slug: "dota-2", label: "Dota 2", boxArtLabel: "Dota 2", category: "gaming", accentHue: 0 },
   { slug: "rust", label: "Rust", boxArtLabel: "Rust", category: "gaming", accentHue: 18 },
   { slug: "wow", label: "World of Warcraft", boxArtLabel: "World of Warcraft", category: "gaming", accentHue: 50 },
@@ -22,7 +61,14 @@ export const LIVE_GAMES = [
   { slug: "hearthstone", label: "Hearthstone", boxArtLabel: "Hearthstone", category: "gaming", accentHue: 220 },
   { slug: "tarkov", label: "Escape From Tarkov", boxArtLabel: "Escape From Tarkov", category: "gaming", accentHue: 95 },
   { slug: "sims-4", label: "The Sims 4", boxArtLabel: "The Sims 4", category: "gaming", accentHue: 145 },
-  { slug: "pokemon", label: "Pokémon", boxArtLabel: "Pokémon", category: "gaming", accentHue: 50 },
+  {
+    slug: "pokemon",
+    label: "Pokémon",
+    boxArtLabel: "Pokémon",
+    coverUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/International_Pok%C3%A9mon_logo.svg/1200px-International_Pok%C3%A9mon_logo.svg.png",
+    category: "gaming",
+    accentHue: 50,
+  },
   { slug: "chess", label: "Chess", boxArtLabel: "Chess", category: "gaming", accentHue: 0 },
 ] as const;
 
@@ -43,10 +89,14 @@ function boxArt(label: string, size: string): string {
 
 export function coverArtUrl(slug: string): string {
   if (!isLiveGameSlug(slug)) return "";
-  return boxArt(LIVE_GAMES_BY_SLUG[slug].boxArtLabel, "285x380");
+  const g = LIVE_GAMES_BY_SLUG[slug] as LiveGame & { coverUrl?: string };
+  if (g.coverUrl) return g.coverUrl;
+  return boxArt(g.boxArtLabel, "285x380");
 }
 
 export function coverArtSmallUrl(slug: string): string {
   if (!isLiveGameSlug(slug)) return "";
-  return boxArt(LIVE_GAMES_BY_SLUG[slug].boxArtLabel, "144x192");
+  const g = LIVE_GAMES_BY_SLUG[slug] as LiveGame & { coverUrl?: string };
+  if (g.coverUrl) return g.coverUrl;
+  return boxArt(g.boxArtLabel, "144x192");
 }

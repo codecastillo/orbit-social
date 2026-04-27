@@ -331,8 +331,9 @@ function RecommendedCategoriesRail({
     if (!el) return;
     const CARD_W = 140;
     const GAP = 12;
+    const SAFETY = 2;
     const recompute = () => {
-      const w = el.clientWidth;
+      const w = el.clientWidth - SAFETY;
       if (w <= 0) return;
       const fits = Math.max(1, Math.floor((w + GAP) / (CARD_W + GAP)));
       setVisibleCount(Math.min(fits, LIVE_GAMES.length));
@@ -340,7 +341,13 @@ function RecommendedCategoriesRail({
     recompute();
     const ro = new ResizeObserver(recompute);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener("resize", recompute);
+    const t = setTimeout(recompute, 100);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", recompute);
+      clearTimeout(t);
+    };
   }, []);
 
   return (
