@@ -203,10 +203,13 @@ export async function getMyJoinRequestStatus(communityId: string, userId: string
 }
 
 export async function deleteCommunity(communityId: string) {
-  const { error } = await supabase
-    .from("communities")
-    .delete()
-    .eq("id", communityId);
+  // SECURITY DEFINER RPC: re-checks ownership server-side and bypasses the
+  // RLS-silent-filter problem (a plain DELETE under RLS returns no error
+  // when 0 rows are affected, so we couldn't tell success from a missing
+  // policy match).
+  const { error } = await supabase.rpc("delete_community", {
+    p_community_id: communityId,
+  });
   if (error) throw error;
 }
 

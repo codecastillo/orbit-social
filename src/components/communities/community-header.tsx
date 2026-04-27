@@ -198,12 +198,14 @@ export function CommunityHeader({
       await deleteCommunity(community.id);
       toast.success(`Deleted ${community.name}`);
       queryClient.invalidateQueries({ queryKey: ["communities"] });
+      setConfirmDelete(false);
       router.push("/communities");
-    } catch {
-      toast.error("Couldn't delete the room");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Couldn't delete the room";
+      console.error("Delete community failed:", err);
+      toast.error(message);
     } finally {
       setDeleting(false);
-      setConfirmDelete(false);
     }
   };
 
