@@ -267,10 +267,11 @@ export function CommunityHeader({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
-                    onSelect={() => setConfirmDelete(true)}
-                    className="text-destructive focus:text-destructive"
+                    variant="destructive"
+                    className="cursor-pointer rounded-lg"
+                    onClick={() => setConfirmDelete(true)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="mr-2 h-4 w-4" />
                     Delete room
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
