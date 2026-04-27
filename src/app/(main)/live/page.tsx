@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Radio } from "lucide-react";
+import { Radio, Eye, Sparkles } from "lucide-react";
+import * as Icons from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -19,9 +20,30 @@ import {
   LIVE_CATEGORIES,
   type LiveCategorySlug,
 } from "@/lib/constants/live-categories";
+import {
+  LIVE_GAMES,
+  LIVE_GAMES_BY_SLUG,
+  coverArtUrl,
+  type LiveGameSlug,
+} from "@/lib/constants/live-games";
 
 const CATEGORY_LOOKUP: Record<string, (typeof LIVE_CATEGORIES)[number]> =
   Object.fromEntries(LIVE_CATEGORIES.map((c) => [c.slug, c]));
+
+type StreamFilter =
+  | { kind: "all" }
+  | { kind: "category"; slug: LiveCategorySlug }
+  | { kind: "game"; slug: LiveGameSlug };
+
+function resolveLucideIcon(
+  name: string,
+): React.ComponentType<{ className?: string; size?: number; style?: React.CSSProperties }> {
+  const lookup = Icons as unknown as Record<
+    string,
+    React.ComponentType<{ className?: string; size?: number; style?: React.CSSProperties }>
+  >;
+  return lookup[name] ?? Sparkles;
+}
 
 function hueFor(seed: string): number {
   let h = 0;
@@ -56,8 +78,7 @@ function useLiveClock(): number {
 
 export default function LivePage() {
   const router = useRouter();
-  const [selectedCategory, setSelectedCategory] =
-    useState<LiveCategorySlug | null>(null);
+  const [filter, setFilter] = useState<StreamFilter>({ kind: "all" });
   const { data: streams, isLoading } = useQuery({
     queryKey: ["live-streams"],
     queryFn: getLiveStreams,
@@ -97,11 +118,21 @@ export default function LivePage() {
     );
   }
 
-  const filtered = selectedCategory
-    ? streams.filter((s) => s.category === selectedCategory)
-    : streams;
+  const filtered =
+    filter.kind === "all"
+      ? streams
+      : filter.kind === "category"
+        ? streams.filter((s) => s.category === filter.slug)
+        : streams.filter((s) => s.game_slug === filter.slug);
   const featured = filtered[0];
   const others = filtered.slice(1);
+
+  const filterLabel =
+    filter.kind === "all"
+      ? "All"
+      : filter.kind === "category"
+        ? CATEGORY_LOOKUP[filter.slug]?.label ?? filter.slug
+        : LIVE_GAMES_BY_SLUG[filter.slug]?.label ?? filter.slug;
 
   return (
     <div
@@ -123,16 +154,21 @@ export default function LivePage() {
         </Display>
       </div>
 
-      <CategoryChipRow
-        selected={selectedCategory}
-        onSelect={setSelectedCategory}
-      />
+      <CategoryChipRow filter={filter} onSelect={setFilter} />
 
       {filtered.length === 0 ? (
-        <EmptyCategoryState onShowAll={() => setSelectedCategory(null)} />
+        <EmptyCategoryState
+          label={filterLabel}
+          onShowAll={() => setFilter({ kind: "all" })}
+        />
       ) : (
         <>
           {featured && <FeaturedLive stream={featured} />}
+
+          <RecommendedCategoriesRail
+            streams={streams}
+            onPickGame={(slug) => setFilter({ kind: "game", slug })}
+          />
 
           {others.length > 0 && (
             <div>
@@ -140,11 +176,10 @@ export default function LivePage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
                   gap: 14,
                   marginTop: 12,
                 }}
-                className="md:grid-cols-2 grid-cols-1"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
               >
                 {others.map((s) => (
                   <SmallLiveTile key={s.id} stream={s} />
@@ -159,12 +194,13 @@ export default function LivePage() {
 }
 
 function CategoryChipRow({
-  selected,
+  filter,
   onSelect,
 }: {
-  selected: LiveCategorySlug | null;
-  onSelect: (slug: LiveCategorySlug | null) => void;
+  filter: StreamFilter;
+  onSelect: (next: StreamFilter) => void;
 }) {
+  const isAll = filter.kind === "all";
   return (
     <div
       style={{
@@ -178,22 +214,26 @@ function CategoryChipRow({
       className="scrollbar-hide"
     >
       <CategoryChip
-        active={selected === null}
-        onClick={() => onSelect(null)}
-        emoji="✦"
+        active={isAll}
+        onClick={() => onSelect({ kind: "all" })}
+        icon={Sparkles}
         label="All"
         hue={210}
       />
-      {LIVE_CATEGORIES.map((c) => (
-        <CategoryChip
-          key={c.slug}
-          active={selected === c.slug}
-          onClick={() => onSelect(c.slug)}
-          emoji={c.emoji}
-          label={c.label}
-          hue={c.hue}
-        />
-      ))}
+      {LIVE_CATEGORIES.map((c) => {
+        const Icon = resolveLucideIcon(c.iconName);
+        const active = filter.kind === "category" && filter.slug === c.slug;
+        return (
+          <CategoryChip
+            key={c.slug}
+            active={active}
+            onClick={() => onSelect({ kind: "category", slug: c.slug })}
+            icon={Icon}
+            label={c.label}
+            hue={c.hue}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -201,13 +241,13 @@ function CategoryChipRow({
 function CategoryChip({
   active,
   onClick,
-  emoji,
+  icon: Icon,
   label,
   hue,
 }: {
   active: boolean;
   onClick: () => void;
-  emoji: string;
+  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
   label: string;
   hue: number;
 }) {
@@ -235,13 +275,19 @@ function CategoryChip({
         fontFamily: O.sans,
       }}
     >
-      <span style={{ fontSize: 14 }}>{emoji}</span>
+      <Icon size={13} style={{ opacity: 0.9 }} />
       {label}
     </button>
   );
 }
 
-function EmptyCategoryState({ onShowAll }: { onShowAll: () => void }) {
+function EmptyCategoryState({
+  label,
+  onShowAll,
+}: {
+  label: string;
+  onShowAll: () => void;
+}) {
   return (
     <div
       style={{
@@ -255,9 +301,169 @@ function EmptyCategoryState({ onShowAll }: { onShowAll: () => void }) {
       }}
     >
       <p style={{ color: O.ink2, fontSize: 14 }}>
-        No live streams in this category right now
+        No live streams in {label} right now
       </p>
       <PillBtn onClick={onShowAll}>Show all</PillBtn>
+    </div>
+  );
+}
+
+function RecommendedCategoriesRail({
+  streams,
+  onPickGame,
+}: {
+  streams: LiveStreamWithProfile[];
+  onPickGame: (slug: LiveGameSlug) => void;
+}) {
+  const games = LIVE_GAMES.slice(0, 6);
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+        <Eyebrow accent>◆&nbsp;&nbsp;RECOMMENDED CATEGORIES</Eyebrow>
+        <Link
+          href="#"
+          style={{
+            fontSize: 11.5,
+            color: O.ink3,
+            textDecoration: "none",
+            fontFamily: O.mono,
+            letterSpacing: "0.06em",
+          }}
+        >
+          VIEW ALL
+        </Link>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          overflowX: "auto",
+          paddingBottom: 6,
+          marginTop: 12,
+          scrollbarWidth: "none",
+          WebkitOverflowScrolling: "touch",
+        }}
+        className="scrollbar-hide"
+      >
+        {games.map((g) => {
+          const liveCount = streams.filter((s) => s.game_slug === g.slug).length;
+          return (
+            <GameCard
+              key={g.slug}
+              label={g.label}
+              slug={g.slug}
+              accentHue={g.accentHue}
+              liveCount={liveCount}
+              onClick={() => onPickGame(g.slug)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function GameCard({
+  label,
+  slug,
+  accentHue,
+  liveCount,
+  onClick,
+}: {
+  label: string;
+  slug: LiveGameSlug;
+  accentHue: number;
+  liveCount: number;
+  onClick: () => void;
+}) {
+  const [errored, setErrored] = useState(false);
+  const src = coverArtUrl(slug);
+  return (
+    <div style={{ flexShrink: 0, width: 140 }}>
+      <button
+        onClick={onClick}
+        style={{
+          width: 140,
+          height: 190,
+          borderRadius: 18,
+          overflow: "hidden",
+          position: "relative",
+          padding: 0,
+          cursor: "pointer",
+          border: "1px solid rgba(255,255,255,0.08)",
+          background: "rgba(255,255,255,0.02)",
+        }}
+        className="hover:ring-2 hover:ring-cyan-400/40 transition-all"
+      >
+        {!errored && src ? (
+          <img
+            src={src}
+            alt={label}
+            onError={() => setErrored(true)}
+            draggable={false}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 10,
+              textAlign: "center",
+              background: `oklch(0.4 0.18 ${accentHue})`,
+              color: "rgba(255,255,255,0.95)",
+              fontSize: 14,
+              fontWeight: 800,
+              lineHeight: 1.15,
+            }}
+          >
+            {label}
+          </div>
+        )}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(to top, rgba(0,0,0,0.85), transparent 50%)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            left: 8,
+            right: 8,
+            bottom: 8,
+            color: "white",
+            fontSize: 12,
+            fontWeight: 700,
+            lineHeight: 1.2,
+            textAlign: "left",
+          }}
+        >
+          {label}
+        </div>
+      </button>
+      <div
+        style={{
+          marginTop: 6,
+          fontSize: 11,
+          color: O.ink3,
+          fontFamily: O.mono,
+          letterSpacing: "0.04em",
+        }}
+      >
+        {liveCount} LIVE
+      </div>
     </div>
   );
 }
@@ -386,8 +592,6 @@ function FeaturedLive({ stream }: { stream: LiveStreamWithProfile }) {
 function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
   const hue = hueFor(stream.id);
   const hue2 = (hue + 60) % 360;
-  const now = useLiveClock();
-  const category = stream.category ? CATEGORY_LOOKUP[stream.category] : null;
   return (
     <Link
       href={`/live/${stream.id}`}
@@ -416,9 +620,7 @@ function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
               "repeating-linear-gradient(135deg, transparent 0 18px, rgba(0,0,0,0.06) 18px 19px)",
           }}
         />
-        <div
-          style={{ position: "absolute", top: 10, left: 10 }}
-        >
+        <div style={{ position: "absolute", top: 10, left: 10 }}>
           <LiveBadge variant="corner" pulse />
         </div>
         <div
@@ -427,14 +629,19 @@ function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
             top: 10,
             right: 10,
             padding: "3px 8px",
-            borderRadius: 4,
-            background: "rgba(0,0,0,0.5)",
-            fontSize: 10,
-            fontFamily: O.mono,
+            borderRadius: 6,
+            background: "rgba(0,0,0,0.55)",
+            backdropFilter: "blur(8px)",
+            fontSize: 11,
             color: "white",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            fontWeight: 700,
           }}
         >
-          {formatElapsed(stream.started_at, now)}
+          <Eye style={{ width: 11, height: 11 }} />
+          {stream.viewer_count ?? 0}
         </div>
       </div>
       <div
@@ -454,37 +661,18 @@ function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
           <div
             style={{
               fontSize: 13,
-              fontWeight: 600,
-              whiteSpace: "nowrap",
+              fontWeight: 700,
+              lineHeight: 1.3,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
               overflow: "hidden",
-              textOverflow: "ellipsis",
             }}
           >
-            {stream.title}
+            {stream.title || "Untitled stream"}
           </div>
-          {category && (
-            <div
-              style={{
-                marginTop: 4,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "2px 7px",
-                borderRadius: 6,
-                background: `oklch(0.55 0.18 ${category.hue} / 0.18)`,
-                color: `oklch(0.85 0.16 ${category.hue})`,
-                fontSize: 10.5,
-                fontWeight: 700,
-                lineHeight: 1.2,
-              }}
-            >
-              <span>{category.emoji}</span>
-              {category.label}
-            </div>
-          )}
-          <div style={{ fontSize: 11, color: O.ink3, marginTop: category ? 4 : 0 }}>
-            {stream.profiles.display_name.split(" ")[0]} · {stream.viewer_count ?? 0}{" "}
-            watching
+          <div style={{ fontSize: 11, color: O.ink3, marginTop: 4 }}>
+            {stream.profiles.display_name}
           </div>
         </div>
       </div>

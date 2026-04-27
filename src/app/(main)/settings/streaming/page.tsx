@@ -17,14 +17,34 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { O, panel, aurora } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow } from "@/components/orbit/primitives";
 import { Toggle } from "@/components/orbit/forms";
+import * as Icons from "lucide-react";
+import { Sparkles, ChevronDown, Pencil } from "lucide-react";
 import {
   LIVE_CATEGORIES,
-  LIVE_LANGUAGES,
   LIVE_SLOW_MODE_OPTIONS,
   type LiveCategorySlug,
   type LiveLanguageCode,
   type LiveSlowModeSeconds,
 } from "@/lib/constants/live-categories";
+import {
+  LIVE_GAMES_BY_SLUG,
+  coverArtSmallUrl,
+  type LiveGameSlug,
+} from "@/lib/constants/live-games";
+import { CategoryPickerDialog } from "@/components/live/category-picker-dialog";
+import { TagChipsField } from "@/components/live/tag-chips-field";
+import { LanguagePicker } from "@/components/live/language-picker";
+
+const CATEGORY_BY_SLUG: Record<string, (typeof LIVE_CATEGORIES)[number]> =
+  Object.fromEntries(LIVE_CATEGORIES.map((c) => [c.slug, c]));
+
+function resolveLucideIcon(name: string) {
+  const lookup = Icons as unknown as Record<
+    string,
+    React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>
+  >;
+  return lookup[name] ?? Sparkles;
+}
 
 interface Credentials {
   streamId: string;
@@ -35,6 +55,7 @@ interface Credentials {
   status: "idle" | "live" | "ended";
   title: string | null;
   category: LiveCategorySlug | null;
+  gameSlug: LiveGameSlug | null;
   tags: string[];
   language: LiveLanguageCode;
   slowModeSeconds: LiveSlowModeSeconds;
@@ -215,17 +236,19 @@ function StreamDetailsPanel({
 }) {
   const [title, setTitle] = useState(initial.title ?? "");
   const [category, setCategory] = useState<LiveCategorySlug | "">(initial.category ?? "");
+  const [gameSlug, setGameSlug] = useState<LiveGameSlug | null>(initial.gameSlug ?? null);
   const [tags, setTags] = useState<string[]>(initial.tags ?? []);
-  const [tagDraft, setTagDraft] = useState("");
   const [language, setLanguage] = useState<LiveLanguageCode>(initial.language);
   const [mature, setMature] = useState<boolean>(initial.mature);
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dirty = useMemo(() => {
     if (title.trim() !== (initial.title ?? "")) return true;
     if ((category || null) !== (initial.category ?? null)) return true;
+    if ((gameSlug ?? null) !== (initial.gameSlug ?? null)) return true;
     if (tags.length !== (initial.tags ?? []).length) return true;
     for (let i = 0; i < tags.length; i++) {
       if (tags[i] !== initial.tags[i]) return true;
@@ -233,40 +256,13 @@ function StreamDetailsPanel({
     if (language !== initial.language) return true;
     if (mature !== initial.mature) return true;
     return false;
-  }, [title, category, tags, language, mature, initial]);
+  }, [title, category, gameSlug, tags, language, mature, initial]);
 
   useEffect(() => {
     return () => {
       if (flashTimer.current) clearTimeout(flashTimer.current);
     };
   }, []);
-
-  const addTag = (raw: string) => {
-    const cleaned = raw
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9-]/g, "")
-      .slice(0, 20);
-    if (!cleaned) return;
-    if (tags.includes(cleaned)) {
-      setTagDraft("");
-      return;
-    }
-    if (tags.length >= 5) return;
-    setTags([...tags, cleaned]);
-    setTagDraft("");
-  };
-
-  const removeTag = (t: string) => setTags(tags.filter((x) => x !== t));
-
-  const onTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      addTag(tagDraft);
-    } else if (e.key === "Backspace" && !tagDraft && tags.length > 0) {
-      setTags(tags.slice(0, -1));
-    }
-  };
 
   const onSave = async () => {
     if (!dirty || saving) return;
@@ -283,6 +279,9 @@ function StreamDetailsPanel({
     }
     if ((category || null) !== (initial.category ?? null)) {
       body.category = category || null;
+    }
+    if ((gameSlug ?? null) !== (initial.gameSlug ?? null)) {
+      body.game_slug = gameSlug;
     }
     if (
       tags.length !== (initial.tags ?? []).length ||
@@ -306,6 +305,7 @@ function StreamDetailsPanel({
       onSaved({
         title: trimmedTitle || null,
         category: (category || null) as LiveCategorySlug | null,
+        gameSlug: gameSlug,
         tags: [...tags],
         language,
         mature,
@@ -347,108 +347,39 @@ function StreamDetailsPanel({
       </FieldLabel>
 
       <FieldLabel label="Category">
-        <BareSelect
-          value={category}
-          onChange={(e) => setCategory(e.target.value as LiveCategorySlug | "")}
-        >
-          <option value="">Pick a category…</option>
-          {LIVE_CATEGORIES.map((c) => (
-            <option key={c.slug} value={c.slug}>
-              {c.emoji}  {c.label}
-            </option>
-          ))}
-        </BareSelect>
+        <CategoryPickerButton
+          category={category || null}
+          gameSlug={gameSlug}
+          onClick={() => setPickerOpen(true)}
+        />
       </FieldLabel>
 
       <FieldLabel
         label="Tags"
         hint={`${tags.length}/5 — lowercase, letters/numbers/hyphen only`}
       >
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 6,
-            padding: 8,
-            borderRadius: 12,
-            background: "rgba(255,255,255,0.03)",
-            border: `1px solid ${O.hair2}`,
-            minHeight: 44,
-            alignItems: "center",
-          }}
-        >
-          {tags.map((t) => (
-            <span
-              key={t}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "4px 4px 4px 10px",
-                borderRadius: 99,
-                background: "rgba(143,115,255,0.16)",
-                border: "1px solid rgba(143,115,255,0.35)",
-                fontSize: 12,
-                color: O.ink,
-                fontFamily: O.mono,
-              }}
-            >
-              {t}
-              <button
-                type="button"
-                onClick={() => removeTag(t)}
-                aria-label={`Remove ${t}`}
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  background: "rgba(255,255,255,0.08)",
-                  border: "none",
-                  color: O.ink2,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <XIcon style={{ width: 10, height: 10 }} />
-              </button>
-            </span>
-          ))}
-          <input
-            value={tagDraft}
-            onChange={(e) => setTagDraft(e.target.value)}
-            onKeyDown={onTagKeyDown}
-            onBlur={() => tagDraft && addTag(tagDraft)}
-            placeholder={tags.length >= 5 ? "Tag limit reached" : "Add tag, press Enter"}
-            disabled={tags.length >= 5}
-            style={{
-              flex: 1,
-              minWidth: 140,
-              padding: "6px 8px",
-              border: "none",
-              outline: "none",
-              background: "transparent",
-              color: O.ink,
-              fontSize: 13,
-              fontFamily: "inherit",
-            }}
-          />
-        </div>
+        <TagChipsField
+          tags={tags}
+          onChange={setTags}
+          max={5}
+          placeholder="Add a tag, press Enter"
+          suggestions={["chill", "firstplaythrough", "controller", "1080p60"]}
+        />
       </FieldLabel>
 
       <FieldLabel label="Language">
-        <BareSelect
-          value={language}
-          onChange={(e) => setLanguage(e.target.value as LiveLanguageCode)}
-        >
-          {LIVE_LANGUAGES.map((l) => (
-            <option key={l.code} value={l.code}>
-              {l.flag}  {l.label}
-            </option>
-          ))}
-        </BareSelect>
+        <LanguagePicker value={language} onChange={setLanguage} />
       </FieldLabel>
+
+      <CategoryPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        value={{ category: category || null, gameSlug }}
+        onSave={(next) => {
+          setCategory((next.category ?? "") as LiveCategorySlug | "");
+          setGameSlug(next.gameSlug as LiveGameSlug | null);
+        }}
+      />
 
       <div
         style={{
@@ -783,28 +714,96 @@ function BareInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
-function BareSelect(props: React.SelectHTMLAttributes<HTMLSelectElement> & { children: React.ReactNode }) {
-  const { children, ...rest } = props;
+function CategoryPickerButton({
+  category,
+  gameSlug,
+  onClick,
+}: {
+  category: string | null;
+  gameSlug: LiveGameSlug | null;
+  onClick: () => void;
+}) {
+  const game = gameSlug ? LIVE_GAMES_BY_SLUG[gameSlug] : null;
+  const cat = category ? CATEGORY_BY_SLUG[category] : null;
+
+  let inner: React.ReactNode;
+  if (game) {
+    inner = (
+      <>
+        <img
+          src={coverArtSmallUrl(game.slug)}
+          alt={game.label}
+          width={26}
+          height={34}
+          style={{
+            borderRadius: 4,
+            objectFit: "cover",
+            background: `oklch(0.4 0.18 ${game.accentHue})`,
+          }}
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).style.display = "none";
+          }}
+        />
+        <div style={{ minWidth: 0, textAlign: "left" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: O.ink, lineHeight: 1.2 }}>
+            {game.label}
+          </div>
+          <div style={{ fontSize: 11, color: O.ink3, marginTop: 1 }}>in Gaming</div>
+        </div>
+      </>
+    );
+  } else if (cat) {
+    const Icon = resolveLucideIcon(cat.iconName);
+    inner = (
+      <>
+        <span
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: 8,
+            background: `oklch(0.55 0.18 ${cat.hue} / 0.18)`,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: `oklch(0.85 0.16 ${cat.hue})`,
+          }}
+        >
+          <Icon size={14} />
+        </span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: O.ink }}>{cat.label}</span>
+      </>
+    );
+  } else {
+    inner = (
+      <>
+        <Sparkles size={14} style={{ color: O.ink3 }} />
+        <span style={{ fontSize: 13, color: O.ink3 }}>Pick a category</span>
+      </>
+    );
+  }
+
   return (
-    <select
-      {...rest}
+    <button
+      type="button"
+      onClick={onClick}
       style={{
-        padding: "11px 14px",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "8px 12px 8px 10px",
         borderRadius: 12,
         background: "rgba(255,255,255,0.03)",
         border: `1px solid ${O.hair2}`,
-        color: O.ink,
-        fontSize: 14,
-        outline: "none",
-        fontFamily: "inherit",
-        width: "100%",
-        appearance: "none",
         cursor: "pointer",
-        ...(rest.style ?? {}),
+        width: "100%",
+        textAlign: "left",
+        transition: "border-color 120ms ease, background 120ms ease",
       }}
+      className="hover:border-cyan-400/40 hover:bg-white/[0.05]"
     >
-      {children}
-    </select>
+      {inner}
+      <ChevronDown size={14} style={{ color: O.ink3, marginLeft: "auto" }} />
+    </button>
   );
 }
 

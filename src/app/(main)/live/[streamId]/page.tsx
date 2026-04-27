@@ -4,7 +4,8 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Heart, Send, Share2, X, Gift, Eye, Sparkles } from "lucide-react";
+import { Heart, Send, Share2, X, Gift, Eye, Sparkles, Pencil, Check } from "lucide-react";
+import * as Icons from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -31,9 +32,31 @@ import { GiftAnimation } from "@/components/live/gift-animation";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { LIVE_CATEGORIES } from "@/lib/constants/live-categories";
+import {
+  LIVE_GAMES_BY_SLUG,
+  coverArtSmallUrl,
+  isLiveGameSlug,
+} from "@/lib/constants/live-games";
+import { CategoryPickerDialog } from "@/components/live/category-picker-dialog";
 
 const CATEGORY_LOOKUP: Record<string, (typeof LIVE_CATEGORIES)[number]> =
   Object.fromEntries(LIVE_CATEGORIES.map((c) => [c.slug, c]));
+
+function stripUndef<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  const out: Record<string, unknown> = {};
+  for (const k in obj) {
+    if (obj[k] !== undefined) out[k] = obj[k];
+  }
+  return out as Partial<T>;
+}
+
+function resolveLucideIcon(name: string) {
+  const lookup = Icons as unknown as Record<
+    string,
+    React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>
+  >;
+  return lookup[name] ?? Sparkles;
+}
 
 const MuxPlayer = dynamic(() => import("@mux/mux-player-react").then((m) => m.default), {
   ssr: false,
@@ -370,8 +393,11 @@ export default function LiveViewerPage({ params }: Props) {
                   )}
                 </div>
 
-                {stream.category && CATEGORY_LOOKUP[stream.category] && (
-                  <MobileCategoryPill slug={stream.category} />
+                {(stream.category || stream.game_slug) && (
+                  <MobileCategoryPill
+                    slug={stream.category}
+                    gameSlug={stream.game_slug}
+                  />
                 )}
               </div>
 
@@ -496,6 +522,23 @@ export default function LiveViewerPage({ params }: Props) {
           isFollowing={isFollowing}
           onToggleFollow={handleToggleFollow}
           onShare={() => setShareOpen(true)}
+          isOwnStream={isOwnStream}
+          onSaveStream={async (patch) => {
+            try {
+              const res = await fetch("/api/live/me", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(patch),
+              });
+              if (!res.ok) throw new Error(`http_${res.status}`);
+              queryClient.setQueryData<LiveStreamWithProfile>(
+                ["live-stream", streamId],
+                (prev) => (prev ? { ...prev, ...stripUndef(patch) } : prev),
+              );
+            } catch {
+              toast.error("Couldn't save");
+            }
+          }}
         />
 
         {/* Gift overlay */}
@@ -696,6 +739,13 @@ function PlaceholderCover({ stream }: { stream: LiveStreamWithProfile }) {
   );
 }
 
+type StreamPatch = {
+  title?: string;
+  category?: string | null;
+  game_slug?: string | null;
+  tags?: string[];
+};
+
 function DesktopInfoBar({
   stream,
   now,
@@ -704,6 +754,8 @@ function DesktopInfoBar({
   isFollowing,
   onToggleFollow,
   onShare,
+  isOwnStream,
+  onSaveStream,
 }: {
   stream: LiveStreamWithProfile;
   now: number;
@@ -712,10 +764,26 @@ function DesktopInfoBar({
   isFollowing: boolean;
   onToggleFollow: () => Promise<void>;
   onShare: () => void;
+  isOwnStream: boolean;
+  onSaveStream: (patch: StreamPatch) => Promise<void>;
 }) {
   const profileHref = stream.profiles?.username ? `/${stream.profiles.username}` : "#";
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [showEditingHint, setShowEditingHint] = useState(isOwnStream);
+
+  useEffect(() => {
+    if (!isOwnStream) return;
+    const id = setTimeout(() => setShowEditingHint(false), 4000);
+    return () => clearTimeout(id);
+  }, [isOwnStream]);
+
   return (
     <div className="hidden lg:block px-5 pb-5">
+      {showEditingHint && (
+        <div className="mb-2 text-[10px] font-mono tracking-[0.12em] text-cyan-300/80">
+          ◆ EDITING AS @{stream.profiles?.username}
+        </div>
+      )}
       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
         <div className="flex items-center gap-3">
           <Link
@@ -761,6 +829,11 @@ function DesktopInfoBar({
               <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
               Live
             </span>
+            {stream.language && (
+              <span className="px-2 h-7 inline-flex items-center rounded-lg bg-white/[0.05] border border-white/10 text-white/85 text-[10.5px] font-mono uppercase tracking-wider">
+                {stream.language}
+              </span>
+            )}
             <span className="flex items-center gap-1 px-2 h-7 rounded-lg bg-white/[0.05] border border-white/10 text-white/85 text-[11.5px] font-semibold tabular-nums">
               <Eye className="h-3 w-3" />
               {viewerCount}
@@ -771,63 +844,308 @@ function DesktopInfoBar({
           </div>
         </div>
 
-        {stream.title && (
-          <h1 className="text-white text-[19px] font-bold leading-snug mt-3 line-clamp-2">
-            {stream.title}
-          </h1>
-        )}
+        <InlineTitleField
+          title={stream.title}
+          isOwnStream={isOwnStream}
+          onSave={(t) => onSaveStream({ title: t })}
+        />
 
-        {(stream.category || (stream.tags && stream.tags.length > 0)) && (
-          <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-            {stream.category && CATEGORY_LOOKUP[stream.category] && (
-              <CategoryPill slug={stream.category} />
-            )}
-            {stream.tags?.slice(0, 5).map((tag) => (
-              <span
-                key={tag}
-                className="inline-flex items-center h-6 px-2 rounded-md bg-white/[0.05] border border-white/10 text-white/70 text-[11px] font-semibold"
-              >
-                #{tag}
-              </span>
-            ))}
-          </div>
+        <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+          <CategoryPill
+            slug={stream.category}
+            gameSlug={stream.game_slug}
+            onClick={isOwnStream ? () => setPickerOpen(true) : undefined}
+          />
+          {stream.tags?.slice(0, 5).map((tag) => (
+            <span
+              key={tag}
+              className={`inline-flex items-center h-6 pl-2 ${
+                isOwnStream ? "pr-1 group" : "pr-2"
+              } rounded-md bg-white/[0.05] border border-white/10 text-white/70 text-[11px] font-semibold`}
+            >
+              #{tag}
+              {isOwnStream && (
+                <button
+                  onClick={() =>
+                    onSaveStream({ tags: (stream.tags ?? []).filter((t) => t !== tag) })
+                  }
+                  className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-white"
+                  aria-label={`Remove ${tag}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </span>
+          ))}
+          {isOwnStream && (stream.tags?.length ?? 0) < 5 && (
+            <InlineAddTag
+              tags={stream.tags ?? []}
+              onSave={(tags) => onSaveStream({ tags })}
+            />
+          )}
+        </div>
+
+        {isOwnStream && (
+          <CategoryPickerDialog
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            value={{ category: stream.category, gameSlug: stream.game_slug }}
+            onSave={(next) =>
+              onSaveStream({ category: next.category, game_slug: next.gameSlug })
+            }
+          />
         )}
       </div>
     </div>
   );
 }
 
-function CategoryPill({ slug }: { slug: string }) {
-  const cat = CATEGORY_LOOKUP[slug];
-  if (!cat) return null;
+function InlineTitleField({
+  title,
+  isOwnStream,
+  onSave,
+}: {
+  title: string | null;
+  isOwnStream: boolean;
+  onSave: (t: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(title ?? "");
+  const [savedFlash, setSavedFlash] = useState(false);
+
+  useEffect(() => {
+    setDraft(title ?? "");
+  }, [title]);
+
+  const commit = async () => {
+    const next = draft.trim().slice(0, 100);
+    if (!next || next === (title ?? "")) {
+      setEditing(false);
+      return;
+    }
+    await onSave(next);
+    setSavedFlash(true);
+    setEditing(false);
+    setTimeout(() => setSavedFlash(false), 1500);
+  };
+
+  if (!isOwnStream) {
+    return title ? (
+      <h1 className="text-white text-[19px] font-bold leading-snug mt-3 line-clamp-2">
+        {title}
+      </h1>
+    ) : null;
+  }
+
+  if (editing) {
+    return (
+      <div className="mt-3 flex items-center gap-2">
+        <input
+          autoFocus
+          value={draft}
+          maxLength={100}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void commit();
+            if (e.key === "Escape") {
+              setDraft(title ?? "");
+              setEditing(false);
+            }
+          }}
+          onBlur={() => void commit()}
+          className="flex-1 text-white text-[19px] font-bold leading-snug bg-transparent border-b border-cyan-400/40 focus:border-cyan-400 outline-none"
+        />
+      </div>
+    );
+  }
+
   return (
-    <span
-      className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-md text-[11px] font-bold"
-      style={{
-        background: `oklch(0.55 0.18 ${cat.hue} / 0.22)`,
-        color: `oklch(0.85 0.16 ${cat.hue})`,
-        border: `1px solid oklch(0.65 0.18 ${cat.hue} / 0.4)`,
-      }}
+    <div
+      className="mt-3 group relative cursor-text rounded-md -mx-1 px-1 py-0.5 hover:bg-white/[0.03] hover:outline hover:outline-1 hover:outline-dashed hover:outline-cyan-400/30"
+      onClick={() => setEditing(true)}
     >
-      <span>{cat.emoji}</span>
-      {cat.label}
-    </span>
+      <h1 className="text-white text-[19px] font-bold leading-snug line-clamp-2">
+        {title || (
+          <span className="text-white/40 italic font-normal">Add a stream title…</span>
+        )}
+      </h1>
+      <Pencil className="absolute top-1 right-1 h-3.5 w-3.5 text-cyan-300/70 opacity-0 group-hover:opacity-100 transition-opacity" />
+      {savedFlash && (
+        <span className="absolute -top-1 right-0 text-[10px] font-mono text-cyan-300 inline-flex items-center gap-1">
+          <Check className="h-3 w-3" /> Saved
+        </span>
+      )}
+    </div>
   );
 }
 
-function MobileCategoryPill({ slug }: { slug: string }) {
-  const cat = CATEGORY_LOOKUP[slug];
+function InlineAddTag({
+  tags,
+  onSave,
+}: {
+  tags: string[];
+  onSave: (tags: string[]) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+
+  const commit = async () => {
+    const cleaned = value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9-]/g, "")
+      .slice(0, 20);
+    if (cleaned && !tags.some((t) => t.toLowerCase() === cleaned) && tags.length < 5) {
+      await onSave([...tags, cleaned]);
+    }
+    setValue("");
+    setEditing(false);
+  };
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => setEditing(true)}
+        className="inline-flex items-center gap-1 h-6 px-2 rounded-md bg-white/[0.04] border border-dashed border-white/15 text-white/55 text-[11px] font-semibold hover:text-white hover:border-cyan-400/40 transition-colors"
+      >
+        + Add tag
+      </button>
+    );
+  }
+
+  return (
+    <input
+      autoFocus
+      value={value}
+      maxLength={20}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") void commit();
+        if (e.key === "Escape") {
+          setValue("");
+          setEditing(false);
+        }
+      }}
+      onBlur={() => void commit()}
+      placeholder="tag…"
+      className="h-6 px-2 rounded-md bg-white/[0.06] border border-cyan-400/40 text-white text-[11px] font-semibold outline-none w-24"
+    />
+  );
+}
+
+function CategoryPill({
+  slug,
+  gameSlug,
+  onClick,
+}: {
+  slug: string | null;
+  gameSlug: string | null;
+  onClick?: () => void;
+}) {
+  const game = gameSlug && isLiveGameSlug(gameSlug) ? LIVE_GAMES_BY_SLUG[gameSlug] : null;
+  const cat = slug ? CATEGORY_LOOKUP[slug] : null;
+  if (!game && !cat) {
+    if (!onClick) return null;
+    return (
+      <button
+        onClick={onClick}
+        className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-md text-[11px] font-bold bg-white/[0.04] border border-dashed border-white/15 text-white/55 hover:text-white hover:border-cyan-400/40 transition-colors"
+      >
+        <Sparkles className="h-3 w-3" />
+        Add category
+      </button>
+    );
+  }
+  if (game) {
+    const Wrapper: React.ElementType = onClick ? "button" : "span";
+    return (
+      <Wrapper
+        onClick={onClick}
+        className={`inline-flex items-center gap-1.5 h-6 pl-1 pr-2.5 rounded-md text-[11px] font-bold border ${
+          onClick ? "cursor-pointer hover:ring-2 hover:ring-cyan-400/30" : ""
+        }`}
+        style={{
+          background: `oklch(0.4 0.18 ${game.accentHue} / 0.22)`,
+          color: `oklch(0.88 0.14 ${game.accentHue})`,
+          borderColor: `oklch(0.6 0.18 ${game.accentHue} / 0.4)`,
+        }}
+      >
+        <img
+          src={coverArtSmallUrl(game.slug)}
+          alt=""
+          width={14}
+          height={18}
+          className="rounded-sm object-cover"
+          onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")}
+        />
+        {game.label}
+      </Wrapper>
+    );
+  }
+  if (cat) {
+    const Icon = resolveLucideIcon(cat.iconName);
+    const Wrapper: React.ElementType = onClick ? "button" : "span";
+    return (
+      <Wrapper
+        onClick={onClick}
+        className={`inline-flex items-center gap-1.5 h-6 px-2.5 rounded-md text-[11px] font-bold border ${
+          onClick ? "cursor-pointer hover:ring-2 hover:ring-cyan-400/30" : ""
+        }`}
+        style={{
+          background: `oklch(0.55 0.18 ${cat.hue} / 0.22)`,
+          color: `oklch(0.85 0.16 ${cat.hue})`,
+          borderColor: `oklch(0.65 0.18 ${cat.hue} / 0.4)`,
+        }}
+      >
+        <Icon size={11} />
+        {cat.label}
+      </Wrapper>
+    );
+  }
+  return null;
+}
+
+function MobileCategoryPill({
+  slug,
+  gameSlug,
+}: {
+  slug: string | null;
+  gameSlug: string | null;
+}) {
+  const game = gameSlug && isLiveGameSlug(gameSlug) ? LIVE_GAMES_BY_SLUG[gameSlug] : null;
+  const cat = slug ? CATEGORY_LOOKUP[slug] : null;
+  if (game) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 h-7 pl-1 pr-2.5 rounded-xl backdrop-blur-md text-[11px] font-bold border text-white"
+        style={{
+          background: `oklch(0.4 0.18 ${game.accentHue} / 0.4)`,
+          borderColor: `oklch(0.65 0.18 ${game.accentHue} / 0.5)`,
+        }}
+      >
+        <img
+          src={coverArtSmallUrl(game.slug)}
+          alt=""
+          width={16}
+          height={20}
+          className="rounded-sm object-cover"
+          onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")}
+        />
+        {game.label}
+      </span>
+    );
+  }
   if (!cat) return null;
+  const Icon = resolveLucideIcon(cat.iconName);
   return (
     <span
-      className="inline-flex items-center gap-1 h-7 px-2.5 rounded-xl backdrop-blur-md text-[11px] font-bold"
+      className="inline-flex items-center gap-1 h-7 px-2.5 rounded-xl backdrop-blur-md text-[11px] font-bold text-white"
       style={{
         background: `oklch(0.55 0.18 ${cat.hue} / 0.32)`,
-        color: "white",
         border: `1px solid oklch(0.7 0.16 ${cat.hue} / 0.5)`,
       }}
     >
-      <span>{cat.emoji}</span>
+      <Icon size={12} />
       {cat.label}
     </span>
   );

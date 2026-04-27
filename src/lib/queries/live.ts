@@ -16,6 +16,7 @@ export interface LiveStreamWithProfile {
   created_at: string;
   total_likes: number;
   category: string | null;
+  game_slug: string | null;
   tags: string[];
   language: string;
   slow_mode_seconds: number;

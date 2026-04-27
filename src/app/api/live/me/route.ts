@@ -6,11 +6,12 @@ import {
   isLiveLanguageCode,
   isLiveSlowModeValue,
 } from "@/lib/constants/live-categories";
+import { isLiveGameSlug } from "@/lib/constants/live-games";
 
 const noStore = { "Cache-Control": "no-store, max-age=0" };
 
 const STREAM_SELECT =
-  "id, mux_live_stream_id, mux_playback_id, stream_key, status, title, category, tags, language, slow_mode_seconds, followers_only_chat, mature";
+  "id, mux_live_stream_id, mux_playback_id, stream_key, status, title, category, game_slug, tags, language, slow_mode_seconds, followers_only_chat, mature";
 
 export async function GET() {
   const supabase = await createClient();
@@ -39,6 +40,7 @@ export async function GET() {
         status: existing.status,
         title: existing.title ?? null,
         category: existing.category ?? null,
+        gameSlug: (existing as { game_slug?: string | null }).game_slug ?? null,
         tags: existing.tags ?? [],
         language: existing.language ?? "en",
         slowModeSeconds: existing.slow_mode_seconds ?? 0,
@@ -92,6 +94,7 @@ export async function GET() {
       status: "idle",
       title: null,
       category: null,
+      gameSlug: null,
       tags: [],
       language: "en",
       slowModeSeconds: 0,
@@ -105,6 +108,7 @@ export async function GET() {
 type StreamUpdate = {
   title?: string;
   category?: string | null;
+  game_slug?: string | null;
   tags?: string[];
   language?: string;
   mature?: boolean;
@@ -139,10 +143,23 @@ export async function PATCH(request: Request) {
   if ("category" in body) {
     if (body.category === null) {
       update.category = null;
+      update.game_slug = null;
     } else if (isLiveCategorySlug(body.category)) {
       update.category = body.category;
+      if (body.category !== "gaming") update.game_slug = null;
     } else {
       return fail("category");
+    }
+  }
+
+  if ("game_slug" in body) {
+    if (body.game_slug === null) {
+      update.game_slug = null;
+    } else if (typeof body.game_slug === "string" && isLiveGameSlug(body.game_slug)) {
+      update.game_slug = body.game_slug;
+      if (!("category" in body)) update.category = "gaming";
+    } else {
+      return fail("game_slug");
     }
   }
 
