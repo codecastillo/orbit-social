@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "./use-auth";
 import { createClient } from "@/lib/supabase/client";
 
@@ -16,6 +16,7 @@ export interface CurrentProfile {
 }
 
 const STORAGE_KEY = (uid: string) => `current-profile:${uid}`;
+const LAST_KEY = "current-profile:last";
 
 function readCached(uid: string): CurrentProfile | null {
   if (typeof window === "undefined") return null;
@@ -27,11 +28,22 @@ function readCached(uid: string): CurrentProfile | null {
   }
 }
 
+function readLastCached(): CurrentProfile | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LAST_KEY);
+    return raw ? (JSON.parse(raw) as CurrentProfile) : null;
+  } catch {
+    return null;
+  }
+}
+
 function writeCached(uid: string, profile: CurrentProfile | null) {
   if (typeof window === "undefined") return;
   try {
     if (profile) {
       window.localStorage.setItem(STORAGE_KEY(uid), JSON.stringify(profile));
+      window.localStorage.setItem(LAST_KEY, JSON.stringify(profile));
     } else {
       window.localStorage.removeItem(STORAGE_KEY(uid));
     }
@@ -43,6 +55,11 @@ function writeCached(uid: string, profile: CurrentProfile | null) {
 export function useCurrentProfile() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Read the last-known profile synchronously on mount so the sidebar can
+  // paint the user's avatar/name before useAuth resolves the session.
+  // This eliminates the "You / @you" flash on every refresh.
+  const [bootstrap] = useState<CurrentProfile | null>(() => readLastCached());
 
   const query = useQuery<CurrentProfile | null>({
     queryKey: ["current-profile", user?.id],
@@ -60,8 +77,6 @@ export function useCurrentProfile() {
     },
     enabled: !!user,
     staleTime: 1000 * 60 * 2,
-    // Seed instantly from localStorage so the user's avatar/name don't
-    // flash to "You / @you" on refresh while the network request is in flight.
     initialData: () => (user ? readCached(user.id) ?? undefined : undefined),
   });
 
@@ -72,18 +87,11 @@ export function useCurrentProfile() {
     }
   }, [user, query.data]);
 
-  // Clear cache when user changes / signs out.
-  useEffect(() => {
-    if (!user) return;
-    return () => {
-      // Don't wipe on every unmount — only if user truly changed away
-    };
-  }, [user]);
+  const data = query.data ?? (user ? null : bootstrap);
 
-  // Helper for callers that need to invalidate after profile edits.
   const refresh = () => {
     if (user) queryClient.invalidateQueries({ queryKey: ["current-profile", user.id] });
   };
 
-  return { ...query, refresh };
+  return { ...query, data, refresh };
 }
