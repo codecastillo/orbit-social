@@ -171,7 +171,20 @@ export default function ChatPage({ params }: ChatPageProps) {
       }
     );
     try {
-      await sendMessage(conversationId, user.id, content);
+      const real = await sendMessage(conversationId, user.id, content);
+      queryClient.setQueryData(
+        ["messages", conversationId],
+        (old: { pages: { messages: { id: string }[]; nextCursor: string | null }[] } | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((p) => ({
+              ...p,
+              messages: p.messages.map((m) => (m.id === tempId ? real : m)),
+            })),
+          };
+        }
+      );
     } catch (e) {
       console.error("sendMessage failed", e);
       queryClient.setQueryData(
