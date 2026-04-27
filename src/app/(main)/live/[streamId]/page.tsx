@@ -38,6 +38,7 @@ import {
   isLiveGameSlug,
 } from "@/lib/constants/live-games";
 import { CategoryPickerDialog } from "@/components/live/category-picker-dialog";
+import { getMuxLiveThumbnailUrl } from "@/lib/services/mux";
 
 const CATEGORY_LOOKUP: Record<string, (typeof LIVE_CATEGORIES)[number]> =
   Object.fromEntries(LIVE_CATEGORIES.map((c) => [c.slug, c]));
@@ -285,6 +286,13 @@ export default function LiveViewerPage({ params }: Props) {
                 autoPlay
                 muted={false}
                 disablePictureInPicture
+                poster={
+                  stream.status === "live"
+                    ? getMuxLiveThumbnailUrl(stream.mux_playback_id, {
+                        sessionStartedAt: stream.started_at,
+                      })
+                    : ""
+                }
                 style={MUX_PLAYER_STYLE}
                 metadata={{
                   video_id: stream.id,
@@ -307,6 +315,13 @@ export default function LiveViewerPage({ params }: Props) {
               autoPlay
               muted={false}
               disablePictureInPicture
+              poster={
+                stream.status === "live"
+                  ? getMuxLiveThumbnailUrl(stream.mux_playback_id, {
+                      sessionStartedAt: stream.started_at,
+                    })
+                  : ""
+              }
               style={MUX_PLAYER_STYLE}
               metadata={{
                 video_id: stream.id,
