@@ -56,10 +56,14 @@ export function useCurrentProfile() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Read the last-known profile synchronously on mount so the sidebar can
-  // paint the user's avatar/name before useAuth resolves the session.
-  // This eliminates the "You / @you" flash on every refresh.
-  const [bootstrap] = useState<CurrentProfile | null>(() => readLastCached());
+  // Hydration-safe bootstrap: server renders null, client picks up the
+  // localStorage snapshot after mount. Reading synchronously in useState's
+  // initializer would cause a hydration mismatch (server=null, client=cached)
+  // and crash the route boundary.
+  const [bootstrap, setBootstrap] = useState<CurrentProfile | null>(null);
+  useEffect(() => {
+    setBootstrap(readLastCached());
+  }, []);
 
   const query = useQuery<CurrentProfile | null>({
     queryKey: ["current-profile", user?.id],

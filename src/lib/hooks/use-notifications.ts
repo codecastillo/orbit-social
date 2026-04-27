@@ -10,50 +10,62 @@ import {
   type NotificationWithActor,
 } from "@/lib/queries/notifications";
 
+// Stable per-tab nonce so a hot-mount can't collide with a still-cleaning-up
+// channel from a prior tab session.
+const TAB_NONCE =
+  typeof window !== "undefined"
+    ? Math.random().toString(36).slice(2, 10)
+    : "ssr";
+
 export function useNotifications() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const userId = user?.id;
 
   const query = useQuery({
-    queryKey: ["notifications", user?.id],
+    queryKey: ["notifications", userId],
     queryFn: async () => {
-      if (!user) return [] as NotificationWithActor[];
-      return getNotifications(user.id);
+      if (!userId) return [] as NotificationWithActor[];
+      return getNotifications(userId);
     },
-    enabled: !!user,
+    enabled: !!userId,
     staleTime: 30_000,
   });
 
-  // Realtime subscription. Channel name is randomized per mount so a re-run
-  // (e.g. when `user` flips from null → user) never collides with the prior
-  // not-yet-cleaned-up channel — supabase-js otherwise reuses the cached
-  // RealtimeChannel and throws "cannot add postgres_changes callbacks after
-  // subscribed".
   useEffect(() => {
-    if (!user) return;
-
+    if (!userId) return;
     const supabase = createClient();
-    const channel = supabase
-      .channel(`notifications:${user.id}:${Math.random().toString(36).slice(2)}`)
+    const channelName = `notifications:${userId}:${TAB_NONCE}:${Math.random().toString(36).slice(2)}`;
+    const channel = supabase.channel(channelName);
+    channel
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "notifications",
-          filter: `user_id=eq.${user.id}`,
+          filter: `user_id=eq.${userId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["notifications", user.id] });
-          queryClient.invalidateQueries({ queryKey: ["unread-count", user.id] });
+          queryClient.invalidateQueries({ queryKey: ["notifications", userId] });
+          queryClient.invalidateQueries({ queryKey: ["unread-count", userId] });
         }
       )
       .subscribe();
 
     return () => {
+      try {
+        channel.unsubscribe();
+      } catch {
+        /* ignore */
+      }
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient]);
+    // Only re-subscribe when the user actually changes — queryClient is a
+    // singleton so we don't need to depend on it (and including it caused
+    // unnecessary re-subscribes on render).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   return query;
 }
@@ -61,44 +73,49 @@ export function useNotifications() {
 export function useUnreadCount() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const userId = user?.id;
 
   const query = useQuery({
-    queryKey: ["unread-count", user?.id],
+    queryKey: ["unread-count", userId],
     queryFn: async () => {
-      if (!user) return 0;
-      return getUnreadCount(user.id);
+      if (!userId) return 0;
+      return getUnreadCount(userId);
     },
-    enabled: !!user,
+    enabled: !!userId,
     staleTime: 15_000,
     refetchInterval: 60_000,
   });
 
-  // Live updates regardless of which page is mounted — the sidebar lives in
-  // the root layout so this subscription stays alive across navigations.
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     const supabase = createClient();
-    const channel = supabase
-      .channel(`sidebar-notif-count:${user.id}:${Math.random().toString(36).slice(2)}`)
+    const channelName = `sidebar-notif-count:${userId}:${TAB_NONCE}:${Math.random().toString(36).slice(2)}`;
+    const channel = supabase.channel(channelName);
+    channel
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "notifications",
-          filter: `user_id=eq.${user.id}`,
+          filter: `user_id=eq.${userId}`,
         },
         () => {
-          queryClient.invalidateQueries({
-            queryKey: ["unread-count", user.id],
-          });
+          queryClient.invalidateQueries({ queryKey: ["unread-count", userId] });
         }
       )
       .subscribe();
+
     return () => {
+      try {
+        channel.unsubscribe();
+      } catch {
+        /* ignore */
+      }
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   return query;
 }
@@ -106,54 +123,65 @@ export function useUnreadCount() {
 export function useUnreadMessagesCount() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const userId = user?.id;
 
   const query = useQuery({
-    queryKey: ["unread-messages-count", user?.id],
+    queryKey: ["unread-messages-count", userId],
     queryFn: async () => {
-      if (!user) return 0;
+      if (!userId) return 0;
       const supabase = createClient();
       const { data, error } = await supabase.rpc("unread_conversation_count", {
-        p_user_id: user.id,
+        p_user_id: userId,
       });
       if (error) throw error;
       return (data as number) ?? 0;
     },
-    enabled: !!user,
+    enabled: !!userId,
     staleTime: 15_000,
     refetchInterval: 60_000,
   });
 
-  // Realtime: any new message or read receipt change should invalidate the count
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     const supabase = createClient();
-
-    const messagesChannel = supabase
-      .channel(`unread-messages:${user.id}:${Math.random().toString(36).slice(2)}`)
+    const channelName = `unread-messages:${userId}:${TAB_NONCE}:${Math.random().toString(36).slice(2)}`;
+    const channel = supabase.channel(channelName);
+    channel
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
         () => {
           queryClient.invalidateQueries({
-            queryKey: ["unread-messages-count", user.id],
+            queryKey: ["unread-messages-count", userId],
           });
         }
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "conversation_members", filter: `user_id=eq.${user.id}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "conversation_members",
+          filter: `user_id=eq.${userId}`,
+        },
         () => {
           queryClient.invalidateQueries({
-            queryKey: ["unread-messages-count", user.id],
+            queryKey: ["unread-messages-count", userId],
           });
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(messagesChannel);
+      try {
+        channel.unsubscribe();
+      } catch {
+        /* ignore */
+      }
+      supabase.removeChannel(channel);
     };
-  }, [user, queryClient]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   return query;
 }
