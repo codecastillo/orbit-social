@@ -56,17 +56,47 @@ export function useNotifications() {
 
 export function useUnreadCount() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["unread-count", user?.id],
     queryFn: async () => {
       if (!user) return 0;
       return getUnreadCount(user.id);
     },
     enabled: !!user,
-    staleTime: 30_000,
+    staleTime: 15_000,
     refetchInterval: 60_000,
   });
+
+  // Live updates regardless of which page is mounted — the sidebar lives in
+  // the root layout so this subscription stays alive across navigations.
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`sidebar-notif-count:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: ["unread-count", user.id],
+          });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, queryClient]);
+
+  return query;
 }
 
 export function useUnreadMessagesCount() {
