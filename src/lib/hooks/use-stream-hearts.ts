@@ -94,9 +94,14 @@ export function useStreamHearts(streamId: string): {
         event: "heart",
         payload: heart,
       });
+      setTotalCount((c) => c + 1);
       const supabase = supabaseRef.current;
       if (supabase) {
-        void supabase.rpc("increment_stream_likes", { p_stream_id: streamId });
+        supabase
+          .rpc("increment_stream_likes", { p_stream_id: streamId })
+          .then(({ error }) => {
+            if (error) console.error("increment_stream_likes failed", error);
+          });
       }
     },
     [streamId],

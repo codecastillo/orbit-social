@@ -474,24 +474,28 @@ function GameCard({
 function LiveThumbnail({
   playbackId,
   alt,
+  status,
+  startedAt,
 }: {
   playbackId: string | null;
   alt: string;
+  status: "idle" | "live" | "ended";
+  startedAt: string | null;
 }) {
   const [tick, setTick] = useState(0);
   const [errored, setErrored] = useState(false);
 
   useEffect(() => {
-    if (!playbackId || errored) return;
+    if (!playbackId || errored || status !== "live") return;
     const id = setInterval(() => setTick((t) => t + 1), 30000);
     return () => clearInterval(id);
-  }, [playbackId, errored]);
+  }, [playbackId, errored, status]);
 
-  if (!playbackId || errored) return null;
-  const src = getMuxLiveThumbnailUrl(playbackId);
+  if (!playbackId || errored || status !== "live") return null;
+  const src = getMuxLiveThumbnailUrl(playbackId, { sessionStartedAt: startedAt });
   return (
     <img
-      key={tick}
+      key={`${startedAt ?? "none"}-${tick}`}
       src={src}
       alt={alt}
       onError={() => setErrored(true)}
@@ -533,7 +537,12 @@ function FeaturedLive({ stream }: { stream: LiveStreamWithProfile }) {
           position: "relative",
         }}
       >
-        <LiveThumbnail playbackId={stream.mux_playback_id} alt={stream.title || "Live"} />
+        <LiveThumbnail
+          playbackId={stream.mux_playback_id}
+          alt={stream.title || "Live"}
+          status={stream.status}
+          startedAt={stream.started_at}
+        />
         <div
           style={{
             position: "absolute",
@@ -652,7 +661,12 @@ function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
           position: "relative",
         }}
       >
-        <LiveThumbnail playbackId={stream.mux_playback_id} alt={stream.title || "Live"} />
+        <LiveThumbnail
+          playbackId={stream.mux_playback_id}
+          alt={stream.title || "Live"}
+          status={stream.status}
+          startedAt={stream.started_at}
+        />
         <div
           style={{
             position: "absolute",

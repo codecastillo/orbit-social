@@ -62,16 +62,25 @@ export function getMuxThumbnailUrl(
 
 export function getMuxLiveThumbnailUrl(
   playbackId: string,
-  opts: { width?: number; height?: number; refreshSeconds?: number } = {},
+  opts: {
+    width?: number;
+    height?: number;
+    refreshSeconds?: number;
+    sessionStartedAt?: string | null;
+  } = {},
 ): string {
   const width = opts.width ?? 640;
   const height = opts.height ?? 360;
   const refresh = opts.refreshSeconds ?? 30;
   const bucket = Math.floor(Date.now() / (refresh * 1000));
+  const sessionMs = opts.sessionStartedAt
+    ? new Date(opts.sessionStartedAt).getTime()
+    : 0;
   const params = new URLSearchParams({
     width: String(width),
     height: String(height),
     fit_mode: "smartcrop",
+    session: String(sessionMs),
     time: String(bucket),
   });
   return `https://image.mux.com/${playbackId}/thumbnail.jpg?${params.toString()}`;
