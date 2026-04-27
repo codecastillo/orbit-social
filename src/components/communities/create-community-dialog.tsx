@@ -75,11 +75,20 @@ export function CreateCommunityDialog({
     if (!user || !canSubmit) return;
     setCreating(true);
     try {
+      // Map dialog "approval" / "invite" to the Postgres join_policy enum.
+      // 'public' is also the default if the user didn't pick.
+      const policy: "public" | "approval" | "invite" =
+        visibility === "approval"
+          ? "approval"
+          : visibility === "invite"
+            ? "invite"
+            : "public";
       const community = await createCommunity(
         user.id,
         name.trim(),
         slug.trim(),
         description.trim(),
+        policy,
       );
       toast.success(`Created ${community.name}`);
       onOpenChange(false);

@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { Users, Calendar, ChevronDown, ChevronUp, Shield } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Users, Calendar, ChevronDown, ChevronUp, Shield, Lock } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/utils/format";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { createClient } from "@/lib/supabase/client";
 import {
   joinCommunity,
   leaveCommunity,
+  getMyJoinRequestStatus,
   type Community,
   type CommunityMember,
 } from "@/lib/queries/communities";
@@ -29,11 +32,74 @@ export function CommunityHeader({
   onMembershipChange,
 }: CommunityHeaderProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [joining, setJoining] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [requestStatus, setRequestStatus] = useState<
+    "pending" | "approved" | "rejected" | null
+  >(null);
 
   const isMember = userRole !== null;
   const isOwner = userRole === "owner";
+  const policy = community.join_policy ?? "public";
+
+  // Realtime: live member_count + roster updates.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`community-${community.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "communities",
+          filter: `id=eq.${community.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["community", community.slug] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "community_members",
+          filter: `community_id=eq.${community.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["community", community.slug] });
+          queryClient.invalidateQueries({
+            queryKey: ["community-members", community.id],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["community-membership", community.id],
+          });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [community.id, community.slug, queryClient]);
+
+  // If the user has a pending request, show that state.
+  useEffect(() => {
+    if (!user || isMember || policy !== "approval") {
+      setRequestStatus(null);
+      return;
+    }
+    let cancelled = false;
+    getMyJoinRequestStatus(community.id, user.id)
+      .then((s) => {
+        if (!cancelled) setRequestStatus(s);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user, community.id, isMember, policy]);
   const rules = community.rules as
     | { title: string; description: string }[]
     | null;
@@ -61,8 +127,15 @@ export function CommunityHeader({
         await leaveCommunity(community.id, user.id);
         toast.success(`Left ${community.name}`);
       } else {
-        await joinCommunity(community.id, user.id);
-        toast.success(`Joined ${community.name}`);
+        const result = await joinCommunity(community.id);
+        if (result === "joined") {
+          toast.success(`Joined ${community.name}`);
+        } else if (result === "requested") {
+          setRequestStatus("pending");
+          toast.success("Request sent — waiting on approval");
+        } else {
+          toast.error("This room is invite-only");
+        }
       }
       onMembershipChange();
     } catch {
@@ -71,6 +144,24 @@ export function CommunityHeader({
       setJoining(false);
     }
   };
+
+  const buttonLabel = (() => {
+    if (joining) return "...";
+    if (isOwner) return "Owner";
+    if (isMember) return "Leave";
+    if (policy === "invite") return "Invite Only";
+    if (policy === "approval") {
+      if (requestStatus === "pending") return "Pending approval";
+      return "Request to Join";
+    }
+    return "Join Community";
+  })();
+
+  const buttonDisabled =
+    joining ||
+    isOwner ||
+    (!isMember &&
+      (policy === "invite" || requestStatus === "pending"));
 
   return (
     <div className="border-b border-border">
@@ -110,16 +201,13 @@ export function CommunityHeader({
           <Button
             variant={isMember ? "outline" : "default"}
             onClick={handleJoinToggle}
-            disabled={joining || isOwner}
+            disabled={buttonDisabled}
             className="mt-10"
           >
-            {joining
-              ? "..."
-              : isOwner
-                ? "Owner"
-                : isMember
-                  ? "Leave"
-                  : "Join Community"}
+            {policy === "invite" && !isMember && !isOwner && (
+              <Lock className="h-3.5 w-3.5" />
+            )}
+            {buttonLabel}
           </Button>
         </div>
 

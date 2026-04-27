@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/client";
 
 const supabase = createClient();
 
+export type JoinPolicy = "public" | "approval" | "invite";
+
 export interface Community {
   id: string;
   name: string;
@@ -10,6 +12,7 @@ export interface Community {
   avatar_url: string | null;
   cover_url: string | null;
   is_private: boolean;
+  join_policy: JoinPolicy;
   member_count: number;
   created_by: string;
   rules: CommunityRule[] | null;
@@ -37,7 +40,7 @@ export interface CommunityMember {
 
 const COMMUNITY_SELECT = `
   id, name, slug, description, avatar_url, cover_url,
-  is_private, member_count, created_by, rules, created_at
+  is_private, join_policy, member_count, created_by, rules, created_at
 `;
 
 const POST_SELECT = `
@@ -82,8 +85,12 @@ export async function createCommunity(
   userId: string,
   name: string,
   slug: string,
-  description: string
+  description: string,
+  joinPolicy: JoinPolicy = "public"
 ) {
+  // Insert with member_count: 0 — the after-insert trigger on community_members
+  // bumps it to 1 when we add the owner row below. Inserting 1 here would
+  // double-count.
   const { data: community, error } = await supabase
     .from("communities")
     .insert({
@@ -91,14 +98,16 @@ export async function createCommunity(
       slug,
       description,
       created_by: userId,
-      member_count: 1,
+      is_private: joinPolicy === "invite",
+      join_policy: joinPolicy,
+      member_count: 0,
     })
     .select(COMMUNITY_SELECT)
     .single();
 
   if (error) throw error;
 
-  // Add creator as owner
+  // Add creator as owner — trigger increments member_count to 1.
   const { error: memberError } = await supabase
     .from("community_members")
     .insert({
@@ -112,27 +121,85 @@ export async function createCommunity(
   return community as Community;
 }
 
-export async function joinCommunity(communityId: string, userId: string) {
-  const { error } = await supabase.from("community_members").insert({
-    community_id: communityId,
-    user_id: userId,
-    role: "member",
+export async function joinCommunity(communityId: string) {
+  // SECURITY DEFINER RPC: routes by community.join_policy.
+  // Returns 'joined' | 'requested' | 'invite_only'.
+  const { data, error } = await supabase.rpc("community_join_or_request", {
+    p_community_id: communityId,
   });
+  if (error) throw error;
+  return data as "joined" | "requested" | "invite_only";
+}
+
+export interface CommunityJoinRequest {
+  id: string;
+  community_id: string;
+  user_id: string;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+  decided_at: string | null;
+  profiles: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    is_verified: boolean;
+  };
+}
+
+export async function getCommunityJoinRequests(communityId: string) {
+  const { data, error } = await supabase
+    .from("community_join_requests")
+    .select(
+      `
+      id, community_id, user_id, status, created_at, decided_at,
+      profiles!community_join_requests_user_id_fkey (
+        id, username, display_name, avatar_url, is_verified
+      )
+    `
+    )
+    .eq("community_id", communityId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
 
   if (error) throw error;
+  return data as unknown as CommunityJoinRequest[];
+}
 
-  // Increment member count
-  await supabase.rpc("increment_member_count", {
-    community_id_input: communityId,
-  }).then(({ error: rpcError }) => {
-    // Fallback: manually update if RPC doesn't exist
-    if (rpcError) {
-      return supabase
-        .from("communities")
-        .update({ member_count: supabase.rpc("", {}) as unknown as number })
-        .eq("id", communityId);
-    }
+export async function approveCommunityRequest(requestId: string) {
+  const { error } = await supabase.rpc("community_approve_request", {
+    p_request_id: requestId,
   });
+  if (error) throw error;
+}
+
+export async function rejectCommunityRequest(requestId: string) {
+  const { error } = await supabase.rpc("community_reject_request", {
+    p_request_id: requestId,
+  });
+  if (error) throw error;
+}
+
+export async function inviteCommunityUser(communityId: string, userId: string) {
+  const { error } = await supabase.rpc("community_invite_user", {
+    p_community_id: communityId,
+    p_user_id: userId,
+  });
+  if (error) throw error;
+}
+
+export async function getMyJoinRequestStatus(communityId: string, userId: string) {
+  const { data, error } = await supabase
+    .from("community_join_requests")
+    .select("status")
+    .eq("community_id", communityId)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data?.status as "pending" | "approved" | "rejected" | null) ?? null;
 }
 
 export async function leaveCommunity(communityId: string, userId: string) {

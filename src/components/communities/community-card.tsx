@@ -45,9 +45,15 @@ export function CommunityCard({
         setMemberState(false);
         toast.success(`Left ${community.name}`);
       } else {
-        await joinCommunity(community.id, user.id);
-        setMemberState(true);
-        toast.success(`Joined ${community.name}`);
+        const result = await joinCommunity(community.id);
+        if (result === "joined") {
+          setMemberState(true);
+          toast.success(`Joined ${community.name}`);
+        } else if (result === "requested") {
+          toast.success("Request sent — waiting on approval");
+        } else {
+          toast.error("This room is invite-only");
+        }
       }
       onMembershipChange?.();
     } catch {
