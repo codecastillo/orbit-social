@@ -112,7 +112,83 @@ export async function createEvent(
     .single();
 
   if (error) throw error;
+
+  // Auto-RSVP the host as "going" — they're hosting, of course they're going.
+  // Trigger recomputes attendee_count.
+  await supabase
+    .from("event_rsvps")
+    .upsert(
+      { event_id: (event as { id: string }).id, user_id: creatorId, status: "going" },
+      { onConflict: "event_id,user_id" }
+    );
+
   return event;
+}
+
+// ── Event comments ──────────────────────────────────────────────────
+
+export interface EventComment {
+  id: string;
+  event_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  profiles: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    is_verified: boolean;
+  };
+}
+
+export async function getEventComments(eventId: string, limit = 50) {
+  const { data, error } = await supabase
+    .from("event_comments")
+    .select(
+      `
+      id, event_id, user_id, content, created_at,
+      profiles!event_comments_user_id_fkey (
+        id, username, display_name, avatar_url, is_verified
+      )
+    `
+    )
+    .eq("event_id", eventId)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+  return data as unknown as EventComment[];
+}
+
+export async function postEventComment(
+  eventId: string,
+  userId: string,
+  content: string
+) {
+  const { data, error } = await supabase
+    .from("event_comments")
+    .insert({ event_id: eventId, user_id: userId, content })
+    .select(
+      `
+      id, event_id, user_id, content, created_at,
+      profiles!event_comments_user_id_fkey (
+        id, username, display_name, avatar_url, is_verified
+      )
+    `
+    )
+    .single();
+
+  if (error) throw error;
+  return data as unknown as EventComment;
+}
+
+export async function deleteEventComment(commentId: string) {
+  const { error } = await supabase
+    .from("event_comments")
+    .delete()
+    .eq("id", commentId);
+  if (error) throw error;
 }
 
 export async function rsvpEvent(

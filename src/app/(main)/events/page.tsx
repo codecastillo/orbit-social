@@ -1,14 +1,25 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Plus, Calendar as CalIcon, MapPin, Share2 } from "lucide-react";
+import { Plus, Calendar as CalIcon, MapPin, Share2, Check, Star } from "lucide-react";
+import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreateEventDialog } from "@/components/events/create-event-dialog";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
-import { getEvents, type EventWithCreator } from "@/lib/queries/events";
+import {
+  getEvents,
+  rsvpEvent,
+  removeRsvp,
+  getUserRsvpStatus,
+  type EventWithCreator,
+} from "@/lib/queries/events";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { createClient } from "@/lib/supabase/client";
 import { O, panel } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+
+type RsvpStatus = "going" | "interested" | "not_going" | null;
 
 function hueFor(seed: string): number {
   let h = 0;
@@ -34,25 +45,115 @@ function formatDay(iso: string): { day: string; mo: string; weekday: string; tim
 }
 
 export default function EventsPage() {
+  const { user } = useAuth();
+  const supabase = useMemo(() => createClient(), []);
   const [events, setEvents] = useState<EventWithCreator[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [rsvpMap, setRsvpMap] = useState<Record<string, RsvpStatus>>({});
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getEvents();
       setEvents(data);
+      if (user && data.length) {
+        const entries = await Promise.all(
+          data.map(async (e) => {
+            const s = await getUserRsvpStatus(e.id, user.id);
+            return [e.id, s] as const;
+          })
+        );
+        setRsvpMap(Object.fromEntries(entries));
+      }
     } catch (err) {
       console.error("Failed to load events:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
+
+  // Realtime: keep attendee_count in sync across the feed.
+  useEffect(() => {
+    const channel = supabase
+      .channel("events-feed")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "events" },
+        (payload) => {
+          const updated = payload.new as Partial<EventWithCreator> & { id: string };
+          setEvents((prev) =>
+            prev.map((e) => (e.id === updated.id ? { ...e, ...updated } : e))
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
+
+  const handleRsvp = useCallback(
+    async (eventId: string, status: "going" | "interested") => {
+      if (!user) {
+        toast.error("Sign in to RSVP");
+        return;
+      }
+      const prev = rsvpMap[eventId] ?? null;
+      const isToggleOff = prev === status;
+      const next: RsvpStatus = isToggleOff ? null : status;
+
+      const wasGoing = prev === "going";
+      const willBeGoing = next === "going";
+      const delta = wasGoing === willBeGoing ? 0 : willBeGoing ? 1 : -1;
+
+      // Optimistic
+      setRsvpMap((m) => ({ ...m, [eventId]: next }));
+      if (delta !== 0) {
+        setEvents((prev) =>
+          prev.map((e) =>
+            e.id === eventId
+              ? {
+                  ...e,
+                  attendee_count: Math.max(0, (e.attendee_count ?? 0) + delta),
+                }
+              : e
+          )
+        );
+      }
+
+      try {
+        if (isToggleOff) {
+          await removeRsvp(eventId, user.id);
+        } else {
+          await rsvpEvent(eventId, user.id, status);
+        }
+      } catch (err) {
+        console.error("Failed to RSVP:", err);
+        toast.error("Couldn't update RSVP");
+        // Rollback
+        setRsvpMap((m) => ({ ...m, [eventId]: prev }));
+        if (delta !== 0) {
+          setEvents((prevEvts) =>
+            prevEvts.map((e) =>
+              e.id === eventId
+                ? {
+                    ...e,
+                    attendee_count: Math.max(0, (e.attendee_count ?? 0) - delta),
+                  }
+                : e
+            )
+          );
+        }
+      }
+    },
+    [user, rsvpMap]
+  );
 
   return (
     <div
@@ -104,8 +205,18 @@ export default function EventsPage() {
         />
       ) : (
         <>
-          <FeaturedEvent event={events[0]} />
-          {events.length > 1 && <EverythingElse events={events.slice(1)} />}
+          <FeaturedEvent
+            event={events[0]}
+            rsvpStatus={rsvpMap[events[0].id] ?? null}
+            onRsvp={handleRsvp}
+          />
+          {events.length > 1 && (
+            <EverythingElse
+              events={events.slice(1)}
+              rsvpMap={rsvpMap}
+              onRsvp={handleRsvp}
+            />
+          )}
         </>
       )}
 
@@ -120,10 +231,23 @@ export default function EventsPage() {
 
 /* ─── Featured event hero ────────────────────────────────────────── */
 
-function FeaturedEvent({ event }: { event: EventWithCreator }) {
+function FeaturedEvent({
+  event,
+  rsvpStatus,
+  onRsvp,
+}: {
+  event: EventWithCreator;
+  rsvpStatus: RsvpStatus;
+  onRsvp: (eventId: string, status: "going" | "interested") => void;
+}) {
   const dayInfo = formatDay(event.start_at);
   const hue = hueFor(event.id);
   const hue2 = (hue + 60) % 360;
+
+  const stop = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
 
   return (
     <Link
@@ -136,16 +260,17 @@ function FeaturedEvent({ event }: { event: EventWithCreator }) {
         gridTemplateColumns: "1fr 1fr",
         textDecoration: "none",
         color: O.ink,
+        maxHeight: 420,
       }}
       className="md:grid-cols-2 grid-cols-1"
     >
-      {/* Cover */}
+      {/* Cover — fixed height so it never grows on wide screens */}
       <div
         style={{
-          aspectRatio: "4/3",
+          height: 420,
+          maxHeight: 420,
           background: `linear-gradient(135deg, oklch(0.6 0.18 ${hue}), oklch(0.35 0.14 ${hue2}))`,
           position: "relative",
-          minHeight: 280,
         }}
       >
         <div
@@ -205,7 +330,7 @@ function FeaturedEvent({ event }: { event: EventWithCreator }) {
       </div>
 
       {/* Body */}
-      <div style={{ padding: 32 }}>
+      <div style={{ padding: 32, overflow: "hidden" }}>
         <Eyebrow accent>
           ◆&nbsp;&nbsp;FEATURED · {event.attendee_count ?? 0} GOING
         </Eyebrow>
@@ -234,6 +359,10 @@ function FeaturedEvent({ event }: { event: EventWithCreator }) {
               color: O.ink2,
               lineHeight: 1.55,
               marginTop: 16,
+              display: "-webkit-box",
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
             }}
           >
             {event.description}
@@ -247,11 +376,51 @@ function FeaturedEvent({ event }: { event: EventWithCreator }) {
             flexWrap: "wrap",
           }}
         >
-          <PillBtn primary size="lg">
-            RSVP · I&apos;m in
+          <PillBtn
+            primary={rsvpStatus === "going"}
+            size="lg"
+            onClick={(e) => {
+              stop(e);
+              onRsvp(event.id, "going");
+            }}
+          >
+            {rsvpStatus === "going" ? (
+              <>
+                <Check style={{ width: 14, height: 14 }} /> Going
+              </>
+            ) : (
+              "RSVP · I'm in"
+            )}
           </PillBtn>
-          <PillBtn size="lg">Maybe</PillBtn>
-          <PillBtn size="lg" style={{ marginLeft: "auto" }}>
+          <PillBtn
+            primary={rsvpStatus === "interested"}
+            size="lg"
+            onClick={(e) => {
+              stop(e);
+              onRsvp(event.id, "interested");
+            }}
+          >
+            {rsvpStatus === "interested" ? (
+              <>
+                <Star style={{ width: 14, height: 14, fill: "currentColor" }} /> Interested
+              </>
+            ) : (
+              "Maybe"
+            )}
+          </PillBtn>
+          <PillBtn
+            size="lg"
+            style={{ marginLeft: "auto" }}
+            onClick={(e) => {
+              stop(e);
+              if (typeof window !== "undefined" && navigator.clipboard) {
+                navigator.clipboard.writeText(
+                  `${window.location.origin}/events/${event.id}`
+                );
+                toast.success("Link copied");
+              }
+            }}
+          >
             <Share2 style={{ width: 14, height: 14 }} />
           </PillBtn>
         </div>
@@ -262,7 +431,15 @@ function FeaturedEvent({ event }: { event: EventWithCreator }) {
 
 /* ─── Everything else list ───────────────────────────────────────── */
 
-function EverythingElse({ events }: { events: EventWithCreator[] }) {
+function EverythingElse({
+  events,
+  rsvpMap,
+  onRsvp,
+}: {
+  events: EventWithCreator[];
+  rsvpMap: Record<string, RsvpStatus>;
+  onRsvp: (eventId: string, status: "going" | "interested") => void;
+}) {
   return (
     <div>
       <Eyebrow>◈&nbsp;&nbsp;EVERYTHING ELSE</Eyebrow>
@@ -278,6 +455,7 @@ function EverythingElse({ events }: { events: EventWithCreator[] }) {
           const dayInfo = formatDay(e.start_at);
           const hue = hueFor(e.id);
           const hue2 = (hue + 60) % 360;
+          const status = rsvpMap[e.id] ?? null;
           return (
             <Link
               key={e.id}
@@ -361,7 +539,23 @@ function EverythingElse({ events }: { events: EventWithCreator[] }) {
               >
                 {e.attendee_count ?? 0} going
               </div>
-              <PillBtn size="sm">RSVP</PillBtn>
+              <PillBtn
+                size="sm"
+                primary={status === "going"}
+                onClick={(ev) => {
+                  ev.preventDefault();
+                  ev.stopPropagation();
+                  onRsvp(e.id, "going");
+                }}
+              >
+                {status === "going" ? (
+                  <>
+                    <Check style={{ width: 11, height: 11 }} /> Going
+                  </>
+                ) : (
+                  "RSVP"
+                )}
+              </PillBtn>
             </Link>
           );
         })}
