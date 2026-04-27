@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -323,6 +323,26 @@ function RecommendedCategoriesRail({
   onPickCategory: (slug: LiveCategorySlug) => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const railRef = useRef<HTMLDivElement | null>(null);
+  const [visibleCount, setVisibleCount] = useState<number>(LIVE_GAMES.length);
+
+  useEffect(() => {
+    const el = railRef.current;
+    if (!el) return;
+    const CARD_W = 140;
+    const GAP = 12;
+    const recompute = () => {
+      const w = el.clientWidth;
+      if (w <= 0) return;
+      const fits = Math.max(1, Math.floor((w + GAP) / (CARD_W + GAP)));
+      setVisibleCount(Math.min(fits, LIVE_GAMES.length));
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
     <div>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
@@ -346,6 +366,7 @@ function RecommendedCategoriesRail({
         </button>
       </div>
       <div
+        ref={railRef}
         style={{
           display: "flex",
           gap: 12,
@@ -354,7 +375,7 @@ function RecommendedCategoriesRail({
           overflow: "hidden",
         }}
       >
-        {LIVE_GAMES.map((g) => {
+        {LIVE_GAMES.slice(0, visibleCount).map((g) => {
           const liveCount = streams.filter((s) => s.game_slug === g.slug).length;
           return (
             <GameCard
