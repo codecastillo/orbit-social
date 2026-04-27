@@ -47,10 +47,15 @@ const EVENT_SELECT = `
 `;
 
 export async function getEvents(cursor?: string, limit = 20) {
+  // Show events whose start is today or later (local-day floor), so an event
+  // created for "today 1pm" still appears even if the user creates it at 2pm.
+  const todayFloor = new Date();
+  todayFloor.setHours(0, 0, 0, 0);
+
   let query = supabase
     .from("events")
     .select(EVENT_SELECT)
-    .gt("start_at", new Date().toISOString())
+    .gte("start_at", todayFloor.toISOString())
     .order("start_at", { ascending: true })
     .limit(limit);
 
