@@ -27,6 +27,7 @@ import { formatNumber, formatTimeAgo } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { AttendeesDialog } from "@/components/events/attendees-dialog";
 import {
   getEventById,
   getEventAttendees,
@@ -62,6 +63,7 @@ export default function EventDetailPage({
   const [comments, setComments] = useState<EventComment[]>([]);
   const [commentInput, setCommentInput] = useState("");
   const [commentSending, setCommentSending] = useState(false);
+  const [attendeesOpen, setAttendeesOpen] = useState(false);
   const commentsEndRef = useRef<HTMLDivElement | null>(null);
 
   const refetchAttendees = useCallback(async () => {
@@ -387,15 +389,21 @@ export default function EventDetailPage({
           </div>
         )}
 
-        {/* Attendees */}
-        <div className="flex items-center gap-3 flex-wrap">
+        {/* Attendees — avatars only, click to open full list */}
+        <button
+          type="button"
+          onClick={() => setAttendeesOpen(true)}
+          className="flex items-center gap-3 group hover:opacity-90 transition-opacity"
+          aria-label="See all attendees"
+        >
           <div className="flex -space-x-2">
-            {goingAttendees.slice(0, 6).map((attendee) => (
-              <Link
+            {goingAttendees.slice(0, 4).map((attendee) => (
+              <div
                 key={attendee.user_id}
-                href={`/${attendee.profiles.username}`}
-                className="ring-2 ring-background rounded-full hover:scale-110 transition-transform"
-                title={attendee.profiles.display_name || attendee.profiles.username}
+                className="ring-2 ring-background rounded-full"
+                title={
+                  attendee.profiles.display_name || attendee.profiles.username
+                }
               >
                 <UserAvatar
                   src={attendee.profiles.avatar_url}
@@ -405,29 +413,24 @@ export default function EventDetailPage({
                   }
                   size="sm"
                 />
-              </Link>
+              </div>
             ))}
             {goingAttendees.length === 0 && (
               <div className="h-8 w-8 rounded-full bg-muted/40 ring-2 ring-background flex items-center justify-center">
                 <UsersIcon className="h-3.5 w-3.5 text-muted-foreground" />
               </div>
             )}
+            {goingAttendees.length > 4 && (
+              <div className="h-8 w-8 rounded-full bg-muted/60 ring-2 ring-background flex items-center justify-center text-[10px] font-mono font-semibold text-foreground">
+                +{goingAttendees.length - 4}
+              </div>
+            )}
           </div>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
             <UsersIcon className="h-3.5 w-3.5 inline mr-1" />
             {formatNumber(event.attendee_count)} attending
           </span>
-          {goingAttendees.length > 0 && (
-            <span className="text-xs text-muted-foreground">
-              ·{" "}
-              {goingAttendees
-                .slice(0, 2)
-                .map((a) => a.profiles.display_name?.split(" ")[0] || a.profiles.username)
-                .join(", ")}
-              {goingAttendees.length > 2 && ` and ${goingAttendees.length - 2} more`}
-            </span>
-          )}
-        </div>
+        </button>
 
         {/* RSVP buttons */}
         <div className="flex gap-2">
@@ -583,6 +586,12 @@ export default function EventDetailPage({
           )}
         </div>
       </div>
+
+      <AttendeesDialog
+        open={attendeesOpen}
+        onOpenChange={setAttendeesOpen}
+        eventId={event.id}
+      />
     </div>
   );
 }

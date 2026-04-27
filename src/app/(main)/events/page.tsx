@@ -2,7 +2,15 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Plus, Calendar as CalIcon, MapPin, Share2, Check, Star } from "lucide-react";
+import {
+  Plus,
+  Calendar as CalIcon,
+  MapPin,
+  Share2,
+  CheckCircle2,
+  Star,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreateEventDialog } from "@/components/events/create-event-dialog";
@@ -99,7 +107,7 @@ export default function EventsPage() {
   }, [supabase]);
 
   const handleRsvp = useCallback(
-    async (eventId: string, status: "going" | "interested") => {
+    async (eventId: string, status: "going" | "interested" | "not_going") => {
       if (!user) {
         toast.error("Sign in to RSVP");
         return;
@@ -238,7 +246,7 @@ function FeaturedEvent({
 }: {
   event: EventWithCreator;
   rsvpStatus: RsvpStatus;
-  onRsvp: (eventId: string, status: "going" | "interested") => void;
+  onRsvp: (eventId: string, status: "going" | "interested" | "not_going") => void;
 }) {
   const dayInfo = formatDay(event.start_at);
   const hue = hueFor(event.id);
@@ -384,13 +392,7 @@ function FeaturedEvent({
               onRsvp(event.id, "going");
             }}
           >
-            {rsvpStatus === "going" ? (
-              <>
-                <Check style={{ width: 14, height: 14 }} /> Going
-              </>
-            ) : (
-              "RSVP · I'm in"
-            )}
+            <CheckCircle2 style={{ width: 14, height: 14 }} /> Going
           </PillBtn>
           <PillBtn
             primary={rsvpStatus === "interested"}
@@ -400,13 +402,17 @@ function FeaturedEvent({
               onRsvp(event.id, "interested");
             }}
           >
-            {rsvpStatus === "interested" ? (
-              <>
-                <Star style={{ width: 14, height: 14, fill: "currentColor" }} /> Interested
-              </>
-            ) : (
-              "Maybe"
-            )}
+            <Star style={{ width: 14, height: 14 }} /> Interested
+          </PillBtn>
+          <PillBtn
+            primary={rsvpStatus === "not_going"}
+            size="lg"
+            onClick={(e) => {
+              stop(e);
+              onRsvp(event.id, "not_going");
+            }}
+          >
+            <XCircle style={{ width: 14, height: 14 }} /> Can&apos;t Go
           </PillBtn>
           <PillBtn
             size="lg"
@@ -438,7 +444,7 @@ function EverythingElse({
 }: {
   events: EventWithCreator[];
   rsvpMap: Record<string, RsvpStatus>;
-  onRsvp: (eventId: string, status: "going" | "interested") => void;
+  onRsvp: (eventId: string, status: "going" | "interested" | "not_going") => void;
 }) {
   return (
     <div>
@@ -539,23 +545,46 @@ function EverythingElse({
               >
                 {e.attendee_count ?? 0} going
               </div>
-              <PillBtn
-                size="sm"
-                primary={status === "going"}
-                onClick={(ev) => {
-                  ev.preventDefault();
-                  ev.stopPropagation();
-                  onRsvp(e.id, "going");
-                }}
-              >
-                {status === "going" ? (
-                  <>
-                    <Check style={{ width: 11, height: 11 }} /> Going
-                  </>
-                ) : (
-                  "RSVP"
-                )}
-              </PillBtn>
+              <div style={{ display: "flex", gap: 6 }}>
+                <PillBtn
+                  size="sm"
+                  primary={status === "going"}
+                  onClick={(ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    onRsvp(e.id, "going");
+                  }}
+                  title="Going"
+                >
+                  <CheckCircle2 style={{ width: 11, height: 11 }} /> Going
+                </PillBtn>
+                <PillBtn
+                  size="sm"
+                  primary={status === "interested"}
+                  onClick={(ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    onRsvp(e.id, "interested");
+                  }}
+                  title="Interested"
+                  aria-label="Interested"
+                >
+                  <Star style={{ width: 11, height: 11 }} />
+                </PillBtn>
+                <PillBtn
+                  size="sm"
+                  primary={status === "not_going"}
+                  onClick={(ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    onRsvp(e.id, "not_going");
+                  }}
+                  title="Can't go"
+                  aria-label="Can't go"
+                >
+                  <XCircle style={{ width: 11, height: 11 }} />
+                </PillBtn>
+              </div>
             </Link>
           );
         })}
