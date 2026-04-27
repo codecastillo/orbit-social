@@ -25,16 +25,18 @@ export function useStreamHearts(streamId: string): {
     supabaseRef.current = supabase;
 
     let cancelled = false;
-    void supabase
-      .from("live_streams")
-      .select("total_likes")
-      .eq("id", streamId)
-      .single()
-      .then(({ data }) => {
-        if (cancelled) return;
-        const initial = (data as { total_likes?: number } | null)?.total_likes;
-        if (typeof initial === "number") setTotalCount(initial);
-      });
+    const fetchTotal = async () => {
+      const { data } = await supabase
+        .from("live_streams")
+        .select("total_likes")
+        .eq("id", streamId)
+        .single();
+      if (cancelled) return;
+      const next = (data as { total_likes?: number } | null)?.total_likes;
+      if (typeof next === "number") setTotalCount(next);
+    };
+    void fetchTotal();
+    const pollId = setInterval(() => void fetchTotal(), 5000);
 
     const broadcastChannel = supabase.channel(`hearts:live:${streamId}`, {
       config: { broadcast: { self: true } },
@@ -71,6 +73,7 @@ export function useStreamHearts(streamId: string): {
 
     return () => {
       cancelled = true;
+      clearInterval(pollId);
       supabase.removeChannel(broadcastChannel);
       supabase.removeChannel(rowChannel);
       broadcastChannelRef.current = null;
