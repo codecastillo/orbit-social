@@ -204,8 +204,8 @@ export function MessageBubble({
         showSender ? "mt-3" : "mt-0.5"
       )}
     >
-      <div className="flex flex-col">
-        <div className="flex items-center gap-1.5">
+      <div className="flex flex-col max-w-[75%]">
+        <div className="flex items-center gap-1.5 min-w-0">
           {isOwn && (
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
               {onPinMessage && (
@@ -228,7 +228,7 @@ export function MessageBubble({
               />
             </div>
           )}
-          <div className="relative">
+          <div className="relative min-w-0">
             {message.is_pinned && (
               <div className="absolute -top-3 right-2">
                 <Pin className="h-3 w-3 text-amber-400" />
@@ -236,7 +236,7 @@ export function MessageBubble({
             )}
             <div
               className={cn(
-                "max-w-[75%] px-4 py-2 text-white",
+                "px-4 py-2 text-white",
                 message.is_pinned && "ring-1 ring-amber-500/20"
               )}
               style={{

@@ -137,7 +137,57 @@ export default function ChatPage({ params }: ChatPageProps) {
 
   const handleSend = async (content: string) => {
     if (!user) return;
-    await sendMessage(conversationId, user.id, content);
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const optimistic = {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: user.id,
+      content,
+      media_url: null,
+      media_type: null,
+      reply_to_id: null,
+      is_deleted: false,
+      created_at: new Date().toISOString(),
+      sender: {
+        id: user.id,
+        username: user.user_metadata?.username ?? "",
+        display_name: user.user_metadata?.display_name ?? "",
+        avatar_url: user.user_metadata?.avatar_url ?? null,
+      },
+    };
+    queryClient.setQueryData(
+      ["messages", conversationId],
+      (old: { pages: { messages: unknown[]; nextCursor: string | null }[] } | undefined) => {
+        if (!old) return old;
+        const firstPage = old.pages[0];
+        if (!firstPage) return old;
+        return {
+          ...old,
+          pages: [
+            { ...firstPage, messages: [optimistic, ...firstPage.messages] },
+            ...old.pages.slice(1),
+          ],
+        };
+      }
+    );
+    try {
+      await sendMessage(conversationId, user.id, content);
+    } catch (e) {
+      console.error("sendMessage failed", e);
+      queryClient.setQueryData(
+        ["messages", conversationId],
+        (old: { pages: { messages: { id: string }[]; nextCursor: string | null }[] } | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((p) => ({
+              ...p,
+              messages: p.messages.filter((m) => m.id !== tempId),
+            })),
+          };
+        }
+      );
+    }
   };
 
   const toggleEncryption = async () => {
