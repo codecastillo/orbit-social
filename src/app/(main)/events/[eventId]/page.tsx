@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { formatNumber, formatTimeAgo } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useCurrentProfile } from "@/lib/hooks/use-profile";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { AttendeesDialog } from "@/components/events/attendees-dialog";
@@ -52,6 +53,7 @@ export default function EventDetailPage({
   const { eventId } = use(params);
   const router = useRouter();
   const { user } = useAuth();
+  const { data: currentProfile } = useCurrentProfile();
   const supabase = createClient();
 
   const [event, setEvent] = useState<EventWithCreator | null>(null);
@@ -237,10 +239,10 @@ export default function EventDetailPage({
       created_at: new Date().toISOString(),
       profiles: {
         id: user.id,
-        username: user.user_metadata?.username || "you",
-        display_name: user.user_metadata?.display_name || "You",
-        avatar_url: user.user_metadata?.avatar_url || null,
-        is_verified: false,
+        username: currentProfile?.username || "you",
+        display_name: currentProfile?.display_name || "You",
+        avatar_url: currentProfile?.avatar_url || null,
+        is_verified: currentProfile?.is_verified || false,
       },
     };
     setComments((prev) => [...prev, optimistic]);
@@ -552,8 +554,12 @@ export default function EventDetailPage({
           {user ? (
             <div className="flex items-center gap-2">
               <UserAvatar
-                src={user.user_metadata?.avatar_url || null}
-                fallback={user.user_metadata?.display_name || "You"}
+                src={currentProfile?.avatar_url || null}
+                fallback={
+                  currentProfile?.display_name ||
+                  currentProfile?.username ||
+                  "You"
+                }
                 size="sm"
               />
               <input
