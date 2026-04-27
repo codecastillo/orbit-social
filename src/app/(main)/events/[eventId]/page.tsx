@@ -18,6 +18,8 @@ import {
   XCircleIcon,
   SendHorizonalIcon,
   Trash2Icon,
+  Reply as ReplyIcon,
+  XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -65,8 +67,10 @@ export default function EventDetailPage({
   const [comments, setComments] = useState<EventComment[]>([]);
   const [commentInput, setCommentInput] = useState("");
   const [commentSending, setCommentSending] = useState(false);
+  const [replyTo, setReplyTo] = useState<EventComment | null>(null);
   const [attendeesOpen, setAttendeesOpen] = useState(false);
   const commentsEndRef = useRef<HTMLDivElement | null>(null);
+  const commentInputRef = useRef<HTMLInputElement | null>(null);
 
   const refetchAttendees = useCallback(async () => {
     try {
@@ -231,12 +235,14 @@ export default function EventDetailPage({
     if (!content) return;
 
     const tempId = `temp-${Date.now()}`;
+    const parentId = replyTo?.id ?? null;
     const optimistic: EventComment = {
       id: tempId,
       event_id: event.id,
       user_id: user.id,
       content,
       created_at: new Date().toISOString(),
+      parent_id: parentId,
       profiles: {
         id: user.id,
         username: currentProfile?.username || "you",
@@ -247,10 +253,11 @@ export default function EventDetailPage({
     };
     setComments((prev) => [...prev, optimistic]);
     setCommentInput("");
+    setReplyTo(null);
     setCommentSending(true);
 
     try {
-      const real = await postEventComment(event.id, user.id, content);
+      const real = await postEventComment(event.id, user.id, content, parentId);
       setComments((prev) =>
         prev.map((c) => (c.id === tempId ? real : c))
       );
@@ -262,9 +269,21 @@ export default function EventDetailPage({
       toast.error("Couldn't post comment");
       setComments((prev) => prev.filter((c) => c.id !== tempId));
       setCommentInput(content);
+      setReplyTo(replyTo);
     } finally {
       setCommentSending(false);
     }
+  }
+
+  function startReply(comment: EventComment) {
+    // Always thread under the top-level ancestor so we don't get nested chains.
+    let target = comment;
+    if (comment.parent_id) {
+      const root = comments.find((c) => c.id === comment.parent_id);
+      if (root) target = root;
+    }
+    setReplyTo(target);
+    requestAnimationFrame(() => commentInputRef.current?.focus());
   }
 
   async function handleDeleteComment(commentId: string) {
@@ -511,80 +530,108 @@ export default function EventDetailPage({
                 Be the first to say something.
               </p>
             ) : (
-              comments.map((c) => (
-                <div key={c.id} className="flex items-start gap-2.5 group">
-                  <UserAvatar
-                    src={c.profiles?.avatar_url}
-                    fallback={
-                      c.profiles?.display_name || c.profiles?.username || "?"
-                    }
-                    size="sm"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 text-xs">
-                      <Link
-                        href={`/${c.profiles?.username}`}
-                        className="font-medium text-foreground hover:underline truncate"
-                      >
-                        {c.profiles?.display_name || c.profiles?.username}
-                      </Link>
-                      <span className="text-muted-foreground">
-                        {formatTimeAgo(c.created_at)}
-                      </span>
-                      {user?.id === c.user_id && !c.id.startsWith("temp-") && (
-                        <button
-                          onClick={() => handleDeleteComment(c.id)}
-                          className="ml-auto text-muted-foreground/60 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                          aria-label="Delete comment"
-                        >
-                          <Trash2Icon className="h-3 w-3" />
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap break-words mt-0.5">
-                      {c.content}
-                    </p>
+              (() => {
+                const roots = comments.filter((c) => !c.parent_id);
+                const childMap = new Map<string, EventComment[]>();
+                for (const c of comments) {
+                  if (c.parent_id) {
+                    const arr = childMap.get(c.parent_id) ?? [];
+                    arr.push(c);
+                    childMap.set(c.parent_id, arr);
+                  }
+                }
+                return roots.map((c) => (
+                  <div key={c.id}>
+                    <CommentRow
+                      comment={c}
+                      currentUserId={user?.id}
+                      onReply={() => startReply(c)}
+                      onDelete={() => handleDeleteComment(c.id)}
+                    />
+                    {(childMap.get(c.id) ?? []).map((reply) => (
+                      <div key={reply.id} className="ml-9 mt-2">
+                        <CommentRow
+                          comment={reply}
+                          currentUserId={user?.id}
+                          onReply={() => startReply(reply)}
+                          onDelete={() => handleDeleteComment(reply.id)}
+                        />
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ))
+                ));
+              })()
             )}
             <div ref={commentsEndRef} />
           </div>
 
           {user ? (
-            <div className="flex items-center gap-2">
-              <UserAvatar
-                src={currentProfile?.avatar_url || null}
-                fallback={
-                  currentProfile?.display_name ||
-                  currentProfile?.username ||
-                  "You"
-                }
-                size="sm"
-              />
-              <input
-                type="text"
-                value={commentInput}
-                onChange={(e) => setCommentInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handlePostComment();
-                  }
-                }}
-                placeholder="Say something…"
-                disabled={commentSending}
-                className="flex-1 bg-muted/30 border border-border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-              />
-              <Button
-                size="icon"
-                onClick={handlePostComment}
-                disabled={commentSending || !commentInput.trim()}
-                aria-label="Post comment"
-              >
-                <SendHorizonalIcon className="h-4 w-4" />
-              </Button>
-            </div>
+            currentProfile ? (
+              <>
+                {replyTo && (
+                  <div className="flex items-center justify-between gap-2 mb-2 px-3 py-2 rounded-lg bg-muted/40 border border-border text-xs">
+                    <span className="text-muted-foreground truncate">
+                      Replying to{" "}
+                      <span className="text-foreground font-medium">
+                        @{replyTo.profiles?.username}
+                      </span>
+                    </span>
+                    <button
+                      onClick={() => setReplyTo(null)}
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label="Cancel reply"
+                    >
+                      <XIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <UserAvatar
+                    src={currentProfile.avatar_url}
+                    fallback={
+                      currentProfile.display_name ||
+                      currentProfile.username ||
+                      "You"
+                    }
+                    size="sm"
+                  />
+                  <input
+                    ref={commentInputRef}
+                    type="text"
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handlePostComment();
+                      } else if (e.key === "Escape" && replyTo) {
+                        setReplyTo(null);
+                      }
+                    }}
+                    placeholder={
+                      replyTo
+                        ? `Reply to @${replyTo.profiles?.username}…`
+                        : "Say something…"
+                    }
+                    disabled={commentSending}
+                    className="flex-1 bg-muted/30 border border-border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                  <Button
+                    size="icon"
+                    onClick={handlePostComment}
+                    disabled={commentSending || !commentInput.trim()}
+                    aria-label="Post comment"
+                  >
+                    <SendHorizonalIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="flex-1 h-9 rounded-full" />
+              </div>
+            )
           ) : (
             <p className="text-xs text-muted-foreground text-center py-2">
               Sign in to comment.
@@ -598,6 +645,70 @@ export default function EventDetailPage({
         onOpenChange={setAttendeesOpen}
         eventId={event.id}
       />
+    </div>
+  );
+}
+
+function CommentRow({
+  comment,
+  currentUserId,
+  onReply,
+  onDelete,
+}: {
+  comment: EventComment;
+  currentUserId?: string;
+  onReply: () => void;
+  onDelete: () => void;
+}) {
+  const isMine = currentUserId === comment.user_id;
+  const isPending = comment.id.startsWith("temp-");
+  return (
+    <div className="flex items-start gap-2.5 group">
+      <UserAvatar
+        src={comment.profiles?.avatar_url}
+        fallback={
+          comment.profiles?.display_name || comment.profiles?.username || "?"
+        }
+        size="sm"
+      />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 text-xs">
+          <Link
+            href={`/${comment.profiles?.username}`}
+            className="font-medium text-foreground hover:underline truncate"
+          >
+            {comment.profiles?.display_name || comment.profiles?.username}
+          </Link>
+          <span className="text-muted-foreground">
+            {formatTimeAgo(comment.created_at)}
+          </span>
+          <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {!isPending && (
+              <button
+                onClick={onReply}
+                className="text-muted-foreground/70 hover:text-foreground p-0.5"
+                aria-label="Reply"
+                title="Reply"
+              >
+                <ReplyIcon className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {isMine && !isPending && (
+              <button
+                onClick={onDelete}
+                className="text-muted-foreground/60 hover:text-destructive p-0.5"
+                aria-label="Delete comment"
+                title="Delete"
+              >
+                <Trash2Icon className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+        <p className="text-sm whitespace-pre-wrap break-words mt-0.5">
+          {comment.content}
+        </p>
+      </div>
     </div>
   );
 }

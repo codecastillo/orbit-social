@@ -133,6 +133,7 @@ export interface EventComment {
   user_id: string;
   content: string;
   created_at: string;
+  parent_id: string | null;
   profiles: {
     id: string;
     username: string;
@@ -142,17 +143,17 @@ export interface EventComment {
   };
 }
 
-export async function getEventComments(eventId: string, limit = 50) {
+const COMMENT_SELECT = `
+  id, event_id, user_id, content, created_at, parent_id,
+  profiles!event_comments_user_id_fkey (
+    id, username, display_name, avatar_url, is_verified
+  )
+`;
+
+export async function getEventComments(eventId: string, limit = 100) {
   const { data, error } = await supabase
     .from("event_comments")
-    .select(
-      `
-      id, event_id, user_id, content, created_at,
-      profiles!event_comments_user_id_fkey (
-        id, username, display_name, avatar_url, is_verified
-      )
-    `
-    )
+    .select(COMMENT_SELECT)
     .eq("event_id", eventId)
     .order("created_at", { ascending: true })
     .limit(limit);
@@ -164,19 +165,18 @@ export async function getEventComments(eventId: string, limit = 50) {
 export async function postEventComment(
   eventId: string,
   userId: string,
-  content: string
+  content: string,
+  parentId?: string | null
 ) {
   const { data, error } = await supabase
     .from("event_comments")
-    .insert({ event_id: eventId, user_id: userId, content })
-    .select(
-      `
-      id, event_id, user_id, content, created_at,
-      profiles!event_comments_user_id_fkey (
-        id, username, display_name, avatar_url, is_verified
-      )
-    `
-    )
+    .insert({
+      event_id: eventId,
+      user_id: userId,
+      content,
+      parent_id: parentId ?? null,
+    })
+    .select(COMMENT_SELECT)
     .single();
 
   if (error) throw error;

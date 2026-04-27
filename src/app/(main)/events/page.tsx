@@ -379,44 +379,49 @@ function FeaturedEvent({
         <div
           style={{
             display: "flex",
-            gap: 8,
+            gap: 6,
             marginTop: 22,
-            flexWrap: "wrap",
+            flexWrap: "nowrap",
+            alignItems: "center",
+            minWidth: 0,
           }}
         >
           <PillBtn
             primary={rsvpStatus === "going"}
-            size="lg"
+            size="md"
             onClick={(e) => {
               stop(e);
               onRsvp(event.id, "going");
             }}
+            style={{ whiteSpace: "nowrap" }}
           >
-            <CheckCircle2 style={{ width: 14, height: 14 }} /> Going
+            <CheckCircle2 style={{ width: 13, height: 13 }} /> Going
           </PillBtn>
           <PillBtn
             primary={rsvpStatus === "interested"}
-            size="lg"
+            size="md"
             onClick={(e) => {
               stop(e);
               onRsvp(event.id, "interested");
             }}
+            style={{ whiteSpace: "nowrap" }}
           >
-            <Star style={{ width: 14, height: 14 }} /> Interested
+            <Star style={{ width: 13, height: 13 }} /> Interested
           </PillBtn>
           <PillBtn
             primary={rsvpStatus === "not_going"}
-            size="lg"
+            size="md"
             onClick={(e) => {
               stop(e);
               onRsvp(event.id, "not_going");
             }}
+            style={{ whiteSpace: "nowrap" }}
           >
-            <XCircle style={{ width: 14, height: 14 }} /> Can&apos;t Go
+            <XCircle style={{ width: 13, height: 13 }} /> Can&apos;t Go
           </PillBtn>
           <PillBtn
-            size="lg"
-            style={{ marginLeft: "auto" }}
+            size="md"
+            style={{ marginLeft: "auto", padding: "10px 12px" }}
             onClick={(e) => {
               stop(e);
               if (typeof window !== "undefined" && navigator.clipboard) {
@@ -426,6 +431,7 @@ function FeaturedEvent({
                 toast.success("Link copied");
               }
             }}
+            aria-label="Share event"
           >
             <Share2 style={{ width: 14, height: 14 }} />
           </PillBtn>
