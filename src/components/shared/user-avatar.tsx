@@ -24,7 +24,7 @@ const sizeClasses = {
   sm: "h-8 w-8",
   md: "h-10 w-10",
   lg: "h-14 w-14",
-  xl: "h-24 w-24",
+  xl: "h-[126px] w-[126px]",
 };
 
 const borderClasses: Record<AvatarBorderStyle, string> = {

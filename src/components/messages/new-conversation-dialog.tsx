@@ -56,8 +56,10 @@ export function NewConversationDialog({
       onOpenChange(false);
       reset();
       router.push(`/messages/${conversationId}`);
-    } catch {
-      toast.error("Failed to start conversation");
+    } catch (e) {
+      const msg = (e as { message?: string } | undefined)?.message;
+      console.error("getOrCreateDMConversation failed", e);
+      toast.error(msg ? `Failed: ${msg}` : "Failed to start conversation");
     } finally {
       setNavigating(null);
     }

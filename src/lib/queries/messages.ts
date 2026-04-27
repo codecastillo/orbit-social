@@ -127,65 +127,17 @@ export async function getConversations(
 }
 
 export async function getOrCreateDMConversation(
-  userId: string,
+  _userId: string,
   otherUserId: string
 ): Promise<string> {
-  // Find existing 1:1 conversation between these two users
-  const { data: userConvs } = await supabase
-    .from("conversation_members")
-    .select("conversation_id")
-    .eq("user_id", userId);
-
-  const { data: otherConvs } = await supabase
-    .from("conversation_members")
-    .select("conversation_id")
-    .eq("user_id", otherUserId);
-
-  if (userConvs && otherConvs) {
-    const userConvIds = new Set(userConvs.map((c) => c.conversation_id));
-    const commonConvIds = otherConvs
-      .map((c) => c.conversation_id)
-      .filter((id) => userConvIds.has(id));
-
-    if (commonConvIds.length > 0) {
-      // Check if any of these are 1:1 (not group)
-      const { data: dmConvs } = await supabase
-        .from("conversations")
-        .select("id")
-        .in("id", commonConvIds)
-        .eq("is_group", false)
-        .limit(1);
-
-      if (dmConvs?.[0]) {
-        return dmConvs[0].id;
-      }
-    }
+  const { data, error } = await supabase.rpc("start_dm_conversation", {
+    p_other_id: otherUserId,
+  });
+  if (error) throw error;
+  if (!data || typeof data !== "string") {
+    throw new Error("start_dm_conversation returned no conversation id");
   }
-
-  // Create new conversation
-  const { data: conv, error: convError } = await supabase
-    .from("conversations")
-    .insert({
-      is_group: false,
-      created_by: userId,
-      last_message_at: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
-
-  if (convError) throw convError;
-
-  // Add both members
-  const { error: memberError } = await supabase
-    .from("conversation_members")
-    .insert([
-      { conversation_id: conv.id, user_id: userId, role: "member" },
-      { conversation_id: conv.id, user_id: otherUserId, role: "member" },
-    ]);
-
-  if (memberError) throw memberError;
-
-  return conv.id;
+  return data;
 }
 
 export async function getMessages(

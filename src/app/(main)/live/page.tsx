@@ -326,7 +326,7 @@ function RecommendedCategoriesRail({
   return (
     <div>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-        <Eyebrow accent>◆&nbsp;&nbsp;RECOMMENDED CATEGORIES</Eyebrow>
+        <Eyebrow accent>◆&nbsp;&nbsp;RECOMMENDED GAMES</Eyebrow>
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
@@ -347,10 +347,11 @@ function RecommendedCategoriesRail({
       </div>
       <div
         style={{
-          display: "grid",
+          display: "flex",
           gap: 12,
           marginTop: 12,
-          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+          flexWrap: "nowrap",
+          overflow: "hidden",
         }}
       >
         {LIVE_GAMES.map((g) => {
