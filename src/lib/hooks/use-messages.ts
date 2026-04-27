@@ -113,10 +113,31 @@ export function useMessages(conversationId: string) {
               const firstPage = old.pages[0];
               if (!firstPage) return old;
 
-              // Check if message already exists
               const allMessages = old.pages.flatMap((p: any) => p.messages);
+              // Already present (dedupe by real id)
               if (allMessages.some((m: any) => m.id === newMessage.id)) {
                 return old;
+              }
+              // Reconcile against an optimistic temp row from the same sender
+              // with identical content. If we find one, swap it in place
+              // instead of prepending a duplicate bubble.
+              const tempMatch = allMessages.find(
+                (m: any) =>
+                  typeof m.id === "string" &&
+                  m.id.startsWith("temp-") &&
+                  m.sender_id === newMessage.sender_id &&
+                  m.content === newMessage.content
+              );
+              if (tempMatch) {
+                return {
+                  ...old,
+                  pages: old.pages.map((page: any) => ({
+                    ...page,
+                    messages: page.messages.map((m: any) =>
+                      m.id === tempMatch.id ? messageWithSender : m
+                    ),
+                  })),
+                };
               }
 
               return {
