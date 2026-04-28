@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, MoreHorizontal, ExternalLink, Copy, Share2, UserX, VolumeX, Flag } from "lucide-react";
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FollowListDialog } from "@/components/profile/follow-list-dialog";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
@@ -92,7 +92,83 @@ export function ProfileContent({
   const [followListOpen, setFollowListOpen] = useState<null | "followers" | "following">(null);
   const router = useRouter();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const supabase = createClient();
+
+  // Live orbit / mutuals counts. Seeded from server data, then kept in sync
+  // via realtime UPDATE on the profile row (the existing follow/unfollow
+  // triggers maintain follower_count + following_count).
+  const [liveCounts, setLiveCounts] = useState({
+    followers: profile.follower_count,
+    following: profile.following_count,
+  });
+  useEffect(() => {
+    setLiveCounts({
+      followers: profile.follower_count,
+      following: profile.following_count,
+    });
+  }, [profile.id, profile.follower_count, profile.following_count]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(
+        `profile-${profile.id}-${Math.random().toString(36).slice(2)}`
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${profile.id}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            follower_count?: number;
+            following_count?: number;
+          };
+          setLiveCounts((prev) => ({
+            followers: row.follower_count ?? prev.followers,
+            following: row.following_count ?? prev.following,
+          }));
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "follows",
+          filter: `following_id=eq.${profile.id}`,
+        },
+        () => {
+          // Their orbit (followers) changed — refresh the list dialog
+          queryClient.invalidateQueries({
+            queryKey: ["follow-list", profile.id, "followers"],
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "follows",
+          filter: `follower_id=eq.${profile.id}`,
+        },
+        () => {
+          // Their mutuals (following) changed — refresh the list dialog
+          queryClient.invalidateQueries({
+            queryKey: ["follow-list", profile.id, "following"],
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile.id, supabase, queryClient]);
 
   const { data: pinnedPosts = [] } = useQuery({
     queryKey: ["user-pinned-posts", profile.id],
@@ -423,8 +499,8 @@ export function ProfileContent({
           <StatCluster
             items={[
               { n: profile.post_count, label: "posts" },
-              { n: profile.follower_count, label: "orbit", onClick: () => setFollowListOpen("followers") },
-              { n: profile.following_count, label: "mutuals", onClick: () => setFollowListOpen("following") },
+              { n: liveCounts.followers, label: "orbit", onClick: () => setFollowListOpen("followers") },
+              { n: liveCounts.following, label: "mutuals", onClick: () => setFollowListOpen("following") },
             ]}
           />
           {profile.website && (
