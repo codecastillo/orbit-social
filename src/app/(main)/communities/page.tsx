@@ -198,19 +198,38 @@ function FeaturedTrio({ communities }: { communities: Community[] }) {
       >
         <div
           style={{
-            height: 180,
-            background: `linear-gradient(135deg, oklch(0.68 0.18 ${hue}), oklch(0.45 0.16 ${hue2}))`,
+            aspectRatio: "4 / 1",
+            width: "100%",
+            background: hero.cover_url
+              ? "transparent"
+              : `linear-gradient(135deg, oklch(0.68 0.18 ${hue}), oklch(0.45 0.16 ${hue2}))`,
             position: "relative",
+            overflow: "hidden",
           }}
         >
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background:
-                "radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.3), transparent 60%), repeating-linear-gradient(135deg, transparent 0 30px, rgba(255,255,255,0.06) 30px 31px)",
-            }}
-          />
+          {hero.cover_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={hero.cover_url}
+              alt=""
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background:
+                  "radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.3), transparent 60%), repeating-linear-gradient(135deg, transparent 0 30px, rgba(255,255,255,0.06) 30px 31px)",
+              }}
+            />
+          )}
           <div
             style={{
               position: "absolute",
@@ -229,31 +248,66 @@ function FeaturedTrio({ communities }: { communities: Community[] }) {
             ◆&nbsp;&nbsp;{formatMembers(hero.member_count)} MEMBERS
           </div>
         </div>
-        <div style={{ padding: 22 }}>
-          <Display size={26}>{hero.name}</Display>
+        <div style={{ padding: 22, position: "relative" }}>
+          {/* Avatar overlapping the cover */}
           <div
             style={{
-              fontSize: 12.5,
-              color: O.ink3,
-              marginTop: 4,
-              fontFamily: O.mono,
-              letterSpacing: "0.06em",
+              position: "absolute",
+              top: -28,
+              left: 22,
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              border: `3px solid ${O.bg}`,
+              background: hero.avatar_url
+                ? "transparent"
+                : `linear-gradient(135deg, oklch(0.7 0.18 ${hue}), oklch(0.45 0.16 ${hue2}))`,
+              overflow: "hidden",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 6px 20px -6px rgba(0,0,0,0.6)",
             }}
           >
-            {formatMembers(hero.member_count).toUpperCase()} MEMBERS · {hero.is_private ? "PRIVATE" : "OPEN"}
+            {hero.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={hero.avatar_url}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <span style={{ fontSize: 22, fontWeight: 700, color: "white" }}>
+                {hero.name.charAt(0).toUpperCase()}
+              </span>
+            )}
           </div>
-          {hero.description && (
-            <p
+          <div style={{ marginTop: 30 }}>
+            <Display size={26}>{hero.name}</Display>
+            <div
               style={{
-                fontSize: 13.5,
-                color: O.ink2,
-                lineHeight: 1.55,
-                marginTop: 12,
+                fontSize: 12.5,
+                color: O.ink3,
+                marginTop: 4,
+                fontFamily: O.mono,
+                letterSpacing: "0.06em",
               }}
             >
-              {hero.description}
-            </p>
-          )}
+              {formatMembers(hero.member_count).toUpperCase()} MEMBERS · {hero.is_private ? "PRIVATE" : "OPEN"}
+            </div>
+            {hero.description && (
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: O.ink2,
+                  lineHeight: 1.55,
+                  marginTop: 12,
+                }}
+              >
+                {hero.description}
+              </p>
+            )}
+          </div>
         </div>
       </Link>
 
@@ -275,32 +329,87 @@ function FeaturedTrio({ communities }: { communities: Community[] }) {
           >
             <div
               style={{
-                height: 100,
-                background: `linear-gradient(135deg, oklch(0.68 0.16 ${sideHue}), oklch(0.42 0.14 ${sideHue2}))`,
+                aspectRatio: "4 / 1",
+                width: "100%",
+                background: c.cover_url
+                  ? "transparent"
+                  : `linear-gradient(135deg, oklch(0.68 0.16 ${sideHue}), oklch(0.42 0.14 ${sideHue2}))`,
                 position: "relative",
+                overflow: "hidden",
               }}
             >
+              {c.cover_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={c.cover_url}
+                  alt=""
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background:
+                      "repeating-linear-gradient(135deg, transparent 0 22px, rgba(255,255,255,0.06) 22px 23px)",
+                  }}
+                />
+              )}
+            </div>
+            <div style={{ padding: 18, position: "relative" }}>
               <div
                 style={{
                   position: "absolute",
-                  inset: 0,
-                  background:
-                    "repeating-linear-gradient(135deg, transparent 0 22px, rgba(255,255,255,0.06) 22px 23px)",
-                }}
-              />
-            </div>
-            <div style={{ padding: 18 }}>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>{c.name}</div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: O.ink3,
-                  fontFamily: O.mono,
-                  marginTop: 2,
-                  letterSpacing: "0.04em",
+                  top: -22,
+                  left: 18,
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  border: `2.5px solid ${O.bg}`,
+                  background: c.avatar_url
+                    ? "transparent"
+                    : `linear-gradient(135deg, oklch(0.7 0.18 ${sideHue}), oklch(0.45 0.16 ${sideHue2}))`,
+                  overflow: "hidden",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 4px 14px -4px rgba(0,0,0,0.6)",
                 }}
               >
-                {formatMembers(c.member_count).toUpperCase()} MEMBERS
+                {c.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={c.avatar_url}
+                    alt=""
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <span
+                    style={{ fontSize: 16, fontWeight: 700, color: "white" }}
+                  >
+                    {c.name.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div style={{ marginTop: 24 }}>
+                <div style={{ fontSize: 16, fontWeight: 600 }}>{c.name}</div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: O.ink3,
+                    fontFamily: O.mono,
+                    marginTop: 2,
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  {formatMembers(c.member_count).toUpperCase()} MEMBERS
+                </div>
               </div>
             </div>
           </Link>
@@ -348,11 +457,32 @@ function YoursList({ communities }: { communities: Community[] }) {
                   width: 44,
                   height: 44,
                   borderRadius: 12,
-                  background: `linear-gradient(135deg, oklch(0.7 0.18 ${hue}), oklch(0.45 0.16 ${hue2}))`,
+                  background: c.avatar_url
+                    ? "transparent"
+                    : `linear-gradient(135deg, oklch(0.7 0.18 ${hue}), oklch(0.45 0.16 ${hue2}))`,
                   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2)",
                   flexShrink: 0,
+                  overflow: "hidden",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
-              />
+              >
+                {c.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={c.avatar_url}
+                    alt=""
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <span
+                    style={{ fontSize: 16, fontWeight: 700, color: "white" }}
+                  >
+                    {c.name.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{

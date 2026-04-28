@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CommunityMembersDialog } from "@/components/communities/members-dialog";
+import { ImageCropper } from "@/components/shared/image-cropper";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -76,40 +77,55 @@ export function CommunityHeader({
   const [uploadingKind, setUploadingKind] = useState<"avatar" | "cover" | null>(
     null
   );
+  const [pendingCrop, setPendingCrop] = useState<{
+    kind: "avatar" | "cover";
+    file: File;
+  } | null>(null);
   const avatarFileRef = useRef<HTMLInputElement | null>(null);
   const coverFileRef = useRef<HTMLInputElement | null>(null);
 
-  const handleImageUpload =
+  const handleFilePick =
     (kind: "avatar" | "cover") =>
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (!file || !user) return;
-      setUploadingKind(kind);
-      try {
-        const url = await uploadCommunityImage(
-          user.id,
-          community.id,
-          kind,
-          file
-        );
-        await updateCommunity(community.id, {
-          [kind === "avatar" ? "avatarUrl" : "coverUrl"]: url,
-        });
-        toast.success(
-          kind === "avatar" ? "Updated room avatar" : "Updated room cover"
-        );
-        queryClient.invalidateQueries({
-          queryKey: ["community", community.slug],
-        });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Upload failed";
-        console.error("Community image upload failed:", err);
-        toast.error(msg);
-      } finally {
-        setUploadingKind(null);
-        if (e.target) e.target.value = "";
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image must be under 5MB");
+        return;
       }
+      setPendingCrop({ kind, file });
+      if (e.target) e.target.value = "";
     };
+
+  const handleCropComplete = async (blob: Blob) => {
+    if (!pendingCrop || !user) return;
+    const { kind } = pendingCrop;
+    const cropped = new File([blob], `${kind}.jpg`, { type: "image/jpeg" });
+    setUploadingKind(kind);
+    try {
+      const url = await uploadCommunityImage(
+        user.id,
+        community.id,
+        kind,
+        cropped
+      );
+      await updateCommunity(community.id, {
+        [kind === "avatar" ? "avatarUrl" : "coverUrl"]: url,
+      });
+      toast.success(
+        kind === "avatar" ? "Updated room avatar" : "Updated room cover"
+      );
+      queryClient.invalidateQueries({
+        queryKey: ["community", community.slug],
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      console.error("Community image upload failed:", err);
+      toast.error(msg);
+    } finally {
+      setUploadingKind(null);
+    }
+  };
 
   // Treat the row's `created_by` as authoritative for ownership — handles
   // legacy / broken rooms where the owner membership row was never inserted
@@ -258,8 +274,12 @@ export function CommunityHeader({
 
   return (
     <div className="border-b border-border">
-      {/* Cover image */}
-      <div className="relative h-32 sm:h-48 w-full overflow-hidden group">
+      {/* Cover image — locked to a 4:1 aspect so the visible region of the
+          uploaded crop stays consistent across viewport widths. */}
+      <div
+        className="relative w-full overflow-hidden group"
+        style={{ aspectRatio: "4 / 1", maxHeight: 280 }}
+      >
         {community.cover_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -276,7 +296,7 @@ export function CommunityHeader({
               ref={coverFileRef}
               type="file"
               accept="image/*"
-              onChange={handleImageUpload("cover")}
+              onChange={handleFilePick("cover")}
               className="hidden"
             />
             <button
@@ -321,7 +341,7 @@ export function CommunityHeader({
                   ref={avatarFileRef}
                   type="file"
                   accept="image/*"
-                  onChange={handleImageUpload("avatar")}
+                  onChange={handleFilePick("avatar")}
                   className="hidden"
                 />
                 <button
@@ -505,6 +525,17 @@ export function CommunityHeader({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImageCropper
+        open={!!pendingCrop}
+        file={pendingCrop?.file ?? null}
+        aspectRatio={pendingCrop?.kind === "cover" ? 4 : 1}
+        circular={pendingCrop?.kind === "avatar"}
+        outputWidth={pendingCrop?.kind === "cover" ? 1600 : 512}
+        title={pendingCrop?.kind === "cover" ? "Crop cover" : "Crop avatar"}
+        onClose={() => setPendingCrop(null)}
+        onComplete={handleCropComplete}
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { ModalShell, Field, Input, TextArea, RadioRow } from "@/components/orbit
 import { O, aurora } from "@/lib/design/orbit";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createCommunity, uploadCommunityImage } from "@/lib/queries/communities";
+import { ImageCropper } from "@/components/shared/image-cropper";
 
 interface CreateCommunityDialogProps {
   open: boolean;
@@ -43,6 +44,10 @@ export function CreateCommunityDialog({
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [pendingCrop, setPendingCrop] = useState<{
+    kind: "avatar" | "cover";
+    file: File;
+  } | null>(null);
   const avatarInput = useRef<HTMLInputElement | null>(null);
   const coverInput = useRef<HTMLInputElement | null>(null);
 
@@ -55,15 +60,24 @@ export function CreateCommunityDialog({
         toast.error("Image must be under 5MB");
         return;
       }
-      const url = URL.createObjectURL(file);
-      if (kind === "avatar") {
-        setAvatarFile(file);
-        setAvatarPreview(url);
-      } else {
-        setCoverFile(file);
-        setCoverPreview(url);
-      }
+      setPendingCrop({ kind, file });
+      // Reset the input so picking the same file again still triggers change
+      if (e.target) e.target.value = "";
     };
+
+  const handleCropComplete = (blob: Blob) => {
+    if (!pendingCrop) return;
+    const { kind } = pendingCrop;
+    const cropped = new File([blob], `${kind}.jpg`, { type: "image/jpeg" });
+    const url = URL.createObjectURL(blob);
+    if (kind === "avatar") {
+      setAvatarFile(cropped);
+      setAvatarPreview(url);
+    } else {
+      setCoverFile(cropped);
+      setCoverPreview(url);
+    }
+  };
 
   const clearImage = (kind: "avatar" | "cover") => {
     if (kind === "avatar") {
@@ -197,7 +211,7 @@ export function CreateCommunityDialog({
         >
           {/* Cover + avatar pickers (optional) */}
           <Field label="Look" hint="optional">
-            <div style={{ position: "relative", paddingBottom: 40 }}>
+            <div style={{ position: "relative", paddingBottom: 56 }}>
               <div
                 style={{
                   position: "relative",
@@ -207,7 +221,8 @@ export function CreateCommunityDialog({
                   background: coverPreview
                     ? "transparent"
                     : "linear-gradient(135deg, oklch(0.6 0.18 280), oklch(0.4 0.14 320))",
-                  height: 120,
+                  width: "100%",
+                  aspectRatio: "4 / 1",
                 }}
               >
                 {coverPreview && (
@@ -289,13 +304,13 @@ export function CreateCommunityDialog({
                 </div>
               </div>
 
-              {/* Avatar overlaps the cover via negative top, lives outside the
+              {/* Avatar overlaps the cover via negative bottom, lives outside the
                   cover's overflow:hidden so it doesn't get clipped. */}
               <div
                 style={{
                   position: "absolute",
                   left: 14,
-                  top: 92,
+                  bottom: 0,
                   width: 64,
                   height: 64,
                   borderRadius: "50%",
@@ -335,7 +350,7 @@ export function CreateCommunityDialog({
                 style={{
                   position: "absolute",
                   left: 90,
-                  top: 128,
+                  bottom: 12,
                   display: "flex",
                   gap: 6,
                 }}
@@ -423,6 +438,16 @@ export function CreateCommunityDialog({
           </Field>
         </ModalShell>
       </DialogContent>
+      <ImageCropper
+        open={!!pendingCrop}
+        file={pendingCrop?.file ?? null}
+        aspectRatio={pendingCrop?.kind === "cover" ? 4 : 1}
+        circular={pendingCrop?.kind === "avatar"}
+        outputWidth={pendingCrop?.kind === "cover" ? 1600 : 512}
+        title={pendingCrop?.kind === "cover" ? "Crop cover" : "Crop avatar"}
+        onClose={() => setPendingCrop(null)}
+        onComplete={handleCropComplete}
+      />
     </Dialog>
   );
 }
