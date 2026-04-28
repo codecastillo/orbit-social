@@ -19,6 +19,7 @@ import { useAudioRecorder } from "@/lib/hooks/use-audio-recorder";
 import { formatDuration, generateWaveformBars, getAudioExtension } from "@/lib/utils/audio";
 import { cn } from "@/lib/utils";
 import { useDraftsStore } from "@/lib/stores/drafts-store";
+import { O } from "@/lib/design/orbit";
 import {
   moderateContent,
   moderateContentEnhanced,
@@ -259,6 +260,11 @@ function ComposerForm({
   const [posting, setPosting] = useState(false);
   const [location, setLocation] = useState("");
   const [showLocation, setShowLocation] = useState(false);
+  // When a video is the only attachment, the user picks where it goes:
+  // Feed (regular video, plays inline) or Clip (vertical 9:16, lives in
+  // the Clips tab). Default is set when the video is added based on its
+  // intrinsic aspect ratio (portrait → clip, landscape → feed).
+  const [videoDestination, setVideoDestination] = useState<"feed" | "clip">("feed");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
   const { saveDraft } = useDraftsStore();
@@ -403,6 +409,17 @@ function ComposerForm({
           : "image";
 
       setMedia((prev) => [...prev, { file, preview, type }]);
+
+      // Probe video aspect to seed the default destination.
+      if (type === "video") {
+        const probe = document.createElement("video");
+        probe.preload = "metadata";
+        probe.src = preview;
+        probe.onloadedmetadata = () => {
+          const portrait = probe.videoHeight > probe.videoWidth;
+          setVideoDestination(portrait ? "clip" : "feed");
+        };
+      }
     }
 
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -502,13 +519,23 @@ function ComposerForm({
         return;
       }
 
+      // Single-video posts: if user picked Clip, force type='reel' so the
+      // post lands in /clips and stays out of the home feed.
+      const isSingleVideo =
+        uploadedMedia.length === 1 && uploadedMedia[0].type === "video";
+      const explicitType: "poll" | "reel" | undefined = pollData
+        ? "poll"
+        : isSingleVideo && videoDestination === "clip"
+          ? "reel"
+          : undefined;
+
       const createdPost = await createPost(
         user.id,
         { content: content.trim() },
         uploadedMedia,
         {
           replyToId,
-          type: pollData ? "poll" : undefined,
+          type: explicitType,
           pollData,
           scheduledAt: scheduledDate ? scheduledDate.toISOString() : undefined,
           location: location.trim() || undefined,
@@ -629,6 +656,60 @@ function ComposerForm({
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Feed / Clip destination toggle — only for single-video posts.
+              Defaulted to Clip for portrait video, Feed for landscape. */}
+          {media.length === 1 && media[0].type === "video" && (
+            <div className="mt-3 flex items-center gap-2">
+              <span
+                style={{
+                  fontFamily: O.mono,
+                  fontSize: 10,
+                  color: O.ink3,
+                  letterSpacing: "0.1em",
+                }}
+              >
+                POST AS
+              </span>
+              <div
+                className="inline-flex p-0.5 rounded-full"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: `1px solid ${O.hair}`,
+                }}
+              >
+                {(["feed", "clip"] as const).map((opt) => {
+                  const active = videoDestination === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setVideoDestination(opt)}
+                      style={{
+                        padding: "4px 12px",
+                        borderRadius: 999,
+                        fontFamily: O.sans,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: active ? O.ink : O.ink3,
+                        background: active ? "rgba(255,255,255,0.08)" : "transparent",
+                        border: active ? `1px solid ${O.hair2}` : "1px solid transparent",
+                        cursor: "pointer",
+                        letterSpacing: "0.01em",
+                      }}
+                    >
+                      {opt === "feed" ? "Feed" : "Clip"}
+                    </button>
+                  );
+                })}
+              </div>
+              <span style={{ fontSize: 10.5, color: O.ink3 }}>
+                {videoDestination === "clip"
+                  ? "lands in Clips · vertical"
+                  : "stays in your feed"}
+              </span>
+            </div>
+          )}
 
           {/* Audio Recording UI */}
           <AnimatePresence>

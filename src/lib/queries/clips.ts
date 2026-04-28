@@ -17,7 +17,7 @@ export async function getClips(cursor?: string, limit = 10) {
   let query = supabase
     .from("posts")
     .select(CLIP_SELECT)
-    .in("type", ["reel", "video"])
+    .eq("type", "reel")
     .eq("is_hidden", false)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -36,7 +36,7 @@ export async function getClipById(clipId: string) {
     .from("posts")
     .select(CLIP_SELECT)
     .eq("id", clipId)
-    .in("type", ["reel", "video"])
+    .eq("type", "reel")
     .single();
 
   if (error) throw error;

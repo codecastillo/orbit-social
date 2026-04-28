@@ -166,7 +166,7 @@ export async function getFeedPosts(
     .select(POST_SELECT)
     .is("reply_to_id", null)
     .eq("is_hidden", false)
-    .not("type", "in", "(reel,video)")
+    .not("type", "eq", "reel")
     .order("created_at", { ascending: false })
     .limit(limit);
 

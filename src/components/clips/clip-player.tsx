@@ -123,6 +123,18 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
       style={{ background: O.bg }}
       onClick={togglePlay}
     >
+      {/* Phone-sized player frame — caps width so ultra-wide desktops don't
+          stretch a 9:16 video into a giant slab. Anything outside the frame
+          stays as the ambient O.bg backdrop. */}
+      <div
+        className="relative h-full overflow-hidden"
+        style={{
+          width: "min(100%, 440px)",
+          aspectRatio: "9 / 16",
+          maxHeight: "100%",
+          borderRadius: 0,
+        }}
+      >
       {videoUrl ? (
         <video
           ref={videoRef}
@@ -326,6 +338,7 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
           isLiked={clip.user_has_liked ?? false}
           isBookmarked={clip.user_has_bookmarked ?? false}
         />
+      </div>
       </div>
     </div>
   );
