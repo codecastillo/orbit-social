@@ -86,21 +86,72 @@ export async function createCommunity(
   name: string,
   slug: string,
   description: string,
-  joinPolicy: JoinPolicy = "public"
+  joinPolicy: JoinPolicy = "public",
+  avatarUrl: string | null = null,
+  coverUrl: string | null = null
 ) {
-  // SECURITY DEFINER RPC creates the community + owner membership atomically.
-  // Required because the new community_members INSERT policy only allows
-  // self-join for public rooms, so creating an approval/invite room
-  // client-side would fail at the owner-insert step.
   const { data, error } = await supabase.rpc("create_community", {
     p_name: name,
     p_slug: slug,
     p_description: description,
     p_join_policy: joinPolicy,
+    p_avatar_url: avatarUrl,
+    p_cover_url: coverUrl,
   });
 
   if (error) throw error;
   return data as Community;
+}
+
+export async function updateCommunity(
+  communityId: string,
+  patch: {
+    name?: string;
+    description?: string;
+    avatarUrl?: string | null;
+    coverUrl?: string | null;
+    clearAvatar?: boolean;
+    clearCover?: boolean;
+  }
+) {
+  const { data, error } = await supabase.rpc("update_community", {
+    p_community_id: communityId,
+    p_name: patch.name ?? null,
+    p_description: patch.description ?? null,
+    p_avatar_url: patch.avatarUrl ?? null,
+    p_cover_url: patch.coverUrl ?? null,
+    p_clear_avatar: patch.clearAvatar ?? false,
+    p_clear_cover: patch.clearCover ?? false,
+  });
+  if (error) throw error;
+  return data as Community;
+}
+
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+export async function uploadCommunityImage(
+  userId: string,
+  communityId: string,
+  kind: "avatar" | "cover",
+  file: File
+): Promise<string> {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    throw new Error("File must be JPEG, PNG, WebP, or GIF");
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error("Image must be under 5MB");
+  }
+  const bucket = kind === "avatar" ? "avatars" : "covers";
+  const ext = file.name.split(".").pop() || "png";
+  // First path segment must be the user's id — matches the existing storage
+  // RLS that gates avatars/covers writes by uid folder.
+  const path = `${userId}/communities/${communityId}/${kind}.${ext}`;
+  const { error } = await supabase.storage
+    .from(bucket)
+    .upload(path, file, { upsert: true });
+  if (error) throw error;
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return `${data.publicUrl}?t=${Date.now()}`;
 }
 
 export async function joinCommunity(communityId: string) {

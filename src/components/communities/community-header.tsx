@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users,
@@ -11,6 +11,8 @@ import {
   Lock,
   MoreHorizontal,
   Trash2,
+  Camera,
+  ImagePlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -41,6 +43,8 @@ import {
   leaveCommunity,
   deleteCommunity,
   getMyJoinRequestStatus,
+  updateCommunity,
+  uploadCommunityImage,
   type Community,
   type CommunityMember,
 } from "@/lib/queries/communities";
@@ -69,6 +73,43 @@ export function CommunityHeader({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [uploadingKind, setUploadingKind] = useState<"avatar" | "cover" | null>(
+    null
+  );
+  const avatarFileRef = useRef<HTMLInputElement | null>(null);
+  const coverFileRef = useRef<HTMLInputElement | null>(null);
+
+  const handleImageUpload =
+    (kind: "avatar" | "cover") =>
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file || !user) return;
+      setUploadingKind(kind);
+      try {
+        const url = await uploadCommunityImage(
+          user.id,
+          community.id,
+          kind,
+          file
+        );
+        await updateCommunity(community.id, {
+          [kind === "avatar" ? "avatarUrl" : "coverUrl"]: url,
+        });
+        toast.success(
+          kind === "avatar" ? "Updated room avatar" : "Updated room cover"
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["community", community.slug],
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Upload failed";
+        console.error("Community image upload failed:", err);
+        toast.error(msg);
+      } finally {
+        setUploadingKind(null);
+        if (e.target) e.target.value = "";
+      }
+    };
 
   // Treat the row's `created_by` as authoritative for ownership — handles
   // legacy / broken rooms where the owner membership row was never inserted
@@ -218,8 +259,9 @@ export function CommunityHeader({
   return (
     <div className="border-b border-border">
       {/* Cover image */}
-      <div className="relative h-32 sm:h-48 w-full overflow-hidden">
+      <div className="relative h-32 sm:h-48 w-full overflow-hidden group">
         {community.cover_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={community.cover_url}
             alt=""
@@ -228,13 +270,38 @@ export function CommunityHeader({
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/40 via-purple-500/30 to-pink-500/20" />
         )}
+        {isOwner && (
+          <>
+            <input
+              ref={coverFileRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload("cover")}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => coverFileRef.current?.click()}
+              disabled={uploadingKind !== null}
+              className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-3 py-1.5 text-xs text-white border border-white/15 hover:bg-black/80 transition-colors disabled:opacity-50"
+              aria-label="Change cover"
+            >
+              <ImagePlus className="h-3.5 w-3.5" />
+              {uploadingKind === "cover"
+                ? "Uploading…"
+                : community.cover_url
+                  ? "Change cover"
+                  : "Add cover"}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Community info */}
       <div className="px-4 pb-4">
         {/* Avatar overlapping cover */}
         <div className="-mt-8 mb-3 flex items-end justify-between">
-          <div className="ring-4 ring-background rounded-full">
+          <div className="relative ring-4 ring-background rounded-full">
             {community.avatar_url ? (
               <UserAvatar
                 src={community.avatar_url}
@@ -247,6 +314,27 @@ export function CommunityHeader({
                   {community.name.charAt(0).toUpperCase()}
                 </span>
               </div>
+            )}
+            {isOwner && (
+              <>
+                <input
+                  ref={avatarFileRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload("avatar")}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => avatarFileRef.current?.click()}
+                  disabled={uploadingKind !== null}
+                  className="absolute bottom-1 right-1 inline-flex items-center justify-center h-7 w-7 rounded-full bg-black/70 backdrop-blur border border-white/15 text-white hover:bg-black/90 transition-colors disabled:opacity-50"
+                  aria-label="Change avatar"
+                  title={uploadingKind === "avatar" ? "Uploading…" : "Change avatar"}
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                </button>
+              </>
             )}
           </div>
 
