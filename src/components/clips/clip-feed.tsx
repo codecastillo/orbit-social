@@ -4,12 +4,12 @@ import { useRef, useEffect, useCallback } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Loader2, Film } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { getReels } from "@/lib/queries/reels";
+import { getClips } from "@/lib/queries/clips";
 import { checkUserInteractions, type PostWithAuthor } from "@/lib/queries/posts";
-import { ReelPlayer } from "./reel-player";
+import { ClipPlayer } from "./clip-player";
 import { O, aurora, panel } from "@/lib/design/orbit";
 
-export function ReelFeed() {
+export function ClipFeed() {
   const { user } = useAuth();
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -21,27 +21,27 @@ export function ReelFeed() {
     isLoading,
     isError,
   } = useInfiniteQuery({
-    queryKey: ["reels", user?.id],
+    queryKey: ["clips", user?.id],
     queryFn: async ({ pageParam }) => {
-      const reels = await getReels(pageParam, 5);
+      const clips = await getClips(pageParam, 5);
 
-      let enrichedReels = reels;
-      if (reels.length > 0 && user) {
-        const postIds = reels.map((r) => r.id);
+      let enrichedClips = clips;
+      if (clips.length > 0 && user) {
+        const postIds = clips.map((c) => c.id);
         const { likedPostIds, bookmarkedPostIds } =
           await checkUserInteractions(user.id, postIds);
 
-        enrichedReels = reels.map((r) => ({
-          ...r,
-          user_has_liked: likedPostIds.has(r.id),
-          user_has_bookmarked: bookmarkedPostIds.has(r.id),
+        enrichedClips = clips.map((c) => ({
+          ...c,
+          user_has_liked: likedPostIds.has(c.id),
+          user_has_bookmarked: bookmarkedPostIds.has(c.id),
         }));
       }
 
       const nextCursor =
-        reels.length > 0 ? reels[reels.length - 1].created_at : null;
+        clips.length > 0 ? clips[clips.length - 1].created_at : null;
 
-      return { reels: enrichedReels, nextCursor };
+      return { clips: enrichedClips, nextCursor };
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -49,7 +49,6 @@ export function ReelFeed() {
     staleTime: 30_000,
   });
 
-  // Intersection observer for infinite scroll
   const handleIntersect = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
@@ -70,8 +69,8 @@ export function ReelFeed() {
     return () => observer.disconnect();
   }, [handleIntersect]);
 
-  const allReels: PostWithAuthor[] =
-    data?.pages.flatMap((page) => page.reels) ?? [];
+  const allClips: PostWithAuthor[] =
+    data?.pages.flatMap((page) => page.clips) ?? [];
 
   if (isLoading) {
     return (
@@ -102,7 +101,7 @@ export function ReelFeed() {
     );
   }
 
-  if (allReels.length === 0) {
+  if (allClips.length === 0) {
     return (
       <div
         className="h-dvh w-full flex items-center justify-center px-6"
@@ -167,8 +166,8 @@ export function ReelFeed() {
       className="h-dvh w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
       style={{ background: O.bg }}
     >
-      {allReels.map((reel) => (
-        <ReelPlayer key={reel.id} reel={reel} />
+      {allClips.map((clip) => (
+        <ClipPlayer key={clip.id} clip={clip} />
       ))}
 
       <div ref={sentinelRef} className="h-1" />

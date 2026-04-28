@@ -18,7 +18,7 @@ export function ClipsCarousel() {
       {mockClips.map((clip) => (
         <Link
           key={clip.id}
-          href="/reels"
+          href="/clips"
           className="shrink-0 w-[130px] aspect-[9/16] rounded-2xl overflow-hidden relative group cursor-pointer"
         >
           {/* Gradient background */}

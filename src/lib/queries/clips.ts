@@ -3,7 +3,7 @@ import type { PostWithAuthor } from "@/lib/queries/posts";
 
 const supabase = createClient();
 
-const REEL_SELECT = `
+const CLIP_SELECT = `
   *,
   profiles!posts_user_id_fkey (
     id, username, display_name, avatar_url, is_verified
@@ -13,10 +13,10 @@ const REEL_SELECT = `
   )
 `;
 
-export async function getReels(cursor?: string, limit = 10) {
+export async function getClips(cursor?: string, limit = 10) {
   let query = supabase
     .from("posts")
-    .select(REEL_SELECT)
+    .select(CLIP_SELECT)
     .in("type", ["reel", "video"])
     .eq("is_hidden", false)
     .order("created_at", { ascending: false })
@@ -31,11 +31,11 @@ export async function getReels(cursor?: string, limit = 10) {
   return data as unknown as PostWithAuthor[];
 }
 
-export async function getReelById(reelId: string) {
+export async function getClipById(clipId: string) {
   const { data, error } = await supabase
     .from("posts")
-    .select(REEL_SELECT)
-    .eq("id", reelId)
+    .select(CLIP_SELECT)
+    .eq("id", clipId)
     .in("type", ["reel", "video"])
     .single();
 
@@ -43,7 +43,7 @@ export async function getReelById(reelId: string) {
   return data as unknown as PostWithAuthor;
 }
 
-export async function createReel(
+export async function createClip(
   userId: string,
   content: string,
   videoUrl: string,
@@ -56,7 +56,7 @@ export async function createReel(
       content,
       type: "reel",
     })
-    .select(REEL_SELECT)
+    .select(CLIP_SELECT)
     .single();
 
   if (error) throw error;
@@ -74,7 +74,7 @@ export async function createReel(
   return post as PostWithAuthor;
 }
 
-export async function uploadReelVideo(
+export async function uploadClipVideo(
   userId: string,
   file: File
 ): Promise<string> {

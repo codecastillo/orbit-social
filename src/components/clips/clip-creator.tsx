@@ -13,9 +13,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { uploadReelVideo, createReel } from "@/lib/queries/reels";
+import { uploadClipVideo, createClip } from "@/lib/queries/clips";
 
-interface ReelCreatorProps {
+interface ClipCreatorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -23,7 +23,7 @@ interface ReelCreatorProps {
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const MAX_CAPTION_LENGTH = 500;
 
-export function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
+export function ClipCreator({ open, onOpenChange }: ClipCreatorProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -74,18 +74,18 @@ export function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
     mutationFn: async () => {
       if (!user || !videoFile) throw new Error("Missing data");
 
-      const videoUrl = await uploadReelVideo(user.id, videoFile);
-      return createReel(user.id, caption, videoUrl);
+      const videoUrl = await uploadClipVideo(user.id, videoFile);
+      return createClip(user.id, caption, videoUrl);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["reels"] });
+      queryClient.invalidateQueries({ queryKey: ["clips"] });
       queryClient.invalidateQueries({ queryKey: ["feed"] });
       resetForm();
       onOpenChange(false);
-      toast.success("Reel posted");
+      toast.success("Clip posted");
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : "Failed to post reel.");
+      setError(err instanceof Error ? err.message : "Failed to post clip.");
     },
   });
 
@@ -93,7 +93,7 @@ export function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Reel</DialogTitle>
+          <DialogTitle>Create Clip</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
@@ -160,7 +160,7 @@ export function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
             onClick={() => postMutation.mutate()}
             disabled={!videoFile || postMutation.isPending}
           >
-            {postMutation.isPending ? "Uploading..." : "Post Reel"}
+            {postMutation.isPending ? "Uploading..." : "Post Clip"}
           </Button>
         </div>
       </DialogContent>

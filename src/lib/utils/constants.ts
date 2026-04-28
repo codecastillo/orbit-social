@@ -3,7 +3,7 @@ export const APP_NAME = "Orbit";
 export const NAV_ITEMS = [
   { label: "Home", href: "/feed", icon: "Home" },
   { label: "Explore", href: "/explore", icon: "Compass" },
-  { label: "Clips", href: "/reels", icon: "Clapperboard" },
+  { label: "Clips", href: "/clips", icon: "Clapperboard" },
   { label: "Messages", href: "/messages", icon: "MessageCircle" },
   { label: "Notifications", href: "/notifications", icon: "Bell" },
   { label: "Events", href: "/events", icon: "Calendar" },
@@ -13,7 +13,7 @@ export const MOBILE_NAV_ITEMS = [
   { label: "Home", href: "/feed", icon: "Home" },
   { label: "Explore", href: "/explore", icon: "Compass" },
   { label: "Create", href: "#compose", icon: "PlusSquare" },
-  { label: "Clips", href: "/reels", icon: "Clapperboard" },
+  { label: "Clips", href: "/clips", icon: "Clapperboard" },
   { label: "Profile", href: "/profile", icon: "User" },
 ] as const;
 

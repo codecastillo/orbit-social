@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { ReelFeed } from "@/components/reels/reel-feed";
-import { ReelCreator } from "@/components/reels/reel-creator";
+import { ClipFeed } from "@/components/clips/clip-feed";
+import { ClipCreator } from "@/components/clips/clip-creator";
 import { O, aurora } from "@/lib/design/orbit";
 
-export default function ReelsPage() {
+export default function ClipsPage() {
   const [creatorOpen, setCreatorOpen] = useState(false);
 
   return (
@@ -14,7 +14,7 @@ export default function ReelsPage() {
       className="relative h-dvh w-full overflow-hidden"
       style={{ background: O.bg }}
     >
-      <ReelFeed />
+      <ClipFeed />
 
       <button
         onClick={() => setCreatorOpen(true)}
@@ -39,7 +39,7 @@ export default function ReelsPage() {
         <Plus style={{ width: 20, height: 20 }} strokeWidth={2.2} />
       </button>
 
-      <ReelCreator open={creatorOpen} onOpenChange={setCreatorOpen} />
+      <ClipCreator open={creatorOpen} onOpenChange={setCreatorOpen} />
     </div>
   );
 }

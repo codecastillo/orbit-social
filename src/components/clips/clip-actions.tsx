@@ -11,7 +11,7 @@ import { toggleLike, toggleBookmark } from "@/lib/queries/posts";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { O, aurora } from "@/lib/design/orbit";
 
-interface ReelActionsProps {
+interface ClipActionsProps {
   postId: string;
   likeCount: number;
   commentCount: number;
@@ -72,14 +72,14 @@ function ActionPill({ icon, label, active, activeTint, onClick }: PillProps) {
   );
 }
 
-export function ReelActions({
+export function ClipActions({
   postId,
   likeCount,
   commentCount,
   bookmarkCount,
   isLiked: initialIsLiked,
   isBookmarked: initialIsBookmarked,
-}: ReelActionsProps) {
+}: ClipActionsProps) {
   const { user } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -98,7 +98,7 @@ export function ReelActions({
     setLocalLikeCount((c) => (wasLiked ? c - 1 : c + 1));
     try {
       await toggleLike(user.id, postId, wasLiked);
-      queryClient.invalidateQueries({ queryKey: ["reels"] });
+      queryClient.invalidateQueries({ queryKey: ["clips"] });
     } catch {
       setIsLiked(wasLiked);
       setLocalLikeCount((c) => (wasLiked ? c + 1 : c - 1));
@@ -116,7 +116,7 @@ export function ReelActions({
     setLocalBookmarkCount((c) => (wasBookmarked ? c - 1 : c + 1));
     try {
       await toggleBookmark(user.id, postId, wasBookmarked);
-      queryClient.invalidateQueries({ queryKey: ["reels"] });
+      queryClient.invalidateQueries({ queryKey: ["clips"] });
     } catch {
       setIsBookmarked(wasBookmarked);
       setLocalBookmarkCount((c) => (wasBookmarked ? c + 1 : c - 1));

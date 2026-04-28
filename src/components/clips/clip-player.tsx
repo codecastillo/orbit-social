@@ -8,17 +8,17 @@ import { toast } from "sonner";
 import { formatTimeAgo } from "@/lib/utils/format";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { VerifiedStar } from "@/components/orbit/verified-star";
-import { ReelActions } from "./reel-actions";
+import { ClipActions } from "./clip-actions";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { checkFollowing, followUser, unfollowUser } from "@/lib/queries/social";
 import { O, aurora } from "@/lib/design/orbit";
 import type { PostWithAuthor } from "@/lib/queries/posts";
 
-interface ReelPlayerProps {
-  reel: PostWithAuthor;
+interface ClipPlayerProps {
+  clip: PostWithAuthor;
 }
 
-export function ReelPlayer({ reel }: ReelPlayerProps) {
+export function ClipPlayer({ clip }: ClipPlayerProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -29,8 +29,8 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
   const [followBusy, setFollowBusy] = useState(false);
   const [followOverride, setFollowOverride] = useState<boolean | null>(null);
 
-  const videoUrl = reel.post_media?.[0]?.url;
-  const author = reel.profiles;
+  const videoUrl = clip.post_media?.[0]?.url;
+  const author = clip.profiles;
   const isSelf = user?.id === author.id;
 
   const { data: followingSet } = useQuery({
@@ -112,7 +112,7 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
     }
   };
 
-  const caption = reel.content || "";
+  const caption = clip.content || "";
   const truncatedCaption =
     caption.length > 110 ? caption.slice(0, 110).trimEnd() + "…" : caption;
 
@@ -132,7 +132,7 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
           muted
           playsInline
           preload="metadata"
-          poster={reel.post_media?.[0]?.thumbnail_url || undefined}
+          poster={clip.post_media?.[0]?.thumbnail_url || undefined}
         />
       ) : (
         <div style={{ color: O.ink3, fontSize: 13 }}>Video unavailable</div>
@@ -242,7 +242,7 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
                   fontFeatureSettings: '"tnum"',
                 }}
               >
-                @{author.username} · {formatTimeAgo(reel.created_at)}
+                @{author.username} · {formatTimeAgo(clip.created_at)}
               </span>
             </div>
           </Link>
@@ -318,13 +318,13 @@ export function ReelPlayer({ reel }: ReelPlayerProps) {
         className="absolute bottom-7 right-3 z-10"
         onClick={(e) => e.stopPropagation()}
       >
-        <ReelActions
-          postId={reel.id}
-          likeCount={reel.like_count}
-          commentCount={reel.comment_count}
-          bookmarkCount={reel.bookmark_count}
-          isLiked={reel.user_has_liked ?? false}
-          isBookmarked={reel.user_has_bookmarked ?? false}
+        <ClipActions
+          postId={clip.id}
+          likeCount={clip.like_count}
+          commentCount={clip.comment_count}
+          bookmarkCount={clip.bookmark_count}
+          isLiked={clip.user_has_liked ?? false}
+          isBookmarked={clip.user_has_bookmarked ?? false}
         />
       </div>
     </div>

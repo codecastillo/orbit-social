@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const RESERVED_USERNAMES = [
   "login", "signup", "feed", "callback", "onboarding", "api", "admin",
-  "settings", "explore", "reels", "messages", "notifications", "communities",
+  "settings", "explore", "reels", "clips", "messages", "notifications", "communities",
   "marketplace", "events", "bookmarks", "profile", "post", "search",
   "help", "about", "terms", "privacy", "support", "null", "undefined",
 ];

@@ -40,7 +40,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { label: "Home", href: "/feed", icon: Home },
-  { label: "Clips", href: "/reels", icon: Film },
+  { label: "Clips", href: "/clips", icon: Film },
   { label: "Discover", href: "/explore", icon: Compass },
   { label: "Rooms", href: "/communities", icon: Globe },
   { label: "Live", href: "/live", icon: Play },
