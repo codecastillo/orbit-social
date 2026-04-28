@@ -70,6 +70,30 @@ export async function getCommunities(cursor?: string, limit = 20) {
   return data as Community[];
 }
 
+export async function getMyCommunities(userId: string) {
+  // Rooms where the user has a membership row OR is the creator (covers
+  // legacy / orphaned rooms where the owner-membership row is missing).
+  const { data: memberships } = await supabase
+    .from("community_members")
+    .select("community_id")
+    .eq("user_id", userId);
+
+  const memberIds = (memberships ?? []).map((m) => m.community_id);
+
+  const { data, error } = await supabase
+    .from("communities")
+    .select(COMMUNITY_SELECT)
+    .or(
+      memberIds.length > 0
+        ? `id.in.(${memberIds.join(",")}),created_by.eq.${userId}`
+        : `created_by.eq.${userId}`,
+    )
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as Community[];
+}
+
 export async function getCommunityBySlug(slug: string) {
   const { data, error } = await supabase
     .from("communities")

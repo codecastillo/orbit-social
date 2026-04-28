@@ -2,17 +2,19 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Globe, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input as BareInput } from "@/components/ui/input";
 import { CreateCommunityDialog } from "@/components/communities/create-community-dialog";
 import {
   getCommunities,
+  getMyCommunities,
   searchCommunities,
   type Community,
 } from "@/lib/queries/communities";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { createClient } from "@/lib/supabase/client";
 import { O, aurora, panel } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
@@ -53,6 +55,7 @@ function timeAgo(iso: string): string {
 
 export default function CommunitiesPage() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const debouncedQuery = useDebounce(searchQuery, 300);
@@ -64,6 +67,42 @@ export default function CommunitiesPage() {
         ? searchCommunities(debouncedQuery.trim())
         : getCommunities(),
   });
+
+  const { data: myCommunities } = useQuery({
+    queryKey: ["communities", "mine", user?.id],
+    queryFn: () => getMyCommunities(user!.id),
+    enabled: !!user && !debouncedQuery.trim(),
+  });
+
+  // Realtime: any communities row update or community_members change refreshes
+  // both lists so member counts + new memberships show without refresh.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`communities-feed-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "communities" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["communities"] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "community_members" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["communities"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      channel.unsubscribe();
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  const myIdSet = new Set((myCommunities ?? []).map((c) => c.id));
+  const otherCommunities = (communities ?? []).filter((c) => !myIdSet.has(c.id));
 
   return (
     <div
@@ -148,14 +187,28 @@ export default function CommunitiesPage() {
           accentWord={debouncedQuery ? "matches" : "places"}
           sub={
             debouncedQuery
-              ? "Try a different search term, or start a space yourself."
-              : "No spaces yet. Spin up a room for a topic you'd defend at a dinner table. Six people who care beats six hundred who don't."
+              ? "Try a different search term, or start a room yourself."
+              : "No rooms yet. Spin up a room for a topic you'd defend at a dinner table. Six people who care beats six hundred who don't."
           }
         />
       ) : (
         <>
-          <FeaturedTrio communities={communities.slice(0, 3)} />
-          <YoursList communities={communities} />
+          {myCommunities && myCommunities.length > 0 && !debouncedQuery && (
+            <MyRoomsSection communities={myCommunities} />
+          )}
+          {otherCommunities.length > 0 && (
+            <>
+              <FeaturedTrio communities={otherCommunities.slice(0, 3)} />
+              <YoursList
+                communities={otherCommunities}
+                heading={
+                  myCommunities && myCommunities.length > 0
+                    ? "ALL ROOMS · OTHERS"
+                    : undefined
+                }
+              />
+            </>
+          )}
         </>
       )}
 
@@ -421,11 +474,18 @@ function FeaturedTrio({ communities }: { communities: Community[] }) {
 
 /* ─── Yours · list ───────────────────────────────────────────────── */
 
-function YoursList({ communities }: { communities: Community[] }) {
+function YoursList({
+  communities,
+  heading,
+}: {
+  communities: Community[];
+  heading?: string;
+}) {
   const list = communities.slice(0, 8);
+  const label = heading ?? `ALL ROOMS · ${communities.length}`;
   return (
     <div>
-      <Eyebrow>◇&nbsp;&nbsp;ALL ROOMS · {communities.length}</Eyebrow>
+      <Eyebrow>◇&nbsp;&nbsp;{label}</Eyebrow>
       <div
         style={{
           ...panel(),
@@ -530,6 +590,165 @@ function YoursList({ communities }: { communities: Community[] }) {
                 </div>
               )}
               <ArrowRight style={{ width: 16, height: 16, color: O.ink3 }} />
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─── My Rooms · big tiles ───────────────────────────────────────── */
+
+function MyRoomsSection({ communities }: { communities: Community[] }) {
+  return (
+    <div>
+      <Eyebrow>★&nbsp;&nbsp;MY ROOMS · {communities.length}</Eyebrow>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          gap: 14,
+          marginTop: 12,
+        }}
+      >
+        {communities.map((c) => {
+          const hue = hueFor(c.id);
+          const hue2 = (hue + 60) % 360;
+          return (
+            <Link
+              key={c.id}
+              href={`/communities/${c.slug}`}
+              style={{
+                ...panel(),
+                padding: 0,
+                overflow: "hidden",
+                textDecoration: "none",
+                color: O.ink,
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <div
+                style={{
+                  aspectRatio: "4 / 1",
+                  width: "100%",
+                  background: c.cover_url
+                    ? "transparent"
+                    : `linear-gradient(135deg, oklch(0.68 0.18 ${hue}), oklch(0.45 0.16 ${hue2}))`,
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                {c.cover_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={c.cover_url}
+                    alt=""
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background:
+                        "radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.25), transparent 60%), repeating-linear-gradient(135deg, transparent 0 26px, rgba(255,255,255,0.06) 26px 27px)",
+                    }}
+                  />
+                )}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 12,
+                    left: 12,
+                    padding: "4px 10px",
+                    borderRadius: 99,
+                    background: "rgba(0,0,0,0.45)",
+                    backdropFilter: "blur(20px)",
+                    fontSize: 10,
+                    fontWeight: 600,
+                    fontFamily: O.mono,
+                    letterSpacing: "0.1em",
+                    color: O.ink,
+                  }}
+                >
+                  ◆&nbsp;&nbsp;{formatMembers(c.member_count)} MEMBERS
+                </div>
+              </div>
+              <div style={{ padding: 18, position: "relative", flex: 1 }}>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: -24,
+                    left: 18,
+                    width: 48,
+                    height: 48,
+                    borderRadius: "50%",
+                    border: `2.5px solid ${O.bg}`,
+                    background: c.avatar_url
+                      ? "transparent"
+                      : `linear-gradient(135deg, oklch(0.7 0.18 ${hue}), oklch(0.45 0.16 ${hue2}))`,
+                    overflow: "hidden",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 4px 14px -4px rgba(0,0,0,0.6)",
+                  }}
+                >
+                  {c.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={c.avatar_url}
+                      alt=""
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    <span
+                      style={{ fontSize: 18, fontWeight: 700, color: "white" }}
+                    >
+                      {c.name.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div style={{ marginTop: 28 }}>
+                  <div style={{ fontSize: 17, fontWeight: 600 }}>{c.name}</div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: O.ink3,
+                      fontFamily: O.mono,
+                      marginTop: 2,
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    {formatMembers(c.member_count).toUpperCase()} MEMBERS
+                    {c.is_private ? " · PRIVATE" : ""}
+                  </div>
+                  {c.description && (
+                    <p
+                      style={{
+                        fontSize: 13,
+                        color: O.ink2,
+                        lineHeight: 1.5,
+                        marginTop: 10,
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {c.description}
+                    </p>
+                  )}
+                </div>
+              </div>
             </Link>
           );
         })}
