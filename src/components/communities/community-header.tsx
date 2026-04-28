@@ -68,8 +68,12 @@ export function CommunityHeader({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const isMember = userRole !== null;
-  const isOwner = userRole === "owner";
+  // Treat the row's `created_by` as authoritative for ownership — handles
+  // legacy / broken rooms where the owner membership row was never inserted
+  // (so `userRole` is null even though the user actually created the room).
+  const isCreator = !!user && user.id === community.created_by;
+  const isMember = userRole !== null || isCreator;
+  const isOwner = userRole === "owner" || isCreator;
   const policy = community.join_policy ?? "public";
 
   // Realtime: live member_count + roster updates.
