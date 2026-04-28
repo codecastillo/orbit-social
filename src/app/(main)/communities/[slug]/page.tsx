@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { PostCard } from "@/components/feed/post-card";
 import { InlineComposer } from "@/components/feed/post-composer";
 import { CommunityHeader } from "@/components/communities/community-header";
+import { JoinRequestsPanel } from "@/components/communities/join-requests-panel";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
   getCommunityBySlug,
@@ -98,6 +99,11 @@ export default function CommunityDetailPage({
   }
 
   const isMember = userRole !== null;
+  const isOwnerOrMod =
+    userRole === "owner" ||
+    userRole === "moderator" ||
+    (!!user && community.created_by === user.id);
+  const policy = community.join_policy ?? "public";
 
   return (
     <div className="border-x border-border min-h-screen">
@@ -107,6 +113,14 @@ export default function CommunityDetailPage({
         userRole={userRole}
         onMembershipChange={handleMembershipChange}
       />
+
+      {/* Pending join requests — owners/mods only, only on approval rooms */}
+      {isOwnerOrMod && policy === "approval" && (
+        <JoinRequestsPanel
+          communityId={community.id}
+          communitySlug={community.slug}
+        />
+      )}
 
       {/* Post composer for members */}
       {isMember && user && (

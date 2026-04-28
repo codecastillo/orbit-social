@@ -151,9 +151,6 @@ export default function CommunitiesPage() {
               ? "Try a different search term, or start a space yourself."
               : "No spaces yet. Spin up a room for a topic you'd defend at a dinner table. Six people who care beats six hundred who don't."
           }
-          ctaLabel={user ? "Start a space" : undefined}
-          ctaIcon={<Plus style={{ width: 13, height: 13 }} />}
-          onCta={user ? () => setCreateOpen(true) : undefined}
         />
       ) : (
         <>
