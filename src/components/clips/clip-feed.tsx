@@ -75,7 +75,7 @@ export function ClipFeed() {
   if (isLoading) {
     return (
       <div
-        className="h-dvh w-full flex items-center justify-center"
+        className="h-full w-full flex items-center justify-center"
         style={{ background: O.bg }}
       >
         <Loader2
@@ -89,7 +89,7 @@ export function ClipFeed() {
   if (isError) {
     return (
       <div
-        className="h-dvh w-full flex items-center justify-center px-6"
+        className="h-full w-full flex items-center justify-center px-6"
         style={{ background: O.bg }}
       >
         <div style={{ ...panel(), padding: "24px 28px", textAlign: "center" }}>
@@ -104,7 +104,7 @@ export function ClipFeed() {
   if (allClips.length === 0) {
     return (
       <div
-        className="h-dvh w-full flex items-center justify-center px-6"
+        className="h-full w-full flex items-center justify-center px-6"
         style={{ background: O.bg }}
       >
         <div
@@ -163,7 +163,7 @@ export function ClipFeed() {
 
   return (
     <div
-      className="h-dvh w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+      className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
       style={{ background: O.bg }}
     >
       {allClips.map((clip) => (

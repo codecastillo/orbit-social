@@ -192,7 +192,7 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
   return (
     <div
       ref={containerRef}
-      className="relative h-dvh w-full snap-start flex items-center justify-center overflow-hidden gap-4"
+      className="relative h-full w-full snap-start flex items-center justify-center overflow-hidden gap-4"
       style={{ background: O.bg }}
       onClick={togglePlay}
     >
