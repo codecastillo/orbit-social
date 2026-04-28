@@ -116,7 +116,7 @@ export default function CommunitiesPage() {
         <div>
           <Eyebrow>◈&nbsp;&nbsp;ROOMS · YOURS &amp; OTHERS</Eyebrow>
           <Display size={56} style={{ marginTop: 8 }}>
-            Small <Acc>places</Acc>. Loud enough.
+            Find your <Acc>people</Acc>.
           </Display>
           <p
             style={{
