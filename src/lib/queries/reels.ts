@@ -17,7 +17,7 @@ export async function getReels(cursor?: string, limit = 10) {
   let query = supabase
     .from("posts")
     .select(REEL_SELECT)
-    .eq("type", "reel")
+    .in("type", ["reel", "video"])
     .eq("is_hidden", false)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -36,7 +36,7 @@ export async function getReelById(reelId: string) {
     .from("posts")
     .select(REEL_SELECT)
     .eq("id", reelId)
-    .eq("type", "reel")
+    .in("type", ["reel", "video"])
     .single();
 
   if (error) throw error;

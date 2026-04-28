@@ -2,11 +2,12 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
+import { Loader2, Film } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getReels } from "@/lib/queries/reels";
 import { checkUserInteractions, type PostWithAuthor } from "@/lib/queries/posts";
 import { ReelPlayer } from "./reel-player";
-import { Loader2 } from "lucide-react";
+import { O, aurora, panel } from "@/lib/design/orbit";
 
 export function ReelFeed() {
   const { user } = useAuth();
@@ -74,40 +75,113 @@ export function ReelFeed() {
 
   if (isLoading) {
     return (
-      <div className="h-dvh w-full flex items-center justify-center bg-black">
-        <Loader2 className="size-8 text-white animate-spin" />
+      <div
+        className="h-dvh w-full flex items-center justify-center"
+        style={{ background: O.bg }}
+      >
+        <Loader2
+          style={{ width: 32, height: 32, color: O.ink2 }}
+          className="animate-spin"
+        />
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="h-dvh w-full flex items-center justify-center bg-black">
-        <p className="text-white/60 text-sm">Failed to load reels.</p>
+      <div
+        className="h-dvh w-full flex items-center justify-center px-6"
+        style={{ background: O.bg }}
+      >
+        <div style={{ ...panel(), padding: "24px 28px", textAlign: "center" }}>
+          <p style={{ fontFamily: O.sans, color: O.ink2, fontSize: 14 }}>
+            Couldn&apos;t load clips. Pull down to retry.
+          </p>
+        </div>
       </div>
     );
   }
 
   if (allReels.length === 0) {
     return (
-      <div className="h-dvh w-full flex items-center justify-center bg-black">
-        <p className="text-white/60 text-sm">No reels yet. Be the first to post one!</p>
+      <div
+        className="h-dvh w-full flex items-center justify-center px-6"
+        style={{ background: O.bg }}
+      >
+        <div
+          style={{
+            ...panel(),
+            padding: "32px 28px",
+            textAlign: "center",
+            maxWidth: 360,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 14,
+          }}
+        >
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 18,
+              background: aurora,
+              display: "grid",
+              placeItems: "center",
+              boxShadow: `0 12px 32px -10px ${O.a2}66`,
+            }}
+          >
+            <Film style={{ width: 26, height: 26, color: "white" }} strokeWidth={1.8} />
+          </div>
+          <div>
+            <h2
+              style={{
+                fontFamily: O.sans,
+                color: O.ink,
+                fontSize: 17,
+                fontWeight: 600,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              No clips yet
+            </h2>
+            <p
+              style={{
+                fontFamily: O.sans,
+                color: O.ink3,
+                fontSize: 13,
+                marginTop: 6,
+                lineHeight: 1.5,
+              }}
+            >
+              Post a video from anywhere on Orbit and it lands here automatically.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="h-dvh w-full overflow-y-scroll snap-y-mandatory scrollbar-hide bg-black">
+    <div
+      className="h-dvh w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+      style={{ background: O.bg }}
+    >
       {allReels.map((reel) => (
         <ReelPlayer key={reel.id} reel={reel} />
       ))}
 
-      {/* Sentinel for infinite scroll */}
       <div ref={sentinelRef} className="h-1" />
 
       {isFetchingNextPage && (
-        <div className="h-20 flex items-center justify-center bg-black">
-          <Loader2 className="size-6 text-white animate-spin" />
+        <div
+          className="h-20 flex items-center justify-center"
+          style={{ background: O.bg }}
+        >
+          <Loader2
+            style={{ width: 22, height: 22, color: O.ink3 }}
+            className="animate-spin"
+          />
         </div>
       )}
     </div>
