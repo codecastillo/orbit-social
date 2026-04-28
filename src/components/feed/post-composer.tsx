@@ -3,7 +3,7 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Image as ImageIcon, X, Loader2, BarChart3, Smile, Plus, Minus, Clock, MapPin, FileText, AlertTriangle, Users, Globe, Camera, Calendar, Mic } from "lucide-react";
+import { Image as ImageIcon, X, Loader2, BarChart3, Plus, Minus, Clock, MapPin, FileText, AlertTriangle, Users, Globe, Camera, Calendar, Mic } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +14,7 @@ import { useCurrentProfile as useCurrentProfileHook } from "@/lib/hooks/use-prof
 import { useUIStore } from "@/lib/stores/ui-store";
 import { createPost, uploadPostMedia, type PollData } from "@/lib/queries/posts";
 import { MAX_POST_LENGTH } from "@/lib/utils/constants";
-import { suggestCaptions } from "@/lib/services/caption-suggestions";
+import { suggestCaptions, suggestCaptionsAI } from "@/lib/services/caption-suggestions";
 import { useAudioRecorder } from "@/lib/hooks/use-audio-recorder";
 import { formatDuration, generateWaveformBars, getAudioExtension } from "@/lib/utils/audio";
 import { cn } from "@/lib/utils";
@@ -373,9 +373,41 @@ function ComposerForm({
     }
   }, [isAudioPlaying]);
 
-  // Caption suggestions — shown when textarea is empty and media is attached
+  // Caption suggestions — when media is attached and the textarea is empty,
+  // ask Claude Haiku (vision) to suggest 3 captions based on the actual
+  // image/first-frame-of-video. Falls back to the local heuristic on
+  // failure or when the AI gateway isn't configured.
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const lastSuggestedFor = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (content.length > 0 || media.length === 0) {
+      setAiSuggestions([]);
+      return;
+    }
+    const target = media[0];
+    if (!target) return;
+    // Key by file identity so we don't re-call the API on every render.
+    const key = `${target.file.name}:${target.file.size}:${target.file.lastModified}`;
+    if (lastSuggestedFor.current === key) return;
+    lastSuggestedFor.current = key;
+
+    let cancelled = false;
+    suggestCaptionsAI(target.file, target.type === "video")
+      .then((captions) => {
+        if (!cancelled) setAiSuggestions(captions);
+      })
+      .catch(() => {
+        // Silent fall-through to the heuristic pool below.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [content.length, media]);
+
   const captionSuggestions = useMemo(() => {
     if (content.length > 0 || media.length === 0) return [];
+    if (aiSuggestions.length > 0) return aiSuggestions;
     const hasImage = media.some((m) => m.type === "image" || m.type === "gif");
     const hasVideo = media.some((m) => m.type === "video");
     return suggestCaptions({
@@ -383,7 +415,7 @@ function ComposerForm({
       hasVideo,
       time: new Date().toISOString(),
     });
-  }, [content.length, media]);
+  }, [content.length, media, aiSuggestions]);
 
   const handleMediaSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -595,7 +627,7 @@ function ComposerForm({
 
   return (
     <div>
-      <div className="flex gap-3 p-4">
+      <div className="flex gap-4 p-4">
         <UserAvatar
           src={user.user_metadata?.avatar_url}
           fallback={user.user_metadata?.display_name || user.user_metadata?.email || "U"}
@@ -665,22 +697,36 @@ function ComposerForm({
           {/* Feed / Clip destination toggle — only for single-video posts.
               Defaulted to Clip for portrait video, Feed for landscape. */}
           {media.length === 1 && media[0].type === "video" && (
-            <div className="mt-3 flex items-center gap-2">
-              <span
-                style={{
-                  fontFamily: O.mono,
-                  fontSize: 10,
-                  color: O.ink3,
-                  letterSpacing: "0.1em",
-                }}
-              >
-                POST AS
-              </span>
+            <div
+              className="mt-4 flex items-center justify-between gap-3 px-4 py-3"
+              style={{
+                background: "rgba(255,255,255,0.025)",
+                border: `1px solid ${O.hair}`,
+                borderRadius: 14,
+              }}
+            >
+              <div className="flex flex-col">
+                <span
+                  style={{
+                    fontFamily: O.sans,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: O.ink,
+                  }}
+                >
+                  Where does this go?
+                </span>
+                <span style={{ fontSize: 11.5, color: O.ink3, marginTop: 2 }}>
+                  {videoDestination === "clip"
+                    ? "Lands in Clips — vertical, full-screen"
+                    : "Stays in your home feed — plays inline"}
+                </span>
+              </div>
               <div
-                className="inline-flex p-0.5 rounded-full"
+                className="inline-flex p-0.5 rounded-full shrink-0"
                 style={{
-                  background: "rgba(255,255,255,0.04)",
-                  border: `1px solid ${O.hair}`,
+                  background: "rgba(0,0,0,0.35)",
+                  border: `1px solid ${O.hair2}`,
                 }}
               >
                 {(["feed", "clip"] as const).map((opt) => {
@@ -691,16 +737,17 @@ function ComposerForm({
                       type="button"
                       onClick={() => setVideoDestination(opt)}
                       style={{
-                        padding: "4px 12px",
+                        padding: "6px 16px",
                         borderRadius: 999,
                         fontFamily: O.sans,
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 600,
-                        color: active ? O.ink : O.ink3,
-                        background: active ? "rgba(255,255,255,0.08)" : "transparent",
-                        border: active ? `1px solid ${O.hair2}` : "1px solid transparent",
+                        color: active ? O.bg : O.ink2,
+                        background: active ? "white" : "transparent",
+                        border: 0,
                         cursor: "pointer",
                         letterSpacing: "0.01em",
+                        transition: "background 120ms, color 120ms",
                       }}
                     >
                       {opt === "feed" ? "Feed" : "Clip"}
@@ -708,11 +755,6 @@ function ComposerForm({
                   );
                 })}
               </div>
-              <span style={{ fontSize: 10.5, color: O.ink3 }}>
-                {videoDestination === "clip"
-                  ? "lands in Clips · vertical"
-                  : "stays in your feed"}
-              </span>
             </div>
           )}
 
@@ -1158,13 +1200,6 @@ function ComposerForm({
             title={showSchedule ? "Remove schedule" : "Schedule post"}
           >
             <Clock className="h-5 w-5" />
-          </button>
-          <button
-            className="h-9 w-9 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-40 disabled:pointer-events-none"
-            disabled
-            title="Emoji"
-          >
-            <Smile className="h-5 w-5" />
           </button>
           <button
             className={cn(

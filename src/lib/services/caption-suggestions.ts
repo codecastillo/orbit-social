@@ -92,6 +92,86 @@ const GENERAL_CAPTIONS = [
 // ---------------------------------------------------------------------------
 
 /**
+ * AI-powered caption suggestions. Sends a downsized image (or first frame
+ * of a video) to the server, which calls Claude Haiku 4.5 with vision.
+ * Returns 3 captions tailored to the actual content. Throws on failure
+ * so callers can fall back to suggestCaptions().
+ */
+export async function suggestCaptionsAI(
+  file: File,
+  isVideo: boolean,
+): Promise<string[]> {
+  const imageDataUrl = isVideo
+    ? await extractVideoFrame(file)
+    : await downsizeImage(file);
+
+  const res = await fetch("/api/captions/suggest", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageDataUrl, isVideo }),
+  });
+  if (!res.ok) {
+    throw new Error(`caption api ${res.status}`);
+  }
+  const data = (await res.json()) as { captions: string[] };
+  return data.captions;
+}
+
+async function extractVideoFrame(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.src = url;
+    await new Promise<void>((resolve, reject) => {
+      video.onloadeddata = () => {
+        video.currentTime = Math.min(1, (video.duration || 0) / 2);
+      };
+      video.onseeked = () => resolve();
+      video.onerror = () => reject(new Error("video load failed"));
+    });
+    const maxDim = 512;
+    const ratio = Math.min(
+      1,
+      maxDim / Math.max(video.videoWidth || maxDim, video.videoHeight || maxDim),
+    );
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round((video.videoWidth || maxDim) * ratio));
+    canvas.height = Math.max(1, Math.round((video.videoHeight || maxDim) * ratio));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("canvas unavailable");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.75);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function downsizeImage(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("image load failed"));
+    });
+    const maxDim = 512;
+    const ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.width * ratio));
+    canvas.height = Math.max(1, Math.round(img.height * ratio));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("canvas unavailable");
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.75);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/**
  * Returns 3 suggested caption ideas based on context.
  */
 export function suggestCaptions(context: CaptionContext): string[] {
