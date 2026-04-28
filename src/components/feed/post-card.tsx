@@ -73,7 +73,6 @@ import { AudioPlayer } from "@/components/feed/audio-player";
 import { isAudioMediaItem } from "@/lib/utils/audio";
 import { O, panel } from "@/lib/design/orbit";
 import { VerifiedStar } from "@/components/orbit/verified-star";
-import { HashtagPill } from "@/components/orbit/hashtag-pill";
 
 interface PostCardProps {
   post: PostWithAuthor;
@@ -373,12 +372,6 @@ export function PostCard({
     }
   };
 
-  const firstHashtag = useMemo(() => {
-    const c = displayedContent || displayPost.content || "";
-    const m = c.match(/#(\w+)/);
-    return m ? m[1] : null;
-  }, [displayedContent, displayPost.content]);
-
   return (
     <article
       className={!compact ? "cursor-pointer" : undefined}
@@ -500,13 +493,6 @@ export function PostCard({
                 )}
               </div>
             </div>
-
-            {/* Right-aligned hashtag pill (hidden if pinned uses that space) */}
-            {firstHashtag && !post.is_pinned && (
-              <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
-                <HashtagPill tag={firstHashtag} />
-              </div>
-            )}
 
             <div className="shrink-0">
               <DropdownMenu>
