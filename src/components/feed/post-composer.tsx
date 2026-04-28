@@ -600,14 +600,23 @@ function ComposerForm({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.2 }}
-                    className={`relative group/media overflow-hidden ${
+                    className={`relative group/media overflow-hidden rounded-2xl ${
                       media.length === 3 && i === 0 ? "row-span-2" : ""
                     }`}
+                    style={
+                      media.length === 1
+                        ? { background: "rgba(0,0,0,0.55)" }
+                        : undefined
+                    }
                   >
                     <img
                       src={m.preview}
                       alt=""
-                      className="w-full h-full object-cover max-h-[300px]"
+                      className={
+                        media.length === 1
+                          ? "w-full max-h-[520px] mx-auto block object-contain"
+                          : "w-full h-full object-cover max-h-[300px]"
+                      }
                     />
                     <button
                       onClick={() => removeMedia(i)}

@@ -183,11 +183,11 @@ export function CreateCommunityDialog({
         style={{ boxShadow: "none" }}
       >
         <ModalShell
-          title="Start a space"
+          title="Start a room"
           subtitle="Small community. Invite the people who actually care."
           icon={<Globe style={{ width: 18, height: 18 }} strokeWidth={1.8} />}
           accent={O.a2}
-          primaryLabel={creating ? "Creating…" : "Create space"}
+          primaryLabel={creating ? "Creating…" : "Create room"}
           secondaryLabel="Cancel"
           canSubmit={canSubmit}
           loading={creating}
@@ -197,62 +197,81 @@ export function CreateCommunityDialog({
         >
           {/* Cover + avatar pickers (optional) */}
           <Field label="Look" hint="optional">
-            <div
-              style={{
-                position: "relative",
-                borderRadius: 14,
-                overflow: "hidden",
-                border: `1px solid ${O.hair2}`,
-                background: coverPreview
-                  ? "transparent"
-                  : "linear-gradient(135deg, oklch(0.6 0.18 280), oklch(0.4 0.14 320))",
-                height: 120,
-                marginBottom: 14,
-              }}
-            >
-              {coverPreview && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={coverPreview}
-                  alt=""
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                  }}
-                />
-              )}
+            <div style={{ position: "relative", paddingBottom: 40 }}>
               <div
                 style={{
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "linear-gradient(to top, rgba(0,0,0,0.45), transparent 60%)",
-                  pointerEvents: "none",
-                }}
-              />
-              <input
-                ref={coverInput}
-                type="file"
-                accept="image/*"
-                onChange={onPickFile("cover")}
-                style={{ display: "none" }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 8,
-                  right: 8,
-                  display: "flex",
-                  gap: 6,
+                  position: "relative",
+                  borderRadius: 14,
+                  overflow: "hidden",
+                  border: `1px solid ${O.hair2}`,
+                  background: coverPreview
+                    ? "transparent"
+                    : "linear-gradient(135deg, oklch(0.6 0.18 280), oklch(0.4 0.14 320))",
+                  height: 120,
                 }}
               >
                 {coverPreview && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={coverPreview}
+                    alt=""
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                )}
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background:
+                      "linear-gradient(to top, rgba(0,0,0,0.45), transparent 60%)",
+                    pointerEvents: "none",
+                  }}
+                />
+                <input
+                  ref={coverInput}
+                  type="file"
+                  accept="image/*"
+                  onChange={onPickFile("cover")}
+                  style={{ display: "none" }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: 8,
+                    right: 8,
+                    display: "flex",
+                    gap: 6,
+                  }}
+                >
+                  {coverPreview && (
+                    <button
+                      type="button"
+                      onClick={() => clearImage("cover")}
+                      style={{
+                        padding: "6px 8px",
+                        borderRadius: 99,
+                        background: "rgba(0,0,0,0.55)",
+                        color: "white",
+                        border: `1px solid ${O.hair2}`,
+                        fontSize: 11,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <X style={{ width: 11, height: 11 }} /> Remove
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => clearImage("cover")}
+                    onClick={() => coverInput.current?.click()}
                     style={{
-                      padding: "6px 8px",
+                      padding: "6px 10px",
                       borderRadius: 99,
                       background: "rgba(0,0,0,0.55)",
                       color: "white",
@@ -261,51 +280,33 @@ export function CreateCommunityDialog({
                       cursor: "pointer",
                       display: "inline-flex",
                       alignItems: "center",
-                      gap: 4,
+                      gap: 5,
                     }}
                   >
-                    <X style={{ width: 11, height: 11 }} /> Remove
+                    <ImagePlus style={{ width: 12, height: 12 }} />
+                    {coverPreview ? "Replace cover" : "Add cover"}
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => coverInput.current?.click()}
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: 99,
-                    background: "rgba(0,0,0,0.55)",
-                    color: "white",
-                    border: `1px solid ${O.hair2}`,
-                    fontSize: 11,
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                  }}
-                >
-                  <ImagePlus style={{ width: 12, height: 12 }} />
-                  {coverPreview ? "Replace cover" : "Add cover"}
-                </button>
+                </div>
               </div>
 
-              {/* Avatar overlapping bottom-left */}
+              {/* Avatar overlaps the cover via negative top, lives outside the
+                  cover's overflow:hidden so it doesn't get clipped. */}
               <div
                 style={{
                   position: "absolute",
-                  left: 12,
-                  bottom: -28,
+                  left: 14,
+                  top: 92,
                   width: 64,
                   height: 64,
                   borderRadius: "50%",
                   border: `3px solid ${O.bg}`,
-                  background: avatarPreview
-                    ? "transparent"
-                    : aurora,
+                  background: avatarPreview ? "transparent" : aurora,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   overflow: "hidden",
                   cursor: "pointer",
+                  boxShadow: "0 6px 20px -6px rgba(0,0,0,0.5)",
                 }}
                 onClick={() => avatarInput.current?.click()}
                 role="button"
@@ -319,13 +320,7 @@ export function CreateCommunityDialog({
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />
                 ) : (
-                  <span
-                    style={{ fontSize: 22, fontWeight: 700, color: "white" }}
-                  >
-                    {name.trim().charAt(0).toUpperCase() || (
-                      <Camera style={{ width: 18, height: 18 }} />
-                    )}
-                  </span>
+                  <Camera style={{ width: 18, height: 18, color: "white" }} />
                 )}
               </div>
               <input
@@ -335,38 +330,19 @@ export function CreateCommunityDialog({
                 onChange={onPickFile("avatar")}
                 style={{ display: "none" }}
               />
-            </div>
-            <div
-              style={{
-                display: "flex",
-                gap: 6,
-                marginLeft: 76,
-                marginTop: 8,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => avatarInput.current?.click()}
+
+              <div
                 style={{
-                  padding: "5px 10px",
-                  borderRadius: 99,
-                  background: "transparent",
-                  border: `1px solid ${O.hair2}`,
-                  color: O.ink2,
-                  fontSize: 11,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
+                  position: "absolute",
+                  left: 90,
+                  top: 128,
+                  display: "flex",
+                  gap: 6,
                 }}
               >
-                <Camera style={{ width: 11, height: 11 }} />
-                {avatarPreview ? "Replace avatar" : "Add avatar"}
-              </button>
-              {avatarPreview && (
                 <button
                   type="button"
-                  onClick={() => clearImage("avatar")}
+                  onClick={() => avatarInput.current?.click()}
                   style={{
                     padding: "5px 10px",
                     borderRadius: 99,
@@ -380,9 +356,30 @@ export function CreateCommunityDialog({
                     gap: 4,
                   }}
                 >
-                  <X style={{ width: 11, height: 11 }} /> Remove
+                  <Camera style={{ width: 11, height: 11 }} />
+                  {avatarPreview ? "Replace avatar" : "Add avatar"}
                 </button>
-              )}
+                {avatarPreview && (
+                  <button
+                    type="button"
+                    onClick={() => clearImage("avatar")}
+                    style={{
+                      padding: "5px 10px",
+                      borderRadius: 99,
+                      background: "transparent",
+                      border: `1px solid ${O.hair2}`,
+                      color: O.ink2,
+                      fontSize: 11,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    <X style={{ width: 11, height: 11 }} /> Remove
+                  </button>
+                )}
+              </div>
             </div>
           </Field>
 
@@ -408,7 +405,7 @@ export function CreateCommunityDialog({
             <TextArea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What is this space about?"
+              placeholder="What is this room about?"
               rows={3}
               maxLength={500}
             />

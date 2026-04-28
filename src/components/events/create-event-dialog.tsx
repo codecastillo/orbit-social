@@ -103,13 +103,19 @@ export function CreateEventDialog({
               autoFocus
             />
           </Field>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: 14,
+            }}
+          >
             <Field label="Starts" hint="local">
               <Input
                 type="datetime-local"
                 value={startAt}
                 onChange={(e) => setStartAt(e.target.value)}
-                style={{ colorScheme: "dark" }}
+                style={{ colorScheme: "dark", width: "100%", minWidth: 0 }}
               />
             </Field>
             <Field label="Ends">
@@ -117,7 +123,7 @@ export function CreateEventDialog({
                 type="datetime-local"
                 value={endAt}
                 onChange={(e) => setEndAt(e.target.value)}
-                style={{ colorScheme: "dark" }}
+                style={{ colorScheme: "dark", width: "100%", minWidth: 0 }}
               />
             </Field>
           </div>
