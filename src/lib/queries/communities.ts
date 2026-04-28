@@ -82,43 +82,25 @@ export async function getCommunityBySlug(slug: string) {
 }
 
 export async function createCommunity(
-  userId: string,
+  _userId: string,
   name: string,
   slug: string,
   description: string,
   joinPolicy: JoinPolicy = "public"
 ) {
-  // Insert with member_count: 0 — the after-insert trigger on community_members
-  // bumps it to 1 when we add the owner row below. Inserting 1 here would
-  // double-count.
-  const { data: community, error } = await supabase
-    .from("communities")
-    .insert({
-      name,
-      slug,
-      description,
-      created_by: userId,
-      is_private: joinPolicy === "invite",
-      join_policy: joinPolicy,
-      member_count: 0,
-    })
-    .select(COMMUNITY_SELECT)
-    .single();
+  // SECURITY DEFINER RPC creates the community + owner membership atomically.
+  // Required because the new community_members INSERT policy only allows
+  // self-join for public rooms, so creating an approval/invite room
+  // client-side would fail at the owner-insert step.
+  const { data, error } = await supabase.rpc("create_community", {
+    p_name: name,
+    p_slug: slug,
+    p_description: description,
+    p_join_policy: joinPolicy,
+  });
 
   if (error) throw error;
-
-  // Add creator as owner — trigger increments member_count to 1.
-  const { error: memberError } = await supabase
-    .from("community_members")
-    .insert({
-      community_id: community.id,
-      user_id: userId,
-      role: "owner",
-    });
-
-  if (memberError) throw memberError;
-
-  return community as Community;
+  return data as Community;
 }
 
 export async function joinCommunity(communityId: string) {

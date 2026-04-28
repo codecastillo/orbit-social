@@ -97,6 +97,7 @@ export function CreateCommunityDialog({
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to create community";
+      console.error("Failed to create community:", err);
       if (message.includes("duplicate") || message.includes("unique")) {
         toast.error("A community with that slug already exists");
       } else {

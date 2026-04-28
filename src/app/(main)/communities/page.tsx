@@ -257,9 +257,6 @@ function FeaturedTrio({ communities }: { communities: Community[] }) {
               {hero.description}
             </p>
           )}
-          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-            <PillBtn primary>Open room →</PillBtn>
-          </div>
         </div>
       </Link>
 
