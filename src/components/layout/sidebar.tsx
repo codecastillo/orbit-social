@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import {
   Home,
+  Film,
   Compass,
   Globe,
   Play,
@@ -39,6 +40,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { label: "Home", href: "/feed", icon: Home },
+  { label: "Clips", href: "/reels", icon: Film },
   { label: "Discover", href: "/explore", icon: Compass },
   { label: "Rooms", href: "/communities", icon: Globe },
   { label: "Live", href: "/live", icon: Play },
