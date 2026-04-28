@@ -300,7 +300,10 @@ function FeaturedTrend() {
             const hue = hues[i];
             const hue2 = (hue + 60) % 360;
             const image = post?.post_media?.[0];
-            const isVisual = image && (image.type === "image" || image.type === "video");
+            const isImage = image?.type === "image";
+            const isVideo = image?.type === "video";
+            const thumbSrc = image?.thumbnail_url || (isImage ? image?.url : null);
+            const gradient = `linear-gradient(135deg, oklch(0.55 0.18 ${hue}), oklch(0.35 0.12 ${hue2}))`;
             return (
               <Link
                 key={i}
@@ -309,18 +312,40 @@ function FeaturedTrend() {
                   borderRadius: 14,
                   overflow: "hidden",
                   position: "relative",
-                  background: isVisual
-                    ? "#0a0a1a"
-                    : `linear-gradient(135deg, oklch(0.55 0.18 ${hue}), oklch(0.35 0.12 ${hue2}))`,
+                  background: gradient,
                   textDecoration: "none",
                   color: "white",
                 }}
               >
-                {isVisual && image ? (
+                {thumbSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={image.thumbnail_url || image.url}
+                    src={thumbSrc}
                     alt=""
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    loading="lazy"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                    onError={(e) => {
+                      // Hide broken-image icon, fall back to gradient.
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                ) : isVideo && image ? (
+                  <video
+                    src={image.url}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
                   />
                 ) : (
                   <div

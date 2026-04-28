@@ -637,29 +637,79 @@ export function PostCard({
           )}
 
           {/* Image/Video Media (hidden behind spoiler) */}
-          {(!displayPost.content_warning || spoilerRevealed) && displayHasMedia && displayPost.post_media.some((m) => !isAudioMediaItem(m.url)) && (
-            <div
-              className={cn(
-                "mt-3 rounded-2xl overflow-hidden border border-white/[0.06] shadow-md shadow-black/20",
-                displayPost.post_media.filter((m) => !isAudioMediaItem(m.url)).length > 1 && "grid gap-0.5",
-                displayPost.post_media.filter((m) => !isAudioMediaItem(m.url)).length === 2 && "grid-cols-2",
-                displayPost.post_media.filter((m) => !isAudioMediaItem(m.url)).length >= 3 && "grid-cols-2 grid-rows-2",
-              )}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {displayPost.post_media
-                .filter((m) => !isAudioMediaItem(m.url))
-                .sort((a, b) => a.sort_order - b.sort_order)
-                .map((m, i) => {
-                  const visualMedia = displayPost.post_media.filter((mm) => !isAudioMediaItem(mm.url));
+          {(!displayPost.content_warning || spoilerRevealed) && displayHasMedia && displayPost.post_media.some((m) => !isAudioMediaItem(m.url)) && (() => {
+            const visualMedia = displayPost.post_media
+              .filter((m) => !isAudioMediaItem(m.url))
+              .sort((a, b) => a.sort_order - b.sort_order);
+            const isMulti = visualMedia.length > 1;
+            return (
+              <div
+                className={cn(
+                  "mt-3 rounded-2xl overflow-hidden border border-white/[0.06] shadow-md shadow-black/20",
+                  isMulti && "grid gap-0.5",
+                  visualMedia.length === 2 && "grid-cols-2",
+                  visualMedia.length >= 3 && "grid-cols-2 grid-rows-2",
+                )}
+                style={!isMulti ? { background: "rgba(0,0,0,0.4)" } : undefined}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {visualMedia.map((m, i) => {
+                  const isVideo = m.type === "video" || m.type === "gif";
                   return (
-                    <div key={m.id} className={cn("overflow-hidden", visualMedia.length === 3 && i === 0 && "row-span-2")}>
-                      <img src={m.url} alt="" className="w-full h-full object-cover max-h-[400px]" loading="lazy" />
+                    <div
+                      key={m.id}
+                      className={cn(
+                        "overflow-hidden flex items-center justify-center",
+                        visualMedia.length === 3 && i === 0 && "row-span-2",
+                      )}
+                      style={
+                        !isMulti
+                          ? { maxHeight: 520, width: "100%" }
+                          : undefined
+                      }
+                    >
+                      {isVideo ? (
+                        <video
+                          src={m.url}
+                          poster={m.thumbnail_url || undefined}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className={
+                            isMulti
+                              ? "w-full h-full object-cover"
+                              : "max-h-[520px] max-w-full"
+                          }
+                          style={
+                            !isMulti
+                              ? { width: "auto", height: "auto" }
+                              : undefined
+                          }
+                        />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={m.url}
+                          alt=""
+                          loading="lazy"
+                          className={
+                            isMulti
+                              ? "w-full h-full object-cover"
+                              : "max-h-[520px] max-w-full"
+                          }
+                          style={
+                            !isMulti
+                              ? { width: "auto", height: "auto" }
+                              : undefined
+                          }
+                        />
+                      )}
                     </div>
                   );
                 })}
-            </div>
-          )}
+              </div>
+            );
+          })()}
 
           {/* Reaction counts */}
           {reactionCounts.length > 0 && (

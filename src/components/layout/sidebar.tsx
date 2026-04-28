@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useUnreadCount, useUnreadMessagesCount } from "@/lib/hooks/use-notifications";
-import { useCurrentProfile } from "@/lib/hooks/use-profile";
+import { useCurrentProfile, type CurrentProfile } from "@/lib/hooks/use-profile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -49,13 +49,20 @@ const NAV: NavItem[] = [
   { label: "Notifications", href: "/notifications", icon: Bell },
 ];
 
-export function Sidebar() {
+export function Sidebar({
+  initialProfile,
+}: {
+  initialProfile?: CurrentProfile | null;
+}) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
   const { data: unreadCount } = useUnreadCount();
   const { data: unreadMessages } = useUnreadMessagesCount();
-  const { data: profile } = useCurrentProfile();
+  const { data: liveProfile } = useCurrentProfile();
+  // Use the server-prefetched profile until live data arrives. This makes
+  // the sidebar render the real avatar/name on the very first paint.
+  const profile = liveProfile ?? initialProfile ?? null;
 
   const activeHref = useMemo(
     () =>

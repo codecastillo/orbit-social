@@ -87,10 +87,14 @@ export function ClipActions({
   const [localShareCount, setLocalShareCount] = useState(shareCount);
 
   // Sync local count state when authoritative props update (realtime
-  // refetch from the parent feed after another user's interaction).
+  // refetch from the parent feed after another user's interaction). For
+  // share count we only adopt the prop when it grows — never let a stale
+  // refetch clobber an optimistic local bump back to a smaller number.
   useEffect(() => setLocalLikeCount(likeCount), [likeCount]);
   useEffect(() => setLocalBookmarkCount(bookmarkCount), [bookmarkCount]);
-  useEffect(() => setLocalShareCount(shareCount), [shareCount]);
+  useEffect(() => {
+    setLocalShareCount((prev) => Math.max(prev, shareCount));
+  }, [shareCount]);
 
   const handleLike = async () => {
     if (!user) {
@@ -131,9 +135,18 @@ export function ClipActions({
   const handleShare = async () => {
     const url = `${window.location.origin}/post/${postId}`;
     setLocalShareCount((c) => c + 1);
+    // Persist server-side first so the count survives refresh and is
+    // visible to every other viewer. Surface failures (e.g. missing RPC
+    // / missing share_count column) so they aren't silent.
+    const supabase = createClient();
+    supabase.rpc("increment_post_shares", { p_post_id: postId }).then(
+      ({ error }) => {
+        if (error) {
+          console.error("increment_post_shares failed", error);
+        }
+      },
+    );
     try {
-      const supabase = createClient();
-      void supabase.rpc("increment_post_shares", { p_post_id: postId });
       if (navigator.share) {
         await navigator.share({ url });
       } else {

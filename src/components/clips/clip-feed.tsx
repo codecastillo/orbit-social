@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Film, ChevronUp, ChevronDown } from "lucide-react";
+import { Loader2, Film } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getClips } from "@/lib/queries/clips";
 import { checkUserInteractions, type PostWithAuthor } from "@/lib/queries/posts";
@@ -204,7 +204,12 @@ export function ClipFeed() {
         style={{ background: O.bg }}
       >
         {allClips.map((clip) => (
-          <ClipPlayer key={clip.id} clip={clip} />
+          <ClipPlayer
+            key={clip.id}
+            clip={clip}
+            onPrev={() => scrollByOne(-1)}
+            onNext={() => scrollByOne(1)}
+          />
         ))}
 
         <div ref={sentinelRef} className="h-1" />
@@ -221,48 +226,6 @@ export function ClipFeed() {
           </div>
         )}
       </div>
-
-      {/* Up / Down arrows on the left edge — alternative to scroll for
-          desktop users who don't have a touchpad scroll. */}
-      <div
-        className="hidden lg:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 flex-col gap-2"
-        style={{ pointerEvents: "auto" }}
-      >
-        <NavArrow direction="up" onClick={() => scrollByOne(-1)} />
-        <NavArrow direction="down" onClick={() => scrollByOne(1)} />
-      </div>
     </div>
-  );
-}
-
-function NavArrow({
-  direction,
-  onClick,
-}: {
-  direction: "up" | "down";
-  onClick: () => void;
-}) {
-  const Icon = direction === "up" ? ChevronUp : ChevronDown;
-  return (
-    <button
-      onClick={onClick}
-      aria-label={direction === "up" ? "Previous clip" : "Next clip"}
-      style={{
-        width: 40,
-        height: 40,
-        borderRadius: "50%",
-        background: "rgba(10,12,28,0.55)",
-        backdropFilter: "blur(14px) saturate(160%)",
-        WebkitBackdropFilter: "blur(14px) saturate(160%)",
-        border: `1px solid ${O.hair2}`,
-        display: "grid",
-        placeItems: "center",
-        color: O.ink,
-        cursor: "pointer",
-        boxShadow: "0 6px 20px -6px rgba(0,0,0,0.6)",
-      }}
-    >
-      <Icon style={{ width: 20, height: 20 }} strokeWidth={2.2} />
-    </button>
   );
 }
