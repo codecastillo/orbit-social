@@ -33,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CommunityMembersDialog } from "@/components/communities/members-dialog";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -67,6 +68,7 @@ export function CommunityHeader({
   >(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
 
   // Treat the row's `created_by` as authoritative for ownership — handles
   // legacy / broken rooms where the owner membership row was never inserted
@@ -297,40 +299,47 @@ export function CommunityHeader({
         )}
 
         <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <Users className="h-4 w-4" />
-            <span>{formatNumber(community.member_count)} members</span>
-          </div>
+          <button
+            type="button"
+            onClick={() => setMembersOpen(true)}
+            className="flex items-center gap-2 hover:text-foreground transition-colors"
+            aria-label="See all members"
+          >
+            <div className="flex -space-x-2">
+              {members.slice(0, 4).map((member) => (
+                <div
+                  key={member.user_id}
+                  className="ring-2 ring-background rounded-full"
+                  title={member.profiles.display_name || member.profiles.username}
+                >
+                  <UserAvatar
+                    src={member.profiles.avatar_url}
+                    fallback={member.profiles.display_name || member.profiles.username}
+                    size="sm"
+                  />
+                </div>
+              ))}
+              {members.length === 0 && (
+                <div className="h-8 w-8 rounded-full bg-muted/40 ring-2 ring-background flex items-center justify-center">
+                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+              )}
+              {community.member_count > 4 && (
+                <div className="h-8 w-8 rounded-full bg-muted/60 ring-2 ring-background flex items-center justify-center text-[10px] font-mono font-semibold text-foreground">
+                  +{Math.max(community.member_count - 4, 0)}
+                </div>
+              )}
+            </div>
+            <span className="text-sm">
+              {formatNumber(community.member_count)}{" "}
+              {community.member_count === 1 ? "member" : "members"}
+            </span>
+          </button>
           <div className="flex items-center gap-1.5">
             <Calendar className="h-4 w-4" />
             <span>Created {createdDate}</span>
           </div>
         </div>
-
-        {/* Members preview */}
-        {members.length > 0 && (
-          <div className="flex items-center gap-2 mt-3">
-            <div className="flex -space-x-2">
-              {members.slice(0, 5).map((member) => (
-                <div
-                  key={member.user_id}
-                  className="ring-2 ring-background rounded-full"
-                >
-                  <UserAvatar
-                    src={member.profiles.avatar_url}
-                    fallback={member.profiles.display_name}
-                    size="sm"
-                  />
-                </div>
-              ))}
-            </div>
-            {community.member_count > 5 && (
-              <span className="text-xs text-muted-foreground">
-                +{formatNumber(community.member_count - 5)} more
-              </span>
-            )}
-          </div>
-        )}
 
         {/* Rules section */}
         {rules && rules.length > 0 && (
@@ -373,6 +382,12 @@ export function CommunityHeader({
           </div>
         )}
       </div>
+
+      <CommunityMembersDialog
+        open={membersOpen}
+        onOpenChange={setMembersOpen}
+        communityId={community.id}
+      />
 
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent className="sm:max-w-md">
