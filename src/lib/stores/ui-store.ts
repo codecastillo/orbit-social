@@ -15,6 +15,10 @@ interface UIStore {
   setSidebarCollapsed: (collapsed: boolean) => void;
   mobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
+  // Single mute state shared across every ClipPlayer so unmuting one clip
+  // carries across to the next as you scroll.
+  clipsMuted: boolean;
+  setClipsMuted: (muted: boolean) => void;
 }
 
 export const useUIStore = create<UIStore>((set, get) => ({
@@ -36,4 +40,6 @@ export const useUIStore = create<UIStore>((set, get) => ({
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   mobileMenuOpen: false,
   setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
+  clipsMuted: true,
+  setClipsMuted: (muted) => set({ clipsMuted: muted }),
 }));

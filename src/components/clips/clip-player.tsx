@@ -13,6 +13,7 @@ import { ClipCommentsSheet } from "./clip-comments-sheet";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { checkFollowing, followUser, unfollowUser } from "@/lib/queries/social";
 import { createClient } from "@/lib/supabase/client";
+import { useUIStore } from "@/lib/stores/ui-store";
 import { O, aurora } from "@/lib/design/orbit";
 import type { PostWithAuthor } from "@/lib/queries/posts";
 
@@ -26,7 +27,8 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const isMuted = useUIStore((s) => s.clipsMuted);
+  const setClipsMuted = useUIStore((s) => s.setClipsMuted);
   const [showCaption, setShowCaption] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [followOverride, setFollowOverride] = useState<boolean | null>(null);
@@ -151,13 +153,19 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
     }
   }, []);
 
-  const toggleMute = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
+  const toggleMute = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setClipsMuted(!isMuted);
+    },
+    [isMuted, setClipsMuted],
+  );
+
+  // Apply the shared mute state to this video element whenever it changes.
+  useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
-    video.muted = !video.muted;
-    setIsMuted(video.muted);
-  }, []);
+    if (video) video.muted = isMuted;
+  }, [isMuted]);
 
   const toggleFollow = async (e: React.MouseEvent) => {
     e.stopPropagation();

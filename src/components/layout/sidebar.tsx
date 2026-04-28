@@ -216,23 +216,33 @@ export function Sidebar() {
         >
           + Compose
         </PillBtn>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className="cursor-pointer"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "14px 4px 0",
-              width: "100%",
-              background: "transparent",
-              border: "none",
-              color: O.ink,
-              textAlign: "left",
-            }}
-          >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "14px 4px 0",
+            width: "100%",
+          }}
+        >
+          {/* Avatar + name go to the user's profile page directly. While
+              the profile is hydrating we render a transparent placeholder
+              of the same dimensions to avoid the 'You / @you' flash. */}
+          {profile ? (
+            <Link
+              href={`/${profile.username}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                flex: 1,
+                minWidth: 0,
+                color: O.ink,
+                textDecoration: "none",
+              }}
+            >
               <Avatar className="h-9 w-9 rounded-full">
-                <AvatarImage src={profile?.avatar_url || undefined} />
+                <AvatarImage src={profile.avatar_url || undefined} />
                 <AvatarFallback
                   style={{
                     background: aurora,
@@ -241,7 +251,7 @@ export function Sidebar() {
                     fontSize: 14,
                   }}
                 >
-                  {profile?.display_name?.[0]?.toUpperCase() ||
+                  {profile.display_name?.[0]?.toUpperCase() ||
                     user?.email?.[0]?.toUpperCase() ||
                     "U"}
                 </AvatarFallback>
@@ -257,38 +267,70 @@ export function Sidebar() {
                     textOverflow: "ellipsis",
                   }}
                 >
-                  {profile?.display_name || "You"}
+                  {profile.display_name || profile.username}
                 </div>
                 <div style={{ fontSize: 11, color: O.ink3 }}>
-                  @{profile?.username || "you"}
+                  @{profile.username}
                 </div>
               </div>
-              <MoreHorizontal style={{ width: 16, height: 16, color: O.ink3 }} />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" side="top" className="w-56 rounded-2xl">
-            {profile?.username && (
-              <Link href={`/${profile.username}`}>
+            </Link>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                flex: 1,
+                minWidth: 0,
+                opacity: 0,
+                pointerEvents: "none",
+              }}
+              aria-hidden
+            >
+              <div className="h-9 w-9 rounded-full" />
+              <div style={{ flex: 1 }}>
+                <div style={{ height: 16 }} />
+                <div style={{ height: 14 }} />
+              </div>
+            </div>
+          )}
+
+          {/* 3-dots opens the settings/sign-out menu. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="cursor-pointer shrink-0"
+              aria-label="Account menu"
+              style={{
+                width: 30,
+                height: 30,
+                display: "grid",
+                placeItems: "center",
+                background: "transparent",
+                border: 0,
+                color: O.ink3,
+                borderRadius: 999,
+              }}
+            >
+              <MoreHorizontal style={{ width: 16, height: 16 }} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top" className="w-56 rounded-2xl">
+              <Link href="/settings">
                 <DropdownMenuItem className="cursor-pointer rounded-lg">
-                  View Profile
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
                 </DropdownMenuItem>
               </Link>
-            )}
-            <Link href="/settings">
-              <DropdownMenuItem className="cursor-pointer rounded-lg">
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={signOut}
+                className="text-destructive cursor-pointer rounded-lg"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
               </DropdownMenuItem>
-            </Link>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={signOut}
-              className="text-destructive cursor-pointer rounded-lg"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </aside>
   );

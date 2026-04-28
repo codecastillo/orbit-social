@@ -1,17 +1,52 @@
 "use client";
 
 import { useRef, useEffect, useCallback } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { Loader2, Film } from "lucide-react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Film, ChevronUp, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getClips } from "@/lib/queries/clips";
 import { checkUserInteractions, type PostWithAuthor } from "@/lib/queries/posts";
+import { createClient } from "@/lib/supabase/client";
 import { ClipPlayer } from "./clip-player";
 import { O, aurora, panel } from "@/lib/design/orbit";
 
 export function ClipFeed() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  // Realtime: any new clip-typed post (type='reel') anywhere on the network
+  // refreshes the feed, so users see new clips without reloading.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`clips-feed-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "posts",
+          filter: "type=eq.reel",
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["clips"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      channel.unsubscribe();
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  // Scroll to the previous/next clip-snap section.
+  const scrollByOne = useCallback((dir: 1 | -1) => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    scroller.scrollBy({ top: dir * scroller.clientHeight, behavior: "smooth" });
+  }, []);
 
   const {
     data,
@@ -162,27 +197,72 @@ export function ClipFeed() {
   }
 
   return (
-    <div
-      className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
-      style={{ background: O.bg }}
-    >
-      {allClips.map((clip) => (
-        <ClipPlayer key={clip.id} clip={clip} />
-      ))}
+    <div className="relative h-full w-full" style={{ background: O.bg }}>
+      <div
+        ref={scrollerRef}
+        className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+        style={{ background: O.bg }}
+      >
+        {allClips.map((clip) => (
+          <ClipPlayer key={clip.id} clip={clip} />
+        ))}
 
-      <div ref={sentinelRef} className="h-1" />
+        <div ref={sentinelRef} className="h-1" />
 
-      {isFetchingNextPage && (
-        <div
-          className="h-20 flex items-center justify-center"
-          style={{ background: O.bg }}
-        >
-          <Loader2
-            style={{ width: 22, height: 22, color: O.ink3 }}
-            className="animate-spin"
-          />
-        </div>
-      )}
+        {isFetchingNextPage && (
+          <div
+            className="h-20 flex items-center justify-center"
+            style={{ background: O.bg }}
+          >
+            <Loader2
+              style={{ width: 22, height: 22, color: O.ink3 }}
+              className="animate-spin"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Up / Down arrows on the left edge — alternative to scroll for
+          desktop users who don't have a touchpad scroll. */}
+      <div
+        className="hidden lg:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 flex-col gap-2"
+        style={{ pointerEvents: "auto" }}
+      >
+        <NavArrow direction="up" onClick={() => scrollByOne(-1)} />
+        <NavArrow direction="down" onClick={() => scrollByOne(1)} />
+      </div>
     </div>
+  );
+}
+
+function NavArrow({
+  direction,
+  onClick,
+}: {
+  direction: "up" | "down";
+  onClick: () => void;
+}) {
+  const Icon = direction === "up" ? ChevronUp : ChevronDown;
+  return (
+    <button
+      onClick={onClick}
+      aria-label={direction === "up" ? "Previous clip" : "Next clip"}
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: "50%",
+        background: "rgba(10,12,28,0.55)",
+        backdropFilter: "blur(14px) saturate(160%)",
+        WebkitBackdropFilter: "blur(14px) saturate(160%)",
+        border: `1px solid ${O.hair2}`,
+        display: "grid",
+        placeItems: "center",
+        color: O.ink,
+        cursor: "pointer",
+        boxShadow: "0 6px 20px -6px rgba(0,0,0,0.6)",
+      }}
+    >
+      <Icon style={{ width: 20, height: 20 }} strokeWidth={2.2} />
+    </button>
   );
 }

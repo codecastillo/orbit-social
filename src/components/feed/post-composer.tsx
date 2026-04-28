@@ -634,12 +634,12 @@ function ComposerForm({
           size="sm"
         />
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 pl-1">
           <Textarea
             placeholder={replyToId ? "Write a reply..." : "Write a caption..."}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="border-none bg-transparent resize-none p-0 text-sm text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 focus-visible:border-none min-h-[60px]"
+            className="border-none bg-transparent resize-none p-0 pt-1.5 text-sm text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 focus-visible:border-none min-h-[60px]"
             rows={inline ? 2 : 3}
           />
 
@@ -673,15 +673,29 @@ function ComposerForm({
                         : undefined
                     }
                   >
-                    <img
-                      src={m.preview}
-                      alt=""
-                      className={
-                        media.length === 1
-                          ? "w-full max-h-[520px] mx-auto block object-contain"
-                          : "w-full h-full object-cover max-h-[300px]"
-                      }
-                    />
+                    {m.type === "video" ? (
+                      <video
+                        src={m.preview}
+                        muted
+                        playsInline
+                        controls
+                        className={
+                          media.length === 1
+                            ? "w-full max-h-[520px] mx-auto block object-contain bg-black"
+                            : "w-full h-full object-cover max-h-[300px] bg-black"
+                        }
+                      />
+                    ) : (
+                      <img
+                        src={m.preview}
+                        alt=""
+                        className={
+                          media.length === 1
+                            ? "w-full max-h-[520px] mx-auto block object-contain"
+                            : "w-full h-full object-cover max-h-[300px]"
+                        }
+                      />
+                    )}
                     <button
                       onClick={() => removeMedia(i)}
                       className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center bg-black/60 backdrop-blur-sm hover:bg-black/80 rounded-full opacity-0 group-hover/media:opacity-100 transition-all"
@@ -717,9 +731,7 @@ function ComposerForm({
                   Where does this go?
                 </span>
                 <span style={{ fontSize: 11.5, color: O.ink3, marginTop: 2 }}>
-                  {videoDestination === "clip"
-                    ? "Lands in Clips — vertical, full-screen"
-                    : "Stays in your home feed — plays inline"}
+                  {videoDestination === "clip" ? "Lands in clips" : "Lands in feed"}
                 </span>
               </div>
               <div
