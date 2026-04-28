@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Globe, ArrowRight } from "lucide-react";
+import { Plus, Search, Globe } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input as BareInput } from "@/components/ui/input";
 import { CreateCommunityDialog } from "@/components/communities/create-community-dialog";
@@ -40,17 +40,6 @@ function hueFor(seed: string): number {
 function formatMembers(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}K`;
   return `${n}`;
-}
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.floor(hr / 24);
-  return `${day}d ago`;
 }
 
 export default function CommunitiesPage() {
@@ -197,17 +186,15 @@ export default function CommunitiesPage() {
             <MyRoomsSection communities={myCommunities} />
           )}
           {otherCommunities.length > 0 && (
-            <>
-              <FeaturedTrio communities={otherCommunities.slice(0, 3)} />
-              <YoursList
-                communities={otherCommunities}
-                heading={
-                  myCommunities && myCommunities.length > 0
-                    ? "ALL ROOMS · OTHERS"
-                    : undefined
-                }
-              />
-            </>
+            <MyRoomsSection
+              communities={otherCommunities}
+              heading={
+                myCommunities && myCommunities.length > 0
+                  ? `ALL ROOMS · OTHERS · ${otherCommunities.length}`
+                  : `ALL ROOMS · ${otherCommunities.length}`
+              }
+              eyebrowGlyph="◇"
+            />
           )}
         </>
       )}
@@ -217,393 +204,22 @@ export default function CommunitiesPage() {
   );
 }
 
-/* ─── Featured trio (hero + 2 side) ──────────────────────────────── */
-
-function FeaturedTrio({ communities }: { communities: Community[] }) {
-  const hero = communities[0];
-  const sides = communities.slice(1, 3);
-
-  if (!hero) return null;
-
-  const hue = hueFor(hero.id);
-  const hue2 = (hue + 60) % 360;
-
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1.4fr 1fr 1fr",
-        gap: 14,
-      }}
-      className="md:grid-cols-[1.4fr_1fr_1fr] grid-cols-1"
-    >
-      {/* Hero */}
-      <Link
-        href={`/communities/${hero.slug}`}
-        style={{
-          ...panel(),
-          padding: 0,
-          overflow: "hidden",
-          position: "relative",
-          textDecoration: "none",
-          color: O.ink,
-        }}
-      >
-        <div
-          style={{
-            aspectRatio: "4 / 1",
-            width: "100%",
-            background: hero.cover_url
-              ? "transparent"
-              : `linear-gradient(135deg, oklch(0.68 0.18 ${hue}), oklch(0.45 0.16 ${hue2}))`,
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          {hero.cover_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={hero.cover_url}
-              alt=""
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background:
-                  "radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.3), transparent 60%), repeating-linear-gradient(135deg, transparent 0 30px, rgba(255,255,255,0.06) 30px 31px)",
-              }}
-            />
-          )}
-          <div
-            style={{
-              position: "absolute",
-              top: 16,
-              left: 16,
-              padding: "5px 12px",
-              borderRadius: 99,
-              background: "rgba(0,0,0,0.4)",
-              backdropFilter: "blur(20px)",
-              fontSize: 10.5,
-              fontWeight: 600,
-              fontFamily: O.mono,
-              letterSpacing: "0.1em",
-            }}
-          >
-            ◆&nbsp;&nbsp;{formatMembers(hero.member_count)} MEMBERS
-          </div>
-        </div>
-        <div style={{ padding: 22, position: "relative" }}>
-          {/* Avatar overlapping the cover */}
-          <div
-            style={{
-              position: "absolute",
-              top: -28,
-              left: 22,
-              width: 56,
-              height: 56,
-              borderRadius: "50%",
-              border: `3px solid ${O.bg}`,
-              background: hero.avatar_url
-                ? "transparent"
-                : `linear-gradient(135deg, oklch(0.7 0.18 ${hue}), oklch(0.45 0.16 ${hue2}))`,
-              overflow: "hidden",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 6px 20px -6px rgba(0,0,0,0.6)",
-            }}
-          >
-            {hero.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={hero.avatar_url}
-                alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            ) : (
-              <span style={{ fontSize: 22, fontWeight: 700, color: "white" }}>
-                {hero.name.charAt(0).toUpperCase()}
-              </span>
-            )}
-          </div>
-          <div style={{ marginTop: 30 }}>
-            <Display size={26}>{hero.name}</Display>
-            <div
-              style={{
-                fontSize: 12.5,
-                color: O.ink3,
-                marginTop: 4,
-                fontFamily: O.mono,
-                letterSpacing: "0.06em",
-              }}
-            >
-              {formatMembers(hero.member_count).toUpperCase()} MEMBERS · {hero.is_private ? "PRIVATE" : "OPEN"}
-            </div>
-            {hero.description && (
-              <p
-                style={{
-                  fontSize: 13.5,
-                  color: O.ink2,
-                  lineHeight: 1.55,
-                  marginTop: 12,
-                }}
-              >
-                {hero.description}
-              </p>
-            )}
-          </div>
-        </div>
-      </Link>
-
-      {/* Sides */}
-      {sides.map((c) => {
-        const sideHue = hueFor(c.id);
-        const sideHue2 = (sideHue + 60) % 360;
-        return (
-          <Link
-            key={c.id}
-            href={`/communities/${c.slug}`}
-            style={{
-              ...panel(),
-              padding: 0,
-              overflow: "hidden",
-              textDecoration: "none",
-              color: O.ink,
-            }}
-          >
-            <div
-              style={{
-                aspectRatio: "4 / 1",
-                width: "100%",
-                background: c.cover_url
-                  ? "transparent"
-                  : `linear-gradient(135deg, oklch(0.68 0.16 ${sideHue}), oklch(0.42 0.14 ${sideHue2}))`,
-                position: "relative",
-                overflow: "hidden",
-              }}
-            >
-              {c.cover_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={c.cover_url}
-                  alt=""
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background:
-                      "repeating-linear-gradient(135deg, transparent 0 22px, rgba(255,255,255,0.06) 22px 23px)",
-                  }}
-                />
-              )}
-            </div>
-            <div style={{ padding: 18, position: "relative" }}>
-              <div
-                style={{
-                  position: "absolute",
-                  top: -22,
-                  left: 18,
-                  width: 44,
-                  height: 44,
-                  borderRadius: "50%",
-                  border: `2.5px solid ${O.bg}`,
-                  background: c.avatar_url
-                    ? "transparent"
-                    : `linear-gradient(135deg, oklch(0.7 0.18 ${sideHue}), oklch(0.45 0.16 ${sideHue2}))`,
-                  overflow: "hidden",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 4px 14px -4px rgba(0,0,0,0.6)",
-                }}
-              >
-                {c.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={c.avatar_url}
-                    alt=""
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                ) : (
-                  <span
-                    style={{ fontSize: 16, fontWeight: 700, color: "white" }}
-                  >
-                    {c.name.charAt(0).toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <div style={{ marginTop: 24 }}>
-                <div style={{ fontSize: 16, fontWeight: 600 }}>{c.name}</div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: O.ink3,
-                    fontFamily: O.mono,
-                    marginTop: 2,
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  {formatMembers(c.member_count).toUpperCase()} MEMBERS
-                </div>
-              </div>
-            </div>
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ─── Yours · list ───────────────────────────────────────────────── */
-
-function YoursList({
-  communities,
-  heading,
-}: {
-  communities: Community[];
-  heading?: string;
-}) {
-  const list = communities.slice(0, 8);
-  const label = heading ?? `ALL ROOMS · ${communities.length}`;
-  return (
-    <div>
-      <Eyebrow>◇&nbsp;&nbsp;{label}</Eyebrow>
-      <div
-        style={{
-          ...panel(),
-          padding: 0,
-          marginTop: 12,
-          overflow: "hidden",
-        }}
-      >
-        {list.map((c, i) => {
-          const hue = hueFor(c.id);
-          const hue2 = (hue + 60) % 360;
-          return (
-            <Link
-              key={c.id}
-              href={`/communities/${c.slug}`}
-              style={{
-                display: "flex",
-                gap: 14,
-                padding: "16px 22px",
-                borderTop: i ? `1px solid ${O.hair}` : "none",
-                alignItems: "center",
-                cursor: "pointer",
-                color: O.ink,
-                textDecoration: "none",
-              }}
-            >
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 12,
-                  background: c.avatar_url
-                    ? "transparent"
-                    : `linear-gradient(135deg, oklch(0.7 0.18 ${hue}), oklch(0.45 0.16 ${hue2}))`,
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2)",
-                  flexShrink: 0,
-                  overflow: "hidden",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {c.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={c.avatar_url}
-                    alt=""
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                ) : (
-                  <span
-                    style={{ fontSize: 16, fontWeight: 700, color: "white" }}
-                  >
-                    {c.name.charAt(0).toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <span style={{ fontSize: 14, fontWeight: 600 }}>{c.name}</span>
-                  {c.is_private && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        color: O.a3,
-                        fontFamily: O.mono,
-                        letterSpacing: "0.08em",
-                      }}
-                    >
-                      PRIVATE
-                    </span>
-                  )}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11.5,
-                    color: O.ink3,
-                    marginTop: 2,
-                  }}
-                >
-                  {formatMembers(c.member_count)} members · created {timeAgo(c.created_at)}
-                </div>
-              </div>
-              {c.description && (
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: O.ink2,
-                    maxWidth: 320,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {c.description}
-                </div>
-              )}
-              <ArrowRight style={{ width: 16, height: 16, color: O.ink3 }} />
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 /* ─── My Rooms · big tiles ───────────────────────────────────────── */
 
-function MyRoomsSection({ communities }: { communities: Community[] }) {
+function MyRoomsSection({
+  communities,
+  heading,
+  eyebrowGlyph = "★",
+}: {
+  communities: Community[];
+  heading?: string;
+  eyebrowGlyph?: string;
+}) {
+  const label = heading ?? `MY ROOMS · ${communities.length}`;
   return (
     <div>
-      <Eyebrow>★&nbsp;&nbsp;MY ROOMS · {communities.length}</Eyebrow>
+      <Eyebrow>{eyebrowGlyph}&nbsp;&nbsp;{label}</Eyebrow>
       <div
         style={{
           display: "grid",
