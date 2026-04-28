@@ -137,21 +137,67 @@ function DiscoverBody() {
 /* ─── featured #trend hero ───────────────────────────────────────── */
 
 function FeaturedTrend() {
-  const { data: tags } = useQuery({
+  const { data: tags, isLoading: tagsLoading } = useQuery({
     queryKey: ["trending-hashtags", 5],
     queryFn: () => getTrendingHashtags(5),
     staleTime: 1000 * 60 * 5,
   });
-  const { data: posts } = useQuery({
+  const { data: posts, isLoading: postsLoading } = useQuery({
     queryKey: ["trending-posts", 4],
     queryFn: () => getTrendingPosts(4),
     staleTime: 1000 * 60 * 5,
   });
 
-  if (!tags || tags.length === 0) {
+  if (tagsLoading || postsLoading) {
     return (
       <div style={{ ...panel(), padding: 36 }}>
         <Skeleton className="h-32 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  // Real empty state: nothing trending yet (no posts with hashtags / no
+  // recent engagement). Show a hero card pointing the user at the feed
+  // instead of an indefinite skeleton.
+  if (!tags || tags.length === 0) {
+    return (
+      <div
+        style={{
+          ...panel(),
+          padding: 36,
+          textAlign: "center",
+          minHeight: 220,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <Eyebrow>◇&nbsp;&nbsp;NOTHING TRENDING · YET</Eyebrow>
+        <Display size={32} style={{ marginTop: 8 }}>
+          The <Acc>air</Acc> is quiet today.
+        </Display>
+        <p
+          style={{
+            fontSize: 14,
+            color: O.ink2,
+            marginTop: 6,
+            maxWidth: 460,
+            lineHeight: 1.5,
+          }}
+        >
+          No hashtags moving across your orbit yet. Drop a post with a{" "}
+          <code style={{ fontFamily: O.mono, color: O.ink }}>#tag</code> and
+          start the signal yourself.
+        </p>
+        <div style={{ marginTop: 14 }}>
+          <Link href="/feed">
+            <PillBtn primary size="lg">
+              + Post yours
+            </PillBtn>
+          </Link>
+        </div>
       </div>
     );
   }
