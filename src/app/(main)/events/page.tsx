@@ -206,9 +206,6 @@ export default function EventsPage() {
           headline="Nothing"
           accentWord="scheduled"
           sub="No events on your orbit yet. Create a meetup, a listening session, a launch — the real-world side of this place."
-          ctaLabel="Create event"
-          ctaIcon={<Plus style={{ width: 13, height: 13 }} />}
-          onCta={() => setShowCreate(true)}
           secondaryLabel="Discover events"
         />
       ) : (
