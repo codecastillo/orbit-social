@@ -339,18 +339,19 @@ function MyRoomsSection({
                 </div>
                 <div style={{ marginTop: 28 }}>
                   <div style={{ fontSize: 17, fontWeight: 600 }}>{c.name}</div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: O.ink3,
-                      fontFamily: O.mono,
-                      marginTop: 2,
-                      letterSpacing: "0.06em",
-                    }}
-                  >
-                    {formatMembers(c.member_count).toUpperCase()} MEMBERS
-                    {c.is_private ? " · PRIVATE" : ""}
-                  </div>
+                  {c.is_private && (
+                    <div
+                      style={{
+                        fontSize: 10,
+                        color: O.a3,
+                        fontFamily: O.mono,
+                        marginTop: 2,
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      PRIVATE
+                    </div>
+                  )}
                   {c.description && (
                     <p
                       style={{
