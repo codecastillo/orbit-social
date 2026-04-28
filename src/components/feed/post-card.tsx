@@ -66,6 +66,7 @@ import {
 import { boostPost } from "@/lib/queries/boost";
 import { ShareDialog } from "@/components/shared/share-dialog";
 import { BlockMuteDialog } from "@/components/shared/block-mute-dialog";
+import { ReportDialog } from "@/components/shared/report-dialog";
 import { ReactionPicker, ReactionCountsDisplay } from "./reaction-picker";
 import { PostInsights, computeUserAverages } from "./post-insights";
 import { AudioPlayer } from "@/components/feed/audio-player";
@@ -112,6 +113,7 @@ export function PostCard({
   const [shareOpen, setShareOpen] = useState(false);
   const [blockMuteOpen, setBlockMuteOpen] = useState(false);
   const [blockMuteAction, setBlockMuteAction] = useState<"block" | "mute">("block");
+  const [reportOpen, setReportOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content || "");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
@@ -387,7 +389,19 @@ export function PostCard({
         color: O.ink,
         fontFamily: O.sans,
       }}
-      onClick={compact ? undefined : () => router.push(`/post/${displayPost.id}`)}
+      onClick={
+        compact
+          ? undefined
+          : (e) => {
+              // Ignore clicks that bubble from portaled descendants
+              // (dropdown menus, dialogs). React events bubble through
+              // the virtual tree even from portals — without this guard,
+              // closing the Block/Mute/Report dialog navigates to the post.
+              const target = e.target as Node;
+              if (!e.currentTarget.contains(target)) return;
+              router.push(`/post/${displayPost.id}`);
+            }
+      }
     >
       {/* Pinned / NEAR YOU — absolute top-right */}
       {post.is_pinned && !compact && (
@@ -529,7 +543,12 @@ export function PostCard({
                       <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setBlockMuteAction("mute"); setBlockMuteOpen(true); }}>
                         <VolumeX className="mr-2 h-4 w-4" /> Mute
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReportOpen(true);
+                        }}
+                      >
                         <Flag className="mr-2 h-4 w-4" /> Report
                       </DropdownMenuItem>
                     </>
@@ -749,20 +768,6 @@ export function PostCard({
               </button>
             )}
 
-            {/* Views — right-aligned, mono */}
-            {!compact && (
-              <span
-                style={{
-                  marginLeft: "auto",
-                  fontSize: 11,
-                  color: O.ink4,
-                  fontFamily: O.mono,
-                  letterSpacing: "0.04em",
-                }}
-              >
-                {formatNumber(post.view_count || 0)} views
-              </span>
-            )}
           </div>
 
           {/* Post Insights — only visible to the author, not on comments */}
@@ -785,6 +790,15 @@ export function PostCard({
           targetUserId={post.user_id}
           targetUsername={displayProfile.username}
           onSuccess={onUpdate}
+        />
+      )}
+      {user && !isOwnPost && (
+        <ReportDialog
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+          entityType="post"
+          entityId={post.id}
+          reportedUserId={post.user_id}
         />
       )}
     </article>

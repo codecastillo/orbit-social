@@ -99,6 +99,7 @@ export async function unmuteUser(userId: string, mutedId: string) {
   if (error) throw error;
 }
 
+
 // ── Follower / Following lists (cursor-paginated) ────────────────────
 
 export async function getFollowers(
