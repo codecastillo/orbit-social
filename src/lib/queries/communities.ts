@@ -71,23 +71,21 @@ export async function getCommunities(cursor?: string, limit = 20) {
 }
 
 export async function getMyCommunities(userId: string) {
-  // Rooms where the user has a membership row OR is the creator (covers
-  // legacy / orphaned rooms where the owner-membership row is missing).
+  // Strictly rooms the user has joined (community_members row). Creating a
+  // room does NOT auto-show it here — the user has to be a member, just
+  // like every other room.
   const { data: memberships } = await supabase
     .from("community_members")
     .select("community_id")
     .eq("user_id", userId);
 
   const memberIds = (memberships ?? []).map((m) => m.community_id);
+  if (memberIds.length === 0) return [] as Community[];
 
   const { data, error } = await supabase
     .from("communities")
     .select(COMMUNITY_SELECT)
-    .or(
-      memberIds.length > 0
-        ? `id.in.(${memberIds.join(",")}),created_by.eq.${userId}`
-        : `created_by.eq.${userId}`,
-    )
+    .in("id", memberIds)
     .order("created_at", { ascending: false });
 
   if (error) throw error;

@@ -607,7 +607,11 @@ function MyRoomsSection({ communities }: { communities: Community[] }) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          // Fixed 320px columns so a single room doesn't stretch across the
+          // whole row — tiles stay the same size regardless of how many you
+          // have.
+          gridTemplateColumns: "repeat(auto-fill, 320px)",
+          justifyContent: "start",
           gap: 14,
           marginTop: 12,
         }}
