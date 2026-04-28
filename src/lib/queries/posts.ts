@@ -14,6 +14,7 @@ export interface PostWithAuthor {
   like_count: number;
   comment_count: number;
   repost_count: number;
+  share_count?: number;
   view_count: number;
   bookmark_count: number;
   poll_data: PollData | null;

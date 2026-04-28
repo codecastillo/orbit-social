@@ -5,9 +5,11 @@ import { Heart, MessageCircle, Share2, Bookmark } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useEffect } from "react";
 import { formatNumber } from "@/lib/utils/format";
 import { toggleLike, toggleBookmark } from "@/lib/queries/posts";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { createClient } from "@/lib/supabase/client";
 import { O } from "@/lib/design/orbit";
 
 interface ClipActionsProps {
@@ -15,6 +17,7 @@ interface ClipActionsProps {
   likeCount: number;
   commentCount: number;
   bookmarkCount: number;
+  shareCount: number;
   isLiked: boolean;
   isBookmarked: boolean;
   onComment: () => void;
@@ -70,6 +73,7 @@ export function ClipActions({
   likeCount,
   commentCount,
   bookmarkCount,
+  shareCount,
   isLiked: initialIsLiked,
   isBookmarked: initialIsBookmarked,
   onComment,
@@ -80,6 +84,13 @@ export function ClipActions({
   const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked);
   const [localLikeCount, setLocalLikeCount] = useState(likeCount);
   const [localBookmarkCount, setLocalBookmarkCount] = useState(bookmarkCount);
+  const [localShareCount, setLocalShareCount] = useState(shareCount);
+
+  // Sync local count state when authoritative props update (realtime
+  // refetch from the parent feed after another user's interaction).
+  useEffect(() => setLocalLikeCount(likeCount), [likeCount]);
+  useEffect(() => setLocalBookmarkCount(bookmarkCount), [bookmarkCount]);
+  useEffect(() => setLocalShareCount(shareCount), [shareCount]);
 
   const handleLike = async () => {
     if (!user) {
@@ -119,15 +130,20 @@ export function ClipActions({
 
   const handleShare = async () => {
     const url = `${window.location.origin}/post/${postId}`;
+    setLocalShareCount((c) => c + 1);
     try {
+      const supabase = createClient();
+      void supabase.rpc("increment_post_shares", { p_post_id: postId });
       if (navigator.share) {
         await navigator.share({ url });
       } else {
         await navigator.clipboard.writeText(url);
         toast.success("Link copied");
       }
+      queryClient.invalidateQueries({ queryKey: ["clips"] });
     } catch {
-      // user cancelled
+      // user cancelled — keep the optimistic bump anyway since the share
+      // intent was registered server-side.
     }
   };
 
@@ -170,7 +186,7 @@ export function ClipActions({
       />
       <ActionPill
         icon={<Share2 style={{ width: 26, height: 26 }} strokeWidth={1.8} />}
-        label="Share"
+        label={localShareCount > 0 ? formatNumber(localShareCount) : "Share"}
         onClick={handleShare}
       />
     </div>

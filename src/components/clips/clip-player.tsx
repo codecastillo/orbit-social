@@ -12,6 +12,7 @@ import { ClipActions } from "./clip-actions";
 import { ClipCommentsSheet } from "./clip-comments-sheet";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { checkFollowing, followUser, unfollowUser } from "@/lib/queries/social";
+import { createClient } from "@/lib/supabase/client";
 import { O, aurora } from "@/lib/design/orbit";
 import type { PostWithAuthor } from "@/lib/queries/posts";
 
@@ -77,6 +78,56 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
       video.removeEventListener("timeupdate", onTime);
     };
   }, []);
+
+  // Realtime: react to count changes (like/comment/share) on this clip
+  // and to new replies under this clip without requiring a refresh.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`clip-${clip.id}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "posts",
+          filter: `id=eq.${clip.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["clips"] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "post_likes",
+          filter: `post_id=eq.${clip.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["clips"] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "posts",
+          filter: `reply_to_id=eq.${clip.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["clip-comments", clip.id] });
+          queryClient.invalidateQueries({ queryKey: ["clips"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      channel.unsubscribe();
+      supabase.removeChannel(channel);
+    };
+  }, [clip.id, queryClient]);
 
   const handleScrub = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -145,16 +196,17 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
       style={{ background: O.bg }}
       onClick={togglePlay}
     >
-      {/* Phone-sized player frame — caps width so ultra-wide desktops don't
-          stretch a 9:16 video into a giant slab. When comments are open the
-          comments panel sits as a sibling to the right so the video stays
-          fully visible. */}
+      {/* Phone-sized player frame — height-driven so the whole 9:16 frame
+          (including the bottom scrub bar + caption + action rail) always
+          fits in the viewport with no scroll required. Width derives from
+          height via aspect-ratio. Capped at 720px tall / 440px wide so it
+          stays phone-sized on tall ultra-wide displays. */}
       <div
         className="relative overflow-hidden shrink-0"
         style={{
-          width: "min(94vw, 440px)",
+          height: "min(100% - 24px, 720px)",
+          maxWidth: "94vw",
           aspectRatio: "9 / 16",
-          maxHeight: "100%",
           borderRadius: 18,
         }}
       >
@@ -240,7 +292,7 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
 
       {/* Bottom overlay: author + caption */}
       <div
-        className="absolute bottom-0 left-0 right-20 px-5 pb-14 pt-10"
+        className="absolute bottom-0 left-0 right-20 px-5 pb-7 pt-10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 mb-3">
@@ -361,6 +413,7 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
           likeCount={clip.like_count}
           commentCount={clip.comment_count}
           bookmarkCount={clip.bookmark_count}
+          shareCount={clip.share_count ?? 0}
           isLiked={clip.user_has_liked ?? false}
           isBookmarked={clip.user_has_bookmarked ?? false}
           onComment={() => setCommentsOpen(true)}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, SendHorizonal, Heart, ChevronDown, ChevronUp } from "lucide-react";
@@ -34,6 +35,41 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
     queryKey: ["clip-comments", postId],
     queryFn: () => getPostComments(postId),
   });
+
+  // Realtime: any like / new reply / sub-reply across visible comments
+  // refreshes the list and the per-comment-likes set in place. We listen
+  // broadly to post_likes + posts since filtering across the comment set
+  // is awkward in CDC; the invalidate is cheap.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`clip-comments-${postId}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "post_likes" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["comment-likes"] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "posts",
+          filter: `parent_post_id=eq.${postId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["clip-comments", postId] });
+          queryClient.invalidateQueries({ queryKey: ["comment-replies"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      channel.unsubscribe();
+      supabase.removeChannel(channel);
+    };
+  }, [postId, queryClient]);
 
   const commentIds = (comments ?? []).map((c) => c.id);
 
