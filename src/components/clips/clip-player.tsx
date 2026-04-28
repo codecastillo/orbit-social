@@ -141,20 +141,21 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
   return (
     <div
       ref={containerRef}
-      className="relative h-dvh w-full snap-start flex items-center justify-center overflow-hidden"
+      className="relative h-dvh w-full snap-start flex items-center justify-center overflow-hidden gap-4"
       style={{ background: O.bg }}
       onClick={togglePlay}
     >
       {/* Phone-sized player frame — caps width so ultra-wide desktops don't
-          stretch a 9:16 video into a giant slab. Anything outside the frame
-          stays as the ambient O.bg backdrop. */}
+          stretch a 9:16 video into a giant slab. When comments are open the
+          comments panel sits as a sibling to the right so the video stays
+          fully visible. */}
       <div
-        className="relative h-full overflow-hidden"
+        className="relative overflow-hidden shrink-0"
         style={{
-          width: "min(100%, 440px)",
+          width: "min(94vw, 440px)",
           aspectRatio: "9 / 16",
           maxHeight: "100%",
-          borderRadius: 0,
+          borderRadius: 18,
         }}
       >
       {videoUrl ? (
@@ -239,7 +240,7 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
 
       {/* Bottom overlay: author + caption */}
       <div
-        className="absolute bottom-0 left-0 right-20 px-5 pb-7 pt-10"
+        className="absolute bottom-0 left-0 right-20 px-5 pb-14 pt-10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 mb-3">
@@ -328,21 +329,24 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
                 wordBreak: "break-word",
               }}
             >
-              {showCaption ? caption : truncatedCaption}
+              {showCaption || caption.length <= 110 ? caption : truncatedCaption}
+              {caption.length > 110 && (
+                <>
+                  {" "}
+                  <span
+                    style={{
+                      fontFamily: O.sans,
+                      color: O.ink3,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {showCaption ? "less" : "more"}
+                  </span>
+                </>
+              )}
             </p>
-            {caption.length > 110 && (
-              <span
-                style={{
-                  fontFamily: O.sans,
-                  color: O.ink3,
-                  fontSize: 11,
-                  marginTop: 4,
-                  display: "inline-block",
-                }}
-              >
-                {showCaption ? "Show less" : "Show more"}
-              </span>
-            )}
           </div>
         )}
       </div>
@@ -397,13 +401,27 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
         </div>
       </div>
 
-      {/* Comments side sheet — opens over the player without pausing video */}
-      <ClipCommentsSheet
-        postId={clip.id}
-        open={commentsOpen}
-        onClose={() => setCommentsOpen(false)}
-      />
       </div>
+
+      {/* Comments side panel — sibling of the player frame so the video
+          stays fully visible while you scroll/reply. Hidden when closed. */}
+      {commentsOpen && (
+        <div
+          className="shrink-0"
+          style={{
+            width: "min(94vw, 380px)",
+            height: "min(100%, 720px)",
+            maxHeight: "100%",
+            aspectRatio: "auto",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ClipCommentsSheet
+            postId={clip.id}
+            onClose={() => setCommentsOpen(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }
