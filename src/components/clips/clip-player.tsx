@@ -9,6 +9,7 @@ import { formatTimeAgo } from "@/lib/utils/format";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { VerifiedStar } from "@/components/orbit/verified-star";
 import { ClipActions } from "./clip-actions";
+import { ClipCommentsSheet } from "./clip-comments-sheet";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { checkFollowing, followUser, unfollowUser } from "@/lib/queries/social";
 import { O, aurora } from "@/lib/design/orbit";
@@ -28,6 +29,8 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
   const [showCaption, setShowCaption] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [followOverride, setFollowOverride] = useState<boolean | null>(null);
+  const [progress, setProgress] = useState(0); // 0–1
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   const videoUrl = clip.post_media?.[0]?.url;
   const author = clip.profiles;
@@ -63,8 +66,27 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
     );
 
     observer.observe(container);
-    return () => observer.disconnect();
+
+    const onTime = () => {
+      if (video.duration > 0) setProgress(video.currentTime / video.duration);
+    };
+    video.addEventListener("timeupdate", onTime);
+
+    return () => {
+      observer.disconnect();
+      video.removeEventListener("timeupdate", onTime);
+    };
   }, []);
+
+  const handleScrub = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const video = videoRef.current;
+    if (!video || !video.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    video.currentTime = ratio * video.duration;
+    setProgress(ratio);
+  };
 
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
@@ -337,8 +359,50 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
           bookmarkCount={clip.bookmark_count}
           isLiked={clip.user_has_liked ?? false}
           isBookmarked={clip.user_has_bookmarked ?? false}
+          onComment={() => setCommentsOpen(true)}
         />
       </div>
+
+      {/* Scrub bar — TikTok-style thin progress at the very bottom of the
+          player frame. Click to seek. */}
+      <div
+        className="absolute left-0 right-0 z-20"
+        onClick={handleScrub}
+        style={{
+          bottom: 0,
+          height: 14,
+          paddingBottom: 4,
+          display: "flex",
+          alignItems: "flex-end",
+          cursor: "pointer",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            height: 2.5,
+            background: "rgba(255,255,255,0.18)",
+            borderRadius: 999,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${progress * 100}%`,
+              height: "100%",
+              background: aurora,
+              transition: "width 120ms linear",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Comments side sheet — opens over the player without pausing video */}
+      <ClipCommentsSheet
+        postId={clip.id}
+        open={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+      />
       </div>
     </div>
   );
