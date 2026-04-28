@@ -40,8 +40,9 @@ export default function FeedPage() {
           fontFamily: O.sans,
         }}
       >
-        {/* MIDDLE — main feed column */}
-        <main className="flex flex-col gap-4 min-w-0">
+        {/* MIDDLE — main feed column. Capped width so wide desktop viewports
+            don't stretch posts (and images inside) edge-to-edge. */}
+        <main className="flex flex-col gap-4 min-w-0 w-full max-w-[640px] mx-auto">
         {/* Tabs panel */}
         <div
           style={{
