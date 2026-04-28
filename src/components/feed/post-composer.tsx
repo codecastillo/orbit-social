@@ -33,7 +33,8 @@ const ALLOWED_IMAGE_TYPES = [
   "image/gif",
 ];
 const MAX_IMAGES = 4;
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB for images
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB for videos
 
 interface MediaPreview {
   file: File;
@@ -392,8 +393,12 @@ function ComposerForm({
         toast.error("Unsupported file type");
         continue;
       }
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error("File must be under 10MB");
+      const isVideo = file.type.startsWith("video/");
+      const limit = isVideo ? MAX_VIDEO_SIZE : MAX_FILE_SIZE;
+      if (file.size > limit) {
+        toast.error(
+          isVideo ? "Video must be under 100MB" : "Image must be under 10MB",
+        );
         continue;
       }
       if (media.length >= MAX_IMAGES) {
@@ -1080,7 +1085,7 @@ function ComposerForm({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
+            accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,video/x-m4v,video/*"
             multiple
             onChange={handleMediaSelect}
             className="hidden"
