@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { aurora, O } from "@/lib/design/orbit";
 
 interface FollowButtonProps {
   isFollowing: boolean;
@@ -42,10 +43,19 @@ export function FollowButton({
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         disabled={loading}
-        style={!isFollowing ? { backgroundImage: "linear-gradient(135deg, oklch(0.623 0.214 259), oklch(0.55 0.2 280))", ...style } : undefined}
+        style={
+          !isFollowing
+            ? {
+                background: aurora,
+                color: "white",
+                boxShadow: `0 8px 24px -6px ${O.a1}80, inset 0 1px 0 rgba(255,255,255,0.25)`,
+                ...style,
+              }
+            : style
+        }
         className={cn(
           "rounded-full min-w-[110px] transition-all duration-200 active:scale-[0.97]",
-          !isFollowing && "border-0 shadow-[0_2px_12px_oklch(0.623_0.214_259_/_25%)] hover:shadow-[0_4px_20px_oklch(0.623_0.214_259_/_35%)]",
+          !isFollowing && "border-0",
           isFollowing && "border-white/[0.12] hover:border-destructive hover:text-destructive hover:bg-destructive/10",
           isFollowing &&
             hovering &&

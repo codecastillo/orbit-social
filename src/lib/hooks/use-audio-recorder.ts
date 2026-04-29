@@ -56,6 +56,15 @@ export function useAudioRecorder() {
         URL.revokeObjectURL(state.audioUrl);
       }
 
+      // Pre-flight: getUserMedia requires a secure context (HTTPS or
+      // localhost) and a real navigator.mediaDevices on this page.
+      if (typeof window === "undefined" || !window.isSecureContext) {
+        throw new Error("INSECURE_CONTEXT");
+      }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("NO_MEDIA_DEVICES");
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
@@ -118,10 +127,41 @@ export function useAudioRecorder() {
         error: null,
       });
     } catch (err) {
-      const message =
-        err instanceof DOMException && err.name === "NotAllowedError"
-          ? "Microphone access denied. Please allow microphone access in your browser settings."
-          : "Could not start recording. Please check your microphone.";
+      // Log the raw error so we can see exactly what fired in DevTools —
+      // the user-facing toast was masking the real cause when mic was
+      // already enabled.
+      console.error("audio-recorder startRecording failed", err);
+
+      const name = err instanceof DOMException ? err.name : (err as Error)?.message;
+      let message: string;
+      switch (name) {
+        case "NotAllowedError":
+        case "SecurityError":
+          message =
+            "Microphone access denied. Click the lock icon in the address bar and allow microphone for this site.";
+          break;
+        case "NotFoundError":
+        case "OverconstrainedError":
+          message = "No microphone detected on this device.";
+          break;
+        case "NotReadableError":
+          message =
+            "Microphone is in use by another app. Close other tabs/apps using the mic and retry.";
+          break;
+        case "AbortError":
+          message = "Recording was aborted. Try again.";
+          break;
+        case "INSECURE_CONTEXT":
+          message =
+            "Voice messages need an HTTPS connection. Visit the site over HTTPS to enable the mic.";
+          break;
+        case "NO_MEDIA_DEVICES":
+          message =
+            "Your browser doesn't expose a microphone API on this page.";
+          break;
+        default:
+          message = `Couldn't start recording (${name ?? "unknown"}).`;
+      }
 
       setState((prev) => ({ ...prev, error: message }));
     }
