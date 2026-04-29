@@ -25,9 +25,14 @@ const nextConfig: NextConfig = {
             value: "strict-origin-when-cross-origin",
           },
           {
+            // Allow camera/mic/geolocation on our own origin so voice
+            // posts, photo capture, and place lookups can prompt the
+            // browser. Empty allowlists `()` disable the API outright,
+            // which silently turns getUserMedia into NotAllowedError
+            // even when the OS/browser-level permission is granted.
             key: "Permissions-Policy",
             value:
-              "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+              "camera=(self), microphone=(self), geolocation=(self), interest-cohort=()",
           },
           {
             key: "Strict-Transport-Security",
