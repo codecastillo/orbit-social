@@ -103,12 +103,20 @@ export function PostCard({
   const [isReposted, setIsReposted] = useState(initialIsReposted);
   const [likeCount, setLikeCount] = useState(post.like_count);
   const [repostCount, setRepostCount] = useState(post.repost_count);
+  const [bookmarkCount, setBookmarkCount] = useState(post.bookmark_count);
   const [animateHeart, setAnimateHeart] = useState(false);
 
   // Sync interaction state when props change (e.g., when interactions load async)
   useEffect(() => { setIsLiked(initialIsLiked); }, [initialIsLiked]);
   useEffect(() => { setIsBookmarked(initialIsBookmarked); }, [initialIsBookmarked]);
   useEffect(() => { setIsReposted(initialIsReposted); }, [initialIsReposted]);
+  // Keep local counts in sync when the post prop changes (e.g., refetch
+  // after navigating to /post/:id). Without this, a fresh authoritative
+  // count from the server would be ignored in favor of the initial
+  // useState value, making the count look like it "disappeared".
+  useEffect(() => { setLikeCount(post.like_count); }, [post.like_count]);
+  useEffect(() => { setRepostCount(post.repost_count); }, [post.repost_count]);
+  useEffect(() => { setBookmarkCount(post.bookmark_count); }, [post.bookmark_count]);
   const [shareOpen, setShareOpen] = useState(false);
   const [blockMuteOpen, setBlockMuteOpen] = useState(false);
   const [blockMuteAction, setBlockMuteAction] = useState<"block" | "mute">("block");
@@ -197,8 +205,12 @@ export function PostCard({
     if (!user) { toast.error("Sign in to save posts"); return; }
     const was = isBookmarked;
     setIsBookmarked(!was);
+    setBookmarkCount((c) => (was ? Math.max(c - 1, 0) : c + 1));
     try { await toggleBookmark(user.id, post.id, was); }
-    catch { setIsBookmarked(was); }
+    catch {
+      setIsBookmarked(was);
+      setBookmarkCount((c) => (was ? c + 1 : Math.max(c - 1, 0)));
+    }
   };
 
   const handleDelete = async () => {
@@ -790,6 +802,7 @@ export function PostCard({
                 style={{ padding: "6px 12px" }}
               >
                 <Bookmark className={cn("h-[15px] w-[15px]", isBookmarked && "fill-current")} />
+                {bookmarkCount > 0 && <span>{formatNumber(bookmarkCount)}</span>}
               </button>
             )}
 
