@@ -528,7 +528,7 @@ export default function EditProfilePage() {
               <RawInput {...register("website")} placeholder="https://yoursite.com" />
             </Field>
             <Field label="Location" error={errors.location?.message}>
-              <RawInput {...register("location")} placeholder="City, Country" prefix="📍" />
+              <RawInput {...register("location")} placeholder="City, State" prefix="📍" />
             </Field>
           </div>
         </FormSection>

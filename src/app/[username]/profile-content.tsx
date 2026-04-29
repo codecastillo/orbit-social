@@ -258,12 +258,33 @@ export function ProfileContent({
         gap: 18,
       }}
     >
-      {/* Mobile back */}
+      {/* Back — visible on desktop too. Goes to wherever the user came
+          from; falls back to /feed for direct loads. */}
       <button
-        onClick={() => router.back()}
-        className="lg:hidden absolute top-3 left-3 z-20 h-10 w-10 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white"
+        onClick={() => {
+          if (typeof window !== "undefined" && window.history.length > 1) {
+            router.back();
+          } else {
+            router.push("/feed");
+          }
+        }}
+        aria-label="Back"
+        style={{
+          alignSelf: "flex-start",
+          width: 38,
+          height: 38,
+          borderRadius: 12,
+          background: O.glass,
+          border: `1px solid ${O.hair2}`,
+          color: O.ink2,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          fontFamily: "inherit",
+        }}
       >
-        <ArrowLeft className="h-4 w-4" />
+        <ArrowLeft style={{ width: 16, height: 16 }} strokeWidth={1.8} />
       </button>
 
       {/* HERO PANEL */}

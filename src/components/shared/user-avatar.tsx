@@ -49,7 +49,6 @@ export function UserAvatar({
   avatarBorder = "none",
 }: UserAvatarProps) {
   const hasBorderStyle = avatarBorder !== "none";
-  const hasRing = hasStory || hasBorderStyle;
 
   return (
     <div
@@ -60,13 +59,7 @@ export function UserAvatar({
         hasBorderStyle && borderClasses[avatarBorder]
       )}
     >
-      <Avatar
-        className={cn(
-          sizeClasses[size],
-          hasRing && "border-2 border-background",
-          className
-        )}
-      >
+      <Avatar className={cn(sizeClasses[size], className)}>
         <AvatarImage src={src || undefined} className="object-cover" />
         <AvatarFallback
           className="text-white font-semibold"
@@ -78,8 +71,6 @@ export function UserAvatar({
           {fallback.slice(0, 2).toUpperCase()}
         </AvatarFallback>
       </Avatar>
-
-      {/* Animated glow styles are in globals.css */}
     </div>
   );
 }

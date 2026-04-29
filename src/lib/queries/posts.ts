@@ -260,6 +260,7 @@ export async function getUserPosts(userId: string, cursor?: string, limit = 20) 
     .select(POST_SELECT)
     .eq("user_id", userId)
     .is("reply_to_id", null)
+    .is("community_id", null)
     .eq("is_hidden", false)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -289,6 +290,7 @@ export async function getUserLikedPosts(userId: string, limit = 50) {
     .from("posts")
     .select(POST_SELECT)
     .in("id", postIds)
+    .is("community_id", null)
     .eq("is_hidden", false);
 
   if (error) throw error;
@@ -313,6 +315,7 @@ export async function getUserBookmarkedPosts(userId: string, limit = 50) {
     .from("posts")
     .select(POST_SELECT)
     .in("id", postIds)
+    .is("community_id", null)
     .eq("is_hidden", false);
 
   if (error) throw error;
@@ -326,6 +329,7 @@ export async function getUserRepostedPosts(userId: string, limit = 50) {
     .select(POST_SELECT)
     .eq("user_id", userId)
     .eq("type", "repost")
+    .is("community_id", null)
     .eq("is_hidden", false)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -598,6 +602,7 @@ export async function getUserPinnedPosts(userId: string): Promise<PostWithAuthor
     .eq("is_pinned", true)
     .eq("is_hidden", false)
     .is("reply_to_id", null)
+    .is("community_id", null)
     .order("created_at", { ascending: false });
 
   if (error) throw error;

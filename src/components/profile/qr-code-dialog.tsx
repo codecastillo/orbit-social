@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Download, Share2, Copy, Check, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import QRCode from "qrcode";
@@ -33,8 +33,8 @@ export function QRCodeDialog({
   open,
   onOpenChange,
 }: QRCodeDialogProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   // Compute the share URL on demand from the current origin. The component
   // is client-only ("use client") and only renders inside a Dialog that
   // mounts after hydration, so window is always defined when this runs.
@@ -43,33 +43,40 @@ export function QRCodeDialog({
     return `${window.location.origin}/${username}`;
   }, [username]);
 
-  // Render a real, scannable QR onto the canvas. The previous fake hash
-  // pattern looked QR-shaped but didn't decode in any scanner.
+  // Generate a real, scannable QR as a PNG data URL. Using toCanvas with a
+  // ref had a race where the canvas wasn't mounted in time inside the
+  // Dialog, so the box came up blank. toDataURL avoids the ref entirely.
   useEffect(() => {
-    if (!open || !profileUrl || !canvasRef.current) return;
-    QRCode.toCanvas(canvasRef.current, profileUrl, {
+    let cancelled = false;
+    if (!open || !profileUrl) {
+      setQrDataUrl(null);
+      return;
+    }
+    QRCode.toDataURL(profileUrl, {
       errorCorrectionLevel: "M",
       margin: 1,
-      width: 240,
-      color: {
-        dark: "#0c0a17",
-        light: "#ffffff",
-      },
-    }).catch((err) => {
-      console.error("QR render failed:", err);
-    });
+      width: 480,
+      color: { dark: "#0c0a17", light: "#ffffff" },
+    })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch((err) => {
+        console.error("QR render failed:", err);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, profileUrl]);
 
   const handleDownload = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const url = canvas.toDataURL("image/png");
+    if (!qrDataUrl) return;
     const link = document.createElement("a");
     link.download = `${username}-orbit-qr.png`;
-    link.href = url;
+    link.href = qrDataUrl;
     link.click();
     toast.success("QR code downloaded");
-  }, [username]);
+  }, [qrDataUrl, username]);
 
   if (!profileUrl) return null;
 
@@ -128,12 +135,27 @@ export function QRCodeDialog({
                   borderRadius: 18,
                   padding: 14,
                   border: `1px solid ${O.hair2}`,
+                  display: "grid",
+                  placeItems: "center",
+                  width: 268,
+                  height: 268,
                 }}
               >
-                <canvas
-                  ref={canvasRef}
-                  style={{ display: "block", borderRadius: 6 }}
-                />
+                {qrDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={qrDataUrl}
+                    alt={`QR code for @${username}`}
+                    width={240}
+                    height={240}
+                    style={{ display: "block", borderRadius: 6 }}
+                  />
+                ) : (
+                  <Loader2
+                    className="animate-spin"
+                    style={{ width: 22, height: 22, color: "#0c0a17" }}
+                  />
+                )}
               </div>
 
               <p
