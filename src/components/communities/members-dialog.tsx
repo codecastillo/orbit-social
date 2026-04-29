@@ -1,23 +1,43 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { MoreHorizontal, Loader2, ShieldOff, Shield, UserMinus } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VerifiedStar } from "@/components/orbit/verified-star";
-import { getCommunityMembers } from "@/lib/queries/communities";
+import {
+  getCommunityMembers,
+  removeCommunityMember,
+  setCommunityMemberRole,
+} from "@/lib/queries/communities";
 import { O } from "@/lib/design/orbit";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   communityId: string;
+  /** When true, owner-only management actions are shown next to each
+      non-owner member (kick, promote, demote). */
+  isOwner?: boolean;
+  /** Caller's user_id — used to hide the actions menu on the owner's
+      own row so the owner can't remove themselves accidentally. */
+  currentUserId?: string;
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -26,7 +46,13 @@ const ROLE_LABEL: Record<string, string> = {
   member: "MEMBER",
 };
 
-export function CommunityMembersDialog({ open, onOpenChange, communityId }: Props) {
+export function CommunityMembersDialog({
+  open,
+  onOpenChange,
+  communityId,
+  isOwner = false,
+  currentUserId,
+}: Props) {
   const { data, isLoading } = useQuery({
     queryKey: ["community-members-full", communityId],
     queryFn: () => getCommunityMembers(communityId, 200),
@@ -91,6 +117,9 @@ export function CommunityMembersDialog({ open, onOpenChange, communityId }: Prop
                   label={`OWNER · ${owners.length}`}
                   items={owners}
                   onClose={() => onOpenChange(false)}
+                  communityId={communityId}
+                  isOwner={isOwner}
+                  currentUserId={currentUserId}
                 />
               )}
               {mods.length > 0 && (
@@ -98,6 +127,9 @@ export function CommunityMembersDialog({ open, onOpenChange, communityId }: Prop
                   label={`MODERATORS · ${mods.length}`}
                   items={mods}
                   onClose={() => onOpenChange(false)}
+                  communityId={communityId}
+                  isOwner={isOwner}
+                  currentUserId={currentUserId}
                 />
               )}
               {members.length > 0 && (
@@ -105,6 +137,9 @@ export function CommunityMembersDialog({ open, onOpenChange, communityId }: Prop
                   label={`MEMBERS · ${members.length}`}
                   items={members}
                   onClose={() => onOpenChange(false)}
+                  communityId={communityId}
+                  isOwner={isOwner}
+                  currentUserId={currentUserId}
                 />
               )}
             </>
@@ -115,23 +150,31 @@ export function CommunityMembersDialog({ open, onOpenChange, communityId }: Prop
   );
 }
 
+interface MemberItem {
+  user_id: string;
+  role: string;
+  profiles: {
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    is_verified: boolean;
+  };
+}
+
 function Section({
   label,
   items,
   onClose,
+  communityId,
+  isOwner,
+  currentUserId,
 }: {
   label: string;
-  items: Array<{
-    user_id: string;
-    role: string;
-    profiles: {
-      username: string;
-      display_name: string;
-      avatar_url: string | null;
-      is_verified: boolean;
-    };
-  }>;
+  items: MemberItem[];
   onClose: () => void;
+  communityId: string;
+  isOwner: boolean;
+  currentUserId?: string;
 }) {
   return (
     <div>
@@ -148,61 +191,196 @@ function Section({
         {label}
       </div>
       {items.map((m) => (
-        <Link
+        <MemberRow
           key={m.user_id}
-          href={`/${m.profiles.username}`}
-          onClick={onClose}
-          style={{ textDecoration: "none" }}
-          className="flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors"
-        >
-          <UserAvatar
-            src={m.profiles.avatar_url}
-            fallback={m.profiles.display_name || m.profiles.username}
-            size="md"
-          />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                color: O.ink,
-                fontSize: 14,
-                fontWeight: 600,
-              }}
-            >
-              <span
-                style={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {m.profiles.display_name || m.profiles.username}
-              </span>
-              {m.profiles.is_verified && <VerifiedStar size={12} />}
-            </div>
-            <div style={{ fontSize: 12, color: O.ink3 }}>
-              @{m.profiles.username}
-            </div>
-          </div>
-          {m.role !== "member" && (
+          member={m}
+          onClose={onClose}
+          communityId={communityId}
+          isOwner={isOwner}
+          currentUserId={currentUserId}
+        />
+      ))}
+    </div>
+  );
+}
+
+function MemberRow({
+  member,
+  onClose,
+  communityId,
+  isOwner,
+  currentUserId,
+}: {
+  member: MemberItem;
+  onClose: () => void;
+  communityId: string;
+  isOwner: boolean;
+  currentUserId?: string;
+}) {
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+
+  // Show the management menu when the caller is the room owner AND the
+  // target row is not the owner themselves and not another owner.
+  const showMenu =
+    isOwner &&
+    member.user_id !== currentUserId &&
+    member.role !== "owner";
+
+  const refresh = () => {
+    queryClient.invalidateQueries({
+      queryKey: ["community-members-full", communityId],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["community-members", communityId],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["community", communityId],
+    });
+  };
+
+  const handleRemove = async () => {
+    if (busy) return;
+    if (!window.confirm(`Remove @${member.profiles.username} from this room?`))
+      return;
+    setBusy(true);
+    try {
+      await removeCommunityMember(communityId, member.user_id);
+      toast.success(`Removed @${member.profiles.username}`);
+      refresh();
+    } catch (e) {
+      console.error("removeCommunityMember failed", e);
+      toast.error("Couldn't remove member");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSetRole = async (role: "moderator" | "member") => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await setCommunityMemberRole(communityId, member.user_id, role);
+      toast.success(
+        role === "moderator"
+          ? `@${member.profiles.username} is now a moderator`
+          : `@${member.profiles.username} is now a member`,
+      );
+      refresh();
+    } catch (e) {
+      console.error("setCommunityMemberRole failed", e);
+      toast.error("Couldn't update role");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors">
+      <Link
+        href={`/${member.profiles.username}`}
+        onClick={onClose}
+        style={{
+          textDecoration: "none",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          flex: 1,
+          minWidth: 0,
+        }}
+      >
+        <UserAvatar
+          src={member.profiles.avatar_url}
+          fallback={member.profiles.display_name || member.profiles.username}
+          size="md"
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              color: O.ink,
+              fontSize: 14,
+              fontWeight: 600,
+            }}
+          >
             <span
               style={{
-                fontSize: 10,
-                fontFamily: O.mono,
-                letterSpacing: "0.1em",
-                color: m.role === "owner" ? "#ffd76a" : O.a3,
-                border: `1px solid ${m.role === "owner" ? "#ffd76a55" : `${O.a3}55`}`,
-                padding: "3px 8px",
-                borderRadius: 99,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
-              {ROLE_LABEL[m.role] ?? m.role.toUpperCase()}
+              {member.profiles.display_name || member.profiles.username}
             </span>
-          )}
-        </Link>
-      ))}
+            {member.profiles.is_verified && <VerifiedStar size={12} />}
+          </div>
+          <div style={{ fontSize: 12, color: O.ink3 }}>
+            @{member.profiles.username}
+          </div>
+        </div>
+      </Link>
+
+      {member.role !== "member" && (
+        <span
+          style={{
+            fontSize: 10,
+            fontFamily: O.mono,
+            letterSpacing: "0.1em",
+            color: member.role === "owner" ? "#ffd76a" : O.a3,
+            border: `1px solid ${member.role === "owner" ? "#ffd76a55" : `${O.a3}55`}`,
+            padding: "3px 8px",
+            borderRadius: 99,
+          }}
+        >
+          {ROLE_LABEL[member.role] ?? member.role.toUpperCase()}
+        </span>
+      )}
+
+      {showMenu && (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            disabled={busy}
+            aria-label={`Manage @${member.profiles.username}`}
+            className="ml-1 inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-white/[0.06] hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MoreHorizontal className="h-4 w-4" />
+            )}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48 rounded-2xl">
+            {member.role === "moderator" ? (
+              <DropdownMenuItem
+                className="cursor-pointer rounded-lg"
+                onClick={() => handleSetRole("member")}
+              >
+                <ShieldOff className="mr-2 h-4 w-4" />
+                Demote to member
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                className="cursor-pointer rounded-lg"
+                onClick={() => handleSetRole("moderator")}
+              >
+                <Shield className="mr-2 h-4 w-4" />
+                Promote to moderator
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              className="cursor-pointer rounded-lg"
+              onClick={handleRemove}
+            >
+              <UserMinus className="mr-2 h-4 w-4" />
+              Remove from room
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 }

@@ -533,6 +533,8 @@ export function CommunityHeader({
         open={membersOpen}
         onOpenChange={setMembersOpen}
         communityId={community.id}
+        isOwner={isOwner}
+        currentUserId={user?.id}
       />
 
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>

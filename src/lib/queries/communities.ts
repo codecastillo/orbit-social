@@ -320,6 +320,30 @@ export async function getCommunityPosts(
   return data;
 }
 
+export async function removeCommunityMember(
+  communityId: string,
+  userId: string,
+) {
+  const { error } = await supabase.rpc("community_remove_member", {
+    p_community_id: communityId,
+    p_user_id: userId,
+  });
+  if (error) throw error;
+}
+
+export async function setCommunityMemberRole(
+  communityId: string,
+  userId: string,
+  role: "moderator" | "member",
+) {
+  const { error } = await supabase.rpc("community_set_member_role", {
+    p_community_id: communityId,
+    p_user_id: userId,
+    p_role: role,
+  });
+  if (error) throw error;
+}
+
 export async function checkMembership(communityId: string, userId: string) {
   const { data, error } = await supabase
     .from("community_members")
