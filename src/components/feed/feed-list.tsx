@@ -12,7 +12,7 @@ import { FollowButton } from "@/components/shared/follow-button";
 import { Button } from "@/components/ui/button";
 import { useFeed } from "@/lib/hooks/use-feed";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { rankPosts, type UserInteractions } from "@/lib/services/feed-algorithm";
+import type { UserInteractions } from "@/lib/services/feed-algorithm";
 import { useFilterStore } from "@/lib/stores/filter-store";
 import { getSuggestedUsers } from "@/lib/queries/social";
 import { followUser, unfollowUser } from "@/lib/queries/social";
@@ -59,8 +59,10 @@ export function FeedList({ tab }: FeedListProps) {
     [fetchNextPage, hasNextPage, isFetchingNextPage]
   );
 
-  // Build interaction map from liked posts in the current feed data
-  const interactionMap: UserInteractions = useMemo(() => {
+  // Build interaction map for future per-user features. Currently unused
+  // because both tabs render strictly chronological — the heuristic
+  // ranking algorithm is intentionally disabled until Phase 2.
+  const _interactionMap: UserInteractions = useMemo(() => {
     const map = new Map<string, number>();
     if (!data?.pages) return map;
     for (const page of data.pages) {
@@ -73,16 +75,13 @@ export function FeedList({ tab }: FeedListProps) {
     return map;
   }, [data]);
 
-  // Client-side ranking for the "For You" tab
+  // Both tabs render strictly chronologically (newest first). The server
+  // already orders by created_at desc, so we just need to flatten +
+  // strip replies. Authors of pinned posts pin via their profile.
   const rankedPosts = useMemo(() => {
-    // Filter out replies — only show top-level posts in feed
-    const raw = (data?.pages.flatMap((page) => page.posts) || [])
+    return (data?.pages.flatMap((page) => page.posts) || [])
       .filter((p) => !p.reply_to_id);
-    if (tab === "foryou" && user?.id && raw.length > 1) {
-      return rankPosts(raw, user.id, interactionMap);
-    }
-    return raw;
-  }, [data, tab, user?.id, interactionMap]);
+  }, [data]);
 
   // Filter out posts containing blocked words
   const allPosts = useMemo(() => {

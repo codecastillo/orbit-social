@@ -276,6 +276,10 @@ export async function getTrendingPosts(limit = 20) {
     .from("posts")
     .select(POST_SELECT)
     .eq("is_hidden", false)
+    // Trending should only ever surface root content — never replies/
+    // comments. reply_to_id IS NULL filters those out.
+    .is("reply_to_id", null)
+    .in("type", ["text", "image", "video", "reel", "poll", "quote"])
     .gte("created_at", cutoff)
     .order("like_count", { ascending: false })
     .limit(limit * 3); // over-fetch so we can re-rank

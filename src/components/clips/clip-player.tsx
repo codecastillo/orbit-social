@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Volume2, VolumeX, Play, ChevronUp, ChevronDown } from "lucide-react";
+import { Volume2, VolumeX, Play } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatTimeAgo } from "@/lib/utils/format";
@@ -19,11 +19,9 @@ import type { PostWithAuthor } from "@/lib/queries/posts";
 
 interface ClipPlayerProps {
   clip: PostWithAuthor;
-  onPrev?: () => void;
-  onNext?: () => void;
 }
 
-export function ClipPlayer({ clip, onPrev, onNext }: ClipPlayerProps) {
+export function ClipPlayer({ clip }: ClipPlayerProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -245,21 +243,6 @@ export function ClipPlayer({ clip, onPrev, onNext }: ClipPlayerProps) {
           aspectRatio: "9 / 16",
         }}
       >
-      {/* Up / Down arrows pinned to the left edge of the player frame. */}
-      {(onPrev || onNext) && (
-        <div
-          className="hidden lg:flex absolute flex-col gap-2 z-30"
-          style={{
-            right: "100%",
-            marginRight: 14,
-            top: "50%",
-            transform: "translateY(-50%)",
-          }}
-        >
-          <NavArrow direction="up" onClick={(e) => { e.stopPropagation(); onPrev?.(); }} />
-          <NavArrow direction="down" onClick={(e) => { e.stopPropagation(); onNext?.(); }} />
-        </div>
-      )}
       <div
         className="relative h-full w-full overflow-hidden"
         style={{ borderRadius: 18 }}
@@ -533,37 +516,5 @@ export function ClipPlayer({ clip, onPrev, onNext }: ClipPlayerProps) {
         </div>
       )}
     </div>
-  );
-}
-
-function NavArrow({
-  direction,
-  onClick,
-}: {
-  direction: "up" | "down";
-  onClick: (e: React.MouseEvent) => void;
-}) {
-  const Icon = direction === "up" ? ChevronUp : ChevronDown;
-  return (
-    <button
-      onClick={onClick}
-      aria-label={direction === "up" ? "Previous clip" : "Next clip"}
-      style={{
-        width: 38,
-        height: 38,
-        borderRadius: "50%",
-        background: "rgba(10,12,28,0.55)",
-        backdropFilter: "blur(14px) saturate(160%)",
-        WebkitBackdropFilter: "blur(14px) saturate(160%)",
-        border: `1px solid ${O.hair2}`,
-        display: "grid",
-        placeItems: "center",
-        color: O.ink,
-        cursor: "pointer",
-        boxShadow: "0 6px 20px -6px rgba(0,0,0,0.6)",
-      }}
-    >
-      <Icon style={{ width: 18, height: 18 }} strokeWidth={2.2} />
-    </button>
   );
 }
