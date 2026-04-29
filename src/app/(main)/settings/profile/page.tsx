@@ -390,29 +390,43 @@ export default function EditProfilePage() {
         >
           {/* Avatar preview — matches the profile page exactly. The accent
               ring (theme color) and the decorative avatar_border are mutually
-              exclusive so there is never a "double ring". */}
+              exclusive. When a decorative border is set, the wrapper hugs
+              the avatar so the dark panel can't show through as a gap. */}
           <button
             type="button"
             onClick={() => avatarInputRef.current?.click()}
             disabled={uploadingAvatar}
             aria-label="Change profile photo"
-            style={{
-              width: 132,
-              height: 132,
-              borderRadius: "50%",
-              padding: avatarBorder === "none" ? 4 : 0,
-              background: avatarBorder === "none" ? O.bg : "transparent",
-              boxShadow:
-                avatarBorder === "none"
-                  ? `0 14px 36px rgba(0,0,0,0.5), 0 0 0 2px ${themeColor || O.a2}`
-                  : "0 14px 36px rgba(0,0,0,0.5)",
-              border: "none",
-              cursor: "pointer",
-              flexShrink: 0,
-              display: "block",
-              position: "relative",
-              zIndex: 1,
-            }}
+            style={
+              avatarBorder === "none"
+                ? {
+                    width: 132,
+                    height: 132,
+                    borderRadius: "50%",
+                    padding: 4,
+                    background: O.bg,
+                    boxShadow: `0 14px 36px rgba(0,0,0,0.5), 0 0 0 2px ${themeColor || O.a2}`,
+                    border: "none",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    display: "block",
+                    position: "relative",
+                    zIndex: 1,
+                  }
+                : {
+                    borderRadius: "50%",
+                    boxShadow: "0 14px 36px rgba(0,0,0,0.5)",
+                    border: "none",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    display: "inline-block",
+                    position: "relative",
+                    zIndex: 1,
+                    padding: 0,
+                    background: "transparent",
+                    lineHeight: 0,
+                  }
+            }
           >
             <UserAvatar
               src={avatarUrl}

@@ -86,6 +86,23 @@ export default function VodPage({ params }: Props) {
     });
   }, [vod]);
 
+  // Patch the saved duration with whatever the player reports once metadata
+  // loads. Mux's webhook sometimes records a too-short duration on
+  // reconnects; the actual playable length is always correct, so we trust
+  // it and write back to the row. The card will show the right number on
+  // the next render.
+  const handleLoadedMetadata = (e: Event) => {
+    const target = e.target as HTMLVideoElement | null;
+    if (!target || !vod) return;
+    const playable = Math.round(target.duration);
+    if (!Number.isFinite(playable) || playable <= 0) return;
+    if (playable === vod.duration_seconds) return;
+    void createClient()
+      .from("live_vods")
+      .update({ duration_seconds: playable })
+      .eq("id", vod.id);
+  };
+
   const handleShare = async () => {
     if (typeof window === "undefined") return;
     try {
@@ -139,6 +156,7 @@ export default function VodPage({ params }: Props) {
               video_title: vod.title ?? undefined,
               viewer_user_id: user?.id ?? undefined,
             }}
+            onLoadedMetadata={handleLoadedMetadata}
           />
         </div>
 

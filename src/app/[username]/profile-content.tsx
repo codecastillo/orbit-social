@@ -321,23 +321,34 @@ export function ProfileContent({
           }}
         >
           {/* Avatar — accent ring and decorative avatar_border are mutually
-              exclusive so we never stack two rings on top of each other. */}
+              exclusive. When a decorative border is set, the wrapper hugs
+              the avatar so the dark panel doesn't show through as a gap. */}
           <div
-            style={{
-              width: 136,
-              height: 136,
-              borderRadius: "50%",
-              padding: avatarBorder === "none" ? 5 : 0,
-              background: avatarBorder === "none" ? O.bg : "transparent",
-              boxShadow:
-                avatarBorder === "none"
-                  ? `0 16px 40px rgba(0,0,0,0.5), 0 0 0 2px ${accent}`
-                  : "0 16px 40px rgba(0,0,0,0.5)",
-              flexShrink: 0,
-              marginTop: -68,
-              position: "relative",
-              zIndex: 1,
-            }}
+            style={
+              avatarBorder === "none"
+                ? {
+                    width: 136,
+                    height: 136,
+                    borderRadius: "50%",
+                    padding: 5,
+                    background: O.bg,
+                    boxShadow: `0 16px 40px rgba(0,0,0,0.5), 0 0 0 2px ${accent}`,
+                    flexShrink: 0,
+                    marginTop: -68,
+                    position: "relative",
+                    zIndex: 1,
+                  }
+                : {
+                    borderRadius: "50%",
+                    boxShadow: "0 16px 40px rgba(0,0,0,0.5)",
+                    flexShrink: 0,
+                    marginTop: -68,
+                    position: "relative",
+                    zIndex: 1,
+                    display: "inline-block",
+                    lineHeight: 0,
+                  }
+            }
           >
             <UserAvatar
               src={profile.avatar_url}
