@@ -299,15 +299,19 @@ export function ProfileContent({
             flexWrap: "wrap",
           }}
         >
-          {/* Avatar — uses its OWN negative margin so only it overlaps the banner */}
+          {/* Avatar — accent ring and decorative avatar_border are mutually
+              exclusive so we never stack two rings on top of each other. */}
           <div
             style={{
               width: 136,
               height: 136,
               borderRadius: "50%",
-              padding: 5,
-              background: O.bg,
-              boxShadow: `0 16px 40px rgba(0,0,0,0.5), 0 0 0 2px ${accent}`,
+              padding: avatarBorder === "none" ? 5 : 0,
+              background: avatarBorder === "none" ? O.bg : "transparent",
+              boxShadow:
+                avatarBorder === "none"
+                  ? `0 16px 40px rgba(0,0,0,0.5), 0 0 0 2px ${accent}`
+                  : "0 16px 40px rgba(0,0,0,0.5)",
               flexShrink: 0,
               marginTop: -68,
               position: "relative",

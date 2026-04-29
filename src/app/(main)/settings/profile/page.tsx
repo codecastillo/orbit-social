@@ -7,7 +7,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Camera, Loader2, ArrowLeft, ImageIcon, QrCode, Check, ArrowRight, Edit3 } from "lucide-react";
 import { toast } from "sonner";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   usernameSchema,
@@ -18,9 +17,10 @@ import {
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QRCodeDialog } from "@/components/profile/qr-code-dialog";
+import { ImageCropper } from "@/components/shared/image-cropper";
 import { UserAvatar, type AvatarBorderStyle } from "@/components/shared/user-avatar";
 import { STORAGE_BUCKETS } from "@/lib/utils/constants";
-import { O, aurora, auroraSoft, panel } from "@/lib/design/orbit";
+import { O, aurora, auroraSoft } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow } from "@/components/orbit/primitives";
 import { Field, FormSection } from "@/components/orbit/forms";
 
@@ -75,7 +75,12 @@ export default function EditProfilePage() {
   const [avatarBorder, setAvatarBorder] = useState<AvatarBorderStyle>("none");
   const [qrOpen, setQrOpen] = useState(false);
   const [currentUsername, setCurrentUsername] = useState("");
-  const [dirty, setDirty] = useState(false);
+  // Local "dirty" tracker for image / appearance changes that RHF doesn't see.
+  // The save bar visibility is derived from this OR rhf isDirty (see below).
+  const [imageDirty, setImageDirty] = useState(false);
+  // Cropper queue: holds the picked file + which slot it targets.
+  const [cropperFile, setCropperFile] = useState<File | null>(null);
+  const [cropperKind, setCropperKind] = useState<"avatar" | "cover" | null>(null);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -122,66 +127,72 @@ export default function EditProfilePage() {
     loadProfile();
   }, [user, supabase, reset]);
 
-  useEffect(() => {
-    setDirty(isDirty || uploadingAvatar || uploadingCover);
-  }, [isDirty, uploadingAvatar, uploadingCover]);
+  // Save bar visibility — derived, not stored. This avoids the race where
+  // an image upload sets dirty=true, the upload finishes, an effect re-runs
+  // on uploadingAvatar=false and clobbers it back to RHF's clean state.
+  const dirty = isDirty || imageDirty || uploadingAvatar || uploadingCover;
 
-  const handleImageUpload = async (
-    file: File,
-    bucket: string,
-    path: string,
-  ): Promise<string | null> => {
+  // Pick file → open cropper. The actual upload happens after cropping.
+  const onAvatarPicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       toast.error("File must be JPEG, PNG, WebP, or GIF");
-      return null;
+      return;
     }
     if (file.size > 5 * 1024 * 1024) {
       toast.error("Image must be under 5MB");
-      return null;
+      return;
     }
-    const { error } = await supabase.storage
-      .from(bucket)
-      .upload(path, file, { upsert: true });
-    if (error) {
-      toast.error("Failed to upload image");
-      return null;
-    }
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return `${data.publicUrl}?t=${Date.now()}`;
+    setCropperKind("avatar");
+    setCropperFile(file);
+    e.target.value = "";
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onCoverPicked = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setUploadingAvatar(true);
-    const fileExt = file.name.split(".").pop();
-    const url = await handleImageUpload(
-      file,
-      STORAGE_BUCKETS.AVATARS,
-      `${user.id}/avatar.${fileExt}`,
-    );
-    if (url) {
-      setAvatarUrl(url);
-      setDirty(true);
+    if (!file) return;
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      toast.error("File must be JPEG, PNG, WebP, or GIF");
+      return;
     }
-    setUploadingAvatar(false);
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5MB");
+      return;
+    }
+    setCropperKind("cover");
+    setCropperFile(file);
+    e.target.value = "";
   };
 
-  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setUploadingCover(true);
-    const fileExt = file.name.split(".").pop();
-    const url = await handleImageUpload(
-      file,
-      STORAGE_BUCKETS.COVERS,
-      `${user.id}/cover.${fileExt}`,
-    );
-    if (url) {
-      setCoverUrl(url);
-      setDirty(true);
+  const uploadCroppedBlob = async (blob: Blob, kind: "avatar" | "cover") => {
+    if (!user) return;
+    const setBusy = kind === "avatar" ? setUploadingAvatar : setUploadingCover;
+    setBusy(true);
+    try {
+      const bucket =
+        kind === "avatar" ? STORAGE_BUCKETS.AVATARS : STORAGE_BUCKETS.COVERS;
+      const path = `${user.id}/${kind}.jpg`;
+      const { error } = await supabase.storage
+        .from(bucket)
+        .upload(path, blob, {
+          upsert: true,
+          contentType: "image/jpeg",
+        });
+      if (error) {
+        console.error("Storage upload failed:", error);
+        toast.error(`Failed to upload ${kind}: ${error.message}`);
+        return;
+      }
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+      const url = `${data.publicUrl}?t=${Date.now()}`;
+      if (kind === "avatar") setAvatarUrl(url);
+      else setCoverUrl(url);
+      setImageDirty(true);
+      toast.success(`${kind === "avatar" ? "Photo" : "Banner"} ready — hit save below`);
+    } finally {
+      setBusy(false);
     }
-    setUploadingCover(false);
   };
 
   const onSubmit = async (data: ProfileFormData) => {
@@ -216,7 +227,14 @@ export default function EditProfilePage() {
       return;
     }
     toast.success("Profile updated");
-    setDirty(false);
+    setImageDirty(false);
+    reset({
+      username: data.username,
+      displayName: data.displayName,
+      bio: data.bio,
+      website: data.website,
+      location: data.location,
+    });
     router.refresh();
   };
 
@@ -242,8 +260,15 @@ export default function EditProfilePage() {
     >
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-        <Link
-          href="/settings"
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== "undefined" && window.history.length > 1) {
+              router.back();
+            } else {
+              router.push("/settings");
+            }
+          }}
           style={{
             width: 34,
             height: 34,
@@ -255,11 +280,12 @@ export default function EditProfilePage() {
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
-            textDecoration: "none",
+            fontFamily: "inherit",
           }}
+          aria-label="Back"
         >
           <ArrowLeft style={{ width: 14, height: 14 }} strokeWidth={1.8} />
-        </Link>
+        </button>
         <Eyebrow>◇&nbsp;&nbsp;SETTINGS · PROFILE</Eyebrow>
       </div>
 
@@ -346,8 +372,8 @@ export default function EditProfilePage() {
           <input
             ref={coverInputRef}
             type="file"
-            accept="image/*"
-            onChange={handleCoverUpload}
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={onCoverPicked}
             className="hidden"
           />
         </div>
@@ -362,89 +388,64 @@ export default function EditProfilePage() {
             marginTop: -56,
           }}
         >
+          {/* Avatar preview — matches the profile page exactly. The accent
+              ring (theme color) and the decorative avatar_border are mutually
+              exclusive so there is never a "double ring". */}
           <button
             type="button"
             onClick={() => avatarInputRef.current?.click()}
             disabled={uploadingAvatar}
             aria-label="Change profile photo"
             style={{
-              width: 120,
-              height: 120,
+              width: 132,
+              height: 132,
               borderRadius: "50%",
-              padding: 0,
-              background: "transparent",
-              boxShadow: themeColor
-                ? `0 0 0 3px ${themeColor}, 0 0 24px ${themeColor}55, 0 14px 36px rgba(0,0,0,0.5)`
-                : `0 0 0 3px ${O.a2}, 0 0 24px ${O.a2}55, 0 14px 36px rgba(0,0,0,0.5)`,
+              padding: avatarBorder === "none" ? 4 : 0,
+              background: avatarBorder === "none" ? O.bg : "transparent",
+              boxShadow:
+                avatarBorder === "none"
+                  ? `0 14px 36px rgba(0,0,0,0.5), 0 0 0 2px ${themeColor || O.a2}`
+                  : "0 14px 36px rgba(0,0,0,0.5)",
               border: "none",
               cursor: "pointer",
               flexShrink: 0,
               display: "block",
               position: "relative",
               zIndex: 1,
-              overflow: "hidden",
             }}
           >
+            <UserAvatar
+              src={avatarUrl}
+              fallback={displayName || "?"}
+              size="xl"
+              avatarBorder={avatarBorder}
+            />
             <div
               style={{
-                width: "100%",
-                height: "100%",
+                position: "absolute",
+                inset: 0,
                 borderRadius: "50%",
-                overflow: "hidden",
-                position: "relative",
-                background: O.glass,
+                pointerEvents: "none",
+                display: "flex",
+                alignItems: "flex-end",
+                justifyContent: "center",
+                paddingBottom: 10,
+                color: "white",
+                background: uploadingAvatar
+                  ? "rgba(0,0,0,0.45)"
+                  : "transparent",
               }}
             >
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={displayName || "Profile photo"}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    display: "block",
-                  }}
-                />
-              ) : (
-                <UserAvatar
-                  src={avatarUrl}
-                  fallback={displayName || "?"}
-                  size="xl"
-                  avatarBorder={avatarBorder}
-                />
-              )}
-              <div
-                className="orbit-avatar-edit-overlay"
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  borderRadius: "50%",
-                  background:
-                    "linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.55) 100%)",
-                  display: "flex",
-                  alignItems: "flex-end",
-                  justifyContent: "center",
-                  paddingBottom: 10,
-                  opacity: 0,
-                  transition: "opacity 150ms ease",
-                  color: "white",
-                  pointerEvents: "none",
-                }}
-              >
-                {uploadingAvatar ? (
-                  <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" />
-                ) : (
-                  <Camera style={{ width: 16, height: 16 }} />
-                )}
-              </div>
+              {uploadingAvatar ? (
+                <Loader2 style={{ width: 18, height: 18 }} className="animate-spin" />
+              ) : null}
             </div>
           </button>
           <input
             ref={avatarInputRef}
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif"
-            onChange={handleAvatarUpload}
+            onChange={onAvatarPicked}
             className="hidden"
           />
 
@@ -527,7 +528,7 @@ export default function EditProfilePage() {
               <RawInput {...register("website")} placeholder="https://yoursite.com" />
             </Field>
             <Field label="Location" error={errors.location?.message}>
-              <RawInput {...register("location")} placeholder="St. George, Utah" prefix="📍" />
+              <RawInput {...register("location")} placeholder="City, Country" prefix="📍" />
             </Field>
           </div>
         </FormSection>
@@ -545,7 +546,7 @@ export default function EditProfilePage() {
                     type="button"
                     onClick={() => {
                       setThemeColor(a.value);
-                      setDirty(true);
+                      setImageDirty(true);
                     }}
                     style={{
                       width: 40,
@@ -592,7 +593,7 @@ export default function EditProfilePage() {
                     type="button"
                     onClick={() => {
                       setAvatarBorder(b.value);
-                      setDirty(true);
+                      setImageDirty(true);
                     }}
                     style={{
                       padding: 12,
@@ -742,7 +743,7 @@ export default function EditProfilePage() {
                 padding: "11px 22px",
                 borderRadius: 99,
                 background: aurora,
-                color: "#0c0a17",
+                color: "white",
                 border: "none",
                 fontSize: 13.5,
                 fontWeight: 600,
@@ -769,6 +770,23 @@ export default function EditProfilePage() {
         displayName={displayName || "User"}
         open={qrOpen}
         onOpenChange={setQrOpen}
+      />
+
+      <ImageCropper
+        open={cropperFile !== null}
+        file={cropperFile}
+        aspectRatio={cropperKind === "cover" ? 5 : 1}
+        circular={cropperKind === "avatar"}
+        outputWidth={cropperKind === "cover" ? 1600 : 800}
+        title={cropperKind === "cover" ? "Crop banner" : "Crop profile photo"}
+        onClose={() => {
+          setCropperFile(null);
+          setCropperKind(null);
+        }}
+        onComplete={(blob) => {
+          const kind = cropperKind;
+          if (kind) void uploadCroppedBlob(blob, kind);
+        }}
       />
     </div>
   );

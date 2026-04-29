@@ -949,9 +949,29 @@ function PostContent({ content }: { content: string }) {
       {parts.map((part, i) => {
         if (part.startsWith("#")) {
           const tag = part.slice(1);
-          return <Link key={i} href={`/hashtag/${encodeURIComponent(tag)}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline">{part}</Link>;
+          return (
+            <Link
+              key={i}
+              href={`/hashtag/${encodeURIComponent(tag)}`}
+              onClick={(e) => e.stopPropagation()}
+              style={{ color: O.a2, fontWeight: 600, textDecoration: "none" }}
+            >
+              {part}
+            </Link>
+          );
         }
-        if (part.startsWith("@")) return <Link key={i} href={`/${part.slice(1)}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline">{part}</Link>;
+        if (part.startsWith("@")) {
+          return (
+            <Link
+              key={i}
+              href={`/${part.slice(1)}`}
+              onClick={(e) => e.stopPropagation()}
+              style={{ color: O.a2, fontWeight: 600, textDecoration: "none" }}
+            >
+              {part}
+            </Link>
+          );
+        }
         return part;
       })}
     </p>

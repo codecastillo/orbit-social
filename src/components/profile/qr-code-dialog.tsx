@@ -1,146 +1,24 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Download, Share2 } from "lucide-react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { Download, Share2, Copy, Check, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
+import QRCode from "qrcode";
+import { useQuery } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-
-// ── Minimal QR code generator (SVG-based) ──────────────────────────
-// Uses a simple implementation of QR encoding for alphanumeric URLs.
-// Generates a data matrix and renders as SVG rects.
-
-function generateQRMatrix(data: string): boolean[][] {
-  // Simple QR-like matrix generator for display purposes.
-  // Uses a hash-based approach to create a deterministic pattern.
-  const size = 33; // Standard QR code module count for version 4
-  const matrix: boolean[][] = Array.from({ length: size }, () =>
-    Array(size).fill(false)
-  );
-
-  // Finder patterns (top-left, top-right, bottom-left)
-  const drawFinder = (row: number, col: number) => {
-    for (let r = 0; r < 7; r++) {
-      for (let c = 0; c < 7; c++) {
-        const isOuter = r === 0 || r === 6 || c === 0 || c === 6;
-        const isInner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
-        matrix[row + r][col + c] = isOuter || isInner;
-      }
-    }
-  };
-
-  drawFinder(0, 0);
-  drawFinder(0, size - 7);
-  drawFinder(size - 7, 0);
-
-  // Timing patterns
-  for (let i = 8; i < size - 8; i++) {
-    matrix[6][i] = i % 2 === 0;
-    matrix[i][6] = i % 2 === 0;
-  }
-
-  // Alignment pattern (center area)
-  const alignRow = size - 9;
-  const alignCol = size - 9;
-  for (let r = -2; r <= 2; r++) {
-    for (let c = -2; c <= 2; c++) {
-      const isOuter = Math.abs(r) === 2 || Math.abs(c) === 2;
-      const isCenter = r === 0 && c === 0;
-      matrix[alignRow + r][alignCol + c] = isOuter || isCenter;
-    }
-  }
-
-  // Data encoding: use a simple hash to fill data modules
-  let hash = 0;
-  for (let i = 0; i < data.length; i++) {
-    hash = ((hash << 5) - hash + data.charCodeAt(i)) | 0;
-  }
-
-  // Fill data area with deterministic pattern based on input
-  const seed = Math.abs(hash);
-  let rng = seed;
-  const nextRng = () => {
-    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-    return rng;
-  };
-
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      // Skip finder, timing, and alignment pattern areas
-      const inFinder1 = r < 8 && c < 8;
-      const inFinder2 = r < 8 && c >= size - 8;
-      const inFinder3 = r >= size - 8 && c < 8;
-      const inTiming = r === 6 || c === 6;
-      const inAlign =
-        Math.abs(r - alignRow) <= 2 && Math.abs(c - alignCol) <= 2;
-
-      if (inFinder1 || inFinder2 || inFinder3 || inTiming || inAlign) continue;
-
-      // Separator zones around finders
-      if (r < 9 && c < 9) continue;
-      if (r < 9 && c >= size - 9) continue;
-      if (r >= size - 9 && c < 9) continue;
-
-      // Use data string chars and position to fill
-      const charIndex = (r * size + c) % data.length;
-      const charCode = data.charCodeAt(charIndex);
-      const val = nextRng();
-      matrix[r][c] = (val + charCode) % 3 !== 0;
-    }
-  }
-
-  return matrix;
-}
-
-function QRCodeSVG({
-  data,
-  size = 200,
-  fgColor = "#ffffff",
-  bgColor = "transparent",
-}: {
-  data: string;
-  size?: number;
-  fgColor?: string;
-  bgColor?: string;
-}) {
-  const matrix = generateQRMatrix(data);
-  const moduleCount = matrix.length;
-  const moduleSize = size / (moduleCount + 2); // +2 for quiet zone
-  const offset = moduleSize; // quiet zone
-
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect width={size} height={size} fill={bgColor} />
-      {matrix.map((row, r) =>
-        row.map((cell, c) =>
-          cell ? (
-            <rect
-              key={`${r}-${c}`}
-              x={offset + c * moduleSize}
-              y={offset + r * moduleSize}
-              width={moduleSize}
-              height={moduleSize}
-              fill={fgColor}
-              rx={moduleSize * 0.15}
-            />
-          ) : null
-        )
-      )}
-    </svg>
-  );
-}
-
-// ── QR Code Dialog Component ────────────────────────────────────────
+import { UserAvatar } from "@/components/shared/user-avatar";
+import { useAuth } from "@/lib/hooks/use-auth";
+import {
+  getConversations,
+  sendMessage,
+  type ConversationWithPreview,
+} from "@/lib/queries/messages";
+import { O, aurora } from "@/lib/design/orbit";
 
 interface QRCodeDialogProps {
   username: string;
@@ -155,108 +33,505 @@ export function QRCodeDialog({
   open,
   onOpenChange,
 }: QRCodeDialogProps) {
-  const svgContainerRef = useRef<HTMLDivElement>(null);
-  const [profileUrl, setProfileUrl] = useState("");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setProfileUrl(`${window.location.origin}/${username}`);
-    }
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  // Compute the share URL on demand from the current origin. The component
+  // is client-only ("use client") and only renders inside a Dialog that
+  // mounts after hydration, so window is always defined when this runs.
+  const profileUrl = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return `${window.location.origin}/${username}`;
   }, [username]);
+
+  // Render a real, scannable QR onto the canvas. The previous fake hash
+  // pattern looked QR-shaped but didn't decode in any scanner.
+  useEffect(() => {
+    if (!open || !profileUrl || !canvasRef.current) return;
+    QRCode.toCanvas(canvasRef.current, profileUrl, {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      width: 240,
+      color: {
+        dark: "#0c0a17",
+        light: "#ffffff",
+      },
+    }).catch((err) => {
+      console.error("QR render failed:", err);
+    });
+  }, [open, profileUrl]);
 
   const handleDownload = useCallback(() => {
-    const svgEl = svgContainerRef.current?.querySelector("svg");
-    if (!svgEl) return;
-
-    const svgData = new XMLSerializer().serializeToString(svgEl);
-    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-
-    // Convert SVG to PNG via canvas
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    const img = new Image();
-
-    img.onload = () => {
-      canvas.width = 600;
-      canvas.height = 600;
-      if (ctx) {
-        // Draw dark background
-        ctx.fillStyle = "#18181b";
-        ctx.fillRect(0, 0, 600, 600);
-        ctx.drawImage(img, 0, 0, 600, 600);
-      }
-      const pngUrl = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.download = `${username}-qr-code.png`;
-      link.href = pngUrl;
-      link.click();
-      toast.success("QR code downloaded");
-    };
-
-    img.src = URL.createObjectURL(svgBlob);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const url = canvas.toDataURL("image/png");
+    const link = document.createElement("a");
+    link.download = `${username}-orbit-qr.png`;
+    link.href = url;
+    link.click();
+    toast.success("QR code downloaded");
   }, [username]);
-
-  const handleShare = useCallback(async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `${displayName} on Orbit`,
-          text: `Check out ${displayName}'s profile on Orbit`,
-          url: profileUrl,
-        });
-      } catch {
-        // User cancelled share
-      }
-    } else {
-      await navigator.clipboard.writeText(profileUrl);
-      toast.success("Profile link copied to clipboard");
-    }
-  }, [displayName, profileUrl]);
 
   if (!profileUrl) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[360px] p-0 gap-0 bg-zinc-900 border-white/[0.1] rounded-xl overflow-hidden">
-        <DialogHeader className="p-4 pb-2">
-          <DialogTitle className="text-center text-sm font-semibold text-zinc-100">
-            QR Code
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="flex flex-col items-center px-6 pb-2">
-          <p className="text-xs text-muted-foreground mb-4 text-center">
-            Scan to visit @{username}&apos;s profile
-          </p>
-
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
+          showCloseButton={false}
+        >
           <div
-            ref={svgContainerRef}
-            className="bg-zinc-800/50 rounded-2xl p-6 border border-white/[0.06]"
+            style={{
+              background: O.bg,
+              border: `1px solid ${O.hair2}`,
+              borderRadius: 20,
+              padding: 22,
+              width: "min(92vw, 360px)",
+              fontFamily: O.sans,
+            }}
           >
-            <QRCodeSVG data={profileUrl} size={200} fgColor="#e4e4e7" />
+            <DialogHeader className="p-0">
+              <DialogTitle
+                style={{
+                  textAlign: "center",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: O.ink,
+                }}
+              >
+                QR Code
+              </DialogTitle>
+            </DialogHeader>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 14,
+                marginTop: 14,
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 12,
+                  color: O.ink3,
+                  textAlign: "center",
+                }}
+              >
+                Scan to visit @{username}&apos;s profile
+              </p>
+
+              <div
+                style={{
+                  background: "white",
+                  borderRadius: 18,
+                  padding: 14,
+                  border: `1px solid ${O.hair2}`,
+                }}
+              >
+                <canvas
+                  ref={canvasRef}
+                  style={{ display: "block", borderRadius: 6 }}
+                />
+              </div>
+
+              <p
+                style={{
+                  fontSize: 11,
+                  color: O.ink3,
+                  fontFamily: O.mono,
+                  letterSpacing: "0.04em",
+                  maxWidth: "100%",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {profileUrl}
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                marginTop: 16,
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleDownload}
+                style={{
+                  flex: 1,
+                  padding: "10px 14px",
+                  borderRadius: 99,
+                  background: "rgba(255,255,255,0.04)",
+                  border: `1px solid ${O.hair2}`,
+                  color: O.ink,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  fontFamily: "inherit",
+                }}
+              >
+                <Download style={{ width: 14, height: 14 }} />
+                Download
+              </button>
+              <button
+                type="button"
+                onClick={() => setShareOpen(true)}
+                style={{
+                  flex: 1,
+                  padding: "10px 14px",
+                  borderRadius: 99,
+                  background: aurora,
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  color: "white",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  fontFamily: "inherit",
+                  boxShadow: `0 6px 20px -8px ${O.a2}`,
+                }}
+              >
+                <Share2 style={{ width: 14, height: 14 }} />
+                Share
+              </button>
+            </div>
           </div>
+        </DialogContent>
+      </Dialog>
 
-          <p className="text-[11px] text-muted-foreground/60 mt-3 font-mono truncate max-w-full">
-            {profileUrl}
-          </p>
-        </div>
+      <ProfileShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        profileUrl={profileUrl}
+        displayName={displayName}
+        username={username}
+      />
+    </>
+  );
+}
 
-        <div className="flex gap-2 p-4 pt-2">
-          <Button
-            variant="outline"
-            className="flex-1 rounded-xl h-10 text-sm font-semibold border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08]"
-            onClick={handleDownload}
+// ── Custom in-app share modal ────────────────────────────────────────
+// Mirrors the post ShareDialog: copy link + send to a chat with an
+// optional message. Replaces the previous navigator.share fallback.
+
+function ProfileShareDialog({
+  open,
+  onOpenChange,
+  profileUrl,
+  displayName,
+  username,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  profileUrl: string;
+  displayName: string;
+  username: string;
+}) {
+  const { user } = useAuth();
+  const [showConversations, setShowConversations] = useState(false);
+  const [sendingTo, setSendingTo] = useState<string | null>(null);
+  const [sentTo, setSentTo] = useState<Set<string>>(new Set());
+  const [copied, setCopied] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const { data: conversations, isLoading } = useQuery({
+    queryKey: ["conversations", user?.id],
+    queryFn: () => getConversations(user!.id),
+    enabled: !!user?.id && showConversations,
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(profileUrl);
+      setCopied(true);
+      toast.success("Link copied");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Failed to copy");
+    }
+  };
+
+  const handleSendTo = async (c: ConversationWithPreview) => {
+    if (!user || sendingTo) return;
+    setSendingTo(c.id);
+    try {
+      const body = message.trim()
+        ? `${message.trim()}\n${profileUrl}`
+        : profileUrl;
+      await sendMessage(c.id, user.id, body);
+      setSentTo((prev) => new Set(prev).add(c.id));
+      toast.success(`Sent to ${c.other_member?.display_name ?? "chat"}`);
+    } catch {
+      toast.error("Failed to send");
+    } finally {
+      setSendingTo(null);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
+        showCloseButton={false}
+      >
+        <div
+          style={{
+            background: O.bg,
+            border: `1px solid ${O.hair2}`,
+            borderRadius: 20,
+            padding: 18,
+            width: "min(92vw, 420px)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+            fontFamily: O.sans,
+          }}
+        >
+          <DialogHeader className="p-0">
+            <DialogTitle style={{ fontSize: 15, fontWeight: 600, color: O.ink }}>
+              Share {displayName || `@${username}`}
+            </DialogTitle>
+          </DialogHeader>
+
+          <button
+            type="button"
+            onClick={handleCopy}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 14px",
+              borderRadius: 14,
+              background: "rgba(255,255,255,0.03)",
+              border: `1px solid ${O.hair2}`,
+              color: O.ink,
+              fontSize: 13.5,
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              textAlign: "left",
+            }}
           >
-            <Download className="h-4 w-4 mr-1.5" />
-            Download
-          </Button>
-          <Button
-            className="flex-1 rounded-xl h-10 text-sm font-semibold bg-blue-500 hover:bg-blue-600 text-white border-0"
-            onClick={handleShare}
-          >
-            <Share2 className="h-4 w-4 mr-1.5" />
-            Share
-          </Button>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: aurora,
+                display: "grid",
+                placeItems: "center",
+                color: "white",
+                flexShrink: 0,
+              }}
+            >
+              {copied ? (
+                <Check style={{ width: 16, height: 16 }} />
+              ) : (
+                <Copy style={{ width: 16, height: 16 }} />
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600 }}>
+                {copied ? "Link copied" : "Copy link"}
+              </div>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  color: O.ink3,
+                  fontFamily: O.mono,
+                  marginTop: 2,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {profileUrl}
+              </div>
+            </div>
+          </button>
+
+          {!showConversations ? (
+            <button
+              type="button"
+              onClick={() => setShowConversations(true)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "12px 14px",
+                borderRadius: 14,
+                background: "rgba(255,255,255,0.03)",
+                border: `1px solid ${O.hair2}`,
+                color: O.ink,
+                fontSize: 13.5,
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                textAlign: "left",
+              }}
+            >
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: "rgba(255,255,255,0.06)",
+                  display: "grid",
+                  placeItems: "center",
+                  color: O.ink,
+                  flexShrink: 0,
+                }}
+              >
+                <Send style={{ width: 16, height: 16 }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600 }}>Send to a chat</div>
+                <div style={{ fontSize: 11.5, color: O.ink3, marginTop: 2 }}>
+                  Pass it on with a message
+                </div>
+              </div>
+            </button>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Add a message (optional)…"
+                rows={2}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  background: "rgba(255,255,255,0.03)",
+                  border: `1px solid ${O.hair2}`,
+                  color: O.ink,
+                  fontSize: 13,
+                  fontFamily: "inherit",
+                  resize: "none",
+                  outline: "none",
+                }}
+              />
+              <div
+                style={{
+                  maxHeight: 260,
+                  overflowY: "auto",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
+                {isLoading ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      padding: 20,
+                    }}
+                  >
+                    <Loader2
+                      className="animate-spin"
+                      style={{ width: 16, height: 16, color: O.ink3 }}
+                    />
+                  </div>
+                ) : !conversations || conversations.length === 0 ? (
+                  <div
+                    style={{
+                      fontSize: 12.5,
+                      color: O.ink3,
+                      textAlign: "center",
+                      padding: 16,
+                    }}
+                  >
+                    No conversations yet
+                  </div>
+                ) : (
+                  conversations.map((c) => {
+                    const sent = sentTo.has(c.id);
+                    const sending = sendingTo === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => handleSendTo(c)}
+                        disabled={sent || sending}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          padding: "8px 10px",
+                          borderRadius: 12,
+                          background: "transparent",
+                          border: "none",
+                          color: O.ink,
+                          fontSize: 13.5,
+                          cursor: sent || sending ? "default" : "pointer",
+                          opacity: sent || sending ? 0.6 : 1,
+                          fontFamily: "inherit",
+                          textAlign: "left",
+                          width: "100%",
+                        }}
+                      >
+                        <UserAvatar
+                          src={c.other_member?.avatar_url ?? null}
+                          fallback={c.other_member?.display_name || "?"}
+                          size="sm"
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {c.other_member?.display_name ?? "Chat"}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 11.5,
+                              color: O.ink3,
+                            }}
+                          >
+                            @{c.other_member?.username ?? "user"}
+                          </div>
+                        </div>
+                        <div style={{ flexShrink: 0 }}>
+                          {sending ? (
+                            <Loader2
+                              className="animate-spin"
+                              style={{ width: 14, height: 14, color: O.ink3 }}
+                            />
+                          ) : sent ? (
+                            <Check
+                              style={{ width: 14, height: 14, color: O.a2 }}
+                            />
+                          ) : (
+                            <Send
+                              style={{ width: 14, height: 14, color: O.ink3 }}
+                            />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
