@@ -49,6 +49,7 @@ import {
   votePoll,
   getUserPollVote,
   getOriginalPost,
+  checkUserInteractions,
   pinPost,
   unpinPost,
   type PostWithAuthor,
@@ -153,6 +154,29 @@ export function PostCard({
     }
   }, [isRepostType, post.parent_post_id]);
 
+  // For reposts, the heart/bookmark and counts shown on the card belong to
+  // the *original* post (that's what the viewer is reading). Re-derive
+  // viewer interaction state from the original once it loads, otherwise
+  // the icons reflect the empty repost row and look unliked even when the
+  // viewer has liked the original elsewhere.
+  useEffect(() => {
+    if (!isRepostType || !originalPost) return;
+    setLikeCount(originalPost.like_count);
+    setBookmarkCount(originalPost.bookmark_count);
+    setRepostCount(originalPost.repost_count);
+    if (!user) {
+      setIsLiked(false);
+      setIsBookmarked(false);
+      return;
+    }
+    checkUserInteractions(user.id, [originalPost.id])
+      .then(({ likedPostIds, bookmarkedPostIds }) => {
+        setIsLiked(likedPostIds.has(originalPost.id));
+        setIsBookmarked(bookmarkedPostIds.has(originalPost.id));
+      })
+      .catch(() => {});
+  }, [isRepostType, originalPost, user]);
+
   // Load reactions
   useEffect(() => {
     getPostReactions(post.id).then(setReactionCounts).catch(() => {});
@@ -196,6 +220,11 @@ export function PostCard({
     return computeUserAverages(ownPosts);
   }, [isOwnPost, allUserPosts, post.user_id]);
 
+  // Reposts: act on the *original* post so likes/bookmarks land where the
+  // viewer expects them (and aren't stranded on the repost row).
+  const targetPostId =
+    isRepostType && originalPost ? originalPost.id : post.id;
+
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) { toast.error("Sign in to like posts"); return; }
@@ -203,7 +232,7 @@ export function PostCard({
     setIsLiked(!was);
     setLikeCount((c) => (was ? c - 1 : c + 1));
     if (!was) { setAnimateHeart(true); setTimeout(() => setAnimateHeart(false), 400); }
-    try { await toggleLike(user.id, post.id, was); }
+    try { await toggleLike(user.id, targetPostId, was); }
     catch { setIsLiked(was); setLikeCount((c) => (was ? c + 1 : c - 1)); }
   };
 
@@ -213,7 +242,7 @@ export function PostCard({
     const was = isBookmarked;
     setIsBookmarked(!was);
     setBookmarkCount((c) => (was ? Math.max(c - 1, 0) : c + 1));
-    try { await toggleBookmark(user.id, post.id, was); }
+    try { await toggleBookmark(user.id, targetPostId, was); }
     catch {
       setIsBookmarked(was);
       setBookmarkCount((c) => (was ? c + 1 : Math.max(c - 1, 0)));

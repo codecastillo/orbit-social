@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, MoreHorizontal, ExternalLink, Copy, Share2, UserX, VolumeX, Flag } from "lucide-react";
@@ -420,7 +420,12 @@ export function ProfileContent({
                 flexWrap: "wrap",
               }}
             >
-              <Display size={32}>
+              <Display
+                size={32}
+                style={
+                  profile.theme_color ? { color: profile.theme_color } : undefined
+                }
+              >
                 {rest ? (
                   <>
                     {first}{" "}
@@ -862,6 +867,34 @@ function PastStreamsSection({ vods }: { vods: VodRow[] }) {
 }
 
 function VodCard({ vod }: { vod: VodRow }) {
+  const queryClient = useQueryClient();
+
+  // Self-heal a wrong stored duration without making the user open the
+  // VOD player first. Mux's webhook records the duration of the *current
+  // asset*, which on a reconnect is just the tail segment — often only a
+  // few seconds. The medium.mp4 rendition Mux produces for a finished
+  // live stream contains the full playable length, so a hidden HTML5
+  // <video preload="metadata"> probe gets us the real number for free.
+  const probedRef = useRef(false);
+  const handleProbe = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    if (probedRef.current) return;
+    probedRef.current = true;
+    const real = Math.round(e.currentTarget.duration);
+    if (!Number.isFinite(real) || real <= 0) return;
+    if (Math.abs(real - (vod.duration_seconds ?? 0)) <= 2) return;
+    void createClient()
+      .from("live_vods")
+      .update({ duration_seconds: real })
+      .eq("id", vod.id)
+      .then(({ error }) => {
+        if (error) {
+          console.error("VOD duration probe failed", error);
+          return;
+        }
+        queryClient.invalidateQueries({ queryKey: ["user-vods", vod.user_id] });
+      });
+  };
+
   return (
     <Link
       href={`/vod/${vod.id}`}
@@ -873,6 +906,14 @@ function VodCard({ vod }: { vod: VodRow }) {
         color: "inherit",
       }}
     >
+      <video
+        src={`https://stream.mux.com/${vod.mux_playback_id}/medium.mp4`}
+        preload="metadata"
+        muted
+        playsInline
+        onLoadedMetadata={handleProbe}
+        style={{ display: "none" }}
+      />
       <div
         style={{
           position: "relative",

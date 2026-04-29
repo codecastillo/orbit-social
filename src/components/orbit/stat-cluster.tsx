@@ -42,7 +42,11 @@ export function StatCluster({
               fontStyle: "italic",
               fontSize: size,
               fontWeight: 700,
-              lineHeight: 1.05,
+              // Italic serif glyphs (especially "1") have ascenders that
+              // poke above the cap height; lineHeight needs headroom or
+              // they get clipped at the top of the box.
+              lineHeight: 1.35,
+              paddingTop: 4,
               background: aurora,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",

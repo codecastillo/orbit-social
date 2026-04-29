@@ -262,7 +262,7 @@ export async function getUserPosts(userId: string, cursor?: string, limit = 20) 
     .is("reply_to_id", null)
     .is("community_id", null)
     .eq("is_hidden", false)
-    .not("type", "eq", "reel")
+    .not("type", "in", "(reel,repost)")
     .order("created_at", { ascending: false })
     .limit(limit);
 
