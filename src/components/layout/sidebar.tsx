@@ -221,7 +221,7 @@ export function Sidebar({
           onClick={() => setComposeOpen(true)}
           style={{ width: "100%", justifyContent: "center" }}
         >
-          Compose
+          Post
         </PillBtn>
         <div
           style={{

@@ -519,16 +519,24 @@ export function PostCard({
                       <DropdownMenuItem onClick={handleEdit}>
                         <Pencil className="mr-2 h-4 w-4" /> Edit
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handlePin}>
-                        {post.is_pinned ? (
-                          <><PinOff className="mr-2 h-4 w-4" /> Unpin from Profile</>
-                        ) : (
-                          <><Pin className="mr-2 h-4 w-4" /> Pin to Profile</>
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleBoost}>
-                        <Rocket className="mr-2 h-4 w-4" /> Boost Post
-                      </DropdownMenuItem>
+                      {/* Pin to Profile + Boost don't apply inside a
+                          room — that's profile-level promotion that
+                          would lift a private/scoped post out of its
+                          room context. */}
+                      {!displayPost.community_id && (
+                        <>
+                          <DropdownMenuItem onClick={handlePin}>
+                            {post.is_pinned ? (
+                              <><PinOff className="mr-2 h-4 w-4" /> Unpin from Profile</>
+                            ) : (
+                              <><Pin className="mr-2 h-4 w-4" /> Pin to Profile</>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleBoost}>
+                            <Rocket className="mr-2 h-4 w-4" /> Boost Post
+                          </DropdownMenuItem>
+                        </>
+                      )}
                       <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" /> Delete
                       </DropdownMenuItem>
@@ -776,8 +784,10 @@ export function PostCard({
               {post.comment_count > 0 && <span>{formatNumber(post.comment_count)}</span>}
             </button>
 
-            {/* Repost */}
-            {!compact && (
+            {/* Repost / Bookmark / Share — hidden inside rooms because
+                room posts are scoped to that room and shouldn't be
+                rebroadcast through repost or shared to outsiders. */}
+            {!compact && !displayPost.community_id && (
               <button
                 onClick={handleRepost}
                 className={cn(
@@ -791,8 +801,7 @@ export function PostCard({
               </button>
             )}
 
-            {/* Bookmark */}
-            {!compact && (
+            {!compact && !displayPost.community_id && (
               <button
                 onClick={handleBookmark}
                 className={cn(
@@ -806,8 +815,7 @@ export function PostCard({
               </button>
             )}
 
-            {/* Share */}
-            {!compact && (
+            {!compact && !displayPost.community_id && (
               <button
                 onClick={handleShare}
                 className="flex items-center gap-1.5 rounded-full hover:text-sky-300 hover:bg-sky-500/10 transition-colors"

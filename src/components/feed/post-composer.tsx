@@ -92,16 +92,6 @@ export function PostComposer() {
             >
               ◇&nbsp;&nbsp;NEW POST
             </div>
-            <div
-              style={{
-                fontSize: 17,
-                fontWeight: 600,
-                marginTop: 4,
-                letterSpacing: "-0.01em",
-              }}
-            >
-              Create a post
-            </div>
           </div>
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
             {user && (
@@ -288,6 +278,10 @@ function ComposerForm({
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const [audioWaveform] = useState(() => generateWaveformBars(32));
+  // True when the user clicked the inline Mic icon and we want to show
+  // a "Tap to start recording" prompt — recording itself starts only
+  // when the user explicitly taps the Start button.
+  const [voiceArmed, setVoiceArmed] = useState(false);
 
   // Schedule state
   const [showSchedule, setShowSchedule] = useState(false);
@@ -482,15 +476,22 @@ function ComposerForm({
       setShowSchedule(true);
     } else if (action === "place") {
       setShowLocation(true);
+    } else if (action === "voice") {
+      // Show a "ready to record" prompt instead of auto-starting the
+      // mic. The user taps Start to actually begin capturing audio.
+      setVoiceArmed(true);
     }
-    // Note: the "voice" action intentionally does NOT auto-start
-    // recording. Tapping the inline Mic icon should open the composer
-    // so the user can review the prompt + caption first, then choose
-    // to hit the in-composer Mic button to actually record.
   }, [consumeComposeAction]);
 
+  const submittingRef = useRef(false);
   const handleSubmit = async () => {
-    if (!canPost || posting) return;
+    if (!canPost || posting || submittingRef.current) return;
+    // Synchronous lock — flips before the async moderation roundtrip
+    // so spam-clicking through perceived lag can't queue parallel
+    // submissions. The `posting` state is the visual signal, but the
+    // ref is what actually prevents re-entry inside the same render.
+    submittingRef.current = true;
+    setPosting(true);
 
     // Auto-moderation check (regex pre-filter + LLM for borderline content)
     if (content.trim() && !moderationConfirmed) {
@@ -499,10 +500,14 @@ function ComposerForm({
         if (result.severity === "high") {
           toast.error(result.reason || "Content violates community guidelines");
           setModerationWarning(result.reason || "Content may violate guidelines");
+          setPosting(false);
+          submittingRef.current = false;
           return;
         }
         if (result.severity === "medium" || result.severity === "low") {
           setModerationWarning(result.reason || "Content may violate guidelines");
+          setPosting(false);
+          submittingRef.current = false;
           return;
         }
       }
@@ -510,7 +515,6 @@ function ComposerForm({
 
     setModerationWarning(null);
     setModerationConfirmed(false);
-    setPosting(true);
 
     try {
       // Flag high-severity content for admin review
@@ -555,6 +559,7 @@ function ComposerForm({
       if (scheduledDate && scheduledDate <= new Date()) {
         toast.error("Please pick a future date and time");
         setPosting(false);
+        submittingRef.current = false;
         return;
       }
 
@@ -624,6 +629,7 @@ function ComposerForm({
       toast.error("Failed to create post");
     } finally {
       setPosting(false);
+      submittingRef.current = false;
     }
   };
 
@@ -771,6 +777,47 @@ function ComposerForm({
               </div>
             </div>
           )}
+
+          {/* Voice 'armed' prompt — appears after the user clicks the
+              inline Mic on the feed. Mic is selected, not recording yet.
+              Tap Start to actually begin capture. */}
+          <AnimatePresence>
+            {voiceArmed && !isAudioRecording && !hasAudio && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="mt-3"
+              >
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+                  <div className="h-9 w-9 rounded-full bg-rose-500/15 border border-rose-500/30 flex items-center justify-center">
+                    <Mic className="h-4 w-4 text-rose-400" />
+                  </div>
+                  <span className="text-sm text-foreground">
+                    Tap start to record a voice post
+                  </span>
+                  <button
+                    onClick={() => {
+                      setVoiceArmed(false);
+                      startAudioRecording();
+                    }}
+                    className="ml-auto px-4 h-9 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold transition-colors"
+                  >
+                    Start
+                  </button>
+                  <button
+                    onClick={() => setVoiceArmed(false)}
+                    className="h-8 w-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors"
+                    title="Cancel"
+                    aria-label="Cancel"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Audio Recording UI */}
           <AnimatePresence>
@@ -1307,7 +1354,7 @@ function ComposerForm({
                 showSchedule && scheduledAt
                   ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
                   : "linear-gradient(135deg, #8b73ff 0%, #ff5fae 55%, #5fd4ff 100%)",
-              color: "#0c0a17",
+              color: "white",
               fontWeight: 600,
               fontSize: 13,
               boxShadow:

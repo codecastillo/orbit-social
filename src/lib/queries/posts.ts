@@ -166,6 +166,9 @@ export async function getFeedPosts(
     .from("posts")
     .select(POST_SELECT)
     .is("reply_to_id", null)
+    // Room posts stay inside the room — they never leak into the global
+    // For You / Following feeds, even for the room's own members.
+    .is("community_id", null)
     .eq("is_hidden", false)
     .not("type", "eq", "reel")
     .order("created_at", { ascending: false })
