@@ -48,3 +48,15 @@ export async function incrementVodViews(vodId: string): Promise<void> {
   });
   if (error) throw error;
 }
+
+export async function deleteVod(vodId: string): Promise<void> {
+  const res = await fetch("/api/live/vod/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ vodId }),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(detail?.error || `delete_failed_${res.status}`);
+  }
+}

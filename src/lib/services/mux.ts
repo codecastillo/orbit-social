@@ -52,6 +52,11 @@ export async function deleteMuxLiveStream(muxLiveStreamId: string) {
   await mux.video.liveStreams.delete(muxLiveStreamId);
 }
 
+export async function deleteMuxAsset(muxAssetId: string) {
+  const mux = getMux();
+  await mux.video.assets.delete(muxAssetId);
+}
+
 export function getMuxThumbnailUrl(
   playbackId: string,
   opts: { time?: number; width?: number } = {},

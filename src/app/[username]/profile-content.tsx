@@ -3,7 +3,15 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MoreHorizontal, ExternalLink, Copy, Share2, UserX, VolumeX, Flag } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, ExternalLink, Copy, Share2, UserX, VolumeX, Flag, Trash2, Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,10 +31,12 @@ import {
   getUserRepostedPosts,
   getUserPinnedPosts,
   getUserClips,
+  getUserTaggedPosts,
+  getProfileTabCounts,
   checkUserInteractions,
   type PostWithAuthor,
 } from "@/lib/queries/posts";
-import { getUserVods, type VodRow } from "@/lib/queries/vods";
+import { getUserVods, deleteVod, type VodRow } from "@/lib/queries/vods";
 import { PostCard } from "@/components/feed/post-card";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import type { AvatarBorderStyle } from "@/components/shared/user-avatar";
@@ -61,15 +71,20 @@ interface ProfileContentProps {
   initialIsFollowing: boolean;
 }
 
-const TABS = [
+// All possible tabs in their canonical render order. Visibility is computed
+// at runtime from `getProfileTabCounts` plus owner/visitor + privacy rules,
+// so a brand-new account only sees Posts / Likes / Tagged and the rest pop
+// in once the underlying content exists.
+const ALL_TABS = [
   { value: "posts", label: "Posts" },
   { value: "clips", label: "Clips" },
-  { value: "likes", label: "Likes" },
+  { value: "tagged", label: "Tagged" },
   { value: "reposts", label: "Reposts" },
+  { value: "likes", label: "Likes" },
   { value: "saved", label: "Saved" },
 ] as const;
 
-type TabValue = (typeof TABS)[number]["value"];
+type TabValue = (typeof ALL_TABS)[number]["value"];
 
 function fmtNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
@@ -169,6 +184,41 @@ export function ProfileContent({
           });
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          // Posts the profile owner authored (or removed) → tab counts
+          // recompute so Clips / Reposts pop in/out without a refresh.
+          event: "*",
+          schema: "public",
+          table: "posts",
+          filter: `user_id=eq.${profile.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: ["profile-tab-counts", profile.id],
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          // Someone @mentioned this profile (or unmentioned via edit) →
+          // refresh counts so the Tagged tab appears immediately.
+          event: "*",
+          schema: "public",
+          table: "post_mentions",
+          filter: `user_id=eq.${profile.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: ["profile-tab-counts", profile.id],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["user-tagged-posts", profile.id],
+          });
+        }
+      )
       .subscribe();
 
     return () => {
@@ -247,6 +297,22 @@ export function ProfileContent({
     staleTime: 1000 * 60 * 2,
   });
 
+  const { data: taggedPosts = [], isLoading: loadingTagged } = useQuery({
+    queryKey: ["user-tagged-posts", profile.id, user?.id],
+    queryFn: async () =>
+      enrichWithViewerInteractions(await getUserTaggedPosts(profile.id)),
+    enabled: activeTab === "tagged",
+    staleTime: 1000 * 60,
+  });
+
+  // Drives which tabs show up. We always optimistically include Posts so
+  // the page never flashes tab-less while counts load.
+  const { data: tabCounts } = useQuery({
+    queryKey: ["profile-tab-counts", profile.id, user?.id],
+    queryFn: () => getProfileTabCounts(profile.id, user?.id),
+    staleTime: 1000 * 30,
+  });
+
   const handleFollow = async () => {
     if (!user) {
       toast.error("Sign in to follow users");
@@ -278,12 +344,29 @@ export function ProfileContent({
   };
 
   const visibleTabs = useMemo(() => {
-    return TABS.filter((t) => {
-      if (t.value === "saved") return isOwnProfile;
-      if (t.value === "likes") return isOwnProfile || !profile.private_likes;
-      return true;
+    const counts = tabCounts;
+    // While counts are loading, fall back to the always-on set so the
+    // tab strip doesn't flicker from "Posts only" to the full set.
+    const has = (n: number | undefined) => (n ?? 0) > 0;
+    return ALL_TABS.filter((t) => {
+      switch (t.value) {
+        case "posts":
+          return true;
+        case "tagged":
+          return counts ? has(counts.tagged) : true;
+        case "likes":
+          if (!isOwnProfile && profile.private_likes) return false;
+          if (isOwnProfile) return true;
+          return counts ? has(counts.likes) : true;
+        case "saved":
+          return isOwnProfile && (counts ? has(counts.saved) : true);
+        case "clips":
+          return counts ? has(counts.clips) : false;
+        case "reposts":
+          return counts ? has(counts.reposts) : false;
+      }
     });
-  }, [isOwnProfile, profile.private_likes]);
+  }, [isOwnProfile, profile.private_likes, tabCounts]);
 
   // If the active tab gets hidden (e.g. someone toggles privacy mid-view),
   // snap back to Posts so we never render a non-existent state.
@@ -783,6 +866,19 @@ export function ProfileContent({
             </div>
           ))}
 
+        {activeTab === "tagged" &&
+          (loadingTagged ? (
+            <ListSkeleton />
+          ) : taggedPosts.length === 0 ? (
+            <EmptyTab />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {taggedPosts.map((p: any) => (
+                <PostCard key={p.id} post={p} />
+              ))}
+            </div>
+          ))}
+
         {activeTab === "saved" &&
           isOwnProfile &&
           (loadingSaved ? (
@@ -798,7 +894,9 @@ export function ProfileContent({
           ))}
       </div>
 
-      {vods.length > 0 && <PastStreamsSection vods={vods} />}
+      {vods.length > 0 && (
+        <PastStreamsSection vods={vods} isOwner={isOwnProfile} />
+      )}
 
       <FollowListDialog
         open={
@@ -844,7 +942,13 @@ function timeAgo(iso: string): string {
   return `${y}y ago`;
 }
 
-function PastStreamsSection({ vods }: { vods: VodRow[] }) {
+function PastStreamsSection({
+  vods,
+  isOwner,
+}: {
+  vods: VodRow[];
+  isOwner: boolean;
+}) {
   return (
     <div style={{ ...panel(), padding: 24, marginTop: 4 }}>
       <div style={{ marginBottom: 18 }}>
@@ -861,15 +965,36 @@ function PastStreamsSection({ vods }: { vods: VodRow[] }) {
         }}
       >
         {vods.map((vod) => (
-          <VodCard key={vod.id} vod={vod} />
+          <VodCard key={vod.id} vod={vod} isOwner={isOwner} />
         ))}
       </div>
     </div>
   );
 }
 
-function VodCard({ vod }: { vod: VodRow }) {
+function VodCard({ vod, isOwner }: { vod: VodRow; isOwner: boolean }) {
   const queryClient = useQueryClient();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteVod(vod.id);
+      queryClient.setQueryData<VodRow[]>(
+        ["user-vods", vod.user_id],
+        (prev) => (prev ?? []).filter((v) => v.id !== vod.id),
+      );
+      queryClient.invalidateQueries({ queryKey: ["user-vods", vod.user_id] });
+      toast.success("VOD deleted");
+      setConfirmOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast.error("Couldn't delete VOD");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Self-heal a wrong stored duration without making the user open the
   // player first. The webhook stores `duration` from the asset Mux fires
@@ -903,116 +1028,227 @@ function VodCard({ vod }: { vod: VodRow }) {
   }, [vod.id, vod.duration_seconds, vod.user_id, queryClient]);
 
   return (
-    <Link
-      href={`/vod/${vod.id}`}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-        textDecoration: "none",
-        color: "inherit",
-      }}
-    >
-      <div
+    <>
+      <Link
+        href={`/vod/${vod.id}`}
         style={{
-          position: "relative",
-          width: "100%",
-          aspectRatio: "16 / 9",
-          borderRadius: 14,
-          overflow: "hidden",
-          background: O.glass,
-          border: `1px solid ${O.hair}`,
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+          textDecoration: "none",
+          color: "inherit",
         }}
       >
-        {vod.thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={vod.thumbnail_url}
-            alt={vod.title ?? "Past stream"}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        ) : (
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              background: auroraSoft,
-            }}
-          />
-        )}
-        {vod.duration_seconds ? (
-          <span
-            style={{
-              position: "absolute",
-              bottom: 8,
-              right: 8,
-              padding: "3px 8px",
-              borderRadius: 8,
-              background: "rgba(0,0,0,0.7)",
-              backdropFilter: "blur(8px)",
-              color: O.ink,
-              fontFamily: O.mono,
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.02em",
-            }}
-          >
-            {formatDuration(vod.duration_seconds)}
-          </span>
-        ) : null}
-      </div>
-      <div>
         <div
           style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: O.ink,
-            lineHeight: 1.35,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
+            position: "relative",
+            width: "100%",
+            aspectRatio: "16 / 9",
+            borderRadius: 14,
             overflow: "hidden",
+            background: O.glass,
+            border: `1px solid ${O.hair}`,
           }}
         >
-          {vod.title ?? "Untitled stream"}
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
-            marginTop: 6,
-          }}
-        >
-          {vod.category && (
+          {vod.thumbnail_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={vod.thumbnail_url}
+              alt={vod.title ?? "Past stream"}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          ) : (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                background: auroraSoft,
+              }}
+            />
+          )}
+          {isOwner && (
+            <button
+              type="button"
+              aria-label="Delete VOD"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setConfirmOpen(true);
+              }}
+              style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                width: 30,
+                height: 30,
+                borderRadius: 999,
+                background: "rgba(0,0,0,0.6)",
+                backdropFilter: "blur(8px)",
+                border: "1px solid rgba(255,255,255,0.16)",
+                color: "white",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                padding: 0,
+              }}
+              className="hover:bg-black/80 transition-colors"
+            >
+              <Trash2 style={{ width: 14, height: 14 }} />
+            </button>
+          )}
+          {vod.duration_seconds ? (
             <span
               style={{
-                padding: "2px 8px",
-                borderRadius: 99,
-                background: O.glass,
-                border: `1px solid ${O.hair}`,
-                fontSize: 10.5,
-                color: O.ink2,
-                fontWeight: 500,
+                position: "absolute",
+                bottom: 8,
+                right: 8,
+                padding: "3px 8px",
+                borderRadius: 8,
+                background: "rgba(0,0,0,0.7)",
+                backdropFilter: "blur(8px)",
+                color: O.ink,
+                fontFamily: O.mono,
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.02em",
               }}
             >
-              {vod.category}
+              {formatDuration(vod.duration_seconds)}
             </span>
-          )}
-          <span
+          ) : null}
+        </div>
+        <div>
+          <div
             style={{
-              fontSize: 11.5,
-              color: O.ink3,
-              fontFamily: O.mono,
-              letterSpacing: "0.04em",
+              fontSize: 14,
+              fontWeight: 600,
+              color: O.ink,
+              lineHeight: 1.35,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
             }}
           >
-            {fmtNumber(vod.view_count)} views · {timeAgo(vod.created_at)}
-          </span>
+            {vod.title ?? "Untitled stream"}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+              marginTop: 6,
+            }}
+          >
+            {vod.category && (
+              <span
+                style={{
+                  padding: "2px 8px",
+                  borderRadius: 99,
+                  background: O.glass,
+                  border: `1px solid ${O.hair}`,
+                  fontSize: 10.5,
+                  color: O.ink2,
+                  fontWeight: 500,
+                }}
+              >
+                {vod.category}
+              </span>
+            )}
+            <span
+              style={{
+                fontSize: 11.5,
+                color: O.ink3,
+                fontFamily: O.mono,
+                letterSpacing: "0.04em",
+              }}
+            >
+              {fmtNumber(vod.view_count)} views · {timeAgo(vod.created_at)}
+            </span>
+          </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+
+      <DeleteVodDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        onConfirm={handleDelete}
+        deleting={deleting}
+      />
+    </>
+  );
+}
+
+function DeleteVodDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+  deleting,
+}: {
+  open: boolean;
+  onOpenChange: (next: boolean) => void;
+  onConfirm: () => void;
+  deleting: boolean;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle>Delete this VOD?</DialogTitle>
+          <DialogDescription>
+            The recording will be removed from your profile and from Mux. This
+            cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            disabled={deleting}
+            style={{
+              padding: "10px 16px",
+              borderRadius: 99,
+              background: "rgba(255,255,255,0.04)",
+              border: `1px solid ${O.hair2}`,
+              color: O.ink,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={deleting}
+            style={{
+              padding: "10px 18px",
+              borderRadius: 99,
+              background: "#ef4444",
+              border: "none",
+              color: "white",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: deleting ? "default" : "pointer",
+              fontFamily: "inherit",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              opacity: deleting ? 0.7 : 1,
+            }}
+          >
+            {deleting && (
+              <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />
+            )}
+            Delete
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

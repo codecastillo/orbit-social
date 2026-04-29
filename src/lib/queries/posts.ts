@@ -339,6 +339,110 @@ export async function getUserBookmarkedPosts(userId: string, limit = 50) {
   return postIds.map((id) => postMap.get(id)).filter(Boolean) as PostWithAuthor[];
 }
 
+export async function getUserTaggedPosts(userId: string, limit = 30) {
+  // Posts that @-mention `userId`. Joined through post_mentions (populated
+  // by the sync_post_mentions trigger). Fetch the mention rows first,
+  // then hydrate the underlying posts in mention-recency order so the
+  // newest tag shows up at the top.
+  const { data: mentions, error: mErr } = await supabase
+    .from("post_mentions")
+    .select("post_id, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (mErr) throw mErr;
+  if (!mentions || mentions.length === 0) return [];
+
+  const postIds = mentions.map((m) => m.post_id);
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .in("id", postIds)
+    .is("community_id", null)
+    .eq("is_hidden", false);
+
+  if (error) throw error;
+  const map = new Map((data ?? []).map((p) => [p.id, p]));
+  return postIds
+    .map((id) => map.get(id))
+    .filter(Boolean) as PostWithAuthor[];
+}
+
+export interface ProfileTabCounts {
+  posts: number;
+  clips: number;
+  reposts: number;
+  tagged: number;
+  likes: number;
+  saved: number;
+}
+
+// Cheap "do you have anything to show on this tab" probe used to decide
+// which profile tabs to render. All counts use head:true + count:exact so
+// they don't pull rows over the wire.
+export async function getProfileTabCounts(
+  profileId: string,
+  viewerId: string | undefined,
+): Promise<ProfileTabCounts> {
+  const includeSaved = !!viewerId && viewerId === profileId;
+
+  const [
+    postsRes,
+    clipsRes,
+    repostsRes,
+    taggedRes,
+    likesRes,
+    savedRes,
+  ] = await Promise.all([
+    supabase
+      .from("posts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", profileId)
+      .is("reply_to_id", null)
+      .is("community_id", null)
+      .eq("is_hidden", false)
+      .not("type", "in", "(reel,repost)"),
+    supabase
+      .from("posts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", profileId)
+      .eq("type", "reel")
+      .is("community_id", null)
+      .eq("is_hidden", false),
+    supabase
+      .from("posts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", profileId)
+      .eq("type", "repost")
+      .is("community_id", null)
+      .eq("is_hidden", false),
+    supabase
+      .from("post_mentions")
+      .select("post_id", { count: "exact", head: true })
+      .eq("user_id", profileId),
+    supabase
+      .from("post_likes")
+      .select("post_id", { count: "exact", head: true })
+      .eq("user_id", profileId),
+    includeSaved
+      ? supabase
+          .from("bookmarks")
+          .select("post_id", { count: "exact", head: true })
+          .eq("user_id", profileId)
+      : Promise.resolve({ count: 0 } as { count: number | null }),
+  ]);
+
+  return {
+    posts: postsRes.count ?? 0,
+    clips: clipsRes.count ?? 0,
+    reposts: repostsRes.count ?? 0,
+    tagged: taggedRes.count ?? 0,
+    likes: likesRes.count ?? 0,
+    saved: savedRes.count ?? 0,
+  };
+}
+
 export async function getUserRepostedPosts(userId: string, limit = 50) {
   const { data, error } = await supabase
     .from("posts")

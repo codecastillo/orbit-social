@@ -5,13 +5,21 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Eye, Share2 } from "lucide-react";
+import { ArrowLeft, Eye, Share2, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { getVodById, incrementVodViews } from "@/lib/queries/vods";
+import { getVodById, incrementVodViews, deleteVod } from "@/lib/queries/vods";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { VerifiedStar } from "@/components/orbit/verified-star";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const MuxPlayer = dynamic(
   () => import("@mux/mux-player-react").then((m) => m.default),
@@ -58,6 +66,8 @@ export default function VodPage({ params }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const incrementedRef = useRef(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const { data: vod, isLoading } = useQuery({
     queryKey: ["vod", vodId],
@@ -111,6 +121,25 @@ export default function VodPage({ params }: Props) {
         queryClient.invalidateQueries({ queryKey: ["vod", vod.id] });
         queryClient.invalidateQueries({ queryKey: ["user-vods", vod.user_id] });
       });
+  };
+
+  const isOwner = !!user && !!vod && user.id === vod.user_id;
+
+  const handleConfirmDelete = async () => {
+    if (!vod) return;
+    setDeleting(true);
+    try {
+      await deleteVod(vod.id);
+      toast.success("VOD deleted");
+      queryClient.invalidateQueries({ queryKey: ["user-vods", vod.user_id] });
+      setConfirmDeleteOpen(false);
+      router.back();
+    } catch (err) {
+      console.error(err);
+      toast.error("Couldn't delete VOD");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleShare = async () => {
@@ -227,9 +256,51 @@ export default function VodPage({ params }: Props) {
               <Share2 className="h-3.5 w-3.5" />
               Share
             </button>
+
+            {isOwner && (
+              <button
+                onClick={() => setConfirmDeleteOpen(true)}
+                aria-label="Delete VOD"
+                className="flex-shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-red-500/15 border border-red-500/40 text-red-200 text-[12.5px] font-semibold hover:bg-red-500/25 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Delete this VOD?</DialogTitle>
+            <DialogDescription>
+              The recording will be removed from your profile and from Mux. This
+              cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteOpen(false)}
+              disabled={deleting}
+              className="h-9 px-4 rounded-full bg-white/[0.04] border border-white/10 text-white text-[13px] font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+              className="h-9 px-5 rounded-full bg-red-500 text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-70"
+            >
+              {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Delete
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
