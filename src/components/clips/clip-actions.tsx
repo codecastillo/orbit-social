@@ -10,6 +10,7 @@ import { formatNumber } from "@/lib/utils/format";
 import { toggleLike, toggleBookmark } from "@/lib/queries/posts";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
+import { ShareDialog } from "@/components/shared/share-dialog";
 import { O } from "@/lib/design/orbit";
 
 interface ClipActionsProps {
@@ -85,6 +86,7 @@ export function ClipActions({
   const [localLikeCount, setLocalLikeCount] = useState(likeCount);
   const [localBookmarkCount, setLocalBookmarkCount] = useState(bookmarkCount);
   const [localShareCount, setLocalShareCount] = useState(shareCount);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Sync local count state when authoritative props update (realtime
   // refetch from the parent feed after another user's interaction). For
@@ -132,12 +134,11 @@ export function ClipActions({
     }
   };
 
-  const handleShare = async () => {
-    const url = `${window.location.origin}/post/${postId}`;
+  const handleShare = () => {
     setLocalShareCount((c) => c + 1);
-    // Persist server-side first so the count survives refresh and is
-    // visible to every other viewer. Surface failures (e.g. missing RPC
-    // / missing share_count column) so they aren't silent.
+    // Persist server-side so the count survives refresh and is visible
+    // to every other viewer. Surface failures (e.g. missing RPC) instead
+    // of swallowing them.
     const supabase = createClient();
     supabase.rpc("increment_post_shares", { p_post_id: postId }).then(
       ({ error }) => {
@@ -146,18 +147,8 @@ export function ClipActions({
         }
       },
     );
-    try {
-      if (navigator.share) {
-        await navigator.share({ url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        toast.success("Link copied");
-      }
-      queryClient.invalidateQueries({ queryKey: ["clips"] });
-    } catch {
-      // user cancelled — keep the optimistic bump anyway since the share
-      // intent was registered server-side.
-    }
+    queryClient.invalidateQueries({ queryKey: ["clips"] });
+    setShareOpen(true);
   };
 
   return (
@@ -202,6 +193,7 @@ export function ClipActions({
         label={localShareCount > 0 ? formatNumber(localShareCount) : "Share"}
         onClick={handleShare}
       />
+      <ShareDialog postId={postId} open={shareOpen} onOpenChange={setShareOpen} />
     </div>
   );
 }

@@ -382,7 +382,7 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
                 fontSize: 12,
                 fontWeight: 700,
                 letterSpacing: "0.01em",
-                color: isFollowing ? O.ink : O.bg,
+                color: isFollowing ? O.ink : "white",
                 background: isFollowing ? "rgba(255,255,255,0.08)" : aurora,
                 border: isFollowing
                   ? `1px solid ${O.hair2}`
