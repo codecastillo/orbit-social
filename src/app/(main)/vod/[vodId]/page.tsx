@@ -4,7 +4,7 @@ import { use, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Eye, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -56,6 +56,7 @@ export default function VodPage({ params }: Props) {
   const { vodId } = use(params);
   const router = useRouter();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const incrementedRef = useRef(false);
 
   const { data: vod, isLoading } = useQuery({
@@ -87,10 +88,11 @@ export default function VodPage({ params }: Props) {
   }, [vod]);
 
   // Patch the saved duration with whatever the player reports once metadata
-  // loads. Mux's webhook sometimes records a too-short duration on
-  // reconnects; the actual playable length is always correct, so we trust
-  // it and write back to the row. The card will show the right number on
-  // the next render.
+  // loads. Mux's webhook records the duration of the *individual asset*,
+  // which can be a short tail segment after a reconnect; the actual
+  // playable length is what the user sees. We trust the player, write back
+  // to the row, and invalidate the profile/feed caches so the VOD card
+  // shows the right number without a hard refresh.
   const handleLoadedMetadata = (e: Event) => {
     const target = e.target as HTMLVideoElement | null;
     if (!target || !vod) return;
@@ -100,7 +102,15 @@ export default function VodPage({ params }: Props) {
     void createClient()
       .from("live_vods")
       .update({ duration_seconds: playable })
-      .eq("id", vod.id);
+      .eq("id", vod.id)
+      .then(({ error }) => {
+        if (error) {
+          console.error("VOD duration self-heal failed", error);
+          return;
+        }
+        queryClient.invalidateQueries({ queryKey: ["vod", vod.id] });
+        queryClient.invalidateQueries({ queryKey: ["user-vods", vod.user_id] });
+      });
   };
 
   const handleShare = async () => {

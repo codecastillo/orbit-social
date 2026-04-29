@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
-  Plus,
   Calendar as CalIcon,
   MapPin,
   Share2,
@@ -184,16 +183,16 @@ export default function EventsPage() {
         }}
       >
         <div>
-          <Eyebrow>◇&nbsp;&nbsp;EVENTS · NEXT 4 WEEKS</Eyebrow>
+          <Eyebrow>◇&nbsp;&nbsp;EVENTS</Eyebrow>
           <Display size={56} style={{ marginTop: 8 }}>
             Things to <Acc>show up</Acc> for.
           </Display>
           <p style={{ fontSize: 14, color: O.ink2, marginTop: 8 }}>
-            Meetups, launches, listening sessions — the real-world side of your network.
+            Meetups, launches, listening sessions. The real-world side of your network.
           </p>
         </div>
         <PillBtn primary size="lg" onClick={() => setShowCreate(true)}>
-          <Plus style={{ width: 14, height: 14 }} strokeWidth={2.4} /> Host
+          Host
         </PillBtn>
       </div>
 
@@ -205,8 +204,7 @@ export default function EventsPage() {
           accent={O.a3}
           headline="Nothing"
           accentWord="scheduled"
-          sub="No events on your orbit yet. Create a meetup, a listening session, a launch — the real-world side of this place."
-          secondaryLabel="Discover events"
+          sub="No events on your orbit yet. Create a meetup, a listening session, a launch. The real-world side of this place."
         />
       ) : (
         <>

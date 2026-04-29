@@ -23,6 +23,8 @@ import {
   getUserRepostedPosts,
   getUserPinnedPosts,
   getUserClips,
+  checkUserInteractions,
+  type PostWithAuthor,
 } from "@/lib/queries/posts";
 import { getUserVods, type VodRow } from "@/lib/queries/vods";
 import { PostCard } from "@/components/feed/post-card";
@@ -174,42 +176,65 @@ export function ProfileContent({
     };
   }, [profile.id, supabase, queryClient]);
 
+  // Stamp the viewer's like/bookmark state onto a list of posts so PostCard
+  // renders the heart filled-in for posts they've already liked. Without
+  // this, the profile tabs serve raw rows (no `user_has_liked`) and every
+  // heart looks unliked even when the viewer has tapped it elsewhere.
+  const enrichWithViewerInteractions = async (rows: PostWithAuthor[]) => {
+    if (!user || rows.length === 0) return rows;
+    const { likedPostIds, bookmarkedPostIds } = await checkUserInteractions(
+      user.id,
+      rows.map((r) => r.id),
+    );
+    return rows.map((r) => ({
+      ...r,
+      user_has_liked: likedPostIds.has(r.id),
+      user_has_bookmarked: bookmarkedPostIds.has(r.id),
+    }));
+  };
+
   const { data: pinnedPosts = [] } = useQuery({
-    queryKey: ["user-pinned-posts", profile.id],
-    queryFn: () => getUserPinnedPosts(profile.id),
+    queryKey: ["user-pinned-posts", profile.id, user?.id],
+    queryFn: async () =>
+      enrichWithViewerInteractions(await getUserPinnedPosts(profile.id)),
     staleTime: 1000 * 60 * 2,
   });
 
   const { data: posts = [] } = useQuery({
-    queryKey: ["user-posts", profile.id],
-    queryFn: () => getUserPosts(profile.id),
+    queryKey: ["user-posts", profile.id, user?.id],
+    queryFn: async () =>
+      enrichWithViewerInteractions(await getUserPosts(profile.id)),
     staleTime: 1000 * 60 * 2,
   });
 
   const { data: clips = [], isLoading: loadingClips } = useQuery({
-    queryKey: ["user-clips", profile.id],
-    queryFn: () => getUserClips(profile.id),
+    queryKey: ["user-clips", profile.id, user?.id],
+    queryFn: async () =>
+      enrichWithViewerInteractions(await getUserClips(profile.id)),
     enabled: activeTab === "clips",
     staleTime: 1000 * 60 * 2,
   });
 
   const { data: likedPosts = [], isLoading: loadingLikes } = useQuery({
-    queryKey: ["user-liked-posts", profile.id],
-    queryFn: () => getUserLikedPosts(profile.id),
+    queryKey: ["user-liked-posts", profile.id, user?.id],
+    queryFn: async () =>
+      enrichWithViewerInteractions(await getUserLikedPosts(profile.id)),
     enabled: activeTab === "likes",
     staleTime: 1000 * 60,
   });
 
   const { data: repostedPosts = [], isLoading: loadingReposts } = useQuery({
-    queryKey: ["user-reposted-posts", profile.id],
-    queryFn: () => getUserRepostedPosts(profile.id),
+    queryKey: ["user-reposted-posts", profile.id, user?.id],
+    queryFn: async () =>
+      enrichWithViewerInteractions(await getUserRepostedPosts(profile.id)),
     enabled: activeTab === "reposts",
     staleTime: 1000 * 60,
   });
 
   const { data: savedPosts = [], isLoading: loadingSaved } = useQuery({
-    queryKey: ["user-saved-posts", profile.id],
-    queryFn: () => getUserBookmarkedPosts(profile.id),
+    queryKey: ["user-saved-posts", profile.id, user?.id],
+    queryFn: async () =>
+      enrichWithViewerInteractions(await getUserBookmarkedPosts(profile.id)),
     enabled: activeTab === "saved" && isOwnProfile,
     staleTime: 1000 * 60,
   });
@@ -398,7 +423,8 @@ export function ProfileContent({
               <Display size={32}>
                 {rest ? (
                   <>
-                    {first} <Acc>{rest}</Acc>
+                    {first}{" "}
+                    <Acc color={profile.theme_color || undefined}>{rest}</Acc>
                   </>
                 ) : (
                   first || profile.username
@@ -511,7 +537,7 @@ export function ProfileContent({
                       }
                     }
                     void navigator.clipboard.writeText(url);
-                    toast.success("Link copied — paste anywhere to share");
+                    toast.success("Link copied. Paste anywhere to share");
                   }}
                 >
                   <Share2 className="mr-2 h-4 w-4" />
@@ -702,7 +728,7 @@ export function ProfileContent({
               </div>
             )}
             {posts.length === 0 && pinnedPosts.length === 0 ? (
-              <EmptyTab label="No posts yet" />
+              <EmptyTab />
             ) : (
               <div
                 style={{ display: "flex", flexDirection: "column", gap: 8 }}
@@ -719,7 +745,7 @@ export function ProfileContent({
           (loadingClips ? (
             <ListSkeleton />
           ) : clips.length === 0 ? (
-            <EmptyTab label="No clips yet" />
+            <EmptyTab />
           ) : (
             <ClipsGrid clips={clips} />
           ))}
@@ -728,7 +754,7 @@ export function ProfileContent({
           (loadingLikes ? (
             <ListSkeleton />
           ) : likedPosts.length === 0 ? (
-            <EmptyTab label="No likes yet" />
+            <EmptyTab />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {likedPosts.map((p: any) => (
@@ -741,7 +767,7 @@ export function ProfileContent({
           (loadingReposts ? (
             <ListSkeleton />
           ) : repostedPosts.length === 0 ? (
-            <EmptyTab label="No reposts yet" />
+            <EmptyTab />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {repostedPosts.map((p: any) => (
@@ -755,7 +781,7 @@ export function ProfileContent({
           (loadingSaved ? (
             <ListSkeleton />
           ) : savedPosts.length === 0 ? (
-            <EmptyTab label="Nothing saved yet" />
+            <EmptyTab />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {savedPosts.map((p: any) => (
@@ -950,9 +976,7 @@ function VodCard({ vod }: { vod: VodRow }) {
   );
 }
 
-// Instagram-Reels-style 3-up grid of vertical clip thumbnails. Each tile
-// links to /clips/<id>; if the clip lacks a thumbnail we fall back to
-// the video itself muted/looping for a quick preview.
+// Instagram-Reels-style 3-up grid of vertical clip thumbnails.
 function ClipsGrid({
   clips,
 }: {
@@ -980,7 +1004,7 @@ function ClipsGrid({
         return (
           <Link
             key={clip.id}
-            href={`/clips/${clip.id}`}
+            href={`/post/${clip.id}`}
             style={{
               position: "relative",
               aspectRatio: "9 / 16",
@@ -1038,7 +1062,7 @@ function ClipsGrid({
   );
 }
 
-function EmptyTab({ label }: { label: string }) {
+function EmptyTab() {
   return (
     <div
       style={{
@@ -1048,7 +1072,6 @@ function EmptyTab({ label }: { label: string }) {
       }}
     >
       <Eyebrow>◇&nbsp;&nbsp;NOTHING HERE YET</Eyebrow>
-      <p style={{ fontSize: 14, marginTop: 12 }}>{label}</p>
     </div>
   );
 }

@@ -114,7 +114,7 @@ export default function CommunitiesPage() {
         }}
       >
         <div>
-          <Eyebrow>◈&nbsp;&nbsp;ROOMS · YOURS &amp; OTHERS</Eyebrow>
+          <Eyebrow>◈&nbsp;&nbsp;ROOMS</Eyebrow>
           <Display size={56} style={{ marginTop: 8 }}>
             Find your <Acc>people</Acc>.
           </Display>

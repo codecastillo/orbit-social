@@ -42,6 +42,7 @@ const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif
 
 const ACCENTS: { value: string | null; hue: number }[] = [
   { value: null, hue: 220 },
+  { value: "#ffffff", hue: 0 },
   { value: "#ff6a7a", hue: 10 },
   { value: "#ff9a3d", hue: 30 },
   { value: "#ffd76a", hue: 50 },
@@ -189,7 +190,7 @@ export default function EditProfilePage() {
       if (kind === "avatar") setAvatarUrl(url);
       else setCoverUrl(url);
       setImageDirty(true);
-      toast.success(`${kind === "avatar" ? "Photo" : "Banner"} ready — hit save below`);
+      toast.success(`${kind === "avatar" ? "Photo" : "Banner"} ready. Hit save below`);
     } finally {
       setBusy(false);
     }
@@ -301,7 +302,7 @@ export default function EditProfilePage() {
           maxWidth: 520,
         }}
       >
-        What people see when they land on your profile. Change anything — nothing saves until you hit the button at the bottom.
+        What people see when they land on your profile. Change anything, nothing saves until you hit the button at the bottom.
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -566,7 +567,10 @@ export default function EditProfilePage() {
                       width: 40,
                       height: 40,
                       borderRadius: "50%",
-                      background: `linear-gradient(135deg, oklch(0.72 0.16 ${a.hue}), oklch(0.5 0.17 ${(a.hue + 40) % 360}))`,
+                      background:
+                        a.value === "#ffffff"
+                          ? "#ffffff"
+                          : `linear-gradient(135deg, oklch(0.72 0.16 ${a.hue}), oklch(0.5 0.17 ${(a.hue + 40) % 360}))`,
                       boxShadow: active
                         ? `0 0 0 2px ${O.bg}, 0 0 0 4px ${ringColor}, 0 0 20px ${ringColor}66`
                         : "inset 0 1px 0 rgba(255,255,255,0.2)",
@@ -580,7 +584,11 @@ export default function EditProfilePage() {
                   >
                     {active && (
                       <Check
-                        style={{ width: 16, height: 16, color: "white" }}
+                        style={{
+                          width: 16,
+                          height: 16,
+                          color: a.value === "#ffffff" ? "#0c0a17" : "white",
+                        }}
                         strokeWidth={3}
                       />
                     )}

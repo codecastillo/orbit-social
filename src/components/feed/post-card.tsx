@@ -88,14 +88,21 @@ interface PostCardProps {
 
 export function PostCard({
   post,
-  isLiked: initialIsLiked = false,
-  isBookmarked: initialIsBookmarked = false,
-  isReposted: initialIsReposted = false,
+  isLiked: isLikedProp,
+  isBookmarked: isBookmarkedProp,
+  isReposted: isRepostedProp,
   repostedByUsername,
   onUpdate,
   compact = false,
   allUserPosts,
 }: PostCardProps) {
+  // Caller-provided state wins; otherwise fall back to whatever the query
+  // baked into the row (e.g. profile tabs enrich posts via
+  // checkUserInteractions, the clips feed sets user_has_liked, etc.).
+  const initialIsLiked = isLikedProp ?? post.user_has_liked ?? false;
+  const initialIsBookmarked =
+    isBookmarkedProp ?? post.user_has_bookmarked ?? false;
+  const initialIsReposted = isRepostedProp ?? false;
   const { user } = useAuth();
   const router = useRouter();
   const [isLiked, setIsLiked] = useState(initialIsLiked);

@@ -206,7 +206,13 @@ export function QRCodeDialog({
               </button>
               <button
                 type="button"
-                onClick={() => setShareOpen(true)}
+                onClick={() => {
+                  // Close the QR dialog before opening Share so we never
+                  // stack two centered dialogs (which read as "off-center"
+                  // because their widths differ).
+                  onOpenChange(false);
+                  setShareOpen(true);
+                }}
                 style={{
                   flex: 1,
                   padding: "10px 14px",

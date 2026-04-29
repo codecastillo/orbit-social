@@ -21,16 +21,16 @@ export function StatCluster({
           onClick={item.onClick}
           disabled={!item.onClick}
           style={{
-            paddingLeft: divider && i > 0 ? 32 : 0,
             borderLeft:
               divider && i > 0 ? `1px solid ${O.hair}` : "none",
             display: "flex",
             flexDirection: "column",
-            gap: 2,
+            alignItems: "center",
+            gap: 4,
             background: "transparent",
             border: 0,
             color: "inherit",
-            textAlign: "left",
+            textAlign: "center",
             cursor: item.onClick ? "pointer" : "default",
             padding: divider && i > 0 ? "0 0 0 32px" : 0,
           }}
@@ -41,11 +41,13 @@ export function StatCluster({
               fontFamily: O.serif,
               fontStyle: "italic",
               fontSize: size,
+              fontWeight: 700,
               lineHeight: 1.05,
               background: aurora,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
-              letterSpacing: "-0.01em",
+              letterSpacing: "-0.015em",
+              textAlign: "center",
             }}
           >
             {formatNumber(item.n)}
@@ -57,6 +59,7 @@ export function StatCluster({
               letterSpacing: "0.14em",
               textTransform: "uppercase",
               color: O.ink3,
+              textAlign: "center",
             }}
           >
             {item.label}

@@ -68,8 +68,8 @@ export default function NotificationsPage() {
         }}
       >
         <div>
-          <Eyebrow accent>
-            ◇&nbsp;&nbsp;ACTIVITY · {unreadCount ? `${unreadCount} NEW` : "ALL READ"}
+          <Eyebrow>
+            ◇&nbsp;&nbsp;ACTIVITY{unreadCount ? ` · ${unreadCount} NEW` : ""}
           </Eyebrow>
           <Display size={48} style={{ marginTop: 8 }}>
             Signals from your <Acc>orbit</Acc>.

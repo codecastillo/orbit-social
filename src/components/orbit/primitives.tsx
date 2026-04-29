@@ -107,18 +107,24 @@ export function Display({
   );
 }
 
-/** Inline italic-serif accent inside <Display>. Aurora-gradient text. */
-export function Acc({ children }: { children: ReactNode }) {
+/** Inline italic-serif accent inside <Display>. Aurora-gradient text by
+ *  default; pass `color` to override with a solid brand/accent color. */
+export function Acc({ children, color }: { children: ReactNode; color?: string }) {
+  const fillStyle = color
+    ? { color }
+    : {
+        background: aurora,
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+      };
   return (
     <em
       style={{
         fontFamily: O.serif,
         fontStyle: "italic",
         fontWeight: 400,
-        background: aurora,
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
         paddingRight: "0.04em",
+        ...fillStyle,
       }}
     >
       {children}
