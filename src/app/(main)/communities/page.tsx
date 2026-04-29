@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Globe } from "lucide-react";
+import { Search, Globe } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input as BareInput } from "@/components/ui/input";
 import { CreateCommunityDialog } from "@/components/communities/create-community-dialog";
@@ -132,7 +132,7 @@ export default function CommunitiesPage() {
         </div>
         {user && (
           <PillBtn primary size="lg" onClick={() => setCreateOpen(true)}>
-            <Plus style={{ width: 14, height: 14 }} strokeWidth={2.4} /> Start a room
+            Start a room
           </PillBtn>
         )}
       </div>

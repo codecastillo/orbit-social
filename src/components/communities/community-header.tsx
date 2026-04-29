@@ -13,6 +13,9 @@ import {
   Trash2,
   Camera,
   ImagePlus,
+  Pencil,
+  Link2,
+  UsersRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -74,6 +77,12 @@ export function CommunityHeader({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState(community.name);
+  const [editDescription, setEditDescription] = useState(
+    community.description || "",
+  );
+  const [savingEdit, setSavingEdit] = useState(false);
   const [uploadingKind, setUploadingKind] = useState<"avatar" | "cover" | null>(
     null
   );
@@ -379,7 +388,37 @@ export function CommunityHeader({
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-56 rounded-2xl">
+                  <DropdownMenuItem
+                    className="cursor-pointer rounded-lg"
+                    onClick={() => {
+                      setEditName(community.name);
+                      setEditDescription(community.description || "");
+                      setEditOpen(true);
+                    }}
+                  >
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer rounded-lg"
+                    onClick={() => setMembersOpen(true)}
+                  >
+                    <UsersRound className="mr-2 h-4 w-4" />
+                    Manage members
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer rounded-lg"
+                    onClick={() => {
+                      const url = `${window.location.origin}/communities/${community.slug || community.id}`;
+                      void navigator.clipboard.writeText(url);
+                      toast.success("Room link copied");
+                    }}
+                  >
+                    <Link2 className="mr-2 h-4 w-4" />
+                    Copy room link
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem
                     variant="destructive"
                     className="cursor-pointer rounded-lg"
@@ -387,10 +426,6 @@ export function CommunityHeader({
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete room
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem disabled>
-                    More owner tools soon
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -405,6 +440,13 @@ export function CommunityHeader({
             {community.description}
           </p>
         )}
+
+        {/* Created date sits directly under the description, on its own
+            line — separate from the members-with-avatars row below. */}
+        <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+          <Calendar className="h-3.5 w-3.5" />
+          <span>Created {createdDate}</span>
+        </div>
 
         <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
           <button
@@ -443,10 +485,6 @@ export function CommunityHeader({
               {community.member_count === 1 ? "member" : "members"}
             </span>
           </button>
-          <div className="flex items-center gap-1.5">
-            <Calendar className="h-4 w-4" />
-            <span>Created {createdDate}</span>
-          </div>
         </div>
 
         {/* Rules section */}
@@ -521,6 +559,71 @@ export function CommunityHeader({
               disabled={deleting}
             >
               {deleting ? "Deleting…" : "Delete room"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit room details — owner-only quick edit for name + description.
+          Avatar + cover have their own Change buttons on the header. */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit room</DialogTitle>
+            <DialogDescription>
+              Update the room name and description. Members will see the
+              change immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            <label className="text-xs text-muted-foreground">Name</label>
+            <input
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              maxLength={60}
+              className="rounded-xl bg-white/[0.04] border border-white/[0.06] focus:border-white/20 focus:outline-none px-3 py-2 text-sm"
+            />
+            <label className="text-xs text-muted-foreground mt-2">
+              Description
+            </label>
+            <textarea
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              maxLength={300}
+              rows={3}
+              className="rounded-xl bg-white/[0.04] border border-white/[0.06] focus:border-white/20 focus:outline-none px-3 py-2 text-sm resize-none"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={savingEdit || !editName.trim()}
+              onClick={async () => {
+                setSavingEdit(true);
+                try {
+                  await updateCommunity(community.id, {
+                    name: editName.trim(),
+                    description: editDescription.trim(),
+                  });
+                  await queryClient.invalidateQueries({
+                    queryKey: ["community", community.id],
+                  });
+                  await queryClient.invalidateQueries({
+                    queryKey: ["communities"],
+                  });
+                  toast.success("Room updated");
+                  setEditOpen(false);
+                } catch (e) {
+                  console.error("updateCommunity failed", e);
+                  toast.error("Couldn't save changes");
+                } finally {
+                  setSavingEdit(false);
+                }
+              }}
+            >
+              {savingEdit ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
