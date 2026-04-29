@@ -17,6 +17,8 @@ export default function PrivacySettingsPage() {
 
   const [isPrivate, setIsPrivate] = useState(false);
   const [hideActivity, setHideActivity] = useState(false);
+  const [privateFollowers, setPrivateFollowers] = useState(false);
+  const [privateLikes, setPrivateLikes] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -24,13 +26,15 @@ export default function PrivacySettingsPage() {
     if (!user) return;
     supabase
       .from("profiles")
-      .select("is_private, hide_activity")
+      .select("is_private, hide_activity, private_followers, private_likes")
       .eq("id", user.id)
       .single()
       .then(({ data }) => {
         if (data) {
           setIsPrivate(data.is_private ?? false);
           setHideActivity(data.hide_activity ?? false);
+          setPrivateFollowers(data.private_followers ?? false);
+          setPrivateLikes(data.private_likes ?? false);
         }
         setProfileLoading(false);
       });
@@ -44,6 +48,8 @@ export default function PrivacySettingsPage() {
       .update({
         is_private: isPrivate,
         hide_activity: hideActivity,
+        private_followers: privateFollowers,
+        private_likes: privateLikes,
         updated_at: new Date().toISOString(),
       })
       .eq("id", user.id);
@@ -144,6 +150,18 @@ export default function PrivacySettingsPage() {
             hint="Don't show when you were last online or typing."
             on={hideActivity}
             onChange={setHideActivity}
+          />
+          <ToggleRow
+            label="Hide your followers and following"
+            hint="The counts stay public, but the lists won't open for anyone but you."
+            on={privateFollowers}
+            onChange={setPrivateFollowers}
+          />
+          <ToggleRow
+            label="Hide your Likes tab"
+            hint="People won't see what you've liked. You can still see it on your own profile."
+            on={privateLikes}
+            onChange={setPrivateLikes}
           />
         </div>
       </FormSection>

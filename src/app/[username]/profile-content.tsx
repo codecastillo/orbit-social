@@ -22,6 +22,7 @@ import {
   getUserBookmarkedPosts,
   getUserRepostedPosts,
   getUserPinnedPosts,
+  getUserClips,
 } from "@/lib/queries/posts";
 import { getUserVods, type VodRow } from "@/lib/queries/vods";
 import { PostCard } from "@/components/feed/post-card";
@@ -51,6 +52,8 @@ interface ProfileContentProps {
     created_at: string;
     theme_color?: string | null;
     avatar_border?: string | null;
+    private_followers?: boolean | null;
+    private_likes?: boolean | null;
   };
   isOwnProfile: boolean;
   initialIsFollowing: boolean;
@@ -58,6 +61,7 @@ interface ProfileContentProps {
 
 const TABS = [
   { value: "posts", label: "Posts" },
+  { value: "clips", label: "Clips" },
   { value: "likes", label: "Likes" },
   { value: "reposts", label: "Reposts" },
   { value: "saved", label: "Saved" },
@@ -182,6 +186,13 @@ export function ProfileContent({
     staleTime: 1000 * 60 * 2,
   });
 
+  const { data: clips = [], isLoading: loadingClips } = useQuery({
+    queryKey: ["user-clips", profile.id],
+    queryFn: () => getUserClips(profile.id),
+    enabled: activeTab === "clips",
+    staleTime: 1000 * 60 * 2,
+  });
+
   const { data: likedPosts = [], isLoading: loadingLikes } = useQuery({
     queryKey: ["user-liked-posts", profile.id],
     queryFn: () => getUserLikedPosts(profile.id),
@@ -239,10 +250,21 @@ export function ProfileContent({
     }
   };
 
-  const visibleTabs = useMemo(
-    () => (isOwnProfile ? TABS : TABS.filter((t) => t.value !== "saved")),
-    [isOwnProfile],
-  );
+  const visibleTabs = useMemo(() => {
+    return TABS.filter((t) => {
+      if (t.value === "saved") return isOwnProfile;
+      if (t.value === "likes") return isOwnProfile || !profile.private_likes;
+      return true;
+    });
+  }, [isOwnProfile, profile.private_likes]);
+
+  // If the active tab gets hidden (e.g. someone toggles privacy mid-view),
+  // snap back to Posts so we never render a non-existent state.
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.value === activeTab)) {
+      setActiveTab("posts");
+    }
+  }, [visibleTabs, activeTab]);
 
   const accent = profile.theme_color || O.a2;
   const { first, rest } = splitName(profile.display_name);
@@ -258,34 +280,6 @@ export function ProfileContent({
         gap: 18,
       }}
     >
-      {/* Back — visible on desktop too. Goes to wherever the user came
-          from; falls back to /feed for direct loads. */}
-      <button
-        onClick={() => {
-          if (typeof window !== "undefined" && window.history.length > 1) {
-            router.back();
-          } else {
-            router.push("/feed");
-          }
-        }}
-        aria-label="Back"
-        style={{
-          alignSelf: "flex-start",
-          width: 38,
-          height: 38,
-          borderRadius: 12,
-          background: O.glass,
-          border: `1px solid ${O.hair2}`,
-          color: O.ink2,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          fontFamily: "inherit",
-        }}
-      >
-        <ArrowLeft style={{ width: 16, height: 16 }} strokeWidth={1.8} />
-      </button>
 
       {/* HERO PANEL */}
       <div
@@ -295,6 +289,40 @@ export function ProfileContent({
           position: "relative",
         }}
       >
+        {/* Floating back button — sits on top of the banner so it doesn't
+            occupy its own row above the panel. */}
+        <button
+          onClick={() => {
+            if (typeof window !== "undefined" && window.history.length > 1) {
+              router.back();
+            } else {
+              router.push("/feed");
+            }
+          }}
+          aria-label="Back"
+          style={{
+            position: "absolute",
+            top: 14,
+            left: 14,
+            zIndex: 5,
+            width: 36,
+            height: 36,
+            borderRadius: 999,
+            background: "rgba(0,0,0,0.45)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            border: "1px solid rgba(255,255,255,0.14)",
+            color: "white",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          <ArrowLeft style={{ width: 15, height: 15 }} strokeWidth={2} />
+        </button>
+
         {/* Banner — clipped to top radius only */}
         <div style={{ borderRadius: "24px 24px 0 0", overflow: "hidden" }}>
           {profile.cover_url ? (
@@ -535,8 +563,22 @@ export function ProfileContent({
           <StatCluster
             items={[
               { n: profile.post_count, label: "posts" },
-              { n: liveCounts.followers, label: "orbit", onClick: () => setFollowListOpen("followers") },
-              { n: liveCounts.following, label: "mutuals", onClick: () => setFollowListOpen("following") },
+              {
+                n: liveCounts.followers,
+                label: "followers",
+                onClick:
+                  isOwnProfile || !profile.private_followers
+                    ? () => setFollowListOpen("followers")
+                    : undefined,
+              },
+              {
+                n: liveCounts.following,
+                label: "following",
+                onClick:
+                  isOwnProfile || !profile.private_followers
+                    ? () => setFollowListOpen("following")
+                    : undefined,
+              },
             ]}
           />
           {profile.website && (
@@ -673,6 +715,15 @@ export function ProfileContent({
           </>
         )}
 
+        {activeTab === "clips" &&
+          (loadingClips ? (
+            <ListSkeleton />
+          ) : clips.length === 0 ? (
+            <EmptyTab label="No clips yet" />
+          ) : (
+            <ClipsGrid clips={clips} />
+          ))}
+
         {activeTab === "likes" &&
           (loadingLikes ? (
             <ListSkeleton />
@@ -717,7 +768,10 @@ export function ProfileContent({
       {vods.length > 0 && <PastStreamsSection vods={vods} />}
 
       <FollowListDialog
-        open={followListOpen !== null}
+        open={
+          followListOpen !== null &&
+          (isOwnProfile || !profile.private_followers)
+        }
         onOpenChange={(o) => {
           if (!o) setFollowListOpen(null);
         }}
@@ -893,6 +947,94 @@ function VodCard({ vod }: { vod: VodRow }) {
         </div>
       </div>
     </Link>
+  );
+}
+
+// Instagram-Reels-style 3-up grid of vertical clip thumbnails. Each tile
+// links to /clips/<id>; if the clip lacks a thumbnail we fall back to
+// the video itself muted/looping for a quick preview.
+function ClipsGrid({
+  clips,
+}: {
+  clips: Array<{
+    id: string;
+    post_media?: Array<{
+      type: string;
+      url: string;
+      thumbnail_url?: string | null;
+    }> | null;
+    view_count?: number | null;
+  }>;
+}) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: 6,
+      }}
+    >
+      {clips.map((clip) => {
+        const video = clip.post_media?.find((m) => m.type === "video");
+        const thumb = video?.thumbnail_url ?? null;
+        return (
+          <Link
+            key={clip.id}
+            href={`/clips/${clip.id}`}
+            style={{
+              position: "relative",
+              aspectRatio: "9 / 16",
+              overflow: "hidden",
+              borderRadius: 10,
+              background: O.glass,
+              border: `1px solid ${O.hair}`,
+              display: "block",
+              textDecoration: "none",
+            }}
+          >
+            {thumb ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={thumb}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : video?.url ? (
+              <video
+                src={video.url}
+                muted
+                playsInline
+                preload="metadata"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  background: auroraSoft,
+                }}
+              />
+            )}
+            {(clip.view_count ?? 0) > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 6,
+                  left: 8,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "white",
+                  textShadow: "0 1px 2px rgba(0,0,0,0.6)",
+                }}
+              >
+                ▶ {fmtNumber(clip.view_count ?? 0)}
+              </div>
+            )}
+          </Link>
+        );
+      })}
+    </div>
   );
 }
 

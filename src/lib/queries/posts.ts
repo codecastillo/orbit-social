@@ -262,6 +262,7 @@ export async function getUserPosts(userId: string, cursor?: string, limit = 20) 
     .is("reply_to_id", null)
     .is("community_id", null)
     .eq("is_hidden", false)
+    .not("type", "eq", "reel")
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -270,6 +271,21 @@ export async function getUserPosts(userId: string, cursor?: string, limit = 20) 
   }
 
   const { data, error } = await query;
+  if (error) throw error;
+  return data as PostWithAuthor[];
+}
+
+export async function getUserClips(userId: string, limit = 60) {
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .eq("user_id", userId)
+    .eq("type", "reel")
+    .eq("is_hidden", false)
+    .is("community_id", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
   if (error) throw error;
   return data as PostWithAuthor[];
 }
