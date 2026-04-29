@@ -230,7 +230,7 @@ export function ClipFeed() {
         className="hidden lg:flex absolute flex-col gap-2 z-30"
         style={{
           top: "50%",
-          left: "calc(50% - 240px)",
+          left: "calc(50% - 290px)",
           transform: "translateY(-50%)",
           pointerEvents: "auto",
         }}

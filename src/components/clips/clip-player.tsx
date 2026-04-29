@@ -459,15 +459,15 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
         />
       </div>
 
-      {/* Scrub bar — TikTok-style thin progress at the very bottom of the
-          player frame. Click to seek. */}
+      {/* Scrub bar — TikTok-style thin progress flush with the bottom
+          edge of the player frame. Click to seek. The hit area is taller
+          than the visual bar so it's easy to grab on touch. */}
       <div
         className="absolute left-0 right-0 z-20"
         onClick={handleScrub}
         style={{
           bottom: 0,
-          height: 14,
-          paddingBottom: 4,
+          height: 12,
           display: "flex",
           alignItems: "flex-end",
           cursor: "pointer",
@@ -476,9 +476,8 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
         <div
           style={{
             width: "100%",
-            height: 2.5,
+            height: 3,
             background: "rgba(255,255,255,0.18)",
-            borderRadius: 999,
             overflow: "hidden",
           }}
         >
