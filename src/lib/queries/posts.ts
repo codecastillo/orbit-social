@@ -405,23 +405,13 @@ export async function createRepost(userId: string, postId: string) {
 
   if (error) throw error;
 
-  // Increment repost count on original post
-  try {
-    const { data: original } = await supabase
-      .from("posts")
-      .select("repost_count")
-      .eq("id", postId)
-      .single();
-
-    if (original) {
-      await supabase
-        .from("posts")
-        .update({ repost_count: (original.repost_count || 0) + 1 })
-        .eq("id", postId);
-    }
-  } catch {
-    // Silent fallback - count will be eventually consistent
-  }
+  // Bump repost_count via a SECURITY DEFINER RPC. A direct UPDATE here
+  // would be silently blocked by RLS for posts not owned by the current
+  // user, leaving the count stuck at 0.
+  const { error: rpcError } = await supabase.rpc("increment_post_reposts", {
+    p_post_id: postId,
+  });
+  if (rpcError) console.error("increment_post_reposts failed", rpcError);
 
   return post as PostWithAuthor;
 }
@@ -435,6 +425,11 @@ export async function undoRepost(userId: string, postId: string) {
     .eq("parent_post_id", postId);
 
   if (error) throw error;
+
+  const { error: rpcError } = await supabase.rpc("decrement_post_reposts", {
+    p_post_id: postId,
+  });
+  if (rpcError) console.error("decrement_post_reposts failed", rpcError);
 }
 
 export async function checkUserReposted(userId: string, postIds: string[]) {
