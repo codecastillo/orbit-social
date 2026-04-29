@@ -21,8 +21,6 @@ import { Eyebrow } from "@/components/orbit/primitives";
 const TABS = [
   { value: "foryou", label: "For you" },
   { value: "following", label: "Following" },
-  { value: "latest", label: "Latest" },
-  { value: "quiet", label: "Quiet" },
 ] as const;
 
 type TabValue = (typeof TABS)[number]["value"];

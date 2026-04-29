@@ -16,6 +16,7 @@ import {
 } from "@/lib/queries/social";
 import { getLiveStreams } from "@/lib/queries/live";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { FollowButton } from "@/components/shared/follow-button";
 import { O, aurora, auroraSoft, panel } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 
@@ -525,10 +526,10 @@ function PeopleRail() {
                     @{p.username}
                   </div>
                 </Link>
-                <PillBtn
-                  primary
+                <FollowButton
+                  isFollowing={false}
                   size="sm"
-                  onClick={async () => {
+                  onToggle={async () => {
                     if (!user) return;
                     try {
                       await followUser(user.id, p.id);
@@ -539,9 +540,7 @@ function PeopleRail() {
                       /* noop */
                     }
                   }}
-                >
-                  +
-                </PillBtn>
+                />
               </div>
             ))}
       </div>
