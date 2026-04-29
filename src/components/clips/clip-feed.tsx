@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Film, ChevronUp, ChevronDown } from "lucide-react";
+import { Loader2, Film } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getClips } from "@/lib/queries/clips";
 import { checkUserInteractions, type PostWithAuthor } from "@/lib/queries/posts";
@@ -95,14 +95,42 @@ export function ClipFeed() {
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
+    const scroller = scrollerRef.current;
     if (!sentinel) return;
 
+    // root: scrollerRef so intersections are computed against the snap
+    // container (not the viewport — the scroller is fixed-size).
+    // rootMargin: 2 viewports below the bottom edge so we start fetching
+    // when the viewer is still 2 clips away from the end. Without this
+    // the snap-mandatory layout parks the user one clip short of the
+    // sentinel and they'd have to manually scroll to trigger more.
     const observer = new IntersectionObserver(handleIntersect, {
-      threshold: 0.1,
+      root: scroller,
+      rootMargin: "200% 0px 200% 0px",
+      threshold: 0,
     });
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [handleIntersect]);
+
+  // Also kick a fetch when we've rendered the last clip — covers the case
+  // where IntersectionObserver hasn't fired yet but the user is already
+  // near the end. React Query dedupes if a fetch is already in-flight.
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      const scroller = scrollerRef.current;
+      if (!scroller) return;
+      const onScroll = () => {
+        const distanceFromBottom =
+          scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+        if (distanceFromBottom < scroller.clientHeight * 1.5) {
+          fetchNextPage();
+        }
+      };
+      scroller.addEventListener("scroll", onScroll, { passive: true });
+      return () => scroller.removeEventListener("scroll", onScroll);
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const allClips: PostWithAuthor[] =
     data?.pages.flatMap((page) => page.clips) ?? [];
@@ -204,7 +232,7 @@ export function ClipFeed() {
         style={{ background: O.bg }}
       >
         {allClips.map((clip) => (
-          <ClipPlayer key={clip.id} clip={clip} />
+          <ClipPlayer key={clip.id} clip={clip} onNavigate={scrollByOne} />
         ))}
 
         <div ref={sentinelRef} className="h-1" />
@@ -221,55 +249,6 @@ export function ClipFeed() {
           </div>
         )}
       </div>
-
-      {/* Single static set of nav arrows — pinned next to the centered
-          9:16 frame and shared across the whole clips feed (does not
-          scroll with the snap stream). The horizontal offset puts them
-          at: viewport-center − (max-frame-half + spacing). */}
-      <div
-        className="hidden lg:flex absolute flex-col gap-2 z-30"
-        style={{
-          top: "50%",
-          left: "calc(50% - 240px)",
-          transform: "translateY(-50%)",
-          pointerEvents: "auto",
-        }}
-      >
-        <NavArrow direction="up" onClick={() => scrollByOne(-1)} />
-        <NavArrow direction="down" onClick={() => scrollByOne(1)} />
-      </div>
     </div>
-  );
-}
-
-function NavArrow({
-  direction,
-  onClick,
-}: {
-  direction: "up" | "down";
-  onClick: () => void;
-}) {
-  const Icon = direction === "up" ? ChevronUp : ChevronDown;
-  return (
-    <button
-      onClick={onClick}
-      aria-label={direction === "up" ? "Previous clip" : "Next clip"}
-      style={{
-        width: 38,
-        height: 38,
-        borderRadius: "50%",
-        background: "rgba(10,12,28,0.55)",
-        backdropFilter: "blur(14px) saturate(160%)",
-        WebkitBackdropFilter: "blur(14px) saturate(160%)",
-        border: `1px solid ${O.hair2}`,
-        display: "grid",
-        placeItems: "center",
-        color: O.ink,
-        cursor: "pointer",
-        boxShadow: "0 6px 20px -6px rgba(0,0,0,0.6)",
-      }}
-    >
-      <Icon style={{ width: 18, height: 18 }} strokeWidth={2.2} />
-    </button>
   );
 }

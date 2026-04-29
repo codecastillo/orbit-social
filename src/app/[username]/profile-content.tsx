@@ -560,18 +560,18 @@ export function ProfileContent({
             }}
           >
             {!isOwnProfile && (
-              <PillBtn primary={!isFollowing} size="lg" onClick={handleFollow}>
-                {isFollowing ? "Following ✓" : "+ Follow"}
+              <PillBtn primary={!isFollowing} size="md" onClick={handleFollow}>
+                {isFollowing ? "Following" : "Follow"}
               </PillBtn>
             )}
             {!isOwnProfile && (
               <Link href={`/messages?to=${profile.username}`}>
-                <PillBtn size="lg">Message</PillBtn>
+                <PillBtn size="md">Message</PillBtn>
               </Link>
             )}
             {isOwnProfile && (
               <Link href="/settings/profile">
-                <PillBtn primary size="lg">
+                <PillBtn primary size="md">
                   Edit profile
                 </PillBtn>
               </Link>

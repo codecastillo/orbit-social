@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Volume2, VolumeX, Play } from "lucide-react";
+import { Volume2, VolumeX, Play, ChevronUp, ChevronDown } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatTimeAgo } from "@/lib/utils/format";
@@ -19,9 +19,10 @@ import type { PostWithAuthor } from "@/lib/queries/posts";
 
 interface ClipPlayerProps {
   clip: PostWithAuthor;
+  onNavigate?: (dir: 1 | -1) => void;
 }
 
-export function ClipPlayer({ clip }: ClipPlayerProps) {
+export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -229,12 +230,29 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
       style={{ background: O.bg }}
       onClick={togglePlay}
     >
+      {/* Up/down nav arrows pinned to the LEFT of the player frame so
+          they shift with the video when the comments side panel opens
+          (instead of overlapping the video at viewport-center). */}
+      {onNavigate && (
+        <div
+          className="hidden lg:flex shrink-0 flex-col gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ClipNavArrow
+            direction="up"
+            onClick={() => onNavigate(-1)}
+          />
+          <ClipNavArrow
+            direction="down"
+            onClick={() => onNavigate(1)}
+          />
+        </div>
+      )}
       {/* Phone-sized player frame — height-driven so the whole 9:16 frame
           (including the bottom scrub bar + caption + action rail) always
           fits in the viewport with no scroll required. Width derives from
           height via aspect-ratio. Capped at 720px tall / 440px wide so it
-          stays phone-sized on tall ultra-wide displays. The wrapper exists
-          purely to anchor the side nav arrows just outside the frame. */}
+          stays phone-sized on tall ultra-wide displays. */}
       <div
         className="relative shrink-0"
         style={{
@@ -496,7 +514,9 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
       </div>
 
       {/* Comments side panel — sibling of the player frame so the video
-          stays fully visible while you scroll/reply. Hidden when closed. */}
+          stays fully visible while you scroll/reply. Hidden when closed.
+          When open, the flex layout naturally compresses the player frame
+          to its left, so the nav arrows on the FAR left shift with it. */}
       {commentsOpen && (
         <div
           className="shrink-0"
@@ -515,5 +535,40 @@ export function ClipPlayer({ clip }: ClipPlayerProps) {
         </div>
       )}
     </div>
+  );
+}
+
+function ClipNavArrow({
+  direction,
+  onClick,
+}: {
+  direction: "up" | "down";
+  onClick: () => void;
+}) {
+  const Icon = direction === "up" ? ChevronUp : ChevronDown;
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      aria-label={direction === "up" ? "Previous clip" : "Next clip"}
+      style={{
+        width: 38,
+        height: 38,
+        borderRadius: "50%",
+        background: "rgba(10,12,28,0.55)",
+        backdropFilter: "blur(14px) saturate(160%)",
+        WebkitBackdropFilter: "blur(14px) saturate(160%)",
+        border: `1px solid ${O.hair2}`,
+        display: "grid",
+        placeItems: "center",
+        color: O.ink,
+        cursor: "pointer",
+        boxShadow: "0 6px 20px -6px rgba(0,0,0,0.6)",
+      }}
+    >
+      <Icon style={{ width: 18, height: 18 }} strokeWidth={2.2} />
+    </button>
   );
 }

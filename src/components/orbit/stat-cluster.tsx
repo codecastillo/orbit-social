@@ -46,9 +46,13 @@ export function StatCluster({
               fontStyle: "italic",
               fontSize: size,
               fontWeight: 700,
-              lineHeight: 1.6,
-              paddingTop: 6,
-              paddingBottom: 2,
+              // Italic-serif "1" has an aggressive ascender that sits above
+              // the cap height. Give the gradient-text element a roomy box
+              // (display:inline-block + tall lineHeight + padding) so the
+              // glyph never gets clipped at the top.
+              display: "inline-block",
+              lineHeight: 1.4,
+              padding: "0.25em 0.05em 0.05em",
               overflow: "visible",
               background: aurora,
               WebkitBackgroundClip: "text",

@@ -263,13 +263,15 @@ function CommentRow({
   const [replyDraft, setReplyDraft] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
 
-  const replyCount = comment.comment_count ?? 0;
-
   const { data: replies } = useQuery({
     queryKey: ["comment-replies", comment.id],
     queryFn: () => getCommentReplies(comment.id),
-    enabled: repliesOpen && replyCount > 0,
+    enabled: repliesOpen,
   });
+  // After the 20260429070000 migration, comment_count is the direct
+  // children count on intermediate comments and full subtree size on
+  // root posts — so this is now reliable on a comment row.
+  const replyCount = comment.comment_count ?? 0;
 
   const replyIds = (replies ?? []).map((r) => r.id);
   const { data: replyLikedSet } = useQuery({

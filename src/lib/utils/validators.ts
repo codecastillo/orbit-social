@@ -34,11 +34,20 @@ export const bioSchema = z
   .max(160, "Bio must be 160 characters or less")
   .optional();
 
+// Accept "yoursite.com" as well as full URLs by transparently prepending
+// https:// when the user didn't type a scheme. Empty string passes through
+// (we treat that as "no website").
 export const websiteSchema = z
   .string()
-  .url("Must be a valid URL")
+  .transform((val) => {
+    const trimmed = val.trim();
+    if (!trimmed) return "";
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  })
   .refine(
     (url) => {
+      if (url === "") return true;
       try {
         const parsed = new URL(url);
         return parsed.protocol === "http:" || parsed.protocol === "https:";
@@ -46,10 +55,9 @@ export const websiteSchema = z
         return false;
       }
     },
-    "URL must start with http:// or https://"
+    "Must be a valid URL",
   )
-  .optional()
-  .or(z.literal(""));
+  .optional();
 
 export const signUpSchema = z
   .object({

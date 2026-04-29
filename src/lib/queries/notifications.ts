@@ -31,6 +31,15 @@ export interface NotificationWithActor {
     avatar_url: string | null;
     is_verified: boolean;
   };
+  // Hydrated post-fetch by getNotifications() for entity_type='post'.
+  // Lets the UI distinguish "your clip" vs "your post" vs "your post
+  // in <room>" without an N+1 on render.
+  entity_post?: {
+    id: string;
+    type: string;
+    community_id: string | null;
+    community_name: string | null;
+  } | null;
 }
 
 const NOTIFICATION_SELECT = `
@@ -58,7 +67,56 @@ export async function getNotifications(
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as NotificationWithActor[];
+
+  const rows = (data ?? []) as NotificationWithActor[];
+
+  // Hydrate post metadata for any notification whose entity is a post —
+  // a single batch fetch covers like/comment/mention/repost notifs and
+  // gives us type (reel vs other) + community context for nicer copy.
+  const postIds = Array.from(
+    new Set(
+      rows
+        .filter((r) => r.entity_type === "post" && r.entity_id)
+        .map((r) => r.entity_id as string),
+    ),
+  );
+
+  if (postIds.length > 0) {
+    const { data: posts } = await supabase
+      .from("posts")
+      .select("id, type, community_id, communities ( name )")
+      .in("id", postIds);
+
+    const map = new Map<
+      string,
+      NonNullable<NotificationWithActor["entity_post"]>
+    >();
+    for (const p of (posts ?? []) as unknown as Array<{
+      id: string;
+      type: string;
+      community_id: string | null;
+      // Supabase returns embedded relations as an array even for the
+      // many-to-one direction, hence the array shape.
+      communities: { name: string | null }[] | { name: string | null } | null;
+    }>) {
+      const community = Array.isArray(p.communities)
+        ? p.communities[0] ?? null
+        : p.communities;
+      map.set(p.id, {
+        id: p.id,
+        type: p.type,
+        community_id: p.community_id,
+        community_name: community?.name ?? null,
+      });
+    }
+    for (const r of rows) {
+      if (r.entity_type === "post" && r.entity_id) {
+        r.entity_post = map.get(r.entity_id) ?? null;
+      }
+    }
+  }
+
+  return rows;
 }
 
 export async function getUnreadCount(userId: string) {

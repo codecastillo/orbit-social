@@ -13,27 +13,43 @@ interface NotificationItemProps {
   notification: NotificationWithActor;
 }
 
+// Pick the noun for a post-shaped notification: a reel reads as "clip",
+// a post inside a community gets " in <room>", everything else is plain
+// "post". Result reads like a sentence, e.g.:
+//   "your clip"
+//   "your post"
+//   "your post in Sneakerheads"
+function postNoun(post: NotificationWithActor["entity_post"]): string {
+  if (!post) return "post";
+  const base = post.type === "reel" ? "clip" : "post";
+  return post.community_name ? `${base} in ${post.community_name}` : base;
+}
+
 function getNotificationText(notification: NotificationWithActor): string {
   const name = notification.profiles.display_name || notification.profiles.username;
   const entity = notification.entity_type;
+  const post = notification.entity_post;
 
   switch (notification.type) {
     case "like":
-      return `${name} liked your ${entity === "comment" ? "comment" : "post"}`;
+      if (entity === "comment") return `${name} liked your comment`;
+      return `${name} liked your ${postNoun(post)}`;
     case "comment":
       if (entity === "event") return `${name} replied to your event comment`;
       if (entity === "comment") return `${name} replied to your comment`;
-      return `${name} replied to your post`;
+      return `${name} replied to your ${postNoun(post)}`;
     case "quote":
-      return `${name} quoted your post`;
+      return `${name} quoted your ${postNoun(post)}`;
     case "follow":
       return `${name} followed you`;
     case "mention":
       if (entity === "event") return `${name} mentioned you in an event`;
       if (entity === "community") return `${name} mentioned you in a room`;
+      if (post?.community_name)
+        return `${name} mentioned you in ${post.community_name}`;
       return `${name} mentioned you`;
     case "repost":
-      return `${name} reposted your post`;
+      return `${name} reposted your ${postNoun(post)}`;
     case "message":
       return `${name} sent you a message`;
     case "story_reaction":
@@ -55,6 +71,7 @@ function getNotificationText(notification: NotificationWithActor): string {
 
 function getNotificationHref(notification: NotificationWithActor): string {
   const entity = notification.entity_type;
+  const post = notification.entity_post;
   switch (notification.type) {
     case "follow":
       return `/${notification.profiles.username}`;
@@ -69,6 +86,8 @@ function getNotificationHref(notification: NotificationWithActor): string {
       if (entity === "community" && notification.entity_id) {
         return `/communities/${notification.entity_id}`;
       }
+      // Clips have no per-clip page yet — route to the global clips feed.
+      if (post?.type === "reel") return "/clips";
       return notification.entity_id ? `/post/${notification.entity_id}` : "/notifications";
     case "message":
       return notification.entity_id
