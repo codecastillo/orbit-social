@@ -626,7 +626,7 @@ export async function getUserPinnedPosts(userId: string): Promise<PostWithAuthor
 }
 
 export async function checkUserInteractions(userId: string, postIds: string[]) {
-  const [likesResult, bookmarksResult] = await Promise.all([
+  const [likesResult, bookmarksResult, repostsResult] = await Promise.all([
     supabase
       .from("post_likes")
       .select("post_id")
@@ -637,12 +637,27 @@ export async function checkUserInteractions(userId: string, postIds: string[]) {
       .select("post_id")
       .eq("user_id", userId)
       .in("post_id", postIds),
+    // Reposts live in the posts table itself: a row with type='repost',
+    // user_id = the reposter, and parent_post_id = the original. We look
+    // up *which originals* the viewer has reposted so the icon fills in
+    // wherever those originals appear (Likes tab, Reposts tab, feed).
+    supabase
+      .from("posts")
+      .select("parent_post_id")
+      .eq("user_id", userId)
+      .eq("type", "repost")
+      .in("parent_post_id", postIds),
   ]);
 
   const likedPostIds = new Set(likesResult.data?.map((l) => l.post_id));
   const bookmarkedPostIds = new Set(bookmarksResult.data?.map((b) => b.post_id));
+  const repostedPostIds = new Set(
+    repostsResult.data
+      ?.map((r) => r.parent_post_id)
+      .filter((id): id is string => !!id),
+  );
 
-  return { likedPostIds, bookmarkedPostIds };
+  return { likedPostIds, bookmarkedPostIds, repostedPostIds };
 }
 
 export async function uploadPostMedia(

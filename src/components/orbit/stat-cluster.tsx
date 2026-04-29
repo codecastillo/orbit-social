@@ -32,7 +32,11 @@ export function StatCluster({
             color: "inherit",
             textAlign: "center",
             cursor: item.onClick ? "pointer" : "default",
-            padding: divider && i > 0 ? "0 0 0 32px" : 0,
+            // Native <button> in Chromium defaults to overflow:clip, which
+            // shaves the top off italic-serif glyphs that poke above the
+            // line box. Force visible so the digits render unclipped.
+            overflow: "visible",
+            padding: divider && i > 0 ? "8px 0 0 32px" : "8px 0 0 0",
           }}
           className={item.onClick ? "hover:opacity-80 transition-opacity" : ""}
         >
@@ -42,11 +46,10 @@ export function StatCluster({
               fontStyle: "italic",
               fontSize: size,
               fontWeight: 700,
-              // Italic serif glyphs (especially "1") have ascenders that
-              // poke above the cap height; lineHeight needs headroom or
-              // they get clipped at the top of the box.
-              lineHeight: 1.35,
-              paddingTop: 4,
+              lineHeight: 1.6,
+              paddingTop: 6,
+              paddingBottom: 2,
+              overflow: "visible",
               background: aurora,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",

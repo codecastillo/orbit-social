@@ -103,7 +103,7 @@ export function PostCard({
   const initialIsLiked = isLikedProp ?? post.user_has_liked ?? false;
   const initialIsBookmarked =
     isBookmarkedProp ?? post.user_has_bookmarked ?? false;
-  const initialIsReposted = isRepostedProp ?? false;
+  const initialIsReposted = isRepostedProp ?? post.user_has_reposted ?? false;
   const { user } = useAuth();
   const router = useRouter();
   const [isLiked, setIsLiked] = useState(initialIsLiked);
@@ -112,6 +112,7 @@ export function PostCard({
   const [likeCount, setLikeCount] = useState(post.like_count);
   const [repostCount, setRepostCount] = useState(post.repost_count);
   const [bookmarkCount, setBookmarkCount] = useState(post.bookmark_count);
+  const [shareCount, setShareCount] = useState(post.share_count ?? 0);
   const [animateHeart, setAnimateHeart] = useState(false);
 
   // Sync interaction state when props change (e.g., when interactions load async)
@@ -125,6 +126,11 @@ export function PostCard({
   useEffect(() => { setLikeCount(post.like_count); }, [post.like_count]);
   useEffect(() => { setRepostCount(post.repost_count); }, [post.repost_count]);
   useEffect(() => { setBookmarkCount(post.bookmark_count); }, [post.bookmark_count]);
+  // Share count grows monotonically; never let a stale refetch clobber an
+  // optimistic local bump back to a smaller number.
+  useEffect(() => {
+    setShareCount((prev) => Math.max(prev, post.share_count ?? 0));
+  }, [post.share_count]);
   const [shareOpen, setShareOpen] = useState(false);
   const [blockMuteOpen, setBlockMuteOpen] = useState(false);
   const [blockMuteAction, setBlockMuteAction] = useState<"block" | "mute">("block");
@@ -170,9 +176,10 @@ export function PostCard({
       return;
     }
     checkUserInteractions(user.id, [originalPost.id])
-      .then(({ likedPostIds, bookmarkedPostIds }) => {
+      .then(({ likedPostIds, bookmarkedPostIds, repostedPostIds }) => {
         setIsLiked(likedPostIds.has(originalPost.id));
         setIsBookmarked(bookmarkedPostIds.has(originalPost.id));
+        setIsReposted(repostedPostIds.has(originalPost.id));
       })
       .catch(() => {});
   }, [isRepostType, originalPost, user]);
@@ -256,6 +263,16 @@ export function PostCard({
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // Optimistic bump + persist via the same RPC the clips use, so the
+    // share counter actually moves when the user opens the share sheet.
+    setShareCount((c) => c + 1);
+    void import("@/lib/supabase/client").then(({ createClient }) =>
+      createClient()
+        .rpc("increment_post_shares", { p_post_id: targetPostId })
+        .then(({ error }) => {
+          if (error) console.error("increment_post_shares failed", error);
+        }),
+    );
     setShareOpen(true);
   };
 
@@ -858,6 +875,7 @@ export function PostCard({
                 style={{ padding: "6px 12px" }}
               >
                 <Share2 className="h-[15px] w-[15px]" />
+                {shareCount > 0 && <span>{formatNumber(shareCount)}</span>}
               </button>
             )}
 

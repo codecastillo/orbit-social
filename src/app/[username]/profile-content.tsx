@@ -182,14 +182,16 @@ export function ProfileContent({
   // heart looks unliked even when the viewer has tapped it elsewhere.
   const enrichWithViewerInteractions = async (rows: PostWithAuthor[]) => {
     if (!user || rows.length === 0) return rows;
-    const { likedPostIds, bookmarkedPostIds } = await checkUserInteractions(
-      user.id,
-      rows.map((r) => r.id),
-    );
+    const { likedPostIds, bookmarkedPostIds, repostedPostIds } =
+      await checkUserInteractions(
+        user.id,
+        rows.map((r) => r.id),
+      );
     return rows.map((r) => ({
       ...r,
       user_has_liked: likedPostIds.has(r.id),
       user_has_bookmarked: bookmarkedPostIds.has(r.id),
+      user_has_reposted: repostedPostIds.has(r.id),
     }));
   };
 
@@ -870,30 +872,35 @@ function VodCard({ vod }: { vod: VodRow }) {
   const queryClient = useQueryClient();
 
   // Self-heal a wrong stored duration without making the user open the
-  // VOD player first. Mux's webhook records the duration of the *current
-  // asset*, which on a reconnect is just the tail segment — often only a
-  // few seconds. The medium.mp4 rendition Mux produces for a finished
-  // live stream contains the full playable length, so a hidden HTML5
-  // <video preload="metadata"> probe gets us the real number for free.
-  const probedRef = useRef(false);
-  const handleProbe = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    if (probedRef.current) return;
-    probedRef.current = true;
-    const real = Math.round(e.currentTarget.duration);
-    if (!Number.isFinite(real) || real <= 0) return;
-    if (Math.abs(real - (vod.duration_seconds ?? 0)) <= 2) return;
-    void createClient()
-      .from("live_vods")
-      .update({ duration_seconds: real })
-      .eq("id", vod.id)
-      .then(({ error }) => {
-        if (error) {
-          console.error("VOD duration probe failed", error);
-          return;
+  // player first. The webhook stores `duration` from the asset Mux fires
+  // ready for, which on reconnects is sometimes just a tail segment. We
+  // fetch the authoritative duration from the Mux REST API server-side
+  // (the client doesn't have credentials) and write it back. Only fires
+  // for VODs whose stored duration looks suspect.
+  const refreshedRef = useRef(false);
+  useEffect(() => {
+    if (refreshedRef.current) return;
+    const stored = vod.duration_seconds ?? 0;
+    // Only probe rows that look broken (≤ 30s). Real short clips also
+    // pass through this gate — the endpoint is idempotent and a no-op if
+    // the durations already match.
+    if (stored > 30) return;
+    refreshedRef.current = true;
+    void fetch("/api/mux/refresh-vod", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vodId: vod.id }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((res) => {
+        if (res?.ok && !res.unchanged) {
+          queryClient.invalidateQueries({
+            queryKey: ["user-vods", vod.user_id],
+          });
         }
-        queryClient.invalidateQueries({ queryKey: ["user-vods", vod.user_id] });
-      });
-  };
+      })
+      .catch(() => {});
+  }, [vod.id, vod.duration_seconds, vod.user_id, queryClient]);
 
   return (
     <Link
@@ -906,14 +913,6 @@ function VodCard({ vod }: { vod: VodRow }) {
         color: "inherit",
       }}
     >
-      <video
-        src={`https://stream.mux.com/${vod.mux_playback_id}/medium.mp4`}
-        preload="metadata"
-        muted
-        playsInline
-        onLoadedMetadata={handleProbe}
-        style={{ display: "none" }}
-      />
       <div
         style={{
           position: "relative",

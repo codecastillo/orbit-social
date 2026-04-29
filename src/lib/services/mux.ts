@@ -25,7 +25,10 @@ export async function createMuxLiveStream(): Promise<MuxLiveStreamCreated> {
   const mux = getMux();
   const stream = await mux.video.liveStreams.create({
     playback_policy: ["public"],
-    new_asset_settings: { playback_policy: ["public"] },
+    // Enable MP4 renditions on the recorded asset so we can probe duration
+    // client-side via a hidden <video> tag without HLS.js. "standard"
+    // generates low/medium/high renditions automatically.
+    new_asset_settings: { playback_policy: ["public"], mp4_support: "standard" },
     latency_mode: "low",
     reconnect_window: 60,
   });
