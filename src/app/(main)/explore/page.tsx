@@ -195,7 +195,7 @@ function FeaturedTrend() {
         <div style={{ marginTop: 14 }}>
           <Link href="/feed">
             <PillBtn primary size="lg">
-              + Post yours
+              Post yours
             </PillBtn>
           </Link>
         </div>
@@ -271,11 +271,11 @@ function FeaturedTrend() {
         <div style={{ display: "flex", gap: 10, marginTop: 22, flexWrap: "wrap" }}>
           <Link href={`/hashtag/${encodeURIComponent(top.name)}`}>
             <PillBtn primary size="lg">
-              Open trend →
+              Open trend
             </PillBtn>
           </Link>
           <Link href="/feed">
-            <PillBtn size="lg">+ Post yours</PillBtn>
+            <PillBtn size="lg">Post yours</PillBtn>
           </Link>
         </div>
       </div>

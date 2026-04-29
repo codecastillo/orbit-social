@@ -54,7 +54,9 @@ export function FollowButton({
             : style
         }
         className={cn(
-          "rounded-full min-w-[110px] transition-all duration-200 active:scale-[0.97]",
+          // No fixed min-width — let the button hug its label so it
+          // takes less horizontal space in tight side-rails / mobile.
+          "rounded-full transition-all duration-200 active:scale-[0.97] px-4",
           !isFollowing && "border-0",
           isFollowing && "border-white/[0.12] hover:border-destructive hover:text-destructive hover:bg-destructive/10",
           isFollowing &&
