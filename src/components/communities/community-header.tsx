@@ -619,7 +619,17 @@ export function CommunityHeader({
                   setEditOpen(false);
                 } catch (e) {
                   console.error("updateCommunity failed", e);
-                  toast.error("Couldn't save changes");
+                  const msg = e instanceof Error ? e.message : "";
+                  if (
+                    msg.includes("communities_name_lower_unique") ||
+                    /name.*already exists/i.test(msg)
+                  ) {
+                    toast.error(
+                      "Another room already uses that name. Try a more specific variation.",
+                    );
+                  } else {
+                    toast.error("Couldn't save changes");
+                  }
                 } finally {
                   setSavingEdit(false);
                 }

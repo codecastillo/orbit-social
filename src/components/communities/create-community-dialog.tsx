@@ -179,7 +179,17 @@ export function CreateCommunityDialog({
       const message =
         err instanceof Error ? err.message : "Failed to create community";
       console.error("Failed to create community:", err);
-      if (message.includes("duplicate") || message.includes("unique")) {
+      // Distinguish a name-collision from a slug-collision so the user
+      // knows which field to change. The DB raises a unique_violation
+      // and Postgres includes the index name in the message.
+      if (
+        message.includes("communities_name_lower_unique") ||
+        /name.*already exists/i.test(message)
+      ) {
+        toast.error(
+          "A room with that name already exists. Try a more specific name (e.g. add a focus or audience).",
+        );
+      } else if (message.includes("duplicate") || message.includes("unique")) {
         toast.error("A community with that slug already exists");
       } else {
         toast.error(message);
