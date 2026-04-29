@@ -482,10 +482,12 @@ function ComposerForm({
       setShowSchedule(true);
     } else if (action === "place") {
       setShowLocation(true);
-    } else if (action === "voice") {
-      startAudioRecording();
     }
-  }, [consumeComposeAction, startAudioRecording]);
+    // Note: the "voice" action intentionally does NOT auto-start
+    // recording. Tapping the inline Mic icon should open the composer
+    // so the user can review the prompt + caption first, then choose
+    // to hit the in-composer Mic button to actually record.
+  }, [consumeComposeAction]);
 
   const handleSubmit = async () => {
     if (!canPost || posting) return;
