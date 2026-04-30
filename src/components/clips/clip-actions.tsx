@@ -131,6 +131,7 @@ export function ClipActions({
   };
 
   const handleShare = () => {
+    if (!requireAuth() || !user) return;
     setLocalShareCount((c) => c + 1);
     // Persist server-side so the count survives refresh and is visible
     // to every other viewer. Surface failures (e.g. missing RPC) instead

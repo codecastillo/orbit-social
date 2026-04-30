@@ -47,6 +47,10 @@ export default function CommunityDetailPage({
     enabled: !!community && !!user,
   });
 
+  // Only members see the post list. Non-members (anon or signed-in but not
+  // joined) get a join-to-read placeholder so the room's content stays
+  // private until they're in.
+  const isMemberQueryKey = userRole !== null;
   const {
     data: posts,
     isLoading: loadingPosts,
@@ -54,7 +58,7 @@ export default function CommunityDetailPage({
   } = useQuery({
     queryKey: ["community-posts", community?.id],
     queryFn: () => getCommunityPosts(community!.id),
-    enabled: !!community,
+    enabled: !!community && isMemberQueryKey,
   });
 
   const { data: interactions } = useQuery({
@@ -132,9 +136,20 @@ export default function CommunityDetailPage({
         </div>
       )}
 
-      {/* Community feed */}
+      {/* Community feed — gated on membership. Non-members see a locked
+          placeholder; the actual post list never hits the wire for them. */}
       <div>
-        {loadingPosts ? (
+        {!isMember ? (
+          <EmptyState
+            icon={MessageSquare}
+            title="This room is for members"
+            description={
+              policy === "approval"
+                ? "Request to join to see posts and conversation."
+                : "Join this room to see posts and conversation."
+            }
+          />
+        ) : loadingPosts ? (
           <div className="p-4 space-y-4">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="space-y-3">
@@ -163,11 +178,7 @@ export default function CommunityDetailPage({
           <EmptyState
             icon={MessageSquare}
             title="No posts yet"
-            description={
-              isMember
-                ? "Be the first to post in this community!"
-                : "Join this community to start posting."
-            }
+            description="Be the first to post in this community!"
           />
         )}
       </div>

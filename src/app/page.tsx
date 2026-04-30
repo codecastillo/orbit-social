@@ -246,7 +246,7 @@ function HeroSection() {
                 Get started
               </PillBtn>
             </Link>
-            <Link href="/explore">
+            <Link href="/feed">
               <PillBtn size="lg">Explore first</PillBtn>
             </Link>
           </div>
@@ -1004,7 +1004,7 @@ function CtaSection() {
                     Get started
                   </PillBtn>
                 </Link>
-                <Link href="/explore">
+                <Link href="/feed">
                   <PillBtn size="lg">Explore first</PillBtn>
                 </Link>
               </div>

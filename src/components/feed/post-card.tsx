@@ -265,6 +265,7 @@ export function PostCard({
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!requireAuth() || !user) return;
     // Optimistic bump + persist via the same RPC the clips use, so the
     // share counter actually moves when the user opens the share sheet.
     setShareCount((c) => c + 1);
