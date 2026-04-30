@@ -19,7 +19,6 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useUnreadCount, useUnreadMessagesCount } from "@/lib/hooks/use-notifications";
 import { useCurrentProfile, type CurrentProfile } from "@/lib/hooks/use-profile";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -278,21 +277,46 @@ export function Sidebar({
                 textDecoration: "none",
               }}
             >
-              <Avatar className="h-9 w-9 rounded-full">
-                <AvatarImage src={profile.avatar_url || undefined} />
-                <AvatarFallback
+              {/* Plain <img> instead of Radix's Avatar so the picture is in
+                  the SSR'd markup and reused from the browser cache on
+                  reload — no fallback-letter flash while Radix waits for
+                  the load event. */}
+              {profile.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatar_url}
+                  alt=""
+                  width={36}
+                  height={36}
                   style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 999,
+                    objectFit: "cover",
+                    flexShrink: 0,
+                    background: aurora,
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 999,
                     background: aurora,
                     color: "white",
                     fontWeight: 700,
                     fontSize: 14,
+                    display: "grid",
+                    placeItems: "center",
+                    flexShrink: 0,
                   }}
                 >
                   {profile.display_name?.[0]?.toUpperCase() ||
                     user?.email?.[0]?.toUpperCase() ||
                     "U"}
-                </AvatarFallback>
-              </Avatar>
+                </div>
+              )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
