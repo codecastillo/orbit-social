@@ -9,10 +9,13 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
 import { O, aurora, panel } from "@/lib/design/orbit";
 
-export function BottomNav() {
+export function BottomNav({ initialHasUser = false }: { initialHasUser?: boolean }) {
   const pathname = usePathname();
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  // Trust the server-known auth state until useAuth has actually resolved,
+  // so the Compose / Sign-up swap doesn't flash on every refresh.
+  const isSignedIn = authLoading ? initialHasUser : !!user;
   const [username, setUsername] = useState<string | null>(null);
 
   useEffect(() => {
@@ -33,7 +36,7 @@ export function BottomNav() {
   // Anon visitors don't have a Compose / Chat / You — swap those slots out
   // for an account CTA so the bottom nav stays five-wide and isn't a row of
   // dead buttons that all bounce through middleware.
-  const items = user
+  const items = isSignedIn
     ? [
         { key: "home", label: "Home", href: "/feed", icon: Home },
         { key: "discover", label: "Discover", href: "/explore", icon: Compass },

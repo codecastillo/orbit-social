@@ -52,6 +52,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/orbit/confirm-dialog";
 import { MoreHorizontal } from "lucide-react";
 
 type RsvpStatus = "going" | "interested" | "not_going" | null;
@@ -79,6 +80,7 @@ export default function EventDetailPage({
   const [commentSending, setCommentSending] = useState(false);
   const [replyTo, setReplyTo] = useState<EventComment | null>(null);
   const [attendeesOpen, setAttendeesOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const commentsEndRef = useRef<HTMLDivElement | null>(null);
   const commentInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -341,10 +343,6 @@ export default function EventDetailPage({
 
   const handleDelete = async () => {
     if (!isHost || !user) return;
-    const ok = window.confirm(
-      "Delete this event? RSVPs and comments will be removed too. This can't be undone.",
-    );
-    if (!ok) return;
     try {
       await deleteEvent(event.id, user.id);
       toast.success("Event deleted");
@@ -377,7 +375,7 @@ export default function EventDetailPage({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44 rounded-xl">
               <DropdownMenuItem
-                onClick={handleDelete}
+                onClick={() => setConfirmDeleteOpen(true)}
                 className="text-destructive cursor-pointer rounded-lg"
               >
                 <Trash2Icon className="mr-2 h-4 w-4" />
@@ -691,6 +689,16 @@ export default function EventDetailPage({
         open={attendeesOpen}
         onOpenChange={setAttendeesOpen}
         eventId={event.id}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Delete this event?"
+        description="RSVPs and comments will be removed too. This can't be undone."
+        confirmLabel="Delete event"
+        danger
+        onConfirm={handleDelete}
       />
     </div>
   );

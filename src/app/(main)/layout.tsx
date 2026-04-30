@@ -33,7 +33,7 @@ export default async function MainLayout({
 
   return (
     <div className="min-h-screen relative" style={orbitBg}>
-      <Sidebar initialProfile={initialProfile} />
+      <Sidebar initialProfile={initialProfile} initialHasUser={!!user} />
       <TopBar />
 
       <main className="lg:pl-[296px] lg:pr-6 min-h-screen pb-24 lg:pb-6 lg:pt-6 relative">
@@ -42,7 +42,7 @@ export default async function MainLayout({
       </main>
 
       {user && <PostComposer />}
-      <BottomNav />
+      <BottomNav initialHasUser={!!user} />
     </div>
   );
 }

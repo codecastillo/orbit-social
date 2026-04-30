@@ -51,11 +51,13 @@ const NAV: NavItem[] = [
 
 export function Sidebar({
   initialProfile,
+  initialHasUser = false,
 }: {
   initialProfile?: CurrentProfile | null;
+  initialHasUser?: boolean;
 }) {
   const pathname = usePathname();
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading: authLoading } = useAuth();
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
   const { data: unreadCount } = useUnreadCount();
   const { data: unreadMessages } = useUnreadMessagesCount();
@@ -63,6 +65,10 @@ export function Sidebar({
   // Use the server-prefetched profile until live data arrives. This makes
   // the sidebar render the real avatar/name on the very first paint.
   const profile = liveProfile ?? initialProfile ?? null;
+  // Trust the server-known auth state until useAuth has actually resolved.
+  // Otherwise the initial useAuth() turn returns user=null which makes the
+  // signed-in→signed-out CTAs flash for a frame on every refresh.
+  const isSignedIn = authLoading ? initialHasUser : !!user;
 
   const activeHref = useMemo(
     () =>
@@ -216,7 +222,7 @@ export function Sidebar({
           borderTop: `1px solid ${O.hair}`,
         }}
       >
-        {user ? (
+        {isSignedIn ? (
           <PillBtn
             primary
             size="lg"
@@ -246,7 +252,7 @@ export function Sidebar({
             </Link>
           </div>
         )}
-        {user && (
+        {isSignedIn && (
         <div
           style={{
             display: "flex",
