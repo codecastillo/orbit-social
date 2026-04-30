@@ -47,6 +47,7 @@ export function PostComposer() {
   const queryClient = useQueryClient();
   const composeOpen = useUIStore((s) => s.composeOpen);
   const composeCommunityId = useUIStore((s) => s.composeCommunityId);
+  const composeInitialContent = useUIStore((s) => s.composeInitialContent);
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
 
   return (
@@ -98,6 +99,7 @@ export function PostComposer() {
               <ComposerForm
                 user={user}
                 communityId={composeCommunityId}
+                initialContent={composeInitialContent}
                 onSuccess={() => {
                   setComposeOpen(false);
                   queryClient.invalidateQueries({ queryKey: ["feed"] });
@@ -237,16 +239,18 @@ function ComposerForm({
   user,
   replyToId,
   communityId,
+  initialContent,
   onSuccess,
   inline = false,
 }: {
   user: { id: string; user_metadata: Record<string, string> };
   replyToId?: string;
   communityId?: string;
+  initialContent?: string;
   onSuccess?: () => void;
   inline?: boolean;
 }) {
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState(initialContent ?? "");
   const [media, setMedia] = useState<MediaPreview[]>([]);
   const [posting, setPosting] = useState(false);
   const [location, setLocation] = useState("");

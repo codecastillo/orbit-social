@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { PostCard } from "@/components/feed/post-card";
 import { PostSkeleton } from "@/components/shared/loading-skeleton";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useRequireAuth } from "@/lib/hooks/use-require-auth";
+import { useUIStore } from "@/lib/stores/ui-store";
 import {
   getPostsByHashtag,
   checkUserInteractions,
@@ -19,6 +21,13 @@ export default function HashtagPage({ params }: { params: Promise<{ tag: string 
   const { tag } = use(params);
   const decodedTag = decodeURIComponent(tag);
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
+  const setComposeOpen = useUIStore((s) => s.setComposeOpen);
+
+  const handlePostWithTag = () => {
+    if (!requireAuth()) return;
+    setComposeOpen(true, { initialContent: `#${decodedTag} ` });
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ["hashtag", decodedTag],
@@ -58,7 +67,7 @@ export default function HashtagPage({ params }: { params: Promise<{ tag: string 
           }}
         />
         <div style={{ position: "relative" }}>
-          <Eyebrow accent>
+          <Eyebrow>
             ◆&nbsp;&nbsp;HASHTAG · {formatNumber(postCount)} POST{postCount !== 1 ? "S" : ""}
           </Eyebrow>
           <Display size={56} style={{ marginTop: 10, lineHeight: 0.95 }}>
@@ -89,7 +98,9 @@ export default function HashtagPage({ params }: { params: Promise<{ tag: string 
             Everyone in your orbit posting on this tag, freshest first.
           </p>
           <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-            <PillBtn primary size="lg">+ Post with #{decodedTag}</PillBtn>
+            <PillBtn primary size="lg" onClick={handlePostWithTag}>
+              Post with #{decodedTag}
+            </PillBtn>
           </div>
         </div>
       </div>
