@@ -53,6 +53,7 @@ function formatDisplay(value: string): string {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    hour12: true,
   });
 }
 
@@ -148,7 +149,7 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
         </span>
       </PopoverTrigger>
       <PopoverContent
-        align="start"
+        align="center"
         sideOffset={6}
         style={{
           width: 304,
@@ -275,7 +276,7 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
           })}
         </div>
 
-        {/* Time row */}
+        {/* Time row — 12-hour with AM/PM segmented toggle. */}
         <div
           style={{
             display: "flex",
@@ -296,12 +297,15 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
           >
             Time
           </span>
-          <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
             <TimeUnit
-              value={parsed?.hours ?? 19}
-              min={0}
-              max={23}
-              onChange={(h) => handleTimeChange(h, parsed?.minutes ?? 0)}
+              value={to12Hour(parsed?.hours ?? 19)}
+              min={1}
+              max={12}
+              onChange={(h12) => {
+                const h24 = from12Hour(h12, isPm(parsed?.hours ?? 19));
+                handleTimeChange(h24, parsed?.minutes ?? 0);
+              }}
             />
             <span style={{ color: O.ink3, fontWeight: 600 }}>:</span>
             <TimeUnit
@@ -311,10 +315,102 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
               step={minuteStep}
               onChange={(m) => handleTimeChange(parsed?.hours ?? 19, m)}
             />
+            <AmPmToggle
+              isPm={isPm(parsed?.hours ?? 19)}
+              onChange={(pm) => {
+                const h12 = to12Hour(parsed?.hours ?? 19);
+                handleTimeChange(from12Hour(h12, pm), parsed?.minutes ?? 0);
+              }}
+            />
           </div>
+        </div>
+
+        {/* Done — closes the popover and commits whatever the user picked. */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            padding: "10px 14px 14px",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            style={{
+              padding: "8px 18px",
+              borderRadius: 99,
+              background: aurora,
+              color: "#fff",
+              border: "none",
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: `0 6px 18px ${O.a2}55, inset 0 1px 0 rgba(255,255,255,0.25)`,
+              fontFamily: "inherit",
+            }}
+          >
+            Done
+          </button>
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function to12Hour(h24: number): number {
+  const mod = h24 % 12;
+  return mod === 0 ? 12 : mod;
+}
+
+function from12Hour(h12: number, pm: boolean): number {
+  if (h12 === 12) return pm ? 12 : 0;
+  return pm ? h12 + 12 : h12;
+}
+
+function isPm(h24: number): boolean {
+  return h24 >= 12;
+}
+
+function AmPmToggle({ isPm, onChange }: { isPm: boolean; onChange: (pm: boolean) => void }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        background: "rgba(255,255,255,0.04)",
+        border: `1px solid ${O.hair2}`,
+        borderRadius: 8,
+        padding: 2,
+        marginLeft: 4,
+      }}
+    >
+      {(["AM", "PM"] as const).map((label) => {
+        const active = (label === "PM") === isPm;
+        return (
+          <button
+            key={label}
+            type="button"
+            onClick={() => onChange(label === "PM")}
+            style={{
+              padding: "4px 10px",
+              borderRadius: 6,
+              background: active ? aurora : "transparent",
+              color: active ? "#fff" : O.ink3,
+              border: "none",
+              fontSize: 11,
+              fontWeight: 700,
+              fontFamily: O.mono,
+              letterSpacing: "0.08em",
+              cursor: "pointer",
+              boxShadow: active
+                ? `inset 0 1px 0 rgba(255,255,255,0.25)`
+                : "none",
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -15,6 +15,7 @@ import { DateTimePicker } from "@/components/orbit/datetime-picker";
 import { O } from "@/lib/design/orbit";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createEvent } from "@/lib/queries/events";
+import { zonedLocalToUTCISO, COMMON_TIMEZONES, browserTimezone } from "@/lib/utils/timezone";
 
 interface CreateEventDialogProps {
   open: boolean;
@@ -30,19 +31,40 @@ export function CreateEventDialog({
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
+  const defaultTz = useMemo(() => browserTimezone(), []);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
+  const [timezone, setTimezone] = useState<string>(defaultTz);
   const [location, setLocation] = useState("");
   const [isOnline, setIsOnline] = useState(false);
   const [onlineUrl, setOnlineUrl] = useState("");
+
+  // Build the dropdown options: user's detected zone first (so it's always
+  // top of the list), then the curated common zones excluding any duplicate.
+  const tzOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const opts: { value: string; label: string }[] = [];
+    if (defaultTz && !seen.has(defaultTz)) {
+      opts.push({ value: defaultTz, label: `${defaultTz} (your timezone)` });
+      seen.add(defaultTz);
+    }
+    for (const tz of COMMON_TIMEZONES) {
+      if (!seen.has(tz.value)) {
+        opts.push(tz);
+        seen.add(tz.value);
+      }
+    }
+    return opts;
+  }, [defaultTz]);
 
   const reset = () => {
     setTitle("");
     setDescription("");
     setStartAt("");
     setEndAt("");
+    setTimezone(defaultTz);
     setLocation("");
     setIsOnline(false);
     setOnlineUrl("");
@@ -57,8 +79,8 @@ export function CreateEventDialog({
       await createEvent(user.id, {
         title: title.trim(),
         description: description.trim() || undefined,
-        start_at: new Date(startAt).toISOString(),
-        end_at: endAt ? new Date(endAt).toISOString() : undefined,
+        start_at: zonedLocalToUTCISO(startAt, timezone),
+        end_at: endAt ? zonedLocalToUTCISO(endAt, timezone) : undefined,
         location: location.trim() || undefined,
         is_online: isOnline,
         online_url: isOnline && onlineUrl.trim() ? onlineUrl.trim() : undefined,
@@ -111,7 +133,7 @@ export function CreateEventDialog({
               gap: 14,
             }}
           >
-            <Field label="Starts" hint="local">
+            <Field label="Starts" hint={timezone.replace("_", " ")}>
               <DateTimePicker
                 value={startAt}
                 onChange={setStartAt}
@@ -126,6 +148,32 @@ export function CreateEventDialog({
               />
             </Field>
           </div>
+          <Field label="Timezone">
+            <select
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "11px 14px",
+                borderRadius: 12,
+                background: "rgba(255,255,255,0.04)",
+                border: `1px solid ${O.hair2}`,
+                color: O.ink,
+                fontSize: 13.5,
+                fontFamily: "inherit",
+                outline: "none",
+                cursor: "pointer",
+                appearance: "none",
+                colorScheme: "dark",
+              }}
+            >
+              {tzOptions.map((tz) => (
+                <option key={tz.value} value={tz.value}>
+                  {tz.label}
+                </option>
+              ))}
+            </select>
+          </Field>
           <Field label="Where">
             <Input
               value={location}

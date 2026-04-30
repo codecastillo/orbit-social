@@ -41,10 +41,18 @@ import {
   getEventComments,
   postEventComment,
   deleteEventComment,
+  deleteEvent,
   type EventWithCreator,
   type EventAttendee,
   type EventComment,
 } from "@/lib/queries/events";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
 
 type RsvpStatus = "going" | "interested" | "not_going" | null;
 
@@ -329,6 +337,23 @@ export default function EventDetailPage({
   const startDate = new Date(event.start_at);
   const endDate = event.end_at ? new Date(event.end_at) : null;
   const goingAttendees = attendees.filter((a) => a.status === "going");
+  const isHost = !!user && event.creator_id === user.id;
+
+  const handleDelete = async () => {
+    if (!isHost || !user) return;
+    const ok = window.confirm(
+      "Delete this event? RSVPs and comments will be removed too. This can't be undone.",
+    );
+    if (!ok) return;
+    try {
+      await deleteEvent(event.id, user.id);
+      toast.success("Event deleted");
+      router.push("/events");
+    } catch (err) {
+      console.error("Failed to delete event:", err);
+      toast.error("Couldn't delete event");
+    }
+  };
 
   return (
     <div className="border-x border-border min-h-screen">
@@ -341,7 +366,26 @@ export default function EventDetailPage({
         >
           <ArrowLeftIcon className="h-5 w-5" />
         </Button>
-        <h1 className="font-semibold truncate">Event</h1>
+        <h1 className="font-semibold truncate flex-1">Event</h1>
+        {isHost && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Event actions"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent transition-colors"
+            >
+              <MoreHorizontal className="h-5 w-5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 rounded-xl">
+              <DropdownMenuItem
+                onClick={handleDelete}
+                className="text-destructive cursor-pointer rounded-lg"
+              >
+                <Trash2Icon className="mr-2 h-4 w-4" />
+                Delete event
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {/* Cover — capped so it never towers on wide screens */}

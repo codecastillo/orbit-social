@@ -125,6 +125,18 @@ export async function createEvent(
   return event;
 }
 
+// Hosts can remove their own event. RLS on `events` enforces ownership;
+// we still pass the creator_id check explicitly so a tampered client gets
+// a no-op rather than a confusing success.
+export async function deleteEvent(eventId: string, userId: string) {
+  const { error } = await supabase
+    .from("events")
+    .delete()
+    .eq("id", eventId)
+    .eq("creator_id", userId);
+  if (error) throw error;
+}
+
 // ── Event comments ──────────────────────────────────────────────────
 
 export interface EventComment {
