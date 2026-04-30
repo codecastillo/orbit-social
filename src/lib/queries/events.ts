@@ -125,16 +125,23 @@ export async function createEvent(
   return event;
 }
 
-// Hosts can remove their own event. RLS on `events` enforces ownership;
-// we still pass the creator_id check explicitly so a tampered client gets
-// a no-op rather than a confusing success.
+// Hosts can remove their own event. RLS on `events` enforces ownership.
+// We .select() the deleted row so we can tell the difference between a
+// successful delete (1 row returned) and an RLS-blocked no-op (0 rows,
+// no error) — Supabase doesn't surface the latter as an error by default.
 export async function deleteEvent(eventId: string, userId: string) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("events")
     .delete()
     .eq("id", eventId)
-    .eq("creator_id", userId);
+    .eq("creator_id", userId)
+    .select("id");
   if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error(
+      "Event not deleted. The events DELETE RLS policy probably hasn't been applied — run migration 20260430090000_event_delete_policy.sql.",
+    );
+  }
 }
 
 // ── Event comments ──────────────────────────────────────────────────

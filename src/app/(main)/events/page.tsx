@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   Calendar as CalIcon,
-  MapPin,
   Share2,
   CheckCircle2,
   Star,
@@ -353,7 +352,7 @@ function FeaturedEvent({
             letterSpacing: "0.04em",
           }}
         >
-          HOSTED BY @{event.profiles.username.toUpperCase()}
+          HOSTED BY {event.profiles.display_name.toUpperCase()}
           {event.location && ` · ${event.location.toUpperCase()}`}
         </div>
         {event.description && (
@@ -526,15 +525,12 @@ function EverythingElse({
                     flexWrap: "wrap",
                   }}
                 >
-                  {e.location && (
-                    <>
-                      <MapPin style={{ width: 11, height: 11 }} strokeWidth={1.8} />
-                      {e.location}
-                    </>
-                  )}
+                  {e.location && <span>{e.location}</span>}
                   {e.is_online && !e.location && "Online"}
-                  <span style={{ color: O.ink4 }}>·</span>
-                  hosted by {e.profiles.display_name.split(" ")[0]}
+                  {(e.location || e.is_online) && (
+                    <span style={{ color: O.ink4 }}>·</span>
+                  )}
+                  hosted by {e.profiles.display_name}
                 </div>
               </div>
               <div
@@ -585,6 +581,23 @@ function EverythingElse({
                   aria-label="Can't go"
                 >
                   <XCircle style={{ width: 11, height: 11 }} />
+                </PillBtn>
+                <PillBtn
+                  size="sm"
+                  onClick={(ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    if (typeof window !== "undefined" && navigator.clipboard) {
+                      navigator.clipboard.writeText(
+                        `${window.location.origin}/events/${e.id}`,
+                      );
+                      toast.success("Link copied");
+                    }
+                  }}
+                  title="Share event"
+                  aria-label="Share event"
+                >
+                  <Share2 style={{ width: 11, height: 11 }} />
                 </PillBtn>
               </div>
             </Link>
