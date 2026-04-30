@@ -64,7 +64,11 @@ export function useFeed(tab: "foryou" | "following") {
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    staleTime: 15_000,
-    refetchOnWindowFocus: true,
+    // 60s staleTime + no refetch on window focus avoids the request storm
+    // that fires every time you tab back. Realtime channels still bump
+    // the cache when something actually changes.
+    staleTime: 60_000,
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
   });
 }

@@ -270,3 +270,25 @@ export async function getUserRsvpStatus(eventId: string, userId: string) {
   if (error) throw error;
   return data?.status as "going" | "interested" | "not_going" | null;
 }
+
+// Batch version: one query covering N events instead of N round-trips.
+// Returns a map keyed by event_id; events the user hasn't RSVP'd to are
+// absent (caller should treat missing as null).
+export async function getUserRsvpStatuses(
+  eventIds: string[],
+  userId: string,
+): Promise<Record<string, "going" | "interested" | "not_going">> {
+  if (!eventIds.length) return {};
+  const { data, error } = await supabase
+    .from("event_rsvps")
+    .select("event_id, status")
+    .eq("user_id", userId)
+    .in("event_id", eventIds);
+
+  if (error) throw error;
+  const map: Record<string, "going" | "interested" | "not_going"> = {};
+  for (const row of (data ?? []) as { event_id: string; status: "going" | "interested" | "not_going" }[]) {
+    map[row.event_id] = row.status;
+  }
+  return map;
+}

@@ -6,7 +6,6 @@ import { Loader2, Film } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getClips } from "@/lib/queries/clips";
 import { checkUserInteractions, type PostWithAuthor } from "@/lib/queries/posts";
-import { createClient } from "@/lib/supabase/client";
 import { ClipPlayer } from "./clip-player";
 import { O, aurora, panel } from "@/lib/design/orbit";
 
@@ -16,30 +15,11 @@ export function ClipFeed() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
-  // Realtime: any new clip-typed post (type='reel') anywhere on the network
-  // refreshes the feed, so users see new clips without reloading.
-  useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`clips-feed-${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "posts",
-          filter: "type=eq.reel",
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["clips"] });
-        },
-      )
-      .subscribe();
-    return () => {
-      channel.unsubscribe();
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
+  // Note: previously this hook subscribed to every INSERT on `posts` with
+  // type='reel' and busted the entire ["clips"] cache on each. That made
+  // every creator's upload anywhere on the platform thrash every viewer's
+  // clip cache. The 30s staleTime + visibility-driven prefetch already
+  // surfaces new clips without that. Removed.
 
   // Scroll to the previous/next clip-snap section.
   const scrollByOne = useCallback((dir: 1 | -1) => {

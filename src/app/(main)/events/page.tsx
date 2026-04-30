@@ -17,7 +17,7 @@ import {
   getEvents,
   rsvpEvent,
   removeRsvp,
-  getUserRsvpStatus,
+  getUserRsvpStatuses,
   type EventWithCreator,
 } from "@/lib/queries/events";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -66,13 +66,12 @@ export default function EventsPage() {
       const data = await getEvents();
       setEvents(data);
       if (user && data.length) {
-        const entries = await Promise.all(
-          data.map(async (e) => {
-            const s = await getUserRsvpStatus(e.id, user.id);
-            return [e.id, s] as const;
-          })
+        // Single round-trip instead of N (one per event).
+        const map = await getUserRsvpStatuses(
+          data.map((e) => e.id),
+          user.id,
         );
-        setRsvpMap(Object.fromEntries(entries));
+        setRsvpMap(map);
       }
     } catch (err) {
       console.error("Failed to load events:", err);

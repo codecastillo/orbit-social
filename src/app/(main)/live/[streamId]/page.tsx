@@ -176,7 +176,9 @@ export default function LiveViewerPage({ params }: Props) {
   const { data: stream } = useQuery({
     queryKey: ["live-stream", streamId],
     queryFn: () => getStreamById(streamId),
-    refetchInterval: 10000,
+    // 30s instead of 10s — chat + hearts already arrive via realtime, the
+    // poll is only here as a metadata safety net.
+    refetchInterval: 30000,
   });
 
   const { messages, sendMessage } = useLiveChat(streamId);
