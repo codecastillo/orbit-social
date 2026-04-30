@@ -114,7 +114,7 @@ export default function LivePage() {
         accent="#ff5a6a"
         headline="Nobody's"
         accentWord="on air"
-        sub="When people you follow go live, you'll find their streams here. Set up your stream key once in OBS or your IRL backpack — you appear here automatically when you start broadcasting."
+        sub="When people you follow go live, you'll find their streams here. Set up your stream key once in OBS or your IRL backpack and you'll appear here automatically when you start broadcasting."
         ctaLabel="Set up streaming"
         ctaIcon={<Radio style={{ width: 12, height: 12 }} />}
         onCta={goToStreamSettings}
