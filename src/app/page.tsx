@@ -273,8 +273,7 @@ function BentoSection() {
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 28px" }}>
         <Reveal>
           <div style={{ textAlign: "center" }}>
-            <Eyebrow>◈&nbsp;&nbsp;WHAT YOU GET</Eyebrow>
-            <Display size={64} style={{ marginTop: 14, marginBottom: 20 }}>
+            <Display size={64} style={{ marginBottom: 20 }}>
               One <Acc>platform</Acc>. All the <Acc>surface</Acc>.
             </Display>
             <p
@@ -868,8 +867,7 @@ function MadeForSection() {
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 28px" }}>
         <Reveal>
           <div style={{ textAlign: "center" }}>
-            <Eyebrow>◇&nbsp;&nbsp;BUILT FOR THE PEOPLE WHO POST</Eyebrow>
-            <Display size={56} style={{ marginTop: 14, marginBottom: 14 }}>
+            <Display size={56} style={{ marginBottom: 14 }}>
               Made for <Acc>makers</Acc>, not advertisers.
             </Display>
             <p
@@ -1057,58 +1055,12 @@ function Footer() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1.4fr 1fr 1fr 1fr",
+            gridTemplateColumns: "repeat(3, 1fr)",
             gap: 48,
             alignItems: "start",
           }}
-          className="md:grid-cols-[1.4fr_1fr_1fr_1fr] grid-cols-2"
+          className="md:grid-cols-3 grid-cols-2"
         >
-          {/* Brand block */}
-          <div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                marginBottom: 14,
-              }}
-            >
-              <div
-                style={{
-                  position: "relative",
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  background: aurora,
-                  boxShadow: `0 4px 14px -2px ${O.a2}80, inset 0 1px 0 rgba(255,255,255,0.3)`,
-                }}
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 3,
-                    borderRadius: 5,
-                    border: "1.5px solid rgba(255,255,255,0.5)",
-                  }}
-                />
-              </div>
-              <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-0.02em" }}>
-                Orbit
-              </span>
-            </div>
-            <p
-              style={{
-                fontSize: 13,
-                color: O.ink3,
-                lineHeight: 1.6,
-                maxWidth: 260,
-                margin: 0,
-              }}
-            >
-              The internet, but smaller. Find your people, on your terms.
-            </p>
-          </div>
-
           {footerCols.map((col) => (
             <div key={col.title}>
               <div
