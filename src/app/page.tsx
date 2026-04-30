@@ -100,22 +100,6 @@ function TopNav() {
           </span>
         </Link>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 28,
-            color: O.ink2,
-            fontSize: 13,
-            fontWeight: 500,
-          }}
-          className="hidden md:flex"
-        >
-          {["Products", "Ecosystem", "Pricing", "Manifesto", "Help"].map((l) => (
-            <span key={l}>{l}</span>
-          ))}
-        </div>
-
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <Link href="/signup">
             <PillBtn primary size="sm">
@@ -1014,120 +998,166 @@ function CtaSection() {
 
 /* ─── Footer ─────────────────────────────────────────────────────── */
 
-const footerCols = [
-  { title: "Product", links: ["Feed", "Clips", "Moments", "Rooms", "Live", "Events", "Audio posts"] },
-  { title: "Company", links: ["About", "Manifesto", "Careers", "Blog", "Brand"] },
-  { title: "Legal", links: ["Terms", "Privacy", "Cookies", "Accessibility", "Community guidelines"] },
-  { title: "Developers", links: ["API", "Docs", "Status", "Changelog"] },
+const footerCols: { title: string; links: { label: string; href?: string }[] }[] = [
+  {
+    title: "Product",
+    links: [
+      { label: "Feed", href: "/feed" },
+      { label: "Clips", href: "/clips" },
+      { label: "Rooms", href: "/communities" },
+      { label: "Live", href: "/live" },
+      { label: "Events", href: "/events" },
+    ],
+  },
+  {
+    title: "Account",
+    links: [
+      { label: "Sign up", href: "/signup" },
+      { label: "Sign in", href: "/login" },
+      { label: "Explore", href: "/explore" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { label: "Terms" },
+      { label: "Privacy" },
+      { label: "Cookies" },
+      { label: "Community guidelines" },
+    ],
+  },
 ];
 
 function Footer() {
   return (
-    <footer style={{ borderTop: `1px solid ${O.hair}`, padding: "48px 0 24px" }}>
+    <footer style={{ borderTop: `1px solid ${O.hair}`, padding: "56px 0 28px" }}>
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 28px" }}>
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 2fr 1fr",
-            gap: 64,
+            gridTemplateColumns: "1.4fr 1fr 1fr 1fr",
+            gap: 48,
+            alignItems: "start",
           }}
-          className="md:grid-cols-[1fr_2fr_1fr] grid-cols-1"
+          className="md:grid-cols-[1.4fr_1fr_1fr_1fr] grid-cols-2"
         >
+          {/* Brand block */}
           <div>
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
-                marginBottom: 10,
+                marginBottom: 14,
               }}
             >
               <div
                 style={{
+                  position: "relative",
                   width: 28,
                   height: 28,
                   borderRadius: 8,
                   background: aurora,
-                  boxShadow: `0 4px 14px -2px ${O.a2}80`,
+                  boxShadow: `0 4px 14px -2px ${O.a2}80, inset 0 1px 0 rgba(255,255,255,0.3)`,
                 }}
-              />
-              <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.02em" }}>
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 3,
+                    borderRadius: 5,
+                    border: "1.5px solid rgba(255,255,255,0.5)",
+                  }}
+                />
+              </div>
+              <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-0.02em" }}>
                 Orbit
               </span>
             </div>
-            <div
+            <p
               style={{
-                fontSize: 10.5,
-                fontFamily: O.mono,
-                letterSpacing: "0.14em",
+                fontSize: 13,
                 color: O.ink3,
-                marginBottom: 16,
+                lineHeight: 1.6,
+                maxWidth: 260,
+                margin: 0,
               }}
             >
-              EVERYONE&apos;S RADIUS
-            </div>
-            <p style={{ fontSize: 12, color: O.ink3, lineHeight: 1.55, maxWidth: 220 }}>
-              The internet, but smaller. Find your people — on your terms.
+              The internet, but smaller. Find your people, on your terms.
             </p>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 24,
-            }}
-            className="md:grid-cols-4 grid-cols-2"
-          >
-            {footerCols.map((col) => (
-              <div key={col.title}>
-                <div
-                  style={{
-                    fontSize: 10,
-                    fontFamily: O.mono,
-                    letterSpacing: "0.14em",
-                    color: O.ink3,
-                    marginBottom: 12,
-                    textTransform: "uppercase",
-                    fontWeight: 600,
-                  }}
-                >
-                  {col.title}
-                </div>
-                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                  {col.links.map((l) => (
-                    <li key={l} style={{ marginBottom: 8 }}>
-                      <span style={{ fontSize: 12, color: O.ink2 }}>{l}</span>
-                    </li>
-                  ))}
-                </ul>
+          {footerCols.map((col) => (
+            <div key={col.title}>
+              <div
+                style={{
+                  fontSize: 10,
+                  fontFamily: O.mono,
+                  letterSpacing: "0.16em",
+                  color: O.ink4,
+                  marginBottom: 16,
+                  textTransform: "uppercase",
+                  fontWeight: 600,
+                }}
+              >
+                {col.title}
               </div>
-            ))}
-          </div>
-
-          <div />
+              <ul
+                style={{
+                  listStyle: "none",
+                  padding: 0,
+                  margin: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                {col.links.map((l) =>
+                  l.href ? (
+                    <li key={l.label}>
+                      <Link
+                        href={l.href}
+                        style={{
+                          fontSize: 13,
+                          color: O.ink2,
+                          textDecoration: "none",
+                        }}
+                      >
+                        {l.label}
+                      </Link>
+                    </li>
+                  ) : (
+                    <li
+                      key={l.label}
+                      style={{ fontSize: 13, color: O.ink3, cursor: "default" }}
+                    >
+                      {l.label}
+                    </li>
+                  ),
+                )}
+              </ul>
+            </div>
+          ))}
         </div>
 
         <div
           style={{
-            marginTop: 40,
-            paddingTop: 20,
+            marginTop: 48,
+            paddingTop: 22,
             borderTop: `1px solid ${O.hair}`,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            fontSize: 10.5,
+            fontSize: 11,
             fontFamily: O.mono,
-            letterSpacing: "0.08em",
+            letterSpacing: "0.1em",
             color: O.ink4,
             flexWrap: "wrap",
             gap: 12,
           }}
         >
-          <span>
-            © 2026 ORBIT LABS · MADE WITH ♥ FOR THE UNDERCROWDED CORNERS
-          </span>
-          <span>ENGLISH · V4.2.1 · STATUS: GOOD</span>
+          <span>© 2026 ORBIT LABS</span>
+          <span>EVERYONE&apos;S RADIUS</span>
         </div>
       </div>
     </footer>
