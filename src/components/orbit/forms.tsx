@@ -526,19 +526,6 @@ export function ModalShell({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
-              fontFamily: O.mono,
-              fontSize: 10.5,
-              letterSpacing: "0.18em",
-              color: O.ink3,
-              textTransform: "uppercase",
-              fontWeight: 500,
-              marginBottom: 4,
-            }}
-          >
-            ◇&nbsp;&nbsp;DIALOG
-          </div>
-          <div
-            style={{
               fontSize: 17,
               fontWeight: 600,
               letterSpacing: "-0.01em",
@@ -627,7 +614,7 @@ export function ModalShell({
                 ? "linear-gradient(135deg, #ff6a7a, #c8435a)"
                 : aurora
               : "rgba(255,255,255,0.06)",
-            color: canSubmit ? "#0c0a17" : O.ink3,
+            color: canSubmit ? "#fff" : O.ink3,
             border: "none",
             fontSize: 13,
             fontWeight: 600,

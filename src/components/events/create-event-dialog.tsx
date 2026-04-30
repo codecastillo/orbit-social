@@ -11,6 +11,7 @@ import {
   TextArea,
   Toggle,
 } from "@/components/orbit/forms";
+import { DateTimePicker } from "@/components/orbit/datetime-picker";
 import { O } from "@/lib/design/orbit";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createEvent } from "@/lib/queries/events";
@@ -87,7 +88,7 @@ export function CreateEventDialog({
           icon={<Calendar style={{ width: 17, height: 17 }} strokeWidth={1.8} />}
           accent={O.a3}
           width={560}
-          primaryLabel={loading ? "Creating…" : "Create event"}
+          primaryLabel={loading ? "Creating…" : "Create"}
           secondaryLabel="Cancel"
           canSubmit={canSubmit}
           loading={loading}
@@ -111,19 +112,17 @@ export function CreateEventDialog({
             }}
           >
             <Field label="Starts" hint="local">
-              <Input
-                type="datetime-local"
+              <DateTimePicker
                 value={startAt}
-                onChange={(e) => setStartAt(e.target.value)}
-                style={{ colorScheme: "dark", width: "100%", minWidth: 0 }}
+                onChange={setStartAt}
+                placeholder="Pick a start"
               />
             </Field>
             <Field label="Ends">
-              <Input
-                type="datetime-local"
+              <DateTimePicker
                 value={endAt}
-                onChange={(e) => setEndAt(e.target.value)}
-                style={{ colorScheme: "dark", width: "100%", minWidth: 0 }}
+                onChange={setEndAt}
+                placeholder="Pick an end"
               />
             </Field>
           </div>
