@@ -48,7 +48,14 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
         "postgres_changes",
         { event: "*", schema: "public", table: "post_likes" },
         () => {
+          // The viewer's like-set per comment AND the authoritative
+          // like_count on each comment row both need to refresh — the
+          // count lives on posts, so we re-pull the comments + replies
+          // lists too. Without this, like counts only moved when YOU
+          // tapped them, not when another viewer did.
           queryClient.invalidateQueries({ queryKey: ["comment-likes"] });
+          queryClient.invalidateQueries({ queryKey: ["clip-comments", postId] });
+          queryClient.invalidateQueries({ queryKey: ["comment-replies"] });
         },
       )
       .on(
@@ -262,6 +269,18 @@ function CommentRow({
   const [replying, setReplying] = useState(false);
   const [replyDraft, setReplyDraft] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
+
+  // Re-seed local state when the parent's authoritative values change
+  // (realtime CDC on post_likes refetches the comments list, which
+  // updates comment.like_count, and refetches comment-likes which
+  // updates initialLiked). Without this, comment heart counts only
+  // reflect the local interaction and never see other users' likes.
+  useEffect(() => {
+    setLikeCount(comment.like_count ?? 0);
+  }, [comment.like_count]);
+  useEffect(() => {
+    setLiked(initialLiked);
+  }, [initialLiked]);
 
   const { data: replies } = useQuery({
     queryKey: ["comment-replies", comment.id],
@@ -519,6 +538,16 @@ function ReplyRow({
   const { user } = useAuth();
   const [liked, setLiked] = useState(initialLiked);
   const [likeCount, setLikeCount] = useState(reply.like_count ?? 0);
+
+  // Mirror the CommentRow re-seed: realtime CDC bumps reply.like_count
+  // on the parent's refetch, but this child component otherwise sticks
+  // to its first-render values.
+  useEffect(() => {
+    setLikeCount(reply.like_count ?? 0);
+  }, [reply.like_count]);
+  useEffect(() => {
+    setLiked(initialLiked);
+  }, [initialLiked]);
 
   const handleLike = async () => {
     if (!user) {
