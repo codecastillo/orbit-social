@@ -11,6 +11,7 @@ import { VerifiedStar } from "@/components/orbit/verified-star";
 import { ClipActions } from "./clip-actions";
 import { ClipCommentsSheet } from "./clip-comments-sheet";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { checkFollowing, followUser, unfollowUser } from "@/lib/queries/social";
 import { createClient } from "@/lib/supabase/client";
 import { useUIStore } from "@/lib/stores/ui-store";
@@ -24,6 +25,7 @@ interface ClipPlayerProps {
 
 export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const queryClient = useQueryClient();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -170,10 +172,7 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
 
   const toggleFollow = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user) {
-      toast.error("Sign in to follow people");
-      return;
-    }
+    if (!requireAuth() || !user) return;
     const wasFollowing = isFollowing;
     setFollowOverride(!wasFollowing);
     setFollowBusy(true);

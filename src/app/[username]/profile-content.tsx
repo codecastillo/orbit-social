@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import {
   getUserPosts,
   getUserLikedPosts,
@@ -117,6 +118,7 @@ export function ProfileContent({
   const [followListOpen, setFollowListOpen] = useState<null | "followers" | "following">(null);
   const router = useRouter();
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -390,10 +392,7 @@ export function ProfileContent({
   });
 
   const handleFollow = async () => {
-    if (!user) {
-      toast.error("Sign in to follow users");
-      return;
-    }
+    if (!requireAuth() || !user) return;
     const wasFollowing = isFollowing;
     setIsFollowing(!wasFollowing);
 

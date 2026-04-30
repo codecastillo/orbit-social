@@ -41,7 +41,7 @@ export default async function MainLayout({
         {children}
       </main>
 
-      <PostComposer />
+      {user && <PostComposer />}
       <BottomNav />
     </div>
   );

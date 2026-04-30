@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { createRepost } from "@/lib/queries/posts";
 import {
   getConversations,
@@ -28,6 +29,7 @@ interface ShareDialogProps {
 
 export function ShareDialog({ postId, open, onOpenChange }: ShareDialogProps) {
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const queryClient = useQueryClient();
   const [showConversations, setShowConversations] = useState(false);
   const [sendingTo, setSendingTo] = useState<string | null>(null);
@@ -61,10 +63,7 @@ export function ShareDialog({ postId, open, onOpenChange }: ShareDialogProps) {
   };
 
   const handleRepost = async () => {
-    if (!user) {
-      toast.error("Sign in to repost");
-      return;
-    }
+    if (!requireAuth() || !user) return;
     if (reposted || reposting) return;
     setReposting(true);
     try {
@@ -89,7 +88,7 @@ export function ShareDialog({ postId, open, onOpenChange }: ShareDialogProps) {
   };
 
   const handleSendToChat = async (conversation: ConversationWithPreview) => {
-    if (!user) return;
+    if (!requireAuth() || !user) return;
     setSendingTo(conversation.id);
     try {
       // Prefix the user's optional note so it lands as a single message

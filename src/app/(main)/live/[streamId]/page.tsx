@@ -9,6 +9,7 @@ import * as Icons from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { useStreamPresence } from "@/lib/hooks/use-stream-presence";
 import { useStreamHearts } from "@/lib/hooks/use-stream-hearts";
 import { createClient } from "@/lib/supabase/client";
@@ -168,6 +169,7 @@ const MUX_PLAYER_STYLE = {
 export default function LiveViewerPage({ params }: Props) {
   const { streamId } = use(params);
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -223,12 +225,9 @@ export default function LiveViewerPage({ params }: Props) {
   });
 
   const handleToggleFollow = useCallback(async () => {
-    if (!user) {
-      toast.error("Sign in to follow people");
-      return;
-    }
+    if (!requireAuth() || !user) return;
     await followMutation.mutateAsync(!isFollowing);
-  }, [followMutation, isFollowing, user]);
+  }, [followMutation, isFollowing, requireAuth, user]);
 
   const [comment, setComment] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
@@ -249,13 +248,14 @@ export default function LiveViewerPage({ params }: Props) {
   };
 
   const handleSend = async () => {
-    if (!user || !comment.trim()) return;
+    if (!requireAuth() || !user) return;
+    if (!comment.trim()) return;
     const result = await sendMessage(comment.trim());
     if (result.ok) setComment("");
   };
 
   const handleTip = () => {
-    if (!user) return;
+    if (!requireAuth() || !user) return;
     try {
       const sent = sendGift(streamId, user.id, "star");
       setActiveGifts((g) => [...g, sent]);

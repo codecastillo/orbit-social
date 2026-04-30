@@ -4,6 +4,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useAuth } from "./use-auth";
 import {
   getFeedPosts,
+  getPublicTimeline,
   checkUserInteractions,
   checkUserReposted,
   type PostWithAuthor,
@@ -13,14 +14,19 @@ export function useFeed(tab: "foryou" | "following") {
   const { user } = useAuth();
 
   return useInfiniteQuery({
-    queryKey: ["feed", tab, user?.id],
+    queryKey: ["feed", user ? tab : "public", user?.id ?? "anon"],
     queryFn: async ({ pageParam }) => {
-      if (!user) return { posts: [] as PostWithAuthor[], nextCursor: null };
-
       try {
+        // Anon viewers see the public timeline (no follow graph available).
+        if (!user) {
+          const posts = await getPublicTimeline(pageParam);
+          const nextCursor =
+            posts.length > 0 ? posts[posts.length - 1].created_at : null;
+          return { posts, nextCursor };
+        }
+
         const posts = await getFeedPosts(user.id, tab, pageParam);
 
-        // Check user interactions for this batch
         let enrichedPosts = posts;
         if (posts.length > 0) {
           try {
@@ -58,7 +64,6 @@ export function useFeed(tab: "foryou" | "following") {
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: !!user,
     staleTime: 15_000,
     refetchOnWindowFocus: true,
   });

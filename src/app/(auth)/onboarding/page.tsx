@@ -23,6 +23,7 @@ import {
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getSuggestedUsers } from "@/lib/queries/social";
+import { consumePendingRedirect } from "@/lib/utils/post-auth-redirect";
 import { O, aurora, panel, orbitBg } from "@/lib/design/orbit";
 import {
   Display,
@@ -159,7 +160,7 @@ export default function OnboardingPage() {
       await supabase.from("follows").insert(inserts);
     }
     setFinishing(false);
-    router.push("/feed");
+    router.push(consumePendingRedirect("/feed"));
     router.refresh();
   };
 

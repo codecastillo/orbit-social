@@ -27,6 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { formatNumber, formatTimeAgo } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { useCurrentProfile } from "@/lib/hooks/use-profile";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -55,6 +56,7 @@ export default function EventDetailPage({
   const { eventId } = use(params);
   const router = useRouter();
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const { data: currentProfile } = useCurrentProfile();
   const supabase = createClient();
 
@@ -190,7 +192,8 @@ export default function EventDetailPage({
   }, [eventId, supabase, refetchAttendees]);
 
   async function handleRsvp(status: "going" | "interested" | "not_going") {
-    if (!user || !event) return;
+    if (!event) return;
+    if (!requireAuth() || !user) return;
     const prev = rsvpStatus;
     const isToggleOff = prev === status;
     const next: RsvpStatus = isToggleOff ? null : status;

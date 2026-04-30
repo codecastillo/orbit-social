@@ -225,6 +225,31 @@ export async function getFeedPosts(
   return posts;
 }
 
+// Public timeline — newest non-private posts platform-wide. Used for anon
+// visitors browsing /feed in read-only mode (no follows = no personalized
+// feed possible). Excludes reels (clip-feed surface), reposts (need viewer
+// to dedupe), close-friends visibility (gated content), and hidden posts.
+export async function getPublicTimeline(cursor?: string, limit = 20) {
+  let query = supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .is("reply_to_id", null)
+    .is("community_id", null)
+    .eq("is_hidden", false)
+    .eq("visibility", "public")
+    .not("type", "in", "(reel,repost)")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (cursor) {
+    query = query.lt("created_at", cursor);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data as PostWithAuthor[];
+}
+
 export async function getPostById(postId: string) {
   const { data, error } = await supabase
     .from("posts")

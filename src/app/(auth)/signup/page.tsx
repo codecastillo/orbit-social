@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +28,7 @@ import {
   TurnstileWidget,
   type TurnstileWidgetHandle,
 } from "@/components/auth/turnstile-widget";
+import { setPendingRedirect } from "@/lib/utils/post-auth-redirect";
 
 const stepLabels = ["ACCOUNT", "SECURITY", "PROFILE"] as const;
 
@@ -216,6 +217,7 @@ export default function SignUpPage() {
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const {
@@ -331,6 +333,10 @@ export default function SignUpPage() {
   };
 
   const onSubmit = async (data: FullSignUpFormData) => {
+    // Persist the deep-link the visitor came from so onboarding can return
+    // them to it after the email-verification round-trip.
+    setPendingRedirect(searchParams.get("next"));
+
     const captchaToken = (await turnstileRef.current?.getToken()) ?? undefined;
 
     const { error } = await supabase.auth.signUp({
@@ -751,7 +757,14 @@ export default function SignUpPage() {
         }}
       >
         Already have an account?{" "}
-        <Link href="/login" style={{ color: O.a3, textDecoration: "none", fontWeight: 600 }}>
+        <Link
+          href={
+            searchParams.get("next")
+              ? `/login?next=${encodeURIComponent(searchParams.get("next")!)}`
+              : "/login"
+          }
+          style={{ color: O.a3, textDecoration: "none", fontWeight: 600 }}
+        >
           Sign in →
         </Link>
       </p>

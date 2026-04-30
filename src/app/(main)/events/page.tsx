@@ -22,6 +22,7 @@ import {
   type EventWithCreator,
 } from "@/lib/queries/events";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { createClient } from "@/lib/supabase/client";
 import { O, panel } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
@@ -53,6 +54,7 @@ function formatDay(iso: string): { day: string; mo: string; weekday: string; tim
 
 export default function EventsPage() {
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const supabase = useMemo(() => createClient(), []);
   const [events, setEvents] = useState<EventWithCreator[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,10 +109,7 @@ export default function EventsPage() {
 
   const handleRsvp = useCallback(
     async (eventId: string, status: "going" | "interested" | "not_going") => {
-      if (!user) {
-        toast.error("Sign in to RSVP");
-        return;
-      }
+      if (!requireAuth() || !user) return;
       const prev = rsvpMap[eventId] ?? null;
       const isToggleOff = prev === status;
       const next: RsvpStatus = isToggleOff ? null : status;
@@ -159,7 +158,7 @@ export default function EventsPage() {
         }
       }
     },
-    [user, rsvpMap]
+    [user, rsvpMap, requireAuth]
   );
 
   return (
@@ -191,9 +190,11 @@ export default function EventsPage() {
             Meetups, launches, listening sessions. The real-world side of your network.
           </p>
         </div>
-        <PillBtn primary size="lg" onClick={() => setShowCreate(true)}>
-          Host
-        </PillBtn>
+        {user && (
+          <PillBtn primary size="lg" onClick={() => setShowCreate(true)}>
+            Host
+          </PillBtn>
+        )}
       </div>
 
       {loading ? (

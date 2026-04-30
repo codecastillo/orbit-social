@@ -80,7 +80,6 @@ export function ClipFeed() {
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: !!user,
     staleTime: 30_000,
   });
 

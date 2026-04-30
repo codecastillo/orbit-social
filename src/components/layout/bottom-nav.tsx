@@ -30,13 +30,23 @@ export function BottomNav() {
 
   const profileHref = username ? `/${username}` : "/onboarding";
 
-  const items = [
-    { key: "home", label: "Home", href: "/feed", icon: Home },
-    { key: "discover", label: "Discover", href: "/explore", icon: Compass },
-    { key: "compose", label: "Compose", href: "#compose", icon: Plus, primary: true },
-    { key: "msg", label: "Chat", href: "/messages", icon: MessageCircle },
-    { key: "me", label: "You", href: profileHref, icon: User },
-  ];
+  // Anon visitors don't have a Compose / Chat / You — swap those slots out
+  // for an account CTA so the bottom nav stays five-wide and isn't a row of
+  // dead buttons that all bounce through middleware.
+  const items = user
+    ? [
+        { key: "home", label: "Home", href: "/feed", icon: Home },
+        { key: "discover", label: "Discover", href: "/explore", icon: Compass },
+        { key: "compose", label: "Compose", href: "#compose", icon: Plus, primary: true },
+        { key: "msg", label: "Chat", href: "/messages", icon: MessageCircle },
+        { key: "me", label: "You", href: profileHref, icon: User },
+      ]
+    : [
+        { key: "home", label: "Home", href: "/feed", icon: Home },
+        { key: "discover", label: "Discover", href: "/explore", icon: Compass },
+        { key: "signup", label: "Sign up", href: "/signup", icon: Plus, primary: true },
+        { key: "signin", label: "Sign in", href: "/login", icon: User },
+      ];
 
   return (
     <nav
@@ -51,6 +61,7 @@ export function BottomNav() {
     >
       {items.map((item) => {
         const isCompose = item.href === "#compose";
+        const isPrimary = "primary" in item && item.primary;
         const isActive =
           !isCompose &&
           (pathname === item.href || pathname.startsWith(item.href + "/"));
@@ -78,6 +89,29 @@ export function BottomNav() {
             >
               <Icon style={{ width: 22, height: 22 }} strokeWidth={2.4} />
             </button>
+          );
+        }
+
+        if (isPrimary) {
+          return (
+            <Link
+              key={item.key}
+              href={item.href}
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                background: aurora,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: `0 8px 22px -4px ${O.a2}80, inset 0 1px 0 rgba(255,255,255,0.3)`,
+                color: "white",
+                textDecoration: "none",
+              }}
+            >
+              <Icon style={{ width: 22, height: 22 }} strokeWidth={2.4} />
+            </Link>
           );
         }
 

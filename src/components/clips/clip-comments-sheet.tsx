@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { VerifiedStar } from "@/components/orbit/verified-star";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import {
   createPost,
   getPostComments,
@@ -27,6 +28,7 @@ interface Props {
 
 export function ClipCommentsSheet({ postId, onClose }: Props) {
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
@@ -91,10 +93,7 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
   });
 
   const handleSend = async () => {
-    if (!user) {
-      toast.error("Sign in to comment");
-      return;
-    }
+    if (!requireAuth() || !user) return;
     const text = draft.trim();
     if (!text) return;
     setPosting(true);
@@ -262,6 +261,7 @@ function CommentRow({
   initialLiked: boolean;
 }) {
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const queryClient = useQueryClient();
   const [liked, setLiked] = useState(initialLiked);
   const [likeCount, setLikeCount] = useState(comment.like_count ?? 0);
@@ -304,10 +304,7 @@ function CommentRow({
   });
 
   const handleLike = async () => {
-    if (!user) {
-      toast.error("Sign in to like");
-      return;
-    }
+    if (!requireAuth() || !user) return;
     const wasLiked = liked;
     setLiked(!wasLiked);
     setLikeCount((c) => (wasLiked ? c - 1 : c + 1));
@@ -321,10 +318,7 @@ function CommentRow({
   };
 
   const handleReplySend = async () => {
-    if (!user) {
-      toast.error("Sign in to reply");
-      return;
-    }
+    if (!requireAuth() || !user) return;
     const text = replyDraft.trim();
     if (!text) return;
     setSendingReply(true);
@@ -536,6 +530,7 @@ function ReplyRow({
   initialLiked: boolean;
 }) {
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const [liked, setLiked] = useState(initialLiked);
   const [likeCount, setLikeCount] = useState(reply.like_count ?? 0);
 
@@ -550,10 +545,7 @@ function ReplyRow({
   }, [initialLiked]);
 
   const handleLike = async () => {
-    if (!user) {
-      toast.error("Sign in to like");
-      return;
-    }
+    if (!requireAuth() || !user) return;
     const wasLiked = liked;
     setLiked(!wasLiked);
     setLikeCount((c) => (wasLiked ? c - 1 : c + 1));

@@ -41,42 +41,46 @@ export default function FeedPage() {
         {/* MIDDLE — main feed column. Capped width so wide desktop viewports
             don't stretch posts (and images inside) edge-to-edge. */}
         <main className="flex flex-col gap-4 min-w-0 w-full max-w-[640px] mx-auto">
-        {/* Tabs panel */}
-        <div
-          style={{
-            ...panel({ borderRadius: 18 }),
-            padding: 6,
-            display: "flex",
-            gap: 4,
-          }}
-        >
-          {TABS.map((t) => {
-            const isActive = tab === t.value;
-            return (
-              <button
-                key={t.value}
-                onClick={() => setTab(t.value)}
-                style={{
-                  flex: 1,
-                  textAlign: "center",
-                  padding: "10px 0",
-                  borderRadius: 14,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  background: isActive ? auroraSoft : "transparent",
-                  border: isActive
-                    ? `1px solid ${O.hair2}`
-                    : "1px solid transparent",
-                  color: isActive ? O.ink : O.ink3,
-                  transition: "all 150ms cubic-bezier(0.16,1,0.3,1)",
-                }}
-              >
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Tabs panel — only signed-in users have a follow graph; anon viewers
+            see a single public timeline so the For You/Following switcher is
+            meaningless and the panel is hidden. */}
+        {user && (
+          <div
+            style={{
+              ...panel({ borderRadius: 18 }),
+              padding: 6,
+              display: "flex",
+              gap: 4,
+            }}
+          >
+            {TABS.map((t) => {
+              const isActive = tab === t.value;
+              return (
+                <button
+                  key={t.value}
+                  onClick={() => setTab(t.value)}
+                  style={{
+                    flex: 1,
+                    textAlign: "center",
+                    padding: "10px 0",
+                    borderRadius: 14,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    background: isActive ? auroraSoft : "transparent",
+                    border: isActive
+                      ? `1px solid ${O.hair2}`
+                      : "1px solid transparent",
+                    color: isActive ? O.ink : O.ink3,
+                    transition: "all 150ms cubic-bezier(0.16,1,0.3,1)",
+                  }}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Composer doorway */}
         {user && <InlineComposer />}

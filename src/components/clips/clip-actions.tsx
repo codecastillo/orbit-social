@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { formatNumber } from "@/lib/utils/format";
 import { toggleLike, toggleBookmark } from "@/lib/queries/posts";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { createClient } from "@/lib/supabase/client";
 import { ShareDialog } from "@/components/shared/share-dialog";
 import { O } from "@/lib/design/orbit";
@@ -80,6 +81,7 @@ export function ClipActions({
   onComment,
 }: ClipActionsProps) {
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const queryClient = useQueryClient();
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked);
@@ -99,10 +101,7 @@ export function ClipActions({
   }, [shareCount]);
 
   const handleLike = async () => {
-    if (!user) {
-      toast.error("Sign in to like clips");
-      return;
-    }
+    if (!requireAuth() || !user) return;
     const wasLiked = isLiked;
     setIsLiked(!wasLiked);
     setLocalLikeCount((c) => (wasLiked ? c - 1 : c + 1));
@@ -117,10 +116,7 @@ export function ClipActions({
   };
 
   const handleBookmark = async () => {
-    if (!user) {
-      toast.error("Sign in to save clips");
-      return;
-    }
+    if (!requireAuth() || !user) return;
     const wasBookmarked = isBookmarked;
     setIsBookmarked(!wasBookmarked);
     setLocalBookmarkCount((c) => (wasBookmarked ? c - 1 : c + 1));

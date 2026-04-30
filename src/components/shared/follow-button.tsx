@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { aurora, O } from "@/lib/design/orbit";
+import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 
 interface FollowButtonProps {
   isFollowing: boolean;
@@ -24,8 +25,10 @@ export function FollowButton({
 }: FollowButtonProps) {
   const [loading, setLoading] = useState(false);
   const [hovering, setHovering] = useState(false);
+  const requireAuth = useRequireAuth();
 
   const handleClick = async () => {
+    if (!requireAuth()) return;
     setLoading(true);
     try {
       await onToggle();

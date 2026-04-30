@@ -39,6 +39,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { formatTimeAgo, formatNumber } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import {
   toggleLike,
   toggleBookmark,
@@ -105,6 +106,7 @@ export function PostCard({
     isBookmarkedProp ?? post.user_has_bookmarked ?? false;
   const initialIsReposted = isRepostedProp ?? post.user_has_reposted ?? false;
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const router = useRouter();
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked);
@@ -234,7 +236,7 @@ export function PostCard({
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user) { toast.error("Sign in to like posts"); return; }
+    if (!requireAuth() || !user) return;
     const was = isLiked;
     setIsLiked(!was);
     setLikeCount((c) => (was ? c - 1 : c + 1));
@@ -245,7 +247,7 @@ export function PostCard({
 
   const handleBookmark = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user) { toast.error("Sign in to save posts"); return; }
+    if (!requireAuth() || !user) return;
     const was = isBookmarked;
     setIsBookmarked(!was);
     setBookmarkCount((c) => (was ? Math.max(c - 1, 0) : c + 1));
@@ -278,7 +280,7 @@ export function PostCard({
 
   const handleRepost = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user) { toast.error("Sign in to repost"); return; }
+    if (!requireAuth() || !user) return;
     if (isOwnPost) { toast.error("You can't repost your own post"); return; }
 
     const was = isReposted;
@@ -335,7 +337,7 @@ export function PostCard({
   };
 
   const handleReaction = async (type: ReactionType) => {
-    if (!user) { toast.error("Sign in to react"); return; }
+    if (!requireAuth() || !user) return;
 
     if (userReaction === type) {
       // Remove reaction
@@ -411,7 +413,7 @@ export function PostCard({
 
   const handlePollVote = async (e: React.MouseEvent, optionIndex: number) => {
     e.stopPropagation();
-    if (!user) { toast.error("Sign in to vote"); return; }
+    if (!requireAuth() || !user) return;
     if (userVote !== null || isVoting) return;
 
     setIsVoting(true);

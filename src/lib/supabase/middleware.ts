@@ -14,16 +14,22 @@ const publicAuthRoutes = [
   "/reset-password",
 ];
 
-// Browse-without-account routes — unauthenticated users can land here from the
-// "Explore first" CTA on the marketing page. Authenticated users still see
-// these (no redirect) so the same URL works for both.
-const publicBrowseRoutes = ["/explore"];
+// Routes that REQUIRE a signed-in user. Anon visitors hitting any of these get
+// bounced to /login?next=<pathname>. Everything else (feed, clips, profiles,
+// rooms, events, livestreams, post detail, hashtags, VODs) is browseable
+// read-only — write actions are guarded at the UI layer via useRequireAuth.
+const authRequiredRoutes = [
+  "/notifications",
+  "/messages",
+  "/bookmarks",
+  "/drafts",
+  "/scheduled",
+  "/settings",
+  "/onboarding",
+];
 
-// Rate limit: 100 requests per minute per IP for auth routes
 const AUTH_RATE_LIMIT = 20;
 const AUTH_WINDOW_MS = 60_000;
-
-// Rate limit: 300 requests per minute per IP for general routes
 const GENERAL_RATE_LIMIT = 300;
 const GENERAL_WINDOW_MS = 60_000;
 
@@ -35,23 +41,22 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
   const isAuthRoute = publicAuthRoutes.some((route) =>
-    pathname.startsWith(route)
+    pathname.startsWith(route),
   );
-  const isPublicBrowseRoute = publicBrowseRoutes.some((route) =>
-    pathname.startsWith(route)
+  const isAuthRequiredRoute = authRequiredRoutes.some((route) =>
+    pathname.startsWith(route),
   );
 
-  // Apply stricter rate limiting to auth routes
   const { success } = rateLimit(
     `${ip}:${isAuthRoute ? "auth" : "general"}`,
     isAuthRoute ? AUTH_RATE_LIMIT : GENERAL_RATE_LIMIT,
-    isAuthRoute ? AUTH_WINDOW_MS : GENERAL_WINDOW_MS
+    isAuthRoute ? AUTH_WINDOW_MS : GENERAL_WINDOW_MS,
   );
 
   if (!success) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
-      { status: 429 }
+      { status: 429 },
     );
   }
 
@@ -67,7 +72,7 @@ export async function updateSession(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
+            request.cookies.set(name, value),
           );
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
@@ -76,14 +81,13 @@ export async function updateSession(request: NextRequest) {
               httpOnly: true,
               secure: process.env.NODE_ENV === "production",
               sameSite: "lax",
-            })
+            }),
           );
         },
       },
-    }
+    },
   );
 
-  // Use getSession for unconfirmed users, fall back to getUser
   let user = null;
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.user) {
@@ -93,24 +97,22 @@ export async function updateSession(request: NextRequest) {
     user = confirmedUser;
   }
 
-  const isPublicRoute = isAuthRoute || isPublicBrowseRoute;
-
-  // Redirect unauthenticated users to login (except public routes and landing)
-  if (!user && !isPublicRoute && pathname !== "/") {
+  // Anon hitting an auth-required route: bounce to login, preserving deep link.
+  if (!user && isAuthRequiredRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 
-  // Redirect authenticated users away from auth pages (but not browse routes —
-  // those work for both signed-in and signed-out viewers).
+  // Signed-in user hitting login/signup/etc — push them to /feed.
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/feed";
     return NextResponse.redirect(url);
   }
 
-  // Redirect root to feed for authenticated users
+  // Signed-in user landing on the marketing page — push them to /feed.
   if (user && pathname === "/") {
     const url = request.nextUrl.clone();
     url.pathname = "/feed";

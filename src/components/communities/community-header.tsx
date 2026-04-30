@@ -41,6 +41,7 @@ import {
 import { CommunityMembersDialog } from "@/components/communities/members-dialog";
 import { ImageCropper } from "@/components/shared/image-cropper";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { createClient } from "@/lib/supabase/client";
 import {
   joinCommunity,
@@ -67,6 +68,7 @@ export function CommunityHeader({
   onMembershipChange,
 }: CommunityHeaderProps) {
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [joining, setJoining] = useState(false);
@@ -213,10 +215,7 @@ export function CommunityHeader({
   );
 
   const handleJoinToggle = async () => {
-    if (!user) {
-      toast.error("Sign in to join communities");
-      return;
-    }
+    if (!requireAuth() || !user) return;
     if (isOwner) {
       toast.error("You can't leave a community you own");
       return;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { loginSchema, type LoginFormData } from "@/lib/utils/validators";
+import { safeNext } from "@/lib/utils/post-auth-redirect";
 import { createLoginEvent } from "@/lib/queries/security";
 import { O, orbitBg, panel, aurora } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
@@ -107,6 +108,8 @@ function Shell({ children }: { children: React.ReactNode }) {
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = safeNext(searchParams.get("next")) ?? "/feed";
   const supabase = createClient();
 
   const [isLocked, setIsLocked] = useState(false);
@@ -215,7 +218,7 @@ export default function LoginPage() {
       try {
         await createLoginEvent(signInData.session.user.id, "success");
       } catch {}
-      router.push("/feed");
+      router.push(nextPath);
       router.refresh();
     }
   };
@@ -241,7 +244,7 @@ export default function LoginPage() {
         if (user) await createLoginEvent(user.id, "success");
       } catch {}
 
-      router.push("/feed");
+      router.push(nextPath);
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Invalid verification code");
@@ -517,7 +520,11 @@ export default function LoginPage() {
       >
         No account?{" "}
         <Link
-          href="/signup"
+          href={
+            nextPath !== "/feed"
+              ? `/signup?next=${encodeURIComponent(nextPath)}`
+              : "/signup"
+          }
           style={{
             color: O.a3,
             textDecoration: "none",
