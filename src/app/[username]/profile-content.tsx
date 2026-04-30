@@ -35,9 +35,11 @@ import {
   getProfileTabCounts,
   checkUserInteractions,
   type PostWithAuthor,
+  type ProfileTabCounts,
 } from "@/lib/queries/posts";
 import { getUserVods, deleteVod, type VodRow } from "@/lib/queries/vods";
 import { PostCard } from "@/components/feed/post-card";
+import { ClipPlayer } from "@/components/clips/clip-player";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import type { AvatarBorderStyle } from "@/components/shared/user-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -69,6 +71,7 @@ interface ProfileContentProps {
   };
   isOwnProfile: boolean;
   initialIsFollowing: boolean;
+  initialTabCounts?: ProfileTabCounts;
 }
 
 // All possible tabs in their canonical render order. Visibility is computed
@@ -107,6 +110,7 @@ export function ProfileContent({
   profile,
   isOwnProfile,
   initialIsFollowing,
+  initialTabCounts,
 }: ProfileContentProps) {
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [activeTab, setActiveTab] = useState<TabValue>("posts");
@@ -187,8 +191,10 @@ export function ProfileContent({
       .on(
         "postgres_changes",
         {
-          // Posts the profile owner authored (or removed) → tab counts
-          // recompute so Clips / Reposts pop in/out without a refresh.
+          // Posts the profile owner authored (or removed/edited, e.g.
+          // pin toggled) → recompute tab counts AND refetch every tab
+          // list so pinning, unpinning, deleting, or posting a new clip
+          // shows up in real time without a reload.
           event: "*",
           schema: "public",
           table: "posts",
@@ -197,6 +203,18 @@ export function ProfileContent({
         () => {
           queryClient.invalidateQueries({
             queryKey: ["profile-tab-counts", profile.id],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["user-posts", profile.id],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["user-pinned-posts", profile.id],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["user-clips", profile.id],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["user-reposted-posts", profile.id],
           });
         }
       )
@@ -225,6 +243,62 @@ export function ProfileContent({
       supabase.removeChannel(channel);
     };
   }, [profile.id, supabase, queryClient]);
+
+  // Viewer-scoped realtime: when the *viewer* (un)likes / (un)bookmarks /
+  // (un)reposts something, the corresponding tab on this profile should
+  // refetch so the row drops or appears without a reload. The Repost tab
+  // is owner-only on this profile (the viewer's own reposts only show
+  // here when this is their own profile), so we only invalidate
+  // user-reposted-posts when isOwnProfile.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(
+        `profile-viewer-${profile.id}-${user.id}-${Math.random().toString(36).slice(2)}`,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "post_likes",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: ["user-liked-posts", profile.id],
+          });
+          if (isOwnProfile) {
+            queryClient.invalidateQueries({
+              queryKey: ["profile-tab-counts", profile.id],
+            });
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "bookmarks",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: ["user-saved-posts", profile.id],
+          });
+          if (isOwnProfile) {
+            queryClient.invalidateQueries({
+              queryKey: ["profile-tab-counts", profile.id],
+            });
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile.id, user, supabase, queryClient, isOwnProfile]);
 
   // Stamp the viewer's like/bookmark state onto a list of posts so PostCard
   // renders the heart filled-in for posts they've already liked. Without
@@ -305,12 +379,14 @@ export function ProfileContent({
     staleTime: 1000 * 60,
   });
 
-  // Drives which tabs show up. We always optimistically include Posts so
-  // the page never flashes tab-less while counts load.
+  // Drives which tabs show up. Seeded from the SSR-computed counts so
+  // the strip renders correctly on first paint and doesn't flash from
+  // "all on" → "real shape" once the client query resolves.
   const { data: tabCounts } = useQuery({
     queryKey: ["profile-tab-counts", profile.id, user?.id],
     queryFn: () => getProfileTabCounts(profile.id, user?.id),
     staleTime: 1000 * 30,
+    initialData: initialTabCounts,
   });
 
   const handleFollow = async () => {
@@ -837,7 +913,7 @@ export function ProfileContent({
           ) : clips.length === 0 ? (
             <EmptyTab />
           ) : (
-            <ClipsGrid clips={clips} />
+            <ProfileClipsFeed clips={clips} />
           ))}
 
         {activeTab === "likes" &&
@@ -1249,6 +1325,39 @@ function DeleteVodDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Tabbed clip viewer for the profile Clips tab — same vertical
+// snap-mandatory player layout the global /clips feed uses, but scoped
+// to one user's reels. We sit the scroller inside a tall fixed-aspect
+// frame so it doesn't blow up the surrounding profile page layout.
+function ProfileClipsFeed({ clips }: { clips: PostWithAuthor[] }) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const scrollByOne = (dir: 1 | -1) => {
+    const s = scrollerRef.current;
+    if (!s) return;
+    s.scrollBy({ top: dir * s.clientHeight, behavior: "smooth" });
+  };
+  return (
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{
+        background: O.bg,
+        border: `1px solid ${O.hair}`,
+        height: "min(80vh, 720px)",
+      }}
+    >
+      <div
+        ref={scrollerRef}
+        className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+        style={{ background: O.bg }}
+      >
+        {clips.map((clip) => (
+          <ClipPlayer key={clip.id} clip={clip} onNavigate={scrollByOne} />
+        ))}
+      </div>
+    </div>
   );
 }
 

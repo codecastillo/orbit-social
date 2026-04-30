@@ -461,24 +461,6 @@ export function PostCard({
             }
       }
     >
-      {/* Pinned / NEAR YOU — absolute top-right */}
-      {post.is_pinned && !compact && (
-        <div
-          style={{
-            position: "absolute",
-            top: 18,
-            right: 22,
-            fontFamily: O.mono,
-            fontSize: 10,
-            letterSpacing: "0.14em",
-            color: O.a3,
-            fontWeight: 500,
-            pointerEvents: "none",
-          }}
-        >
-          ◆&nbsp;&nbsp;NEAR YOU
-        </div>
-      )}
 
       {/* Boosted indicator */}
       {isBoosted && (

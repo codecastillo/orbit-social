@@ -54,12 +54,72 @@ export default async function ProfilePage({ params }: Props) {
     isFollowing = !!follow;
   }
 
+  // Pre-compute the tab visibility counts server-side so the tab strip
+  // doesn't flash from "all on" → "real shape" once the client query
+  // resolves. Cheap head-only counts, all hit indexed columns.
+  const includeSaved = !!user && user.id === profile.id;
+  const [
+    postsRes,
+    clipsRes,
+    repostsRes,
+    taggedRes,
+    likesRes,
+    savedRes,
+  ] = await Promise.all([
+    supabase
+      .from("posts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", profile.id)
+      .is("reply_to_id", null)
+      .is("community_id", null)
+      .eq("is_hidden", false)
+      .not("type", "in", "(reel,repost)"),
+    supabase
+      .from("posts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", profile.id)
+      .eq("type", "reel")
+      .is("community_id", null)
+      .eq("is_hidden", false),
+    supabase
+      .from("posts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", profile.id)
+      .eq("type", "repost")
+      .is("community_id", null)
+      .eq("is_hidden", false),
+    supabase
+      .from("post_mentions")
+      .select("post_id", { count: "exact", head: true })
+      .eq("user_id", profile.id),
+    supabase
+      .from("post_likes")
+      .select("post_id", { count: "exact", head: true })
+      .eq("user_id", profile.id),
+    includeSaved
+      ? supabase
+          .from("bookmarks")
+          .select("post_id", { count: "exact", head: true })
+          .eq("user_id", profile.id)
+      : Promise.resolve({ count: 0 } as { count: number | null }),
+  ]);
+
+  const initialTabCounts = {
+    posts: postsRes.count ?? 0,
+    clips: clipsRes.count ?? 0,
+    reposts: repostsRes.count ?? 0,
+    tagged: taggedRes.count ?? 0,
+    likes: likesRes.count ?? 0,
+    saved: savedRes.count ?? 0,
+  };
+
   return (
     <div className="min-h-screen">
       <ProfileContent
         profile={profile}
         isOwnProfile={isOwnProfile}
         initialIsFollowing={isFollowing}
+        initialTabCounts={initialTabCounts}
       />
     </div>
   );
