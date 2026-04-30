@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/sidebar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { TopBar } from "@/components/layout/top-bar";
+import { RealtimeBridge } from "@/components/layout/realtime-bridge";
 import { EmailVerificationBanner } from "@/components/shared/email-verification-banner";
 import { PostComposer } from "@/components/feed/post-composer";
 import { orbitBg } from "@/lib/design/orbit";
@@ -35,6 +36,7 @@ export default async function MainLayout({
     <div className="min-h-screen relative" style={orbitBg}>
       <Sidebar initialProfile={initialProfile} initialHasUser={!!user} />
       <TopBar />
+      {user && <RealtimeBridge userId={user.id} />}
 
       <main className="lg:pl-[296px] lg:pr-6 min-h-screen pb-24 lg:pb-6 lg:pt-6 relative">
         <EmailVerificationBanner />

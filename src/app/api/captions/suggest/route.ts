@@ -53,6 +53,13 @@ export async function POST(req: Request) {
   const mediaType = match[1];
   const base64 = match[2];
 
+  // Hard timeout: captions are a nice-to-have. If the LLM hangs we don't
+  // want the composer's "suggest" button spinning for the full 15s
+  // maxDuration. Bail out at 8s and return empty.
+  const TIMEOUT_MS = 8_000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
     const { object } = await generateObject({
       model: "anthropic/claude-haiku-4-5",
@@ -77,9 +84,21 @@ export async function POST(req: Request) {
         },
       ],
       temperature: 0.8,
+      abortSignal: controller.signal,
     });
+    clearTimeout(timer);
     return NextResponse.json(object);
   } catch (err) {
+    clearTimeout(timer);
+    const isAbort =
+      err instanceof Error &&
+      (err.name === "AbortError" || /aborted|timeout/i.test(err.message));
+    if (isAbort) {
+      // The caller (caption-suggestions.ts) throws on any non-2xx response
+      // and falls back to its local heuristic, which is the desired UX
+      // when the LLM is too slow.
+      return NextResponse.json({ error: "timeout" }, { status: 504 });
+    }
     console.error("caption LLM error:", err);
     return NextResponse.json({ error: "llm_error" }, { status: 500 });
   }

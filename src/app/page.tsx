@@ -1,13 +1,15 @@
-"use client";
-
-import { useRef } from "react";
+// Landing page is a Server Component — no "use client", no framer-motion
+// in the bundle. Animations are CSS keyframes defined in globals.css
+// (.landing-reveal / .landing-fade-in / .landing-scale-in).
 import Link from "next/link";
-import { motion, useInView } from "framer-motion";
 import { O, aurora, auroraSoft, orbitBg, panel } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 
-/* ─── Shared: Reveal on scroll ──────────────────────────────────── */
-
+// Static reveal wrapper. Each section just fades+rises in on load (with a
+// staggered animation-delay) instead of being IntersectionObserver-driven.
+// The marketing page is short enough that everything is visible within
+// one scroll; the scroll-triggered version added complexity for no real
+// payoff. Keeps the motion-runtime out of the route entirely.
 function Reveal({
   children,
   delay = 0,
@@ -17,18 +19,13 @@ function Reveal({
   delay?: number;
   className?: string;
 }) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 30 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
-      className={className}
+    <div
+      className={`landing-reveal ${className ?? ""}`.trim()}
+      style={delay ? { animationDelay: `${delay}s` } : undefined}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
 
@@ -208,11 +205,7 @@ function HeroSection() {
         }}
         className="md:grid-cols-2 grid-cols-1"
       >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-        >
+        <div className="landing-fade-in">
           <div style={{ marginBottom: 18 }}>
             <Eyebrow>◇&nbsp;&nbsp;ORBIT · EVERYONE&apos;S RADIUS</Eyebrow>
           </div>
@@ -250,16 +243,18 @@ function HeroSection() {
               <PillBtn size="lg">Explore first</PillBtn>
             </Link>
           </div>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1.2, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          style={{ display: "flex", justifyContent: "center" }}
+        <div
+          className="landing-scale-in"
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            animationDelay: "0.3s",
+          }}
         >
           <HeroOrbit />
-        </motion.div>
+        </div>
       </div>
     </section>
   );

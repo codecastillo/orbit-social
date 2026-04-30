@@ -68,6 +68,12 @@ export async function POST(req: Request) {
     });
   }
 
+  // Hard timeout: don't let a hung LLM stall the post submit. If we don't
+  // hear back in 5s, fail open (treat as clean) so the user can post.
+  const TIMEOUT_MS = 5_000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
     const { object } = await generateObject({
       model: "anthropic/claude-haiku-4-5",
@@ -75,15 +81,21 @@ export async function POST(req: Request) {
       system: SYSTEM_PROMPT,
       prompt: body.text,
       temperature: 0,
+      abortSignal: controller.signal,
     });
+    clearTimeout(timer);
     return NextResponse.json(object);
   } catch (err) {
-    console.error("moderation LLM error:", err);
-    // On LLM failure, return clean — fail open rather than block legitimate posts.
+    clearTimeout(timer);
+    const isAbort =
+      err instanceof Error &&
+      (err.name === "AbortError" || /aborted|timeout/i.test(err.message));
+    if (!isAbort) console.error("moderation LLM error:", err);
+    // Fail open: a slow/failed LLM shouldn't block legitimate posts.
     return NextResponse.json({
       flagged: false,
       severity: "low",
-      reason: "llm_error",
+      reason: isAbort ? "timeout" : "llm_error",
       categories: ["none"],
     });
   }

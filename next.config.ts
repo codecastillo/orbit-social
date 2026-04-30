@@ -3,6 +3,18 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  // Pipe remote images through Vercel's image CDN so post media + avatars
+  // get edge-cached + resized once, instead of every viewer hitting
+  // Supabase storage / Mux thumbnails directly.
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" },
+      { protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/render/image/public/**" },
+      { protocol: "https", hostname: "image.mux.com" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      { protocol: "https", hostname: "avatars.githubusercontent.com" },
+    ],
+  },
   async headers() {
     return [
       {
