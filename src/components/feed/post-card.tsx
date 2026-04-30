@@ -204,6 +204,13 @@ export function PostCard({
   }, [user, post.id, post.poll_data, post.type]);
 
   const isOwnPost = user?.id === post.user_id;
+  // For a repost row, "own post" for repost-target purposes is the ORIGINAL
+  // post's owner — otherwise the viewer would be told they can't un-repost
+  // their own repost (the row's user_id is theirs but the target isn't).
+  const isOwnRepostTarget =
+    isRepostType && originalPost
+      ? user?.id === originalPost.user_id
+      : isOwnPost;
   const profile = post.profiles;
   const hasMedia = post.post_media && post.post_media.length > 0;
   const audioMedia = hasMedia
@@ -282,7 +289,10 @@ export function PostCard({
   const handleRepost = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!requireAuth() || !user) return;
-    if (isOwnPost) { toast.error("You can't repost your own post"); return; }
+    if (isOwnRepostTarget) {
+      toast.error("You can't repost your own post");
+      return;
+    }
 
     const was = isReposted;
     setIsReposted(!was);
@@ -290,10 +300,10 @@ export function PostCard({
 
     try {
       if (was) {
-        await undoRepost(user.id, post.id);
+        await undoRepost(user.id, targetPostId);
         toast.success("Repost removed");
       } else {
-        await createRepost(user.id, post.id);
+        await createRepost(user.id, targetPostId);
         toast.success("Reposted!");
       }
       onUpdate?.();
