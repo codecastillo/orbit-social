@@ -272,14 +272,24 @@ function BentoSection() {
     <section style={{ padding: "120px 0 80px", position: "relative" }}>
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 28px" }}>
         <Reveal>
-          <Eyebrow>◈&nbsp;&nbsp;WHAT YOU GET</Eyebrow>
-          <Display size={64} style={{ marginTop: 14, marginBottom: 20 }}>
-            One <Acc>platform</Acc>. All the <Acc>surface</Acc>.
-          </Display>
-          <p style={{ fontSize: 15, color: O.ink3, maxWidth: 560, lineHeight: 1.55 }}>
-            Feed, clips, audio, rooms, events. The core surfaces every social network needs,
-            built into one cohesive system.
-          </p>
+          <div style={{ textAlign: "center" }}>
+            <Eyebrow>◈&nbsp;&nbsp;WHAT YOU GET</Eyebrow>
+            <Display size={64} style={{ marginTop: 14, marginBottom: 20 }}>
+              One <Acc>platform</Acc>. All the <Acc>surface</Acc>.
+            </Display>
+            <p
+              style={{
+                fontSize: 15,
+                color: O.ink3,
+                maxWidth: 560,
+                lineHeight: 1.55,
+                margin: "0 auto",
+              }}
+            >
+              Feed, clips, audio, rooms, events. The core surfaces every social network
+              needs, built into one cohesive system.
+            </p>
+          </div>
         </Reveal>
 
         <div
@@ -763,9 +773,11 @@ function BuiltDifferentSection() {
     <section style={{ padding: "80px 0" }}>
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 28px" }}>
         <Reveal>
-          <Display size={64}>
-            Built <Acc>different</Acc>.
-          </Display>
+          <div style={{ textAlign: "center" }}>
+            <Display size={64}>
+              Built <Acc>different</Acc>.
+            </Display>
+          </div>
         </Reveal>
 
         <div
@@ -855,14 +867,24 @@ function MadeForSection() {
     <section style={{ padding: "80px 0" }}>
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 28px" }}>
         <Reveal>
-          <Eyebrow>◇&nbsp;&nbsp;BUILT FOR THE PEOPLE WHO POST</Eyebrow>
-          <Display size={56} style={{ marginTop: 14, marginBottom: 14 }}>
-            Made for <Acc>makers</Acc>, not advertisers.
-          </Display>
-          <p style={{ fontSize: 15, color: O.ink3, maxWidth: 540, lineHeight: 1.55 }}>
-            Whatever shape your work takes, there&apos;s a surface for it. No siloed apps, no
-            cross-posting. One platform, all the formats.
-          </p>
+          <div style={{ textAlign: "center" }}>
+            <Eyebrow>◇&nbsp;&nbsp;BUILT FOR THE PEOPLE WHO POST</Eyebrow>
+            <Display size={56} style={{ marginTop: 14, marginBottom: 14 }}>
+              Made for <Acc>makers</Acc>, not advertisers.
+            </Display>
+            <p
+              style={{
+                fontSize: 15,
+                color: O.ink3,
+                maxWidth: 540,
+                lineHeight: 1.55,
+                margin: "0 auto",
+              }}
+            >
+              Whatever shape your work takes, there&apos;s a surface for it. No siloed
+              apps, no cross-posting. One platform, all the formats.
+            </p>
+          </div>
         </Reveal>
 
         <div
