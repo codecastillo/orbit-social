@@ -1,28 +1,10 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef } from "react";
 import Link from "next/link";
-import {
-  motion,
-  useInView,
-  useMotionValue,
-  useTransform,
-  useSpring,
-} from "framer-motion";
-import { ArrowRight } from "lucide-react";
-import { toast } from "sonner";
-import { createClient } from "@/lib/supabase/client";
+import { motion, useInView } from "framer-motion";
 import { O, aurora, auroraSoft, orbitBg, panel } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
-
-async function signInWithGoogle() {
-  const supabase = createClient();
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: { redirectTo: `${window.location.origin}/callback` },
-  });
-  if (error) toast.error(error.message);
-}
 
 /* ─── Shared: Reveal on scroll ──────────────────────────────────── */
 
@@ -47,45 +29,6 @@ function Reveal({
     >
       {children}
     </motion.div>
-  );
-}
-
-/* ─── Animated counter ──────────────────────────────────────────── */
-
-function AnimatedNumber({
-  target,
-  suffix = "",
-  format,
-}: {
-  target: number;
-  suffix?: string;
-  format?: (v: number) => string;
-}) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
-  const mv = useMotionValue(0);
-  const spring = useSpring(mv, { stiffness: 55, damping: 22 });
-  const [text, setText] = useState("0");
-
-  useEffect(() => {
-    if (isInView) mv.set(target);
-  }, [isInView, target, mv]);
-
-  useEffect(() => {
-    const unsub = spring.on("change", (v) => {
-      if (format) setText(format(v));
-      else if (v >= 1_000_000) setText(`${(v / 1_000_000).toFixed(1)}M`);
-      else if (v >= 1_000) setText(`${Math.round(v / 1_000)}K`);
-      else setText(v.toFixed(target < 100 ? 2 : 0));
-    });
-    return unsub;
-  }, [spring, format, target]);
-
-  return (
-    <span ref={ref}>
-      {text}
-      {suffix}
-    </span>
   );
 }
 
@@ -174,12 +117,6 @@ function TopNav() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Link
-            href="/login"
-            style={{ color: O.ink2, fontSize: 13, fontWeight: 500, textDecoration: "none" }}
-          >
-            Sign in
-          </Link>
           <Link href="/signup">
             <PillBtn primary size="sm">
               Get started
@@ -310,7 +247,7 @@ function HeroSection() {
             }}
           >
             A social platform built for people who are tired of shouting into the void. Start
-            with one room, one post, one voice note. Strangers find your orbit — or don&apos;t.
+            with one room, one post, one voice note. Strangers find your orbit, or don&apos;t.
           </p>
           <div
             style={{
@@ -322,24 +259,12 @@ function HeroSection() {
           >
             <Link href="/signup">
               <PillBtn primary size="lg">
-                Get started — it&apos;s free
-                <ArrowRight style={{ width: 14, height: 14 }} />
+                Get started
               </PillBtn>
             </Link>
-            <PillBtn size="lg" onClick={signInWithGoogle}>
-              Sign in with Google
-            </PillBtn>
-          </div>
-          <div
-            style={{
-              marginTop: 20,
-              fontSize: 11,
-              color: O.ink4,
-              fontFamily: O.mono,
-              letterSpacing: "0.1em",
-            }}
-          >
-            NO CREDIT CARD · 30-SEC SETUP · DELETE ANYTIME
+            <Link href="/explore">
+              <PillBtn size="lg">Explore first</PillBtn>
+            </Link>
           </div>
         </motion.div>
 
@@ -368,8 +293,8 @@ function BentoSection() {
             One <Acc>platform</Acc>. All the <Acc>surface</Acc>.
           </Display>
           <p style={{ fontSize: 15, color: O.ink3, maxWidth: 560, lineHeight: 1.55 }}>
-            Feed, clips, audio, rooms, events — the four core surfaces every social network
-            needs, built into one cohesive system.
+            Feed, clips, audio, rooms, events. The core surfaces every social network needs,
+            built into one cohesive system.
           </p>
         </Reveal>
 
@@ -601,7 +526,7 @@ function BentoCard({
           textTransform: "uppercase",
         }}
       >
-        Look in <ArrowRight style={{ width: 11, height: 11 }} />
+        Look in
       </div>
     </div>
   );
@@ -658,7 +583,7 @@ function FeedInMotionSection() {
                 lineHeight: 1.55,
               }}
             >
-              A real app. Not a mockup. No autoplay, no forced accelerations. No renewing.
+              A real app. No autoplay, no forced accelerations, no renewing.
             </p>
           </div>
         </Reveal>
@@ -768,9 +693,9 @@ function FeedInMotionSection() {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 14, marginTop: 14, color: O.ink3, fontSize: 12 }}>
-                  <span>♥ 1.3k</span>
-                  <span>◌ 42</span>
-                  <span>↻ 18</span>
+                  <span>♥</span>
+                  <span>◌</span>
+                  <span>↻</span>
                 </div>
               </div>
 
@@ -921,206 +846,95 @@ function BuiltDifferentSection() {
   );
 }
 
-/* ─── Stats ──────────────────────────────────────────────────── */
+/* ─── Made for makers ─────────────────────────────────────────── */
 
-function StatsSection() {
-  return (
-    <section style={{ padding: "40px 0 80px" }}>
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 28px" }}>
-        <Reveal>
-          <div
-            style={{
-              ...panel({ borderRadius: 22 }),
-              padding: "28px 32px",
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 24,
-            }}
-            className="md:grid-cols-4 sm:grid-cols-2 grid-cols-1"
-          >
-            {[
-              { v: 10_000_000, s: "+", label: "posts shared", foot: "+240k this week" },
-              { v: 500_000, s: "K+", label: "active people", foot: "80 countries", raw: true },
-              { v: 50_000, s: "K+", label: "rooms", foot: "across 42 topics", raw: true },
-              { v: 99.98, s: "%", label: "uptime", foot: "last 12 months" },
-            ].map((st, i) => (
-              <div key={i}>
-                <div
-                  style={{
-                    fontSize: 44,
-                    fontWeight: 700,
-                    letterSpacing: "-0.03em",
-                    lineHeight: 1,
-                    background: aurora,
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  <AnimatedNumber
-                    target={st.v}
-                    suffix={st.s}
-                    format={
-                      st.v >= 1_000_000
-                        ? (v) => `${(v / 1_000_000).toFixed(1)}M`
-                        : st.v >= 1000
-                          ? (v) => `${Math.round(v / 1000)}`
-                          : (v) => v.toFixed(2)
-                    }
-                  />
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: O.ink2,
-                    marginTop: 6,
-                    fontWeight: 500,
-                  }}
-                >
-                  {st.label}
-                </div>
-                <div
-                  style={{
-                    fontSize: 10.5,
-                    color: O.ink4,
-                    marginTop: 3,
-                    fontFamily: O.mono,
-                    letterSpacing: "0.06em",
-                  }}
-                >
-                  {st.foot}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-/* ─── Testimonials ─────────────────────────────────────────────── */
-
-const testimonials = [
+const madeForRows = [
   {
-    quote:
-      "The first social platform that feels built for creators, not advertisers. Clips alone changed how I reach my audience.",
-    name: "Maya Tanaka",
-    handle: "@maya.creates · photographer · 42k",
-    hue: 18,
+    title: "Creators",
+    body: "Clips, audio posts, and live streaming in one feed. Your work surfaces because of what it is, not what you paid for.",
+    accent: O.a1,
   },
   {
-    quote:
-      "I've tried every platform. Orbit is the only one where my community actually feels like a community — not an algorithm dumping strangers at me.",
-    name: "Jordan Reyes",
-    handle: "@darren.writes · newsletter · 18k",
-    hue: 220,
+    title: "Communities",
+    body: "Rooms keep small groups loud enough. Set the radius, set the rules, keep the algorithm out of the room.",
+    accent: O.a2,
   },
   {
-    quote:
-      "Audio posts and live streaming are incredible. I run a podcast and Orbit's tooling is better than dedicated podcast apps.",
-    name: "Priya Bhatt",
-    handle: "@priya.speaks · podcast host · 62k",
-    hue: 340,
+    title: "Hosts",
+    body: "Events, listening sessions, drop-ins. RSVPs and reminders that show up where people already are — the feed.",
+    accent: O.a3,
   },
 ];
 
-function TestimonialsSection() {
+function MadeForSection() {
   return (
     <section style={{ padding: "80px 0" }}>
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 28px" }}>
         <Reveal>
-          <div style={{ textAlign: "center", marginBottom: 44 }}>
-            <Eyebrow accent>◇&nbsp;&nbsp;LOVED BY MAKERS</Eyebrow>
-            <Display size={56} style={{ marginTop: 14 }}>
-              Real <Acc>people</Acc>. Real <Acc>stories</Acc>.
-            </Display>
-            <p
-              style={{
-                fontSize: 14,
-                color: O.ink3,
-                marginTop: 14,
-                maxWidth: 480,
-                margin: "14px auto 0",
-              }}
-            >
-              Not cherry-picked. These are creators who bet their audience on us.
-            </p>
-          </div>
+          <Eyebrow>◇&nbsp;&nbsp;BUILT FOR THE PEOPLE WHO POST</Eyebrow>
+          <Display size={56} style={{ marginTop: 14, marginBottom: 14 }}>
+            Made for <Acc>makers</Acc>, not advertisers.
+          </Display>
+          <p style={{ fontSize: 15, color: O.ink3, maxWidth: 540, lineHeight: 1.55 }}>
+            Whatever shape your work takes, there&apos;s a surface for it. No siloed apps, no
+            cross-posting. One platform, all the formats.
+          </p>
         </Reveal>
 
         <div
           style={{
+            marginTop: 48,
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
             gap: 16,
           }}
-          className="md:grid-cols-3 sm:grid-cols-2 grid-cols-1"
+          className="md:grid-cols-3 grid-cols-1"
         >
-          {testimonials.map((t, i) => (
-            <Reveal key={t.name} delay={i * 0.08}>
+          {madeForRows.map((row, i) => (
+            <Reveal key={row.title} delay={i * 0.08}>
               <div
                 style={{
                   ...panel(),
-                  padding: 22,
+                  padding: 26,
                   display: "flex",
                   flexDirection: "column",
                   gap: 14,
                   height: "100%",
+                  position: "relative",
+                  overflow: "hidden",
                 }}
               >
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 2,
+                    background: `linear-gradient(90deg, ${row.accent}, transparent)`,
+                  }}
+                />
+                <h3
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 700,
+                    letterSpacing: "-0.015em",
+                    color: O.ink,
+                    margin: 0,
+                  }}
+                >
+                  {row.title}
+                </h3>
                 <p
                   style={{
                     fontSize: 13.5,
-                    color: O.ink,
-                    lineHeight: 1.55,
+                    color: O.ink3,
+                    lineHeight: 1.6,
                     margin: 0,
-                    letterSpacing: "-0.005em",
                   }}
                 >
-                  {t.quote}
+                  {row.body}
                 </p>
-                <div
-                  style={{
-                    height: 1,
-                    background: O.hair,
-                    marginTop: "auto",
-                  }}
-                />
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      background: `linear-gradient(135deg, oklch(0.78 0.13 ${t.hue}), oklch(0.55 0.17 ${(t.hue + 40) % 360}))`,
-                      flexShrink: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "white",
-                      fontWeight: 700,
-                      fontSize: 11,
-                    }}
-                  >
-                    {t.name[0]}
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: O.ink }}>
-                      {t.name}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 10.5,
-                        color: O.ink3,
-                        fontFamily: O.mono,
-                        letterSpacing: "0.02em",
-                      }}
-                    >
-                      {t.handle}
-                    </div>
-                  </div>
-                </div>
               </div>
             </Reveal>
           ))}
@@ -1183,24 +997,12 @@ function CtaSection() {
               >
                 <Link href="/signup">
                   <PillBtn primary size="lg">
-                    Get started — it&apos;s free
-                    <ArrowRight style={{ width: 14, height: 14 }} />
+                    Get started
                   </PillBtn>
                 </Link>
                 <Link href="/explore">
                   <PillBtn size="lg">Explore first</PillBtn>
                 </Link>
-              </div>
-              <div
-                style={{
-                  marginTop: 22,
-                  fontSize: 10.5,
-                  color: O.ink4,
-                  fontFamily: O.mono,
-                  letterSpacing: "0.1em",
-                }}
-              >
-                NO CREDIT CARD · 30-SEC SETUP · DELETE ANYTIME
               </div>
             </div>
           </div>
@@ -1350,8 +1152,7 @@ export default function LandingPage() {
       <BentoSection />
       <FeedInMotionSection />
       <BuiltDifferentSection />
-      <StatsSection />
-      <TestimonialsSection />
+      <MadeForSection />
       <CtaSection />
       <Footer />
     </div>

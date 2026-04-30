@@ -2,7 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
 
-const publicRoutes = [
+// Auth-only public routes — unauthenticated users can hit them, authenticated
+// users get bounced to /feed.
+const publicAuthRoutes = [
   "/login",
   "/signup",
   "/callback",
@@ -11,6 +13,11 @@ const publicRoutes = [
   "/forgot-password",
   "/reset-password",
 ];
+
+// Browse-without-account routes — unauthenticated users can land here from the
+// "Explore first" CTA on the marketing page. Authenticated users still see
+// these (no redirect) so the same URL works for both.
+const publicBrowseRoutes = ["/explore"];
 
 // Rate limit: 100 requests per minute per IP for auth routes
 const AUTH_RATE_LIMIT = 20;
@@ -27,7 +34,10 @@ export async function updateSession(request: NextRequest) {
     "unknown";
 
   const pathname = request.nextUrl.pathname;
-  const isAuthRoute = publicRoutes.some((route) =>
+  const isAuthRoute = publicAuthRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
+  const isPublicBrowseRoute = publicBrowseRoutes.some((route) =>
     pathname.startsWith(route)
   );
 
@@ -83,9 +93,7 @@ export async function updateSession(request: NextRequest) {
     user = confirmedUser;
   }
 
-  const isPublicRoute = publicRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
+  const isPublicRoute = isAuthRoute || isPublicBrowseRoute;
 
   // Redirect unauthenticated users to login (except public routes and landing)
   if (!user && !isPublicRoute && pathname !== "/") {
@@ -94,8 +102,9 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect authenticated users away from auth pages
-  if (user && isPublicRoute) {
+  // Redirect authenticated users away from auth pages (but not browse routes —
+  // those work for both signed-in and signed-out viewers).
+  if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/feed";
     return NextResponse.redirect(url);

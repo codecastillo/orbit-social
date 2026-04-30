@@ -207,7 +207,8 @@ export function Sidebar({
         })}
       </nav>
 
-      {/* Footer block — compose + user */}
+      {/* Footer block — compose + user. Signed-out viewers (browsing via
+          "Explore first") get sign-up/sign-in CTAs instead. */}
       <div
         style={{
           marginTop: 18,
@@ -215,14 +216,37 @@ export function Sidebar({
           borderTop: `1px solid ${O.hair}`,
         }}
       >
-        <PillBtn
-          primary
-          size="lg"
-          onClick={() => setComposeOpen(true)}
-          style={{ width: "100%", justifyContent: "center" }}
-        >
-          Post
-        </PillBtn>
+        {user ? (
+          <PillBtn
+            primary
+            size="lg"
+            onClick={() => setComposeOpen(true)}
+            style={{ width: "100%", justifyContent: "center" }}
+          >
+            Post
+          </PillBtn>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <Link href="/signup" style={{ display: "block" }}>
+              <PillBtn
+                primary
+                size="lg"
+                style={{ width: "100%", justifyContent: "center" }}
+              >
+                Sign up
+              </PillBtn>
+            </Link>
+            <Link href="/login" style={{ display: "block" }}>
+              <PillBtn
+                size="lg"
+                style={{ width: "100%", justifyContent: "center" }}
+              >
+                Sign in
+              </PillBtn>
+            </Link>
+          </div>
+        )}
+        {user && (
         <div
           style={{
             display: "flex",
@@ -338,6 +362,7 @@ export function Sidebar({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        )}
       </div>
     </aside>
   );
