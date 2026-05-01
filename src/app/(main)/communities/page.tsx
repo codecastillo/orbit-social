@@ -90,6 +90,12 @@ export default function CommunitiesPage() {
     };
   }, [queryClient]);
 
+  // We need myCommunities to land before we can split the global list,
+  // otherwise the page renders "All rooms" with the user's owned room in
+  // it for a frame, then re-renders moving it up to "My rooms". Wait
+  // until both queries are resolved when the user is signed in.
+  const myCommunitiesLoaded =
+    !user || !!debouncedQuery.trim() || myCommunities !== undefined;
   const myIdSet = new Set((myCommunities ?? []).map((c) => c.id));
   const otherCommunities = (communities ?? []).filter((c) => !myIdSet.has(c.id));
 
@@ -157,7 +163,7 @@ export default function CommunitiesPage() {
       </div>
 
       {/* Featured trio */}
-      {isLoading ? (
+      {isLoading || !myCommunitiesLoaded ? (
         <div
           style={{
             display: "grid",

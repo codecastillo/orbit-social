@@ -185,6 +185,23 @@ button:focus-visible > div > .orbit-avatar-edit-overlay {
   100% { background-position: 200% 0; }
 }
 
+/* Stop browser text-selection from highlighting empty layout chrome
+   (sidebar gutter, panel padding, etc.) when the user click-drags. We
+   default the document to user-select: none and re-enable on the
+   elements that actually carry readable text + form inputs, so post
+   content and captions stay selectable. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+p, span, h1, h2, h3, h4, h5, h6, li, td, th, blockquote, code, pre,
+article, time, label, dd, dt, em, strong, small, q, cite, abbr,
+input, textarea, select, [contenteditable], [contenteditable="true"],
+.selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Landing page entrance animations. Replaces the framer-motion Reveal +
    motion.div on the marketing page so the route can be a server component
    and the motion runtime stays out of the bundle. */
