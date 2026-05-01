@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MoreHorizontal, ExternalLink, Copy, Share2, UserX, VolumeX, Flag, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, ExternalLink, Copy, Share2, UserX, VolumeX, Flag, Trash2, Loader2, Lock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -69,6 +69,7 @@ interface ProfileContentProps {
     avatar_border?: string | null;
     private_followers?: boolean | null;
     private_likes?: boolean | null;
+    is_private?: boolean | null;
   };
   isOwnProfile: boolean;
   initialIsFollowing: boolean;
@@ -823,6 +824,43 @@ export function ProfileContent({
         </div>
       </div>
 
+      {/* PRIVATE LOCK — when account is private and viewer is not the owner
+          and not following, swap the entire tabs+content block for a lock
+          card. RLS already returns empty arrays in this state, but the empty
+          tab strip would otherwise read like "no posts" instead of "locked." */}
+      {profile.is_private && !isOwnProfile && !isFollowing ? (
+        <div
+          style={{
+            ...panel({ borderRadius: 18 }),
+            padding: "44px 24px",
+            textAlign: "center",
+            color: O.ink2,
+          }}
+        >
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              margin: "0 auto 14px",
+              borderRadius: 14,
+              background: O.glass,
+              border: `1px solid ${O.hair}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Lock style={{ width: 22, height: 22, color: O.ink3 }} strokeWidth={1.6} />
+          </div>
+          <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: O.ink }}>
+            This account is private.
+          </p>
+          <p style={{ margin: "6px 0 0", fontSize: 13, color: O.ink3, lineHeight: 1.5 }}>
+            Follow @{profile.username} to see their posts, clips, and likes.
+          </p>
+        </div>
+      ) : (
+      <>
       {/* TABS */}
       <div
         style={{
@@ -968,8 +1006,10 @@ export function ProfileContent({
             </div>
           ))}
       </div>
+      </>
+      )}
 
-      {vods.length > 0 && (
+      {vods.length > 0 && !(profile.is_private && !isOwnProfile && !isFollowing) && (
         <PastStreamsSection vods={vods} isOwner={isOwnProfile} />
       )}
 
