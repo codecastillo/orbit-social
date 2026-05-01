@@ -43,6 +43,9 @@ export async function GET(request: Request) {
         } catch (err) {
           console.error("[oauth-callback] login_events insert threw", err);
         }
+        try {
+          await supabase.rpc("touch_last_seen");
+        } catch {}
 
         const { data: profile } = await supabase
           .from("profiles")

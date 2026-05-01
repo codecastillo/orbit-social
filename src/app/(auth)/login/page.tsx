@@ -218,6 +218,9 @@ export default function LoginPage() {
       try {
         await createLoginEvent(signInData.session.user.id, "success");
       } catch {}
+      try {
+        await supabase.rpc("touch_last_seen");
+      } catch {}
       router.push(nextPath);
       router.refresh();
     }
@@ -242,6 +245,9 @@ export default function LoginPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) await createLoginEvent(user.id, "success");
+      } catch {}
+      try {
+        await supabase.rpc("touch_last_seen");
       } catch {}
 
       router.push(nextPath);

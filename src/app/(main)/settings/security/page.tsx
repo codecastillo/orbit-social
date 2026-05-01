@@ -78,7 +78,7 @@ export default function SecurityPage() {
   };
 
   const handleVerifyMfa = async () => {
-    if (verifyCode.length !== 6 || !factorId) return;
+    if (verifyCode.length !== 6 || !factorId || !user) return;
     setIsVerifying(true);
     try {
       const { data: challengeData, error: challengeError } =
@@ -90,6 +90,26 @@ export default function SecurityPage() {
         code: verifyCode,
       });
       if (verifyError) throw verifyError;
+
+      // Persist hashed recovery codes so a phone-loss recovery flow can
+      // verify them later. We never store the plaintext.
+      try {
+        const hashes = await Promise.all(
+          recoveryCodes.map(async (code) => {
+            const buf = new TextEncoder().encode(code);
+            const digest = await crypto.subtle.digest("SHA-256", buf);
+            return Array.from(new Uint8Array(digest))
+              .map((b) => b.toString(16).padStart(2, "0"))
+              .join("");
+          }),
+        );
+        await supabase.from("mfa_recovery_codes").insert(
+          hashes.map((code_hash) => ({ user_id: user.id, code_hash })),
+        );
+      } catch {
+        // Non-fatal — user still gets MFA, just without persisted backup codes.
+      }
+
       setMfaEnabled(true);
       setSetupStep("complete");
       toast.success("Two-factor enabled");
@@ -101,11 +121,15 @@ export default function SecurityPage() {
   };
 
   const handleDisableMfa = async () => {
-    if (!factorId) return;
+    if (!factorId || !user) return;
     setIsDisabling(true);
     try {
       const { error } = await supabase.auth.mfa.unenroll({ factorId });
       if (error) throw error;
+      // Wipe stored recovery code hashes — they're paired to the disabled factor.
+      try {
+        await supabase.from("mfa_recovery_codes").delete().eq("user_id", user.id);
+      } catch {}
       setMfaEnabled(false);
       setFactorId(null);
       setSetupStep("idle");

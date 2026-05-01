@@ -246,7 +246,7 @@ function LivePinned() {
 }
 
 function TrendingCard() {
-  const { data: tags } = useQuery({
+  const { data: tags, isLoading } = useQuery({
     queryKey: ["trending-hashtags", 5],
     queryFn: () => getTrendingHashtags(5),
     staleTime: 1000 * 60 * 5,
@@ -255,7 +255,28 @@ function TrendingCard() {
   return (
     <div style={{ ...panel(), padding: 20 }}>
       <Eyebrow>◈&nbsp;&nbsp;TRENDING IN YOUR ORBIT</Eyebrow>
-      {!tags || tags.length === 0 ? (
+      {isLoading ? (
+        <div style={{ marginTop: 14 }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                padding: "11px 0",
+                borderTop: i ? `1px solid ${O.hair}` : "none",
+              }}
+            >
+              <div style={{ width: 22, height: 14, borderRadius: 4, background: "rgba(255,255,255,0.06)" }} />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
+                <div style={{ width: "60%", height: 11, borderRadius: 4, background: "rgba(255,255,255,0.06)" }} />
+                <div style={{ width: "30%", height: 9, borderRadius: 4, background: "rgba(255,255,255,0.04)" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : !tags || tags.length === 0 ? (
         <div
           style={{
             marginTop: 14,
@@ -314,7 +335,7 @@ function PeopleToOrbitCard() {
   const queryClient = useQueryClient();
   const [justFollowed, setJustFollowed] = useState<Set<string>>(new Set());
 
-  const { data: people } = useQuery({
+  const { data: people, isLoading } = useQuery({
     queryKey: ["suggested-users", user?.id, 3],
     queryFn: () => getSuggestedUsers(user!.id, 3),
     enabled: !!user?.id,
@@ -324,7 +345,28 @@ function PeopleToOrbitCard() {
   return (
     <div style={{ ...panel(), padding: 20 }}>
       <Eyebrow>◇&nbsp;&nbsp;PEOPLE TO ORBIT</Eyebrow>
-      {!people || people.length === 0 ? (
+      {isLoading ? (
+        <div style={{ marginTop: 12 }}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                padding: "8px 0",
+              }}
+            >
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
+                <div style={{ width: "55%", height: 11, borderRadius: 4, background: "rgba(255,255,255,0.06)" }} />
+                <div style={{ width: "35%", height: 9, borderRadius: 4, background: "rgba(255,255,255,0.04)" }} />
+              </div>
+              <div style={{ width: 64, height: 24, borderRadius: 99, background: "rgba(255,255,255,0.05)" }} />
+            </div>
+          ))}
+        </div>
+      ) : !people || people.length === 0 ? (
         <div
           style={{
             marginTop: 12,
