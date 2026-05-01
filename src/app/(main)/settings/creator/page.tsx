@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Heart,
   MessageCircle,
   Eye,
@@ -20,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { O, panel } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow } from "@/components/orbit/primitives";
 import { StatCluster } from "@/components/orbit/stat-cluster";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 export default function CreatorAnalyticsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -56,27 +56,10 @@ export default function CreatorAnalyticsPage() {
 
   return (
     <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 22 }}>
-      <Link
-        href="/settings"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          color: O.ink3,
-          fontFamily: O.mono,
-          fontSize: 11,
-          letterSpacing: "0.12em",
-          textDecoration: "none",
-          width: "fit-content",
-        }}
-      >
-        <ArrowLeft style={{ width: 12, height: 12 }} />
-        BACK · SETTINGS
-      </Link>
+      <SettingsHeader section="Creator" glyph="◆" />
 
       <div>
-        <Eyebrow accent>◆&nbsp;&nbsp;SETTINGS · CREATOR</Eyebrow>
-        <Display size={48} style={{ marginTop: 8 }}>
+        <Display size={48} style={{ marginTop: 4 }}>
           Creator <Acc>tools</Acc>.
         </Display>
         <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>

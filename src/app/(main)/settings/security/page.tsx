@@ -11,14 +11,14 @@ import {
   AlertTriangle,
   KeyRound,
   Activity,
-  ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
 import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { Display, Acc, PillBtn } from "@/components/orbit/primitives";
 import { Field, Input, FormSection } from "@/components/orbit/forms";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 type SetupStep = "idle" | "enrolling" | "verifying" | "complete";
 
@@ -138,27 +138,10 @@ export default function SecurityPage() {
 
   return (
     <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
-      <Link
-        href="/settings"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          color: O.ink3,
-          fontFamily: O.mono,
-          fontSize: 11,
-          letterSpacing: "0.12em",
-          textDecoration: "none",
-          width: "fit-content",
-        }}
-      >
-        <ArrowLeft style={{ width: 12, height: 12 }} />
-        BACK · SETTINGS
-      </Link>
+      <SettingsHeader section="Security" glyph="◈" />
 
       <div>
-        <Eyebrow accent>◈&nbsp;&nbsp;SETTINGS · SECURITY</Eyebrow>
-        <Display size={48} style={{ marginTop: 8 }}>
+        <Display size={48} style={{ marginTop: 4 }}>
           Locked <Acc>down</Acc>.
         </Display>
         <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>

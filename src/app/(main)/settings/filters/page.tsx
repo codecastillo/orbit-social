@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { Filter, Plus, X, Search, ArrowLeft } from "lucide-react";
+import { Filter, Plus, X, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useFilterStore } from "@/lib/stores/filter-store";
 import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { Display, Acc, PillBtn } from "@/components/orbit/primitives";
 import { FormSection, Input } from "@/components/orbit/forms";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 export default function FiltersPage() {
   const {
@@ -48,31 +48,14 @@ export default function FiltersPage() {
 
   return (
     <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
-      <Link
-        href="/settings"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          color: O.ink3,
-          fontFamily: O.mono,
-          fontSize: 11,
-          letterSpacing: "0.12em",
-          textDecoration: "none",
-          width: "fit-content",
-        }}
-      >
-        <ArrowLeft style={{ width: 12, height: 12 }} />
-        BACK · SETTINGS
-      </Link>
+      <SettingsHeader section="Filters" glyph="◆" />
 
       <div>
-        <Eyebrow accent>◆&nbsp;&nbsp;SETTINGS · FILTERS</Eyebrow>
-        <Display size={48} style={{ marginTop: 8 }}>
+        <Display size={48} style={{ marginTop: 4 }}>
           Mute <Acc>noise</Acc>.
         </Display>
         <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>
-          Words you don't want to read. Hidden from feeds on this device.
+          Words you don&apos;t want to read. Hidden from feeds on this device.
         </p>
       </div>
 

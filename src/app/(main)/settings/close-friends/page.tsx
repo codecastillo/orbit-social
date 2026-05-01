@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { Users, Search, Loader2, UserMinus, ArrowLeft } from "lucide-react";
+import { Users, Search, Loader2, UserMinus } from "lucide-react";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -16,6 +15,7 @@ import {
 import { O, panel } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 import { FormSection, Input } from "@/components/orbit/forms";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 export default function CloseFriendsPage() {
   const { user } = useAuth();
@@ -81,31 +81,14 @@ export default function CloseFriendsPage() {
 
   return (
     <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
-      <Link
-        href="/settings"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          color: O.ink3,
-          fontFamily: O.mono,
-          fontSize: 11,
-          letterSpacing: "0.12em",
-          textDecoration: "none",
-          width: "fit-content",
-        }}
-      >
-        <ArrowLeft style={{ width: 12, height: 12 }} />
-        BACK · SETTINGS
-      </Link>
+      <SettingsHeader section="Close friends" />
 
       <div>
-        <Eyebrow accent>◇&nbsp;&nbsp;SETTINGS · CLOSE FRIENDS</Eyebrow>
-        <Display size={48} style={{ marginTop: 8 }}>
+        <Display size={48} style={{ marginTop: 4 }}>
           Your <Acc>inner</Acc> orbit.
         </Display>
         <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>
-          A smaller radius. Posts marked "close friends" only reach this list.
+          A smaller radius. Posts marked &ldquo;close friends&rdquo; only reach this list.
         </p>
       </div>
 

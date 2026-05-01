@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
-  ArrowLeft,
   Heart,
   MessageCircle,
   UserPlus,
@@ -12,8 +10,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { O } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { Display, Acc, PillBtn } from "@/components/orbit/primitives";
 import { FormSection, Toggle } from "@/components/orbit/forms";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 interface NotificationPref {
   key: string;
@@ -45,27 +44,10 @@ export default function NotificationSettingsPage() {
 
   return (
     <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
-      <Link
-        href="/settings"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          color: O.ink3,
-          fontFamily: O.mono,
-          fontSize: 11,
-          letterSpacing: "0.12em",
-          textDecoration: "none",
-          width: "fit-content",
-        }}
-      >
-        <ArrowLeft style={{ width: 12, height: 12 }} />
-        BACK · SETTINGS
-      </Link>
+      <SettingsHeader section="Notifications" glyph="◈" />
 
       <div>
-        <Eyebrow accent>◈&nbsp;&nbsp;SETTINGS · NOTIFICATIONS</Eyebrow>
-        <Display size={48} style={{ marginTop: 8 }}>
+        <Display size={48} style={{ marginTop: 4 }}>
           What breaks <Acc>through</Acc>.
         </Display>
         <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>

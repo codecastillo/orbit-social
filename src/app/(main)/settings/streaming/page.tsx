@@ -8,7 +8,6 @@ import {
   Eye,
   EyeOff,
   ExternalLink,
-  ChevronLeft,
   Check,
   X as XIcon,
 } from "lucide-react";
@@ -17,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { O, panel, aurora } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow } from "@/components/orbit/primitives";
 import { Toggle } from "@/components/orbit/forms";
+import { SettingsHeader } from "@/components/settings/settings-header";
 import * as Icons from "lucide-react";
 import { Sparkles, ChevronDown, Pencil } from "lucide-react";
 import {
@@ -98,22 +98,8 @@ export default function StreamingSettingsPage() {
       }}
     >
       <div>
-        <Link
-          href="/settings"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            fontSize: 12,
-            color: O.ink3,
-            textDecoration: "none",
-            marginBottom: 8,
-          }}
-        >
-          <ChevronLeft style={{ width: 14, height: 14 }} />
-          Settings
-        </Link>
-        <Eyebrow accent>◇&nbsp;&nbsp;STREAMING</Eyebrow>
+        <SettingsHeader section="Streaming" />
+        <div style={{ marginTop: -2 }} />
         <Display size={44} style={{ marginTop: 8 }}>
           Your <Acc>broadcast</Acc> credentials.
         </Display>
