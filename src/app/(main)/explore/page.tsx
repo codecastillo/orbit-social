@@ -143,11 +143,25 @@ function FeaturedTrend() {
     queryFn: () => getTrendingHashtags(5),
     staleTime: 1000 * 60 * 5,
   });
-  const { data: posts, isLoading: postsLoading } = useQuery({
-    queryKey: ["trending-posts", 4],
-    queryFn: () => getTrendingPosts(4),
+  // Over-fetch then filter to posts that actually have visual content
+  // (image / video / reel). The hero tiles are visual; text-only posts
+  // would render as empty gradient cards with a "by @user" label that
+  // looks broken.
+  const { data: postsRaw, isLoading: postsLoading } = useQuery({
+    queryKey: ["trending-posts", 16],
+    queryFn: () => getTrendingPosts(16),
     staleTime: 1000 * 60 * 5,
   });
+  const posts = (postsRaw ?? [])
+    .filter(
+      (p) =>
+        (p.type === "reel" ||
+          p.type === "image" ||
+          p.type === "video") &&
+        Array.isArray(p.post_media) &&
+        p.post_media.length > 0,
+    )
+    .slice(0, 4);
 
   if (tagsLoading || postsLoading) {
     return (

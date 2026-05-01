@@ -256,15 +256,37 @@ export async function searchPosts(
 
 // ── Trending ─────────────────────────────────────────────────────────
 
+// "Trending" is only meaningful when something is actually moving right
+// now. Count hashtag uses from posts created in the last 24h, group, and
+// rank by recent count. Hashtags that haven't been used today drop out
+// entirely so the hero card shows the empty-state instead of stale tags.
 export async function getTrendingHashtags(limit = 10) {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
-    .from("hashtags")
-    .select("id, name, post_count")
-    .order("post_count", { ascending: false })
-    .limit(limit);
+    .from("post_hashtags")
+    .select(
+      "hashtag_id, hashtags!inner(id, name), posts!inner(created_at, is_hidden)",
+    )
+    .eq("posts.is_hidden", false)
+    .gte("posts.created_at", cutoff);
 
   if (error) throw error;
-  return (data ?? []) as TrendingHashtag[];
+
+  const counts = new Map<string, { id: string; name: string; post_count: number }>();
+  for (const row of (data ?? []) as Array<{
+    hashtag_id: string;
+    hashtags: { id: string; name: string } | { id: string; name: string }[] | null;
+  }>) {
+    const tag = Array.isArray(row.hashtags) ? row.hashtags[0] : row.hashtags;
+    if (!tag) continue;
+    const prev = counts.get(tag.id);
+    if (prev) prev.post_count += 1;
+    else counts.set(tag.id, { id: tag.id, name: tag.name, post_count: 1 });
+  }
+
+  return Array.from(counts.values())
+    .sort((a, b) => b.post_count - a.post_count)
+    .slice(0, limit) as TrendingHashtag[];
 }
 
 // ── Trending Posts ──────────────────────────────────────────────────
