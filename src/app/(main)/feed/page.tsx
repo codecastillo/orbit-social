@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, TrendingUp } from "lucide-react";
@@ -28,6 +28,17 @@ type TabValue = (typeof TABS)[number]["value"];
 export default function FeedPage() {
   const [tab, setTab] = useState<TabValue>("foryou");
   const { user } = useAuth();
+
+  // On mount (and on hard refresh), the browser restores the prior scroll
+  // position even though feed content takes a beat to hydrate, leaving the
+  // user staring at a half-loaded post mid-page. Force the top so the tab
+  // strip and composer are always visible on first paint.
+  useEffect(() => {
+    if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+    window.scrollTo(0, 0);
+  }, []);
 
   return (
     <>
