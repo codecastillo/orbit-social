@@ -400,12 +400,48 @@ export default function EditProfilePage() {
                   }
             }
           >
-            <UserAvatar
-              src={avatarUrl}
-              fallback={displayName || "?"}
-              size="xl"
-              avatarBorder={avatarBorder}
-            />
+            {avatarBorder === "none" ? (
+              avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  width={126}
+                  height={126}
+                  style={{
+                    width: 126,
+                    height: 126,
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 126,
+                    height: 126,
+                    borderRadius: "50%",
+                    background: "linear-gradient(135deg, #a78bfa 0%, #f472b6 50%, #67e8f9 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "white",
+                    fontSize: 36,
+                    fontWeight: 700,
+                  }}
+                >
+                  {(displayName || "?").slice(0, 2).toUpperCase()}
+                </div>
+              )
+            ) : (
+              <UserAvatar
+                src={avatarUrl}
+                fallback={displayName || "?"}
+                size="xl"
+                avatarBorder={avatarBorder}
+              />
+            )}
             <div
               style={{
                 position: "absolute",
