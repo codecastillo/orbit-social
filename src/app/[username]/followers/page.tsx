@@ -2,9 +2,8 @@
 
 import { use, useState, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, Users } from "lucide-react";
+import { ArrowLeft, Users, Lock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -23,30 +22,55 @@ interface Props {
   params: Promise<{ username: string }>;
 }
 
+interface ProfileMeta {
+  id: string;
+  is_private: boolean | null;
+  private_followers: boolean | null;
+}
+
 export default function FollowersPage({ params }: Props) {
   const { username } = use(params);
   const { user } = useAuth();
 
-  const { data: followers, isLoading } = useQuery({
-    queryKey: ["followers", username],
+  const { data: profileMeta, isLoading: profileLoading } = useQuery({
+    queryKey: ["profile-meta", username],
     queryFn: async () => {
       const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
-
-      // First resolve username to user id
-      const { data: profile } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
-        .select("id")
+        .select("id, is_private, private_followers")
         .eq("username", username)
         .single();
-
-      if (!profile) throw new Error("User not found");
-
-      return getFollowers(profile.id);
+      if (error) throw error;
+      return data as ProfileMeta;
     },
   });
 
-  // Check which followers the current user follows
+  const isOwnProfile = !!user && !!profileMeta && user.id === profileMeta.id;
+
+  const { data: viewerFollows } = useQuery({
+    queryKey: ["viewer-follows", user?.id, profileMeta?.id],
+    queryFn: async () => {
+      if (!user || !profileMeta) return false;
+      const set = await checkFollowing(user.id, [profileMeta.id]);
+      return set.has(profileMeta.id);
+    },
+    enabled: !!user?.id && !!profileMeta?.id && !isOwnProfile,
+  });
+
+  const isLocked =
+    !!profileMeta &&
+    !isOwnProfile &&
+    (profileMeta.private_followers === true ||
+      (profileMeta.is_private === true && viewerFollows !== true));
+
+  const { data: followers, isLoading } = useQuery({
+    queryKey: ["followers", username],
+    queryFn: () => getFollowers(profileMeta!.id),
+    enabled: !!profileMeta?.id && !isLocked,
+  });
+
   const followerIds = followers?.map((f) => f.id) ?? [];
   const { data: followingSet } = useQuery({
     queryKey: ["check-following", user?.id, followerIds],
@@ -56,7 +80,6 @@ export default function FollowersPage({ params }: Props) {
 
   return (
     <div className="border-x border-border min-h-screen">
-      {/* Sticky header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="flex items-center gap-4 px-4 h-14">
           <Link
@@ -72,8 +95,11 @@ export default function FollowersPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Followers list */}
-      {isLoading ? (
+      {profileLoading ? (
+        <FollowerListSkeleton />
+      ) : isLocked ? (
+        <PrivateLock username={username} />
+      ) : isLoading ? (
         <FollowerListSkeleton />
       ) : !followers || followers.length === 0 ? (
         <EmptyState
@@ -93,6 +119,20 @@ export default function FollowersPage({ params }: Props) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function PrivateLock({ username }: { username: string }) {
+  return (
+    <div className="flex flex-col items-center text-center px-6 py-16 gap-3">
+      <div className="w-14 h-14 rounded-2xl bg-muted/40 border border-border flex items-center justify-center">
+        <Lock className="h-5 w-5 text-muted-foreground" strokeWidth={1.6} />
+      </div>
+      <p className="font-semibold">This account is private.</p>
+      <p className="text-sm text-muted-foreground max-w-xs">
+        Follow @{username} to see who follows them.
+      </p>
     </div>
   );
 }

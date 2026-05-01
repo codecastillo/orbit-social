@@ -759,7 +759,9 @@ export function ProfileContent({
                 n: liveCounts.followers,
                 label: "followers",
                 onClick:
-                  isOwnProfile || !profile.private_followers
+                  isOwnProfile ||
+                  (!profile.private_followers &&
+                    !(profile.is_private === true && !isFollowing))
                     ? () => setFollowListOpen("followers")
                     : undefined,
               },
@@ -767,7 +769,9 @@ export function ProfileContent({
                 n: liveCounts.following,
                 label: "following",
                 onClick:
-                  isOwnProfile || !profile.private_followers
+                  isOwnProfile ||
+                  (!profile.private_followers &&
+                    !(profile.is_private === true && !isFollowing))
                     ? () => setFollowListOpen("following")
                     : undefined,
               },
@@ -824,11 +828,11 @@ export function ProfileContent({
         </div>
       </div>
 
-      {/* PRIVATE LOCK — when account is private and viewer is not the owner
-          and not following, swap the entire tabs+content block for a lock
-          card. RLS already returns empty arrays in this state, but the empty
-          tab strip would otherwise read like "no posts" instead of "locked." */}
-      {profile.is_private && !isOwnProfile && !isFollowing ? (
+      {/* PRIVATE LOCK — Instagram-style. When the profile is private and the
+          viewer isn't the owner or a follower, swap the entire tabs+content
+          block for a lock card. Use explicit === true so a column that
+          arrives as null/undefined doesn't accidentally unlock the profile. */}
+      {profile.is_private === true && !isOwnProfile && !isFollowing ? (
         <div
           style={{
             ...panel({ borderRadius: 18 }),
@@ -1009,14 +1013,16 @@ export function ProfileContent({
       </>
       )}
 
-      {vods.length > 0 && !(profile.is_private && !isOwnProfile && !isFollowing) && (
+      {vods.length > 0 && !(profile.is_private === true && !isOwnProfile && !isFollowing) && (
         <PastStreamsSection vods={vods} isOwner={isOwnProfile} />
       )}
 
       <FollowListDialog
         open={
           followListOpen !== null &&
-          (isOwnProfile || !profile.private_followers)
+          (isOwnProfile ||
+            (!profile.private_followers &&
+              !(profile.is_private === true && !isFollowing)))
         }
         onOpenChange={(o) => {
           if (!o) setFollowListOpen(null);

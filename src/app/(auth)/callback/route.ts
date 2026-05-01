@@ -21,6 +21,29 @@ export async function GET(request: Request) {
       } = await supabase.auth.getUser();
 
       if (user) {
+        // Record the login so it appears in /settings/security/activity.
+        // Server-side: no navigator UA, no clipboard for IP. Pull from request.
+        const ua = request.headers.get("user-agent");
+        const ip =
+          request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+          request.headers.get("x-real-ip") ??
+          null;
+        try {
+          const { error: loginEventError } = await supabase
+            .from("login_events")
+            .insert({
+              user_id: user.id,
+              ip_address: ip,
+              user_agent: ua,
+              status: "success",
+            });
+          if (loginEventError) {
+            console.error("[oauth-callback] login_events insert failed", loginEventError);
+          }
+        } catch (err) {
+          console.error("[oauth-callback] login_events insert threw", err);
+        }
+
         const { data: profile } = await supabase
           .from("profiles")
           .select("username")
