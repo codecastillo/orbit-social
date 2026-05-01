@@ -376,8 +376,8 @@ export default function EditProfilePage() {
                     width: 132,
                     height: 132,
                     borderRadius: "50%",
-                    padding: 4,
-                    background: O.bg,
+                    padding: 0,
+                    background: "transparent",
                     boxShadow: `0 14px 36px rgba(0,0,0,0.5), 0 0 0 2px ${themeColor || O.a2}`,
                     border: "none",
                     cursor: "pointer",
@@ -385,6 +385,7 @@ export default function EditProfilePage() {
                     display: "block",
                     position: "relative",
                     zIndex: 1,
+                    overflow: "hidden",
                   }
                 : {
                     borderRadius: "50%",
