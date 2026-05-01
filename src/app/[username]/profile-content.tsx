@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MoreHorizontal, ExternalLink, Copy, Share2, UserX, VolumeX, Flag, Trash2, Loader2, Lock } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, ExternalLink, Copy, UserX, VolumeX, Flag, Trash2, Loader2, Lock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FollowListDialog } from "@/components/profile/follow-list-dialog";
+import { BlockMuteDialog } from "@/components/shared/block-mute-dialog";
+import { ReportDialog } from "@/components/shared/report-dialog";
+import { getOrCreateDMConversation } from "@/lib/queries/messages";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
@@ -117,6 +120,9 @@ export function ProfileContent({
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [activeTab, setActiveTab] = useState<TabValue>("posts");
   const [followListOpen, setFollowListOpen] = useState<null | "followers" | "following">(null);
+  const [blockMuteAction, setBlockMuteAction] = useState<null | "block" | "mute">(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [openingDm, setOpeningDm] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
   const requireAuth = useRequireAuth();
@@ -641,9 +647,26 @@ export function ProfileContent({
               </PillBtn>
             )}
             {!isOwnProfile && (
-              <Link href={`/messages?to=${profile.username}`}>
-                <PillBtn size="md">Message</PillBtn>
-              </Link>
+              <PillBtn
+                size="md"
+                disabled={openingDm}
+                onClick={async () => {
+                  if (!requireAuth() || !user) return;
+                  setOpeningDm(true);
+                  try {
+                    const conversationId = await getOrCreateDMConversation(
+                      user.id,
+                      profile.id,
+                    );
+                    router.push(`/messages/${conversationId}`);
+                  } catch {
+                    toast.error("Couldn't open conversation");
+                    setOpeningDm(false);
+                  }
+                }}
+              >
+                {openingDm ? <Loader2 className="h-4 w-4 animate-spin" /> : "Message"}
+              </PillBtn>
             )}
             {isOwnProfile && (
               <Link href="/settings/profile">
@@ -683,52 +706,35 @@ export function ProfileContent({
                   <Copy className="mr-2 h-4 w-4" />
                   Copy profile link
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="cursor-pointer rounded-lg"
-                  onClick={async () => {
-                    const url = `${window.location.origin}/${profile.username}`;
-                    const title = profile.display_name || `@${profile.username}`;
-                    if (
-                      typeof navigator !== "undefined" &&
-                      typeof (navigator as Navigator & { share?: (d: ShareData) => Promise<void> }).share === "function"
-                    ) {
-                      try {
-                        await (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share({
-                          title,
-                          url,
-                        });
-                        return;
-                      } catch {
-                        /* fall through to clipboard */
-                      }
-                    }
-                    void navigator.clipboard.writeText(url);
-                    toast.success("Link copied. Paste anywhere to share");
-                  }}
-                >
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Share profile
-                </DropdownMenuItem>
                 {!isOwnProfile && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="cursor-pointer rounded-lg"
-                      onClick={() => toast.message("Mute coming soon")}
+                      onClick={() => {
+                        if (!requireAuth()) return;
+                        setBlockMuteAction("mute");
+                      }}
                     >
                       <VolumeX className="mr-2 h-4 w-4" />
                       Mute @{profile.username}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="cursor-pointer rounded-lg"
-                      onClick={() => toast.message("Block coming soon")}
+                      onClick={() => {
+                        if (!requireAuth()) return;
+                        setBlockMuteAction("block");
+                      }}
                     >
                       <UserX className="mr-2 h-4 w-4" />
                       Block @{profile.username}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="cursor-pointer rounded-lg"
-                      onClick={() => toast.message("Report coming soon")}
+                      onClick={() => {
+                        if (!requireAuth()) return;
+                        setReportOpen(true);
+                      }}
                     >
                       <Flag className="mr-2 h-4 w-4" />
                       Report
@@ -1015,6 +1021,28 @@ export function ProfileContent({
 
       {vods.length > 0 && !(profile.is_private === true && !isOwnProfile && !isFollowing) && (
         <PastStreamsSection vods={vods} isOwner={isOwnProfile} />
+      )}
+
+      {!isOwnProfile && user && (
+        <>
+          <BlockMuteDialog
+            open={blockMuteAction !== null}
+            onOpenChange={(o) => {
+              if (!o) setBlockMuteAction(null);
+            }}
+            actionType={blockMuteAction ?? "mute"}
+            currentUserId={user.id}
+            targetUserId={profile.id}
+            targetUsername={profile.username}
+          />
+          <ReportDialog
+            open={reportOpen}
+            onOpenChange={setReportOpen}
+            entityType="profile"
+            entityId={profile.id}
+            reportedUserId={profile.id}
+          />
+        </>
       )}
 
       <FollowListDialog

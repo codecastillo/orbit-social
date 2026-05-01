@@ -275,6 +275,8 @@ function MyRoomsSection({
                   <img
                     src={c.cover_url}
                     alt=""
+                    loading="lazy"
+                    decoding="async"
                     style={{
                       position: "absolute",
                       inset: 0,
@@ -337,6 +339,10 @@ function MyRoomsSection({
                     <img
                       src={c.avatar_url}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
+                      width={48}
+                      height={48}
                       style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     />
                   ) : (

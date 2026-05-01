@@ -94,7 +94,7 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
     }
   };
 
-  const heading = title ?? (kind === "followers" ? "Orbit" : "Mutuals");
+  const heading = title ?? (kind === "followers" ? "Followers" : "Following");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -140,7 +140,7 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
               }}
             >
               {kind === "followers"
-                ? "No one is in their orbit yet."
+                ? "No followers yet."
                 : "Not following anyone yet."}
             </div>
           ) : (

@@ -32,6 +32,7 @@ export function StatCluster({
             color: "inherit",
             textAlign: "center",
             cursor: item.onClick ? "pointer" : "default",
+            pointerEvents: item.onClick ? "auto" : "none",
             // Native <button> in Chromium defaults to overflow:clip, which
             // shaves the top off italic-serif glyphs that poke above the
             // line box. Force visible so the digits render unclipped.

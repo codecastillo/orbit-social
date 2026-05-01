@@ -152,7 +152,8 @@ function LivePinned() {
   const { data: streams } = useQuery({
     queryKey: ["live-streams"],
     queryFn: getLiveStreams,
-    refetchInterval: 15000,
+    refetchInterval: 30000,
+    staleTime: 15000,
   });
 
   if (!streams || streams.length === 0) return null;

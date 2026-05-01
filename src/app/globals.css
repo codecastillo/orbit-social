@@ -88,10 +88,28 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
     transition-property: color, background-color, border-color, box-shadow, opacity, transform;
     transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
     transition-duration: 150ms;
+  }
+  /* Scoped focus ring — only on actually-interactive elements that the user
+     has tabbed to. The previous universal "outline-ring/50" lit up scroll
+     containers and divs as users scrolled, which read as random highlighting. */
+  :focus {
+    outline: none;
+  }
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible,
+  [role="link"]:focus-visible,
+  [role="menuitem"]:focus-visible,
+  [role="tab"]:focus-visible {
+    @apply outline-ring/50;
+    outline-offset: 2px;
   }
   body {
     @apply bg-background text-foreground antialiased;
