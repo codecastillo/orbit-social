@@ -27,7 +27,7 @@ type TabValue = (typeof TABS)[number]["value"];
 
 export default function FeedPage() {
   const [tab, setTab] = useState<TabValue>("foryou");
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   // On mount (and on hard refresh), the browser restores the prior scroll
   // position even though feed content takes a beat to hydrate, leaving the
@@ -39,6 +39,15 @@ export default function FeedPage() {
     }
     window.scrollTo(0, 0);
   }, []);
+
+  // Auth resolves after first paint and adds the tabs + composer above the
+  // feed, pushing the user down again. Re-anchor to the top once auth has
+  // finished loading so the layout shift doesn't strand them mid-page.
+  useEffect(() => {
+    if (!authLoading) {
+      window.scrollTo(0, 0);
+    }
+  }, [authLoading]);
 
   return (
     <>
@@ -54,8 +63,12 @@ export default function FeedPage() {
         <main className="flex flex-col gap-4 min-w-0 w-full max-w-[640px] mx-auto">
         {/* Tabs panel — only signed-in users have a follow graph; anon viewers
             see a single public timeline so the For You/Following switcher is
-            meaningless and the panel is hidden. */}
-        {user && (
+            meaningless and the panel is hidden. While auth is still loading,
+            we reserve the panel height so the feed doesn't lurch downward
+            once `user` resolves. */}
+        {authLoading ? (
+          <div style={{ ...panel({ borderRadius: 18 }), height: 50 }} />
+        ) : user ? (
           <div
             style={{
               ...panel({ borderRadius: 18 }),
@@ -91,10 +104,15 @@ export default function FeedPage() {
               );
             })}
           </div>
-        )}
+        ) : null}
 
-        {/* Composer doorway */}
-        {user && <InlineComposer />}
+        {/* Composer doorway. Reserve its height while auth resolves so the
+            feed below doesn't shift down once a signed-in user lands. */}
+        {authLoading ? (
+          <div style={{ ...panel({ borderRadius: 18 }), height: 124 }} />
+        ) : user ? (
+          <InlineComposer />
+        ) : null}
 
         {/* Editorial separator */}
         <div

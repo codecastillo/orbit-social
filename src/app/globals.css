@@ -89,7 +89,12 @@
 @layer base {
   * {
     @apply border-border;
-    transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+    /* Universal transitions used to include `background-color`, which made
+       any element whose background recomputed during scroll/layout flash
+       briefly. That read as random highlights as scrollbars faded. Drop
+       background-color from the universal list — components that need a
+       hover/active background animate it themselves. */
+    transition-property: color, border-color, box-shadow, opacity, transform;
     transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
     transition-duration: 150ms;
     /* Mobile/trackpad tap-highlight on scroll containers shows up as a
@@ -97,6 +102,12 @@
        scrollbars fade out. Kill it everywhere — interactive elements still
        get :focus-visible below. */
     -webkit-tap-highlight-color: transparent;
+  }
+  /* When an interactive child gets focused (e.g. a button inside a card),
+     some browsers paint a focus-within ring on the ancestor. We don't want
+     that — only the focused leaf should ring. */
+  *:focus-within {
+    outline: none;
   }
   /* Drag-selection of layout chrome paints a flash when the scrollbar
      disappears and the cursor lands on a fresh region. Override the
