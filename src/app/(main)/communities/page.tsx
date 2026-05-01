@@ -43,7 +43,7 @@ function formatMembers(n: number): string {
 }
 
 export default function CommunitiesPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -92,10 +92,14 @@ export default function CommunitiesPage() {
 
   // We need myCommunities to land before we can split the global list,
   // otherwise the page renders "All rooms" with the user's owned room in
-  // it for a frame, then re-renders moving it up to "My rooms". Wait
-  // until both queries are resolved when the user is signed in.
-  const myCommunitiesLoaded =
-    !user || !!debouncedQuery.trim() || myCommunities !== undefined;
+  // it for a frame, then re-renders moving it up to "My rooms".
+  //
+  // While useAuth is still resolving (cookie read on first paint), we
+  // don't yet know whether to expect myCommunities at all — hold the
+  // render until that race settles too.
+  const myCommunitiesLoaded = authLoading
+    ? false
+    : !user || !!debouncedQuery.trim() || myCommunities !== undefined;
   const myIdSet = new Set((myCommunities ?? []).map((c) => c.id));
   const otherCommunities = (communities ?? []).filter((c) => !myIdSet.has(c.id));
 
