@@ -114,7 +114,7 @@ export default function StreamingSettingsPage() {
         >
           Plug these into OBS, Streamlabs, or your IRL backpack once. Whenever
           you go live, your stream automatically appears in the Live feed.
-          You don&apos;t need to do anything on this site &mdash; just hit
+          You don&apos;t need to do anything on this site. Just hit
           <em> Start Streaming</em> in your software.
         </p>
       </div>
@@ -201,8 +201,8 @@ export default function StreamingSettingsPage() {
           />
 
           <div style={{ ...panel(), padding: 22, display: "flex", flexDirection: "column", gap: 16 }}>
-            <CredField label="OBS — Server URL (RTMPS)" value={creds.rtmpsUrl} />
-            <CredField label="OBS — Stream Key" value={creds.streamKey} secret />
+            <CredField label="OBS · Server URL (RTMPS)" value={creds.rtmpsUrl} />
+            <CredField label="OBS · Stream Key" value={creds.streamKey} secret />
             <CredField label="Belabox / SRT (single URL, key embedded)" value={creds.srtUrl} secret />
           </div>
 
@@ -342,7 +342,7 @@ function StreamDetailsPanel({
 
       <FieldLabel
         label="Tags"
-        hint={`${tags.length}/5 — lowercase, letters/numbers/hyphen only`}
+        hint={`${tags.length}/5 · lowercase, letters/numbers/hyphen only`}
       >
         <TagChipsField
           tags={tags}
@@ -925,8 +925,8 @@ function SetupGuide() {
           lineHeight: 1.5,
         }}
       >
-        Your stream key never expires. Don&apos;t share it &mdash; anyone with
-        it can broadcast as you. If it leaks, contact support to rotate.
+        Your stream key never expires. Don&apos;t share it. Anyone with it
+        can broadcast as you. If it leaks, contact support to rotate.
       </p>
     </div>
   );

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Camera, Loader2, ArrowLeft, ImageIcon, QrCode, Check, ArrowRight, Edit3 } from "lucide-react";
+import { Camera, Loader2, ImageIcon, QrCode, Check, ArrowRight, Edit3 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -21,8 +21,9 @@ import { ImageCropper } from "@/components/shared/image-cropper";
 import { UserAvatar, type AvatarBorderStyle } from "@/components/shared/user-avatar";
 import { STORAGE_BUCKETS } from "@/lib/utils/constants";
 import { O, aurora, auroraSoft } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow } from "@/components/orbit/primitives";
+import { Display, Acc } from "@/components/orbit/primitives";
 import { Field, FormSection } from "@/components/orbit/forms";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 const profileFormSchema = z.object({
   username: usernameSchema,
@@ -259,36 +260,7 @@ export default function EditProfilePage() {
         paddingBottom: 96,
       }}
     >
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-        <button
-          type="button"
-          onClick={() => {
-            if (typeof window !== "undefined" && window.history.length > 1) {
-              router.back();
-            } else {
-              router.push("/settings");
-            }
-          }}
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 10,
-            background: "rgba(255,255,255,0.04)",
-            border: `1px solid ${O.hair2}`,
-            color: O.ink2,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}
-          aria-label="Back"
-        >
-          <ArrowLeft style={{ width: 14, height: 14 }} strokeWidth={1.8} />
-        </button>
-        <Eyebrow>◇&nbsp;&nbsp;SETTINGS · PROFILE</Eyebrow>
-      </div>
+      <SettingsHeader section="Profile" />
 
       <Display size={42} style={{ marginTop: 4 }}>
         Edit your <Acc>orbit</Acc>.

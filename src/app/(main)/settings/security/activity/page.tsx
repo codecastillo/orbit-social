@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import {
   Activity,
   Monitor,
@@ -10,7 +9,6 @@ import {
   Check,
   AlertTriangle,
   Globe,
-  ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -21,7 +19,8 @@ import {
   type LoginEvent,
 } from "@/lib/queries/security";
 import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow } from "@/components/orbit/primitives";
+import { Display, Acc } from "@/components/orbit/primitives";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 export default function LoginActivityPage() {
   const { user } = useAuth();
@@ -77,27 +76,10 @@ export default function LoginActivityPage() {
 
   return (
     <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 22 }}>
-      <Link
-        href="/settings/security"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          color: O.ink3,
-          fontFamily: O.mono,
-          fontSize: 11,
-          letterSpacing: "0.12em",
-          textDecoration: "none",
-          width: "fit-content",
-        }}
-      >
-        <ArrowLeft style={{ width: 12, height: 12 }} />
-        BACK · SECURITY
-      </Link>
+      <SettingsHeader section="Activity" glyph="◈" />
 
       <div>
-        <Eyebrow accent>◇&nbsp;&nbsp;SECURITY · ACTIVITY</Eyebrow>
-        <Display size={48} style={{ marginTop: 8 }}>
+        <Display size={48} style={{ marginTop: 4 }}>
           Recent <Acc>activity</Acc>.
         </Display>
         <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>

@@ -1,0 +1,2 @@
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS hide_activity BOOLEAN NOT NULL DEFAULT false;
