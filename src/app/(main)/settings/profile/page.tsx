@@ -373,8 +373,6 @@ export default function EditProfilePage() {
             style={
               avatarBorder === "none"
                 ? {
-                    width: 132,
-                    height: 132,
                     borderRadius: "50%",
                     padding: 0,
                     background: "transparent",
@@ -382,10 +380,10 @@ export default function EditProfilePage() {
                     border: "none",
                     cursor: "pointer",
                     flexShrink: 0,
-                    display: "block",
+                    display: "inline-block",
                     position: "relative",
                     zIndex: 1,
-                    overflow: "hidden",
+                    lineHeight: 0,
                   }
                 : {
                     borderRadius: "50%",
