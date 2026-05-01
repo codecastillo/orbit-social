@@ -92,6 +92,19 @@
     transition-property: color, background-color, border-color, box-shadow, opacity, transform;
     transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
     transition-duration: 150ms;
+    /* Mobile/trackpad tap-highlight on scroll containers shows up as a
+       random box highlight when the cursor crosses an element while
+       scrollbars fade out. Kill it everywhere — interactive elements still
+       get :focus-visible below. */
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Drag-selection of layout chrome paints a flash when the scrollbar
+     disappears and the cursor lands on a fresh region. Override the
+     selection color to be subtle so accidental selection doesn't read as
+     random highlighting. */
+  ::selection {
+    background: rgba(167, 139, 250, 0.25);
+    color: inherit;
   }
   /* Scoped focus ring — only on actually-interactive elements that the user
      has tabbed to. The previous universal "outline-ring/50" lit up scroll
@@ -208,9 +221,13 @@ button:focus-visible > div > .orbit-avatar-edit-overlay {
    default the document to user-select: none and re-enable on the
    elements that actually carry readable text + form inputs, so post
    content and captions stay selectable. */
-body {
+html, body {
   -webkit-user-select: none;
   user-select: none;
+  /* Belt-and-suspenders for mobile Safari/Chrome where tap-highlight
+     bleeds through scroll containers. */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
 p, span, h1, h2, h3, h4, h5, h6, li, td, th, blockquote, code, pre,
 article, time, label, dd, dt, em, strong, small, q, cite, abbr,
