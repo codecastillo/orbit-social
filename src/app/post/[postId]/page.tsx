@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props) {
   const preview = post.content?.slice(0, 100) || "Post";
 
   return {
-    title: `${profile.display_name} — "${preview}"`,
+    title: `${profile.display_name}: "${preview}"`,
     description: `@${profile.username}: ${post.content || ""}`,
   };
 }

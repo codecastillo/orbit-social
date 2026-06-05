@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
 
-// Auth-only public routes — unauthenticated users can hit them, authenticated
+// Auth-only public routes: unauthenticated users can hit them, authenticated
 // users get bounced to /feed.
 const publicAuthRoutes = [
   "/login",
@@ -17,7 +17,7 @@ const publicAuthRoutes = [
 // Routes that REQUIRE a signed-in user. Anon visitors hitting any of these get
 // bounced to /login?next=<pathname>. Everything else (feed, clips, profiles,
 // rooms, events, livestreams, post detail, hashtags, VODs) is browseable
-// read-only — write actions are guarded at the UI layer via useRequireAuth.
+// read-only, write actions are guarded at the UI layer via useRequireAuth.
 const authRequiredRoutes = [
   "/notifications",
   "/messages",
@@ -105,14 +105,14 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Signed-in user hitting login/signup/etc — push them to /feed.
+  // Signed-in user hitting login/signup/etc, push them to /feed.
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/feed";
     return NextResponse.redirect(url);
   }
 
-  // Signed-in user landing on the marketing page — push them to /feed.
+  // Signed-in user landing on the marketing page, push them to /feed.
   if (user && pathname === "/") {
     const url = request.nextUrl.clone();
     url.pathname = "/feed";

@@ -35,7 +35,7 @@ interface Props {
   /** When true, owner-only management actions are shown next to each
       non-owner member (kick, promote, demote). */
   isOwner?: boolean;
-  /** Caller's user_id — used to hide the actions menu on the owner's
+  /** Caller's user_id, used to hide the actions menu on the owner's
       own row so the owner can't remove themselves accidentally. */
   currentUserId?: string;
 }

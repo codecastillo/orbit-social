@@ -129,7 +129,7 @@ export default function EditProfilePage() {
     loadProfile();
   }, [user, supabase, reset]);
 
-  // Save bar visibility — derived, not stored. This avoids the race where
+  // Save bar visibility: derived, not stored. This avoids the race where
   // an image upload sets dirty=true, the upload finishes, an effect re-runs
   // on uploadingAvatar=false and clobbers it back to RHF's clean state.
   const dirty = isDirty || imageDirty || uploadingAvatar || uploadingCover;
@@ -361,7 +361,7 @@ export default function EditProfilePage() {
             marginTop: -56,
           }}
         >
-          {/* Avatar preview — matches the profile page exactly. The accent
+          {/* Avatar preview, matches the profile page exactly. The accent
               ring (theme color) and the decorative avatar_border are mutually
               exclusive. When a decorative border is set, the wrapper hugs
               the avatar so the dark panel can't show through as a gap. */}
@@ -821,7 +821,7 @@ export default function EditProfilePage() {
   );
 }
 
-/* Inputs that work with react-hook-form's register() — must accept ref + use plain <input>/<textarea> */
+/* Inputs that work with react-hook-form's register(): must accept ref + use plain <input>/<textarea> */
 const RawInput = (() => {
   // forwardRef wrapper around a styled native input that mirrors orbit Input look
   return (function RawInputInner({ prefix, ...rest }: any) {

@@ -72,7 +72,7 @@ export async function getCommunities(cursor?: string, limit = 20) {
 
 export async function getMyCommunities(userId: string) {
   // Strictly rooms the user has joined (community_members row). Creating a
-  // room does NOT auto-show it here — the user has to be a member, just
+  // room does NOT auto-show it here, the user has to be a member, just
   // like every other room.
   const { data: memberships } = await supabase
     .from("community_members")
@@ -165,7 +165,7 @@ export async function uploadCommunityImage(
   }
   const bucket = kind === "avatar" ? "avatars" : "covers";
   const ext = file.name.split(".").pop() || "png";
-  // First path segment must be the user's id — matches the existing storage
+  // First path segment must be the user's id, matches the existing storage
   // RLS that gates avatars/covers writes by uid folder.
   const path = `${userId}/communities/${communityId}/${kind}.${ext}`;
   const { error } = await supabase.storage

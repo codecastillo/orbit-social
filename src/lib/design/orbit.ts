@@ -1,5 +1,5 @@
 /**
- * Orbit Glass design tokens — ported verbatim from the canonical design-src/orbit-system.jsx.
+ * Orbit Glass design tokens, ported verbatim from the canonical design-src/orbit-system.jsx.
  * Single source of truth for the Glass direction. Consume via the `O` object for inline styles,
  * or the `orbitBg`, `panel`, `aurora`, `auroraSoft` helpers.
  */
@@ -7,11 +7,11 @@
 import type { CSSProperties } from "react";
 
 export const O = {
-  // Cosmic deep space gradient — three light sources, deeper blacks
+  // Cosmic deep space gradient: three light sources, deeper blacks
   bg: "#070818",
   bg2: "#0c0d22",
   bg3: "#15102b",
-  // Brand: aurora — indigo to magenta to cyan, more saturated
+  // Brand: aurora, indigo to magenta to cyan, more saturated
   a1: "#8b73ff", // indigo
   a2: "#ff5fae", // magenta rose
   a3: "#5fd4ff", // cyan
@@ -31,7 +31,7 @@ export const O = {
   mono: '"Geist Mono", ui-monospace, monospace',
 } as const;
 
-// Layered atmospheric background — three soft light sources
+// Layered atmospheric background: three soft light sources
 export const orbitBg: CSSProperties = {
   background:
     `radial-gradient(ellipse 70% 60% at 12% 8%, ${O.a1}40 0%, transparent 55%),` +
@@ -40,7 +40,7 @@ export const orbitBg: CSSProperties = {
     `linear-gradient(160deg, ${O.bg} 0%, ${O.bg2} 50%, ${O.bg3} 100%)`,
 };
 
-// Premium glass panel — backdrop blur + saturate + inner highlight + outer ring
+// Premium glass panel: backdrop blur + saturate + inner highlight + outer ring
 export const panel = (extra: CSSProperties = {}): CSSProperties => ({
   background: O.glass,
   backdropFilter: "blur(40px) saturate(180%)",
@@ -52,6 +52,6 @@ export const panel = (extra: CSSProperties = {}): CSSProperties => ({
   ...extra,
 });
 
-// Aurora gradient — primary actions & accent fills
+// Aurora gradient: primary actions & accent fills
 export const aurora = `linear-gradient(135deg, ${O.a1} 0%, ${O.a2} 55%, ${O.a3} 100%)`;
 export const auroraSoft = `linear-gradient(135deg, ${O.a1}25 0%, ${O.a2}1f 55%, ${O.a3}25 100%)`;

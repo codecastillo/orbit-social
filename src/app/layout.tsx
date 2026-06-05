@@ -29,7 +29,7 @@ const instrumentSerif = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: {
-    default: "Orbit — Social Network",
+    default: "Orbit: Social Network",
     template: "%s | Orbit",
   },
   description:

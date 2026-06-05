@@ -3,7 +3,7 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import { O, aurora } from "@/lib/design/orbit";
 
-/** Premium pill button — only button style used in the Glass system. */
+/** Premium pill button: only button style used in the Glass system. */
 export function PillBtn({
   children,
   primary = false,
@@ -79,7 +79,7 @@ export function Eyebrow({
   );
 }
 
-/** Display heading — sans with tight tracking. Pair with <Acc> for italic emphasis. */
+/** Display heading: sans with tight tracking. Pair with <Acc> for italic emphasis. */
 export function Display({
   children,
   size = 56,

@@ -125,7 +125,7 @@ export default function NotificationsPage() {
         <OrbitErrorState
           headline="Couldn't"
           accentWord="reach"
-          sub="Notifications didn't load. Probably a flaky connection — try again."
+          sub="Notifications didn't load. Probably a flaky connection, try again."
           errorCode="ERR · CONN_TIMEOUT"
           onRetry={() => refetch()}
         />
@@ -157,7 +157,7 @@ export default function NotificationsPage() {
           accent="#ffd76a"
           headline="All"
           accentWord="caught up"
-          sub="No new signals in your orbit. Come back later — or go post something and give someone else a reason to show up here."
+          sub="No new signals in your orbit. Come back later, or go post something and give someone else a reason to show up here."
         />
       ) : (
         <NotificationsList notifications={filtered} />

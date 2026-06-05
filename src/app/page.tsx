@@ -1,4 +1,4 @@
-// Landing page is a Server Component — no "use client", no framer-motion
+// Landing page is a Server Component: no "use client", no framer-motion
 // in the bundle. Animations are CSS keyframes defined in globals.css
 // (.landing-reveal / .landing-fade-in / .landing-scale-in).
 import Link from "next/link";
@@ -260,7 +260,7 @@ function HeroSection() {
   );
 }
 
-/* ─── One platform. All the surface. — bento ───────────────────── */
+/* ─── One platform. All the surface. (bento) ───────────────────── */
 
 function BentoSection() {
   return (
@@ -365,11 +365,11 @@ function BentoSection() {
             </Reveal>
           </div>
 
-          {/* Right — Clips big */}
+          {/* Right side, Clips big */}
           <Reveal delay={0.15}>
             <BentoCard
               title="Clips"
-              sub="Short video, long attention. Vertical, snap-scroll, tuned for making — not doomscrolling."
+              sub="Short video, long attention. Vertical, snap-scroll, tuned for making, not doomscrolling."
               tall
             >
               <div
@@ -753,7 +753,7 @@ const pillars = [
   {
     no: "03",
     title: "For makers",
-    desc: "Analytics, monetization, and audience tools — built in, not bolted on.",
+    desc: "Analytics, monetization, and audience tools, built in, not bolted on.",
   },
   {
     no: "04",
@@ -851,7 +851,7 @@ const madeForRows = [
   },
   {
     title: "Hosts",
-    body: "Events, listening sessions, drop-ins. RSVPs and reminders that show up where people already are — the feed.",
+    body: "Events, listening sessions, drop-ins. RSVPs and reminders that show up where people already are: the feed.",
     accent: O.a3,
   },
 ];

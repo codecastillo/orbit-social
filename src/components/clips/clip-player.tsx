@@ -35,7 +35,7 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
   const [showCaption, setShowCaption] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [followOverride, setFollowOverride] = useState<boolean | null>(null);
-  const [progress, setProgress] = useState(0); // 0–1
+  const [progress, setProgress] = useState(0); // 0 to 1
   const [commentsOpen, setCommentsOpen] = useState(false);
 
   const videoUrl = clip.post_media?.[0]?.url;
@@ -247,7 +247,7 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
           />
         </div>
       )}
-      {/* Phone-sized player frame — height-driven so the whole 9:16 frame
+      {/* Phone-sized player frame, height-driven so the whole 9:16 frame
           (including the bottom scrub bar + caption + action rail) always
           fits in the viewport with no scroll required. Width derives from
           height via aspect-ratio. Capped at 720px tall / 440px wide so it
@@ -279,7 +279,7 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
         <div style={{ color: O.ink3, fontSize: 13 }}>Video unavailable</div>
       )}
 
-      {/* Aurora ambient scrims for legibility — subtle, not distracting */}
+      {/* Aurora ambient scrims for legibility, subtle, not distracting */}
       <div
         className="absolute inset-x-0 top-0 h-32 pointer-events-none"
         style={{
@@ -319,7 +319,7 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
         </div>
       )}
 
-      {/* Mute toggle — top right, glass pill */}
+      {/* Mute toggle, top right, glass pill */}
       <button
         onClick={toggleMute}
         className="absolute top-5 right-5 z-10"
@@ -476,7 +476,7 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
         />
       </div>
 
-      {/* Scrub bar — TikTok-style thin progress flush with the bottom
+      {/* Scrub bar, TikTok-style thin progress flush with the bottom
           edge of the player frame. Click to seek. The hit area is taller
           than the visual bar so it's easy to grab on touch. */}
       <div
@@ -512,7 +512,7 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
       </div>
       </div>
 
-      {/* Comments side panel — sibling of the player frame so the video
+      {/* Comments side panel, sibling of the player frame so the video
           stays fully visible while you scroll/reply. Hidden when closed.
           When open, the flex layout naturally compresses the player frame
           to its left, so the nav arrows on the FAR left shift with it. */}

@@ -58,10 +58,10 @@ export default function FeedPage() {
           fontFamily: O.sans,
         }}
       >
-        {/* MIDDLE — main feed column. Capped width so wide desktop viewports
+        {/* MIDDLE, main feed column. Capped width so wide desktop viewports
             don't stretch posts (and images inside) edge-to-edge. */}
         <main className="flex flex-col gap-4 min-w-0 w-full max-w-[640px] mx-auto">
-        {/* Tabs panel — only signed-in users have a follow graph; anon viewers
+        {/* Tabs panel, only signed-in users have a follow graph; anon viewers
             see a single public timeline so the For You/Following switcher is
             meaningless and the panel is hidden. While auth is still loading,
             we reserve the panel height so the feed doesn't lurch downward

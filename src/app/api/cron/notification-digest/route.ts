@@ -3,7 +3,7 @@
  * For every user with unread notifications since their last digest,
  * batch into a single Resend email and mark the digest as sent.
  *
- * This is a best-effort fan-out — we cap at MAX_USERS_PER_RUN per run
+ * This is a best-effort fan-out, we cap at MAX_USERS_PER_RUN per run
  * so a single cron tick doesn't time out. Future runs pick up the rest.
  */
 import { NextResponse } from "next/server";
@@ -26,7 +26,7 @@ export async function GET(req: Request) {
   const supabase = createAdminClient();
   const sinceIso = new Date(Date.now() - SINCE_HOURS * 60 * 60 * 1000).toISOString();
 
-  // 1. Pull unread notifications from the last day, grouped by user + type (in app code — Supabase
+  // 1. Pull unread notifications from the last day, grouped by user + type (in app code, Supabase
   // doesn't expose `group by` directly via the JS client; we do a simple pull and bucket here).
   const { data: rows, error } = await supabase
     .from("notifications")

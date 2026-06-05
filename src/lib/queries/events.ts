@@ -113,7 +113,7 @@ export async function createEvent(
 
   if (error) throw error;
 
-  // Auto-RSVP the host as "going" — they're hosting, of course they're going.
+  // Auto-RSVP the host as "going", they're hosting, of course they're going.
   // Trigger recomputes attendee_count.
   await supabase
     .from("event_rsvps")
@@ -128,7 +128,7 @@ export async function createEvent(
 // Hosts can remove their own event. RLS on `events` enforces ownership.
 // We .select() the deleted row so we can tell the difference between a
 // successful delete (1 row returned) and an RLS-blocked no-op (0 rows,
-// no error) — Supabase doesn't surface the latter as an error by default.
+// no error), Supabase doesn't surface the latter as an error by default.
 export async function deleteEvent(eventId: string, userId: string) {
   const { data, error } = await supabase
     .from("events")
@@ -139,7 +139,7 @@ export async function deleteEvent(eventId: string, userId: string) {
   if (error) throw error;
   if (!data || data.length === 0) {
     throw new Error(
-      "Event not deleted. The events DELETE RLS policy probably hasn't been applied — run migration 20260430090000_event_delete_policy.sql.",
+      "Event not deleted. The events DELETE RLS policy probably hasn't been applied. Run migration 20260430090000_event_delete_policy.sql.",
     );
   }
 }

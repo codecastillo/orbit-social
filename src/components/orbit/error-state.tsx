@@ -6,7 +6,7 @@ import { O, aurora } from "@/lib/design/orbit";
 import { Display, Acc } from "@/components/orbit/primitives";
 
 /**
- * Orbit error state — ported from design-src/orbit-forms.jsx ErrorMessagesState.
+ * Orbit error state, ported from design-src/orbit-forms.jsx ErrorMessagesState.
  * Red-glow ring + serif italic accent + try-again pill. For surfaces where
  * remote data couldn't load.
  */

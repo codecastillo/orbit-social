@@ -14,7 +14,7 @@ export function GiftAnimation({ gifts, onComplete }: GiftAnimationProps) {
       <AnimatePresence>
         {gifts.map((sentGift) => {
           // Randomize horizontal position so simultaneous gifts spread out
-          const xStart = 20 + Math.random() * 60; // 20%–80% of width
+          const xStart = 20 + Math.random() * 60; // 20% to 80% of width
 
           return (
             <motion.div

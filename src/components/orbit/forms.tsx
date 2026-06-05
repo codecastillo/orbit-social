@@ -13,7 +13,7 @@ import { X } from "lucide-react";
 import { O, aurora, auroraSoft } from "@/lib/design/orbit";
 
 /**
- * Orbit form primitives — ported verbatim from design-src/orbit-forms.jsx.
+ * Orbit form primitives, ported verbatim from design-src/orbit-forms.jsx.
  * Use these for every input across the app. Don't reinvent.
  */
 

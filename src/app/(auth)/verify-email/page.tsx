@@ -197,7 +197,7 @@ export default function VerifyEmailPage() {
             ) : (
               <Mail style={{ width: 14, height: 14 }} />
             )}
-            {resent ? "Sent — check again in 30s" : "Resend verification"}
+            {resent ? "Sent, check again in 30s" : "Resend verification"}
           </PillBtn>
 
           <p style={{ marginTop: 20, fontSize: 13, color: O.ink3 }}>

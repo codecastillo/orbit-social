@@ -166,7 +166,7 @@ export async function getFeedPosts(
     .from("posts")
     .select(POST_SELECT)
     .is("reply_to_id", null)
-    // Room posts stay inside the room — they never leak into the global
+    // Room posts stay inside the room, they never leak into the global
     // For You / Following feeds, even for the room's own members.
     .is("community_id", null)
     .eq("is_hidden", false)
@@ -225,7 +225,7 @@ export async function getFeedPosts(
   return posts;
 }
 
-// Public timeline — newest non-private posts platform-wide. Used for anon
+// Public timeline: newest non-private posts platform-wide. Used for anon
 // visitors browsing /feed in read-only mode (no follows = no personalized
 // feed possible). Excludes reels (clip-feed surface), reposts (need viewer
 // to dedupe), close-friends visibility (gated content), and hidden posts.

@@ -8,14 +8,14 @@ const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 export interface TurnstileWidgetHandle {
   /** Returns the current token, waiting for one if the widget hasn't solved yet. */
   getToken: () => Promise<string | null>;
-  /** Force a fresh challenge — call after a submit so the next call gets a new token. */
+  /** Force a fresh challenge: call after a submit so the next call gets a new token. */
   reset: () => void;
 }
 
 /**
  * Invisible Cloudflare Turnstile widget. Mounted near auth form submit buttons.
  * If NEXT_PUBLIC_TURNSTILE_SITE_KEY is not set (e.g. local dev with CAPTCHA off),
- * getToken() resolves to null — callers should treat null as "skip captcha" so
+ * getToken() resolves to null, callers should treat null as "skip captcha" so
  * dev still works without the env var.
  */
 export const TurnstileWidget = forwardRef<TurnstileWidgetHandle>(function TurnstileWidget(
@@ -32,7 +32,7 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetHandle>(function Turnst
       getToken: () => {
         if (!SITE_KEY) return Promise.resolve(null);
         if (token) return Promise.resolve(token);
-        // Fail fast after 10s instead of hanging the form forever — common
+        // Fail fast after 10s instead of hanging the form forever, common
         // cause of a stuck token is a Turnstile hostname mismatch, which
         // we want to surface to the user as a Supabase "captcha required"
         // error rather than as an indefinite spinner.

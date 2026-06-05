@@ -511,7 +511,7 @@ export default function SignUpPage() {
                     <Shield style={{ width: 22, height: 22 }} />
                   </div>
                   <p style={{ fontSize: 13, color: O.ink3, margin: 0 }}>
-                    Pick a password you&apos;ll remember — long beats clever.
+                    Pick a password you&apos;ll remember. Long beats clever.
                   </p>
                 </div>
 

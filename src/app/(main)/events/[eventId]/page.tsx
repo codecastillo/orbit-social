@@ -386,7 +386,7 @@ export default function EventDetailPage({
         )}
       </div>
 
-      {/* Cover — capped so it never towers on wide screens */}
+      {/* Cover, capped so it never towers on wide screens */}
       <div className="relative w-full bg-muted/20 max-h-[320px] aspect-[2/1] overflow-hidden">
         {event.cover_url ? (
           <Image
@@ -455,7 +455,7 @@ export default function EventDetailPage({
           </div>
         )}
 
-        {/* Attendees — avatars only, click to open full list */}
+        {/* Attendees, avatars only, click to open full list */}
         <button
           type="button"
           onClick={() => setAttendeesOpen(true)}

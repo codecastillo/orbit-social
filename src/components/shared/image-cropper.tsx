@@ -51,7 +51,7 @@ export function ImageCropper({
     setImgSize({ w: img.naturalWidth, h: img.naturalHeight });
   };
 
-  // Frame dimensions in CSS pixels — fixed width, height derived from aspect
+  // Frame dimensions in CSS pixels: fixed width, height derived from aspect
   const frameWidth = 480;
   const frameHeight = Math.round(frameWidth / aspectRatio);
 

@@ -12,7 +12,7 @@ import {
 // These three hooks used to each open their own Supabase realtime channel
 // AND poll every 60s. Channel + poll have been moved up to a single
 // consolidated <RealtimeBridge userId={...} /> mounted once in
-// (main)/layout.tsx — these hooks now just read from the React Query
+// (main)/layout.tsx, these hooks now just read from the React Query
 // cache that the bridge invalidates.
 
 export function useNotifications() {

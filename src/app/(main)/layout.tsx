@@ -15,7 +15,7 @@ export default async function MainLayout({
   children: React.ReactNode;
 }) {
   // Pre-fetch the signed-in profile server-side so the sidebar renders the
-  // real avatar/name on first paint — no client-side hydration flash.
+  // real avatar/name on first paint, no client-side hydration flash.
   const supabase = await createClient();
   const {
     data: { user },

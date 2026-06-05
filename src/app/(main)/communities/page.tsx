@@ -95,7 +95,7 @@ export default function CommunitiesPage() {
   // it for a frame, then re-renders moving it up to "My rooms".
   //
   // While useAuth is still resolving (cookie read on first paint), we
-  // don't yet know whether to expect myCommunities at all — hold the
+  // don't yet know whether to expect myCommunities at all, hold the
   // render until that race settles too.
   const myCommunitiesLoaded = authLoading
     ? false
@@ -234,7 +234,7 @@ function MyRoomsSection({
         style={{
           display: "grid",
           // Fixed 320px columns so a single room doesn't stretch across the
-          // whole row — tiles stay the same size regardless of how many you
+          // whole row, tiles stay the same size regardless of how many you
           // have.
           gridTemplateColumns: "repeat(auto-fill, 320px)",
           justifyContent: "start",

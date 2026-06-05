@@ -6,7 +6,7 @@ import { O, aurora } from "@/lib/design/orbit";
 import { Display, Acc } from "@/components/orbit/primitives";
 
 /**
- * Orbit empty-state template — ported from design-src/orbit-forms.jsx.
+ * Orbit empty-state template, ported from design-src/orbit-forms.jsx.
  * One template with aurora orbit rings + serif-italic accent headline
  * + optional dual CTA. Used across Rooms / Live / Events / Notifications.
  */

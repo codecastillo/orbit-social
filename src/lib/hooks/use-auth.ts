@@ -15,7 +15,7 @@ export function useAuth() {
   useEffect(() => {
     // supabase-js takes the auth-token lock with steal:true so cross-tab
     // races can throw AbortError("Lock broken …"). Treat that as "no
-    // session this turn" — onAuthStateChange will fire again with a real
+    // session this turn", onAuthStateChange will fire again with a real
     // value once the new owner completes its read.
     const isLockSteal = (err: unknown) =>
       err instanceof Error &&

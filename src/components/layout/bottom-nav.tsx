@@ -33,7 +33,7 @@ export function BottomNav({ initialHasUser = false }: { initialHasUser?: boolean
 
   const profileHref = username ? `/${username}` : "/onboarding";
 
-  // Anon visitors don't have a Compose / Chat / You — swap those slots out
+  // Anon visitors don't have a Compose / Chat / You, swap those slots out
   // for an account CTA so the bottom nav stays five-wide and isn't a row of
   // dead buttons that all bounce through middleware.
   const items = isSignedIn

@@ -138,7 +138,7 @@ export function CommunityHeader({
     }
   };
 
-  // Treat the row's `created_by` as authoritative for ownership — handles
+  // Treat the row's `created_by` as authoritative for ownership, handles
   // legacy / broken rooms where the owner membership row was never inserted
   // (so `userRole` is null even though the user actually created the room).
   const isCreator = !!user && user.id === community.created_by;
@@ -232,7 +232,7 @@ export function CommunityHeader({
           toast.success(`Joined ${community.name}`);
         } else if (result === "requested") {
           setRequestStatus("pending");
-          toast.success("Request sent — waiting on approval");
+          toast.success("Request sent, waiting on approval");
         } else {
           toast.error("This room is invite-only");
         }
@@ -282,7 +282,7 @@ export function CommunityHeader({
 
   return (
     <div className="border-b border-border">
-      {/* Cover image — locked to a 4:1 aspect so the visible region of the
+      {/* Cover image, locked to a 4:1 aspect so the visible region of the
           uploaded crop stays consistent across viewport widths. */}
       <div
         className="relative w-full overflow-hidden group"
@@ -441,7 +441,7 @@ export function CommunityHeader({
         )}
 
         {/* Created date sits directly under the description, on its own
-            line — separate from the members-with-avatars row below. */}
+            line, separate from the members-with-avatars row below. */}
         <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
           <Calendar className="h-3.5 w-3.5" />
           <span>Created {createdDate}</span>
@@ -565,7 +565,7 @@ export function CommunityHeader({
         </DialogContent>
       </Dialog>
 
-      {/* Edit room details — owner-only quick edit for name + description.
+      {/* Edit room details, owner-only quick edit for name + description.
           Avatar + cover have their own Change buttons on the header. */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>

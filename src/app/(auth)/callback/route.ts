@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const rawNext = searchParams.get("next") ?? "/onboarding";
 
-  // Prevent open redirect — only allow whitelisted internal paths
+  // Prevent open redirect: only allow whitelisted internal paths
   const next = ALLOWED_REDIRECTS.includes(rawNext) ? rawNext : "/onboarding";
 
   if (code) {

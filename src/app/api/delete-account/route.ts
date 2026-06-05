@@ -25,7 +25,7 @@ export async function POST() {
   const admin = createAdminClient();
 
   try {
-    // Delete profile first — this cascades to all user content
+    // Delete profile first: this cascades to all user content
     // (posts, likes, follows, messages, etc. via ON DELETE CASCADE)
     const { error: profileError } = await admin
       .from("profiles")

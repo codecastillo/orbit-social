@@ -127,7 +127,7 @@ export function useAudioRecorder() {
         error: null,
       });
     } catch (err) {
-      // Log the raw error so we can see exactly what fired in DevTools —
+      // Log the raw error so we can see exactly what fired in DevTools.
       // the user-facing toast was masking the real cause when mic was
       // already enabled.
       console.error("audio-recorder startRecording failed", err);

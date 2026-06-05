@@ -62,7 +62,7 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
     enabled: open && !!myId && !!data && data.length > 0,
   });
 
-  // Local follow state — overlays the server-side set so toggles feel instant.
+  // Local follow state: overlays the server-side set so toggles feel instant.
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<string | null>(null);
 

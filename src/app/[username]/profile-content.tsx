@@ -176,7 +176,7 @@ export function ProfileContent({
           filter: `following_id=eq.${profile.id}`,
         },
         () => {
-          // Their orbit (followers) changed — refresh the list dialog
+          // Their orbit (followers) changed, refresh the list dialog
           queryClient.invalidateQueries({
             queryKey: ["follow-list", profile.id, "followers"],
           });
@@ -191,7 +191,7 @@ export function ProfileContent({
           filter: `follower_id=eq.${profile.id}`,
         },
         () => {
-          // Their mutuals (following) changed — refresh the list dialog
+          // Their mutuals (following) changed, refresh the list dialog
           queryClient.invalidateQueries({
             queryKey: ["follow-list", profile.id, "following"],
           });
@@ -481,7 +481,7 @@ export function ProfileContent({
           position: "relative",
         }}
       >
-        {/* Floating back button — sits on top of the banner so it doesn't
+        {/* Floating back button, sits on top of the banner so it doesn't
             occupy its own row above the panel. */}
         <button
           onClick={() => {
@@ -515,7 +515,7 @@ export function ProfileContent({
           <ArrowLeft style={{ width: 15, height: 15 }} strokeWidth={2} />
         </button>
 
-        {/* Banner — clipped to top radius only */}
+        {/* Banner, clipped to top radius only */}
         <div style={{ borderRadius: "24px 24px 0 0", overflow: "hidden" }}>
           {profile.cover_url ? (
             <div
@@ -530,7 +530,7 @@ export function ProfileContent({
           )}
         </div>
 
-        {/* Identity row — content flows BELOW the banner, only the avatar overlaps */}
+        {/* Identity row: content flows BELOW the banner, only the avatar overlaps */}
         <div
           style={{
             padding: "0 32px 24px",
@@ -540,7 +540,7 @@ export function ProfileContent({
             flexWrap: "wrap",
           }}
         >
-          {/* Avatar — accent ring and decorative avatar_border are mutually
+          {/* Avatar, accent ring and decorative avatar_border are mutually
               exclusive. When a decorative border is set, the wrapper hugs
               the avatar so the dark panel doesn't show through as a gap. */}
           <div
@@ -834,7 +834,7 @@ export function ProfileContent({
         </div>
       </div>
 
-      {/* PRIVATE LOCK — Instagram-style. When the profile is private and the
+      {/* PRIVATE LOCK, Instagram-style. When the profile is private and the
           viewer isn't the owner or a follower, swap the entire tabs+content
           block for a lock card. Use explicit === true so a column that
           arrives as null/undefined doesn't accidentally unlock the profile. */}
@@ -1156,7 +1156,7 @@ function VodCard({ vod, isOwner }: { vod: VodRow; isOwner: boolean }) {
     if (refreshedRef.current) return;
     const stored = vod.duration_seconds ?? 0;
     // Only probe rows that look broken (≤ 30s). Real short clips also
-    // pass through this gate — the endpoint is idempotent and a no-op if
+    // pass through this gate, the endpoint is idempotent and a no-op if
     // the durations already match.
     if (stored > 30) return;
     refreshedRef.current = true;
@@ -1401,7 +1401,7 @@ function DeleteVodDialog({
   );
 }
 
-// Tabbed clip viewer for the profile Clips tab — same vertical
+// Tabbed clip viewer for the profile Clips tab, same vertical
 // snap-mandatory player layout the global /clips feed uses, but scoped
 // to one user's reels. We sit the scroller inside a tall fixed-aspect
 // frame so it doesn't blow up the surrounding profile page layout.

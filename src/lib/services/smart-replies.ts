@@ -1,5 +1,5 @@
 /**
- * Smart reply suggestions — client-side heuristic engine.
+ * Smart reply suggestions: client-side heuristic engine.
  * Analyses the last message and returns 3 natural-sounding quick replies.
  */
 

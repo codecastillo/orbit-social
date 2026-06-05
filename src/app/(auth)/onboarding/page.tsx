@@ -200,7 +200,7 @@ export default function OnboardingPage() {
           paddingBottom: 24,
         }}
       >
-        {/* Header — back + progress + step indicator */}
+        {/* Header: back + progress + step indicator */}
         <header
           style={{
             padding: "14px 18px",
@@ -326,7 +326,7 @@ export default function OnboardingPage() {
   );
 }
 
-/* ─── Step 1 — Welcome + profile setup ────────────────────────── */
+/* ─── Step 1: Welcome + profile setup ────────────────────────── */
 
 function Step1Welcome(props: any) {
   const {
@@ -494,7 +494,7 @@ function Step1Welcome(props: any) {
   );
 }
 
-/* ─── Step 2 — interests ─────────────────────────────────────── */
+/* ─── Step 2: interests ─────────────────────────────────────── */
 
 function Step2Interests({
   selected,
@@ -614,7 +614,7 @@ function Step2Interests({
   );
 }
 
-/* ─── Step 3 — follows ───────────────────────────────────────── */
+/* ─── Step 3: follows ───────────────────────────────────────── */
 
 function Step3Follows({
   followed,
@@ -656,7 +656,7 @@ function Step3Follows({
             lineHeight: 1.55,
           }}
         >
-          Based on what you picked. You can always add more later — and unfollow
+          Based on what you picked. You can always add more later, and unfollow
           without anyone knowing.
         </p>
       </div>
@@ -742,7 +742,7 @@ function Step3Follows({
                     padding: "40px 20px",
                   }}
                 >
-                  No suggestions yet — you can find people on Discover.
+                  No suggestions yet. You can find people on Discover.
                 </p>
               )}
         </div>

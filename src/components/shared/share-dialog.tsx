@@ -92,7 +92,7 @@ export function ShareDialog({ postId, open, onOpenChange }: ShareDialogProps) {
     setSendingTo(conversation.id);
     try {
       // Prefix the user's optional note so it lands as a single message
-      // followed by the post URL — the receiver gets context plus link.
+      // followed by the post URL, the receiver gets context plus link.
       const body = message.trim()
         ? `${message.trim()}\n${postUrl}`
         : postUrl;
