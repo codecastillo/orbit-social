@@ -1,0 +1,25 @@
+# Lint and typecheck gate on every push and PR. The production build itself
+# is gated by Vercel, which builds every push with real environment variables
+# and refuses to deploy on failure, so it is not duplicated here.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Non-blocking until the pre-existing eslint backlog (95 errors, mostly
+      # no-explicit-any in lib/queries) is cleared. Flip to blocking after.
+      - run: npm run lint
+        continue-on-error: true
+      - run: npm run typecheck
