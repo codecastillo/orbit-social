@@ -50,7 +50,7 @@ export function RealtimeBridge({ userId }: { userId: string | null }) {
           });
         },
       )
-      // I marked a conversation read — bump my unread badge.
+      // I marked a conversation read, bump my unread badge.
       .on(
         "postgres_changes",
         {

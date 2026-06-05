@@ -84,7 +84,7 @@ interface PostCardProps {
   repostedByUsername?: string;
   onUpdate?: () => void;
   compact?: boolean;
-  /** All posts in the current feed — used to compute user averages for insights. */
+  /** All posts in the current feed, used to compute user averages for insights. */
   allUserPosts?: PostWithAuthor[];
 }
 
@@ -205,7 +205,7 @@ export function PostCard({
 
   const isOwnPost = user?.id === post.user_id;
   // For a repost row, "own post" for repost-target purposes is the ORIGINAL
-  // post's owner — otherwise the viewer would be told they can't un-repost
+  // post's owner, otherwise the viewer would be told they can't un-repost
   // their own repost (the row's user_id is theirs but the target isn't).
   const isOwnRepostTarget =
     isRepostType && originalPost
@@ -466,7 +466,7 @@ export function PostCard({
           : (e) => {
               // Ignore clicks that bubble from portaled descendants
               // (dropdown menus, dialogs). React events bubble through
-              // the virtual tree even from portals — without this guard,
+              // the virtual tree even from portals, without this guard,
               // closing the Block/Mute/Report dialog navigates to the post.
               const target = e.target as Node;
               if (!e.currentTarget.contains(target)) return;
@@ -568,7 +568,7 @@ export function PostCard({
                         <Pencil className="mr-2 h-4 w-4" /> Edit
                       </DropdownMenuItem>
                       {/* Pin to Profile + Boost don't apply inside a
-                          room — that's profile-level promotion that
+                          room, that's profile-level promotion that
                           would lift a private/scoped post out of its
                           room context. */}
                       {!displayPost.community_id && (
@@ -792,7 +792,7 @@ export function PostCard({
 
           </div>{/* End of clickable content area */}
 
-          {/* Actions — order: heart, chat, retweet, bookmark, [views] */}
+          {/* Actions, order: heart, chat, retweet, bookmark, [views] */}
           <div
             className="flex items-center"
             style={{ gap: 4, marginTop: 12, color: O.ink2, fontSize: 12.5 }}
@@ -832,7 +832,7 @@ export function PostCard({
               {post.comment_count > 0 && <span>{formatNumber(post.comment_count)}</span>}
             </button>
 
-            {/* Repost / Bookmark / Share — hidden inside rooms because
+            {/* Repost / Bookmark / Share, hidden inside rooms because
                 room posts are scoped to that room and shouldn't be
                 rebroadcast through repost or shared to outsiders. */}
             {!compact && !displayPost.community_id && (
@@ -876,7 +876,7 @@ export function PostCard({
 
           </div>
 
-          {/* Post Insights — only visible to the author, not on comments */}
+          {/* Post Insights, only visible to the author, not on comments */}
           {isOwnPost && !compact && (
             <PostInsights post={post} userAverages={userAverages} />
           )}

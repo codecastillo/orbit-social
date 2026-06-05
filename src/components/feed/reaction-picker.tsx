@@ -49,7 +49,7 @@ export function ReactionPicker({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Trigger area — the parent component places its like button here */}
+      {/* Trigger area, the parent component places its like button here */}
       <div className="relative">
         {/* The children (like button) are rendered by the parent */}
       </div>

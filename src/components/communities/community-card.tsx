@@ -50,7 +50,7 @@ export function CommunityCard({
           setMemberState(true);
           toast.success(`Joined ${community.name}`);
         } else if (result === "requested") {
-          toast.success("Request sent — waiting on approval");
+          toast.success("Request sent, waiting on approval");
         } else {
           toast.error("This room is invite-only");
         }

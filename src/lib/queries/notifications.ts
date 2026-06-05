@@ -70,7 +70,7 @@ export async function getNotifications(
 
   const rows = (data ?? []) as NotificationWithActor[];
 
-  // Hydrate post metadata for any notification whose entity is a post —
+  // Hydrate post metadata for any notification whose entity is a post:
   // a single batch fetch covers like/comment/mention/repost notifs and
   // gives us type (reel vs other) + community context for nicer copy.
   const postIds = Array.from(

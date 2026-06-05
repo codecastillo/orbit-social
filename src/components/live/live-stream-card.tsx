@@ -37,7 +37,7 @@ export function LiveStreamCard({ stream, className }: LiveStreamCardProps) {
       {/* Darkening scrim for legibility */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/70" />
 
-      {/* Top chrome — LIVE + viewers */}
+      {/* Top chrome: LIVE + viewers */}
       <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
         <div className="inline-flex items-center gap-1 rounded-full bg-red-500 px-2 h-5 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-[0_0_12px_rgba(239,68,68,0.5)]">
           <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />

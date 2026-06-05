@@ -17,7 +17,7 @@ interface PostInsightsProps {
 }
 
 /**
- * Expandable engagement insights panel — only shown to the post author.
+ * Expandable engagement insights panel, only shown to the post author.
  * Displays view count, like rate, engagement rate, and a performance comparison.
  */
 export function PostInsights({ post, userAverages }: PostInsightsProps) {

@@ -78,7 +78,7 @@ export function ClipFeed() {
     if (!sentinel) return;
 
     // root: scrollerRef so intersections are computed against the snap
-    // container (not the viewport — the scroller is fixed-size).
+    // container (not the viewport, the scroller is fixed-size).
     // rootMargin: 2 viewports below the bottom edge so we start fetching
     // when the viewer is still 2 clips away from the end. Without this
     // the snap-mandatory layout parks the user one clip short of the
@@ -92,7 +92,7 @@ export function ClipFeed() {
     return () => observer.disconnect();
   }, [handleIntersect]);
 
-  // Also kick a fetch when we've rendered the last clip — covers the case
+  // Also kick a fetch when we've rendered the last clip, covers the case
   // where IntersectionObserver hasn't fired yet but the user is already
   // near the end. React Query dedupes if a fetch is already in-flight.
   useEffect(() => {

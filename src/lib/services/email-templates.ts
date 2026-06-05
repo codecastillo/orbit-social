@@ -5,7 +5,7 @@
  * `{ subject, html, text }`. Visual style: dark background + aurora gradient
  * accent on the primary CTA, mono eyebrow, serif italic accent word.
  *
- * Inline styles only — many email clients strip <style> blocks.
+ * Inline styles only, many email clients strip <style> blocks.
  */
 
 export type TemplateName =
@@ -28,7 +28,7 @@ export type TemplateVars = {
     eventTitle: string;
     eventStartsAt: string; // pre-formatted human string
     eventUrl: string;
-    venueLine?: string; // e.g. "St. George, UTAH" — optional
+    venueLine?: string; // e.g. "St. George, UTAH", optional
   };
 };
 
@@ -135,7 +135,7 @@ function welcome(vars: TemplateVars["welcome"]) {
   const body = `
 ${eyebrow("◇  WELCOME · ORBIT")}
 ${display(`Glad you're <em style="font-family:${SERIF};font-style:italic;font-weight:400;color:${COLORS.a2};">here</em>.`, 32)}
-${paragraph(`Hey ${escapeHtml(vars.name.split(" ")[0])} — Orbit is small on purpose. Tighter circles, fewer signals, more of what you actually came for.`)}
+${paragraph(`Hey ${escapeHtml(vars.name.split(" ")[0])}, Orbit is small on purpose. Tighter circles, fewer signals, more of what you actually came for.`)}
 ${paragraph(`Three things to do first:`)}
 <ol style="margin:14px 0 0;padding-left:22px;font-size:14.5px;line-height:1.6;color:${COLORS.ink2};">
   <li>Add a profile photo and a one-liner.</li>
@@ -153,7 +153,7 @@ Follow a few people whose work you actually like.
 Post the thing you've been meaning to say.
 
 Open Orbit: {{APP_URL}}/feed`;
-  return { subject, html: shell({ preheader: `Welcome — your orbit is open.`, body }), text };
+  return { subject, html: shell({ preheader: `Welcome, your orbit is open.`, body }), text };
 }
 
 function verifyEmail(vars: TemplateVars["verify-email"]) {
@@ -181,7 +181,7 @@ ${paragraph(`Click below to set a new password. The link expires in 1 hour.`)}
 ${primaryButton(vars.resetUrl, "Reset password")}
 <p style="margin:6px 0 0;font-size:12.5px;color:${COLORS.ink3};font-family:${MONO};word-break:break-all;">${escapeHtml(vars.resetUrl)}</p>
 ${hairline()}
-<p style="margin:0;font-size:12px;color:${COLORS.ink4};line-height:1.5;">If you didn't request this, ignore — your password stays the same.</p>
+<p style="margin:0;font-size:12px;color:${COLORS.ink4};line-height:1.5;">If you didn't request this, ignore it. Your password stays the same.</p>
 `;
   const text = `Reset your Orbit password.\n\nLink: ${vars.resetUrl}\n\nExpires in 1 hour.`;
   return { subject, html: shell({ preheader: `Reset your password.`, body }), text };
@@ -199,7 +199,7 @@ function digestDaily(vars: TemplateVars["digest-daily"], ctx: RenderCtx) {
   const body = `
 ${eyebrow("◈  ORBIT · DAILY")}
 ${display(`What you ${acc("missed")}.`, 32)}
-${paragraph(`Hey ${escapeHtml(vars.name.split(" ")[0])} — ${total} signals from your orbit since yesterday.`)}
+${paragraph(`Hey ${escapeHtml(vars.name.split(" ")[0])}, ${total} signals from your orbit since yesterday.`)}
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:18px;border-top:1px solid ${COLORS.hair};">
   ${[
     ["Likes", vars.counts.likes],
@@ -221,7 +221,7 @@ ${primaryButton(`${url}/notifications`, "Open notifications")}
 ${hairline()}
 <p style="margin:0;font-size:12px;color:${COLORS.ink4};line-height:1.5;">Don't want these? <a href="${url}/settings/notifications" style="color:${COLORS.ink3};text-decoration:underline;">Mute the daily digest</a>.</p>
 `;
-  const text = `Orbit daily — ${total} signals since yesterday.
+  const text = `Orbit daily: ${total} signals since yesterday.
 
 Likes: ${vars.counts.likes}
 Replies: ${vars.counts.comments}
@@ -230,7 +230,7 @@ Mentions: ${vars.counts.mentions}
 Messages: ${vars.counts.messages}
 
 Open: ${url}/notifications`;
-  return { subject, html: shell({ preheader: `${total} signals — open Orbit to catch up.`, body }), text };
+  return { subject, html: shell({ preheader: `${total} signals, open Orbit to catch up.`, body }), text };
 }
 
 function eventReminder(vars: TemplateVars["event-reminder"]) {
@@ -270,7 +270,7 @@ export function renderTemplate<T extends TemplateName>(
       result = eventReminder(vars as TemplateVars["event-reminder"]);
       break;
     default: {
-      // Exhaustive check — TS will error if a new template is added but not handled.
+      // Exhaustive check: TS will error if a new template is added but not handled.
       const _exhaustive: never = name;
       throw new Error(`Unknown template: ${_exhaustive as string}`);
     }

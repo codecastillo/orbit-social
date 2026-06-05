@@ -276,7 +276,7 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
           })}
         </div>
 
-        {/* Time row — 12-hour with AM/PM segmented toggle. */}
+        {/* Time row: 12-hour with AM/PM segmented toggle. */}
         <div
           style={{
             display: "flex",
@@ -325,7 +325,7 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
           </div>
         </div>
 
-        {/* Done — closes the popover and commits whatever the user picked. */}
+        {/* Done: closes the popover and commits whatever the user picked. */}
         <div
           style={{
             display: "flex",

@@ -27,7 +27,7 @@ type SendResult =
 
 /**
  * Send a templated transactional email via Resend.
- * Returns { ok: false } when RESEND_API_KEY is unset (dev convenience —
+ * Returns { ok: false } when RESEND_API_KEY is unset (dev convenience,
  * logs the would-have-been email instead of throwing).
  */
 export async function sendTemplated<T extends TemplateName>(
@@ -39,14 +39,14 @@ export async function sendTemplated<T extends TemplateName>(
   if (!c) {
     // Dev fallback: log to stdout so you can still see emails were "sent" locally.
     console.warn(
-      `[email] RESEND_API_KEY missing — skipping send to ${Array.isArray(args.to) ? args.to.join(",") : args.to}\n` +
+      `[email] RESEND_API_KEY missing, skipping send to ${Array.isArray(args.to) ? args.to.join(",") : args.to}\n` +
         `[email] Subject: ${subject}\n` +
         `[email] Template: ${args.template}`
     );
     return { ok: false, error: "RESEND_API_KEY missing" };
   }
 
-  // Single retry on network errors / 5xx — Resend's own client doesn't retry.
+  // Single retry on network errors / 5xx, Resend's own client doesn't retry.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const { data, error } = await c.emails.send({
@@ -80,7 +80,7 @@ export async function sendTemplated<T extends TemplateName>(
   return { ok: false, error: "exhausted retries" };
 }
 
-/** Convenience helpers — typed call sites for each template. */
+/** Convenience helpers: typed call sites for each template. */
 export const Email = {
   welcome: (to: string, vars: TemplateVars["welcome"]) =>
     sendTemplated({ to, template: "welcome", vars }),

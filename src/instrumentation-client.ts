@@ -12,7 +12,7 @@ if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
     // most-recent tab wins. When another tab takes over, the previous lock
     // throws "Lock broken by another request with the 'steal' option." /
     // "Lock 'lock:sb-…-auth-token' was released because another request
-    // stole it" — both are non-actionable noise. Drop them at the edge.
+    // stole it" are both non-actionable noise. Drop them at the edge.
     ignoreErrors: [
       /Lock broken by another request with the 'steal' option/i,
       /Lock "lock:sb-.*-auth-token" was released because another request stole it/i,

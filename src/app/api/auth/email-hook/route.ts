@@ -1,5 +1,5 @@
 /**
- * Supabase Auth Hooks endpoint — "Send Email" hook.
+ * Supabase Auth Hooks endpoint: "Send Email" hook.
  *
  * Configure this URL in the Supabase dashboard:
  *   Authentication → Hooks → Send email hook → HTTP endpoint
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
       );
     }
   } else {
-    console.warn("[email-hook] SUPABASE_AUTH_HOOK_SECRET unset — accepting payload without verification (dev only)");
+    console.warn("[email-hook] SUPABASE_AUTH_HOOK_SECRET unset, accepting payload without verification (dev only)");
     try {
       payload = JSON.parse(raw) as SupabaseEmailPayload;
     } catch {
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
       result = await Email.verifyEmail(email, { verifyUrl: link });
       break;
     default:
-      // Unknown action — let Supabase fall back to its default by returning success
+      // Unknown action, let Supabase fall back to its default by returning success
       // without sending. Alternative: throw so Supabase retries.
       return NextResponse.json({ ok: true, skipped: action });
   }

@@ -266,7 +266,7 @@ function FeaturedEvent({
       }}
       className="md:grid-cols-2 grid-cols-1"
     >
-      {/* Cover — fixed height so it never grows on wide screens */}
+      {/* Cover, fixed height so it never grows on wide screens */}
       <div
         style={{
           height: 420,

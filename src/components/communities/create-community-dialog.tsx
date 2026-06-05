@@ -147,7 +147,7 @@ export function CreateCommunityDialog({
       );
 
       // Upload images post-create (we need the community.id for the path).
-      // Failures here don't block the create — we surface a toast and the
+      // Failures here don't block the create, we surface a toast and the
       // user can edit the room from inside it.
       if (avatarFile || coverFile) {
         try {

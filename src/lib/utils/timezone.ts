@@ -1,7 +1,7 @@
 // Timezone helpers shared by the event create + edit flows.
 //
 // `zonedLocalToUTCISO` takes a "yyyy-MM-ddTHH:mm" wall-clock string written
-// AS IF the user is in `tz`, and returns the equivalent UTC ISO string —
+// AS IF the user is in `tz`, and returns the equivalent UTC ISO string.
 // without pulling in date-fns-tz / luxon. The trick: format an arbitrary
 // UTC instant in the target zone, diff against the wall reading, apply.
 
@@ -53,7 +53,7 @@ export function browserTimezone(): string {
   }
 }
 
-// Curated short list — covers the common cases without overwhelming a
+// Curated short list, covers the common cases without overwhelming a
 // dropdown. The user's own zone is always offered first by the picker.
 export const COMMON_TIMEZONES: { value: string; label: string }[] = [
   { value: "America/Los_Angeles", label: "Los Angeles · PT" },

@@ -1,5 +1,5 @@
 /**
- * Caption suggestion engine — client-side, no AI API needed.
+ * Caption suggestion engine: client-side, no AI API needed.
  * Returns contextual caption ideas based on time of day and attached media.
  */
 

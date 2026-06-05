@@ -36,12 +36,12 @@ Severity rubric:
 - low: mild profanity in self-expression, edgy but not targeted, single-incident spam markers
 - not flagged: normal speech, criticism, sarcasm, opinions, jokes that don't punch down
 
-Be conservative — only flag what genuinely violates community standards. Free expression, dark humor, criticism of public figures, and political opinions are NOT flagged on their own. Look for INTENT to harm, harass, or game the system.
+Be conservative: only flag what genuinely violates community standards. Free expression, dark humor, criticism of public figures, and political opinions are NOT flagged on their own. Look for INTENT to harm, harass, or game the system.
 
 If the content is clean, set flagged=false, severity=low, reason="clean", categories=["none"].`;
 
 export async function POST(req: Request) {
-  // Require an authenticated user — moderation API is not anonymous.
+  // Require an authenticated user: moderation API is not anonymous.
   const supabase = await createClient();
   const {
     data: { user },

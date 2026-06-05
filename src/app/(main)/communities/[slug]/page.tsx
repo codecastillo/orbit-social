@@ -118,7 +118,7 @@ export default function CommunityDetailPage({
         onMembershipChange={handleMembershipChange}
       />
 
-      {/* Pending join requests — owners/mods only, only on approval rooms */}
+      {/* Pending join requests, owners/mods only, only on approval rooms */}
       {isOwnerOrMod && policy === "approval" && (
         <JoinRequestsPanel
           communityId={community.id}
@@ -136,7 +136,7 @@ export default function CommunityDetailPage({
         </div>
       )}
 
-      {/* Community feed — gated on membership. Non-members see a locked
+      {/* Community feed, gated on membership. Non-members see a locked
           placeholder; the actual post list never hits the wire for them. */}
       <div>
         {!isMember ? (

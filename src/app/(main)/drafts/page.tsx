@@ -147,7 +147,7 @@ export default function DraftsPage() {
                   </p>
                 ) : (
                   <p style={{ fontSize: 14, color: O.ink4, margin: 0, fontStyle: "italic" }}>
-                    No text yet — media only.
+                    No text yet, media only.
                   </p>
                 )}
 

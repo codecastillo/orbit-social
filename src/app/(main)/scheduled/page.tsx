@@ -200,7 +200,7 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
           overflow: "hidden",
         }}
       >
-        {preview || <span style={{ color: O.ink4, fontStyle: "italic" }}>Media only — no text.</span>}
+        {preview || <span style={{ color: O.ink4, fontStyle: "italic" }}>Media only, no text.</span>}
       </p>
 
       {post.post_media && post.post_media.length > 0 && (

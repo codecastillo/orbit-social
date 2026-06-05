@@ -283,7 +283,7 @@ function ComposerForm({
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const [audioWaveform] = useState(() => generateWaveformBars(32));
   // True when the user clicked the inline Mic icon and we want to show
-  // a "Tap to start recording" prompt — recording itself starts only
+  // a "Tap to start recording" prompt, recording itself starts only
   // when the user explicitly taps the Start button.
   const [voiceArmed, setVoiceArmed] = useState(false);
 
@@ -371,7 +371,7 @@ function ComposerForm({
     }
   }, [isAudioPlaying]);
 
-  // Caption suggestions — when media is attached and the textarea is empty,
+  // Caption suggestions: when media is attached and the textarea is empty,
   // ask Claude Haiku (vision) to suggest 3 captions based on the actual
   // image/first-frame-of-video. Falls back to the local heuristic on
   // failure or when the AI gateway isn't configured.
@@ -490,7 +490,7 @@ function ComposerForm({
   const submittingRef = useRef(false);
   const handleSubmit = async () => {
     if (!canPost || posting || submittingRef.current) return;
-    // Synchronous lock — flips before the async moderation roundtrip
+    // Synchronous lock, flips before the async moderation roundtrip
     // so spam-clicking through perceived lag can't queue parallel
     // submissions. The `posting` state is the visual signal, but the
     // ref is what actually prevents re-entry inside the same render.
@@ -720,7 +720,7 @@ function ComposerForm({
             )}
           </AnimatePresence>
 
-          {/* Feed / Clip destination toggle — only for single-video posts.
+          {/* Feed / Clip destination toggle, only for single-video posts.
               Defaulted to Clip for portrait video, Feed for landscape. */}
           {media.length === 1 && media[0].type === "video" && (
             <div
@@ -782,7 +782,7 @@ function ComposerForm({
             </div>
           )}
 
-          {/* Voice 'armed' prompt — appears after the user clicks the
+          {/* Voice 'armed' prompt, appears after the user clicks the
               inline Mic on the feed. Mic is selected, not recording yet.
               Tap Start to actually begin capture. */}
           <AnimatePresence>

@@ -28,7 +28,7 @@ export async function POST(req: Request) {
 
   const ua = req.headers.get("user-agent") || null;
 
-  // Upsert by endpoint — same browser/device re-subscribing replaces the row.
+  // Upsert by endpoint: same browser/device re-subscribing replaces the row.
   const { error } = await supabase
     .from("push_subscriptions")
     .upsert(

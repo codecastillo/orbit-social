@@ -6,7 +6,7 @@ interface UIStore {
   composeOpen: boolean;
   composeCommunityId: string | undefined;
   composeAction: ComposeAction;
-  // Optional seed text for the composer textarea — used by surfaces like the
+  // Optional seed text for the composer textarea, used by surfaces like the
   // hashtag page to prefill `#tag ` when the user clicks "Post with #tag".
   composeInitialContent: string | undefined;
   setComposeOpen: (

@@ -134,19 +134,19 @@ export function moderateContent(text: string): ModerationResult {
  *  - otherwise → call LLM, return the more severe of the two results
  *
  * If the API endpoint is unreachable or returns an error, falls back to
- * regex-only — never blocks the user on AI failure.
+ * regex-only, never blocks the user on AI failure.
  */
 export async function moderateContentEnhanced(
   text: string
 ): Promise<ModerationResult> {
   const regexResult = moderateContent(text);
 
-  // High-confidence regex flag — no need to consult LLM.
+  // High-confidence regex flag, no need to consult LLM.
   if (regexResult.severity === "high" && regexResult.flagged) {
     return regexResult;
   }
 
-  // Trivial content — skip the LLM.
+  // Trivial content, skip the LLM.
   if (text.trim().length < 12) {
     return regexResult;
   }

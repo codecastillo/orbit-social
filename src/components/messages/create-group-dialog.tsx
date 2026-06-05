@@ -122,7 +122,7 @@ export function CreateGroupDialog({
             <Input
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
-              placeholder="Film photographers — sf trip"
+              placeholder="Film photographers, sf trip"
               maxLength={50}
               autoFocus
             />

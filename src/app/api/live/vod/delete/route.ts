@@ -60,7 +60,7 @@ export async function POST(request: Request) {
   }
 
   // Best-effort Mux cleanup. If Mux 404s (already deleted) or 5xxs we
-  // still drop the row — leaving an orphan DB row is worse UX than
+  // still drop the row, leaving an orphan DB row is worse UX than
   // leaving a stale Mux asset.
   if (vod.mux_asset_id) {
     try {

@@ -57,7 +57,7 @@ export function FollowButton({
             : style
         }
         className={cn(
-          // No fixed min-width — let the button hug its label so it
+          // No fixed min-width, let the button hug its label so it
           // takes less horizontal space in tight side-rails / mobile.
           "rounded-full transition-all duration-200 active:scale-[0.97] px-4",
           !isFollowing && "border-0",

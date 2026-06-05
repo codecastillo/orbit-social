@@ -59,11 +59,11 @@ function getNotificationText(notification: NotificationWithActor): string {
     case "community_invite":
       return `${name} invited you to a room`;
     case "event_invite":
-      // Used by 00017 for "new RSVP on your event" — surface that meaning.
+      // Used by 00017 for "new RSVP on your event", surface that meaning.
       if (entity === "event") return `${name} RSVP'd to your event`;
       return `${name} invited you to an event`;
     case "event_reminder":
-      return `Heads up — your event starts soon`;
+      return `Heads up, your event starts soon`;
     default:
       return `${name} interacted with you`;
   }
@@ -86,7 +86,7 @@ function getNotificationHref(notification: NotificationWithActor): string {
       if (entity === "community" && notification.entity_id) {
         return `/communities/${notification.entity_id}`;
       }
-      // Clips have no per-clip page yet — route to the global clips feed.
+      // Clips have no per-clip page yet, route to the global clips feed.
       if (post?.type === "reel") return "/clips";
       return notification.entity_id ? `/post/${notification.entity_id}` : "/notifications";
     case "message":

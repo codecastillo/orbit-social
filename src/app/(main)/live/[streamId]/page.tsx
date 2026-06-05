@@ -117,7 +117,7 @@ function useLiveChat(streamId: string) {
           toast.error("Only followers can chat in this stream");
         } else if (res.status === 429 && body.error === "slow_mode") {
           const wait = body.retry_after ?? 0;
-          toast.error(`Slow mode — wait ${wait}s`);
+          toast.error(`Slow mode, wait ${wait}s`);
         } else if (res.status === 410 && body.error === "stream_not_live") {
           toast.error("Stream isn't live");
         } else {
@@ -176,7 +176,7 @@ export default function LiveViewerPage({ params }: Props) {
   const { data: stream } = useQuery({
     queryKey: ["live-stream", streamId],
     queryFn: () => getStreamById(streamId),
-    // 30s instead of 10s — chat + hearts already arrive via realtime, the
+    // 30s instead of 10s: chat + hearts already arrive via realtime, the
     // poll is only here as a metadata safety net.
     refetchInterval: 30000,
   });
@@ -339,7 +339,7 @@ export default function LiveViewerPage({ params }: Props) {
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
         </div>
 
-        {/* Mobile heart hit zone — right 30% of screen */}
+        {/* Mobile heart hit zone, right 30% of screen */}
         <div
           className="lg:hidden absolute top-0 right-0 bottom-0 w-[30%] z-[5]"
           onClick={handleHeartZoneTap}
@@ -377,7 +377,7 @@ export default function LiveViewerPage({ params }: Props) {
         {/* Mobile chrome (overlay) */}
         {!uiHidden && (
           <div className="lg:hidden">
-            {/* Header — rounded-square chips */}
+            {/* Header, rounded-square chips */}
             <div className="absolute top-0 inset-x-0 p-4 flex items-start justify-between gap-3 z-10">
               <div className="flex items-start gap-2 min-w-0 flex-wrap">
                 <div className="flex items-center gap-2 rounded-2xl bg-white/[0.08] backdrop-blur-xl border border-white/15 p-1.5 pr-3">
@@ -472,7 +472,7 @@ export default function LiveViewerPage({ params }: Props) {
               </AnimatePresence>
             </div>
 
-            {/* Like burst counter (right) — mobile only */}
+            {/* Like burst counter (right), mobile only */}
             <div className="absolute right-4 bottom-[112px] z-10 flex flex-col items-center gap-1 pointer-events-none">
               <Heart className="h-5 w-5 text-rose-400 fill-rose-400 drop-shadow-[0_0_8px_rgba(244,63,94,0.7)]" />
               <span className="text-white text-[12px] font-bold tabular-nums drop-shadow">
@@ -480,7 +480,7 @@ export default function LiveViewerPage({ params }: Props) {
               </span>
             </div>
 
-            {/* Footer — Tip / input / heart / share */}
+            {/* Footer: Tip / input / heart / share */}
             <div className="absolute bottom-0 inset-x-0 p-4 pb-[max(env(safe-area-inset-bottom),16px)] z-10 flex items-center gap-2">
               <button
                 onClick={handleTip}

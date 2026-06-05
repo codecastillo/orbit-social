@@ -51,7 +51,7 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
         { event: "*", schema: "public", table: "post_likes" },
         () => {
           // The viewer's like-set per comment AND the authoritative
-          // like_count on each comment row both need to refresh — the
+          // like_count on each comment row both need to refresh, the
           // count lives on posts, so we re-pull the comments + replies
           // lists too. Without this, like counts only moved when YOU
           // tapped them, not when another viewer did.
@@ -289,7 +289,7 @@ function CommentRow({
   });
   // After the 20260429070000 migration, comment_count is the direct
   // children count on intermediate comments and full subtree size on
-  // root posts — so this is now reliable on a comment row.
+  // root posts, so this is now reliable on a comment row.
   const replyCount = comment.comment_count ?? 0;
 
   const replyIds = (replies ?? []).map((r) => r.id);

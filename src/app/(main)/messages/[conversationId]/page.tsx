@@ -315,7 +315,7 @@ export default function ChatPage({ params }: ChatPageProps) {
           minWidth: 0,
         }}
       >
-        {/* Header — frosted, rounded chips */}
+        {/* Header, frosted, rounded chips */}
         <div
           style={{
             borderBottom: `1px solid ${O.hair}`,

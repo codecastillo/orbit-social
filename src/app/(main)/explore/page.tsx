@@ -596,7 +596,7 @@ function LiveRail() {
             }}
           >
             <Radio style={{ width: 13, height: 13, color: O.ink3 }} />
-            Nobody on air — come back later.
+            Nobody on air, come back later.
           </div>
         ) : (
           streams.slice(0, 4).map((s) => (

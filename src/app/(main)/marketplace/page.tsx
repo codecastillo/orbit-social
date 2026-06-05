@@ -154,7 +154,7 @@ export default function MarketplacePage() {
           sub={
             searchQuery
               ? "Try a different search term or category."
-              : "Nothing listed yet. Put something up — someone in your orbit is probably looking."
+              : "Nothing listed yet. Put something up, someone in your orbit is probably looking."
           }
           ctaLabel={!searchQuery ? "List something" : undefined}
           ctaIcon={<PlusIcon style={{ width: 12, height: 12 }} />}

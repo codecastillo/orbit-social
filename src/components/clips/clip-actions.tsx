@@ -92,7 +92,7 @@ export function ClipActions({
 
   // Sync local count state when authoritative props update (realtime
   // refetch from the parent feed after another user's interaction). For
-  // share count we only adopt the prop when it grows — never let a stale
+  // share count we only adopt the prop when it grows, never let a stale
   // refetch clobber an optimistic local bump back to a smaller number.
   useEffect(() => setLocalLikeCount(likeCount), [likeCount]);
   useEffect(() => setLocalBookmarkCount(bookmarkCount), [bookmarkCount]);

@@ -60,7 +60,7 @@ export function FeedList({ tab }: FeedListProps) {
   );
 
   // Build interaction map for future per-user features. Currently unused
-  // because both tabs render strictly chronological — the heuristic
+  // because both tabs render strictly chronological, the heuristic
   // ranking algorithm is intentionally disabled until Phase 2.
   const _interactionMap: UserInteractions = useMemo(() => {
     const map = new Map<string, number>();

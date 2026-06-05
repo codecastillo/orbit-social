@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { HeroPost } from "./hero-post";
 import { PostGridCard } from "./post-grid-card";
 import { ClipsCarousel } from "./clips-carousel";
-// SpacesCarousel removed — Spaces feature deprecated
+// SpacesCarousel removed, Spaces feature deprecated
 import { EmptyState } from "@/components/shared/empty-state";
 import { useFeed } from "@/lib/hooks/use-feed";
 

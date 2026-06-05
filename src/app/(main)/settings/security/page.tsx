@@ -107,7 +107,7 @@ export default function SecurityPage() {
           hashes.map((code_hash) => ({ user_id: user.id, code_hash })),
         );
       } catch {
-        // Non-fatal — user still gets MFA, just without persisted backup codes.
+        // Non-fatal: user still gets MFA, just without persisted backup codes.
       }
 
       setMfaEnabled(true);
@@ -126,7 +126,7 @@ export default function SecurityPage() {
     try {
       const { error } = await supabase.auth.mfa.unenroll({ factorId });
       if (error) throw error;
-      // Wipe stored recovery code hashes — they're paired to the disabled factor.
+      // Wipe stored recovery code hashes: they're paired to the disabled factor.
       try {
         await supabase.from("mfa_recovery_codes").delete().eq("user_id", user.id);
       } catch {}

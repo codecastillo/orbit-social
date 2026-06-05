@@ -375,7 +375,7 @@ export default function ListingDetailPage({
               {[
                 ["Category", listing.category],
                 ["Condition", listing.condition],
-                ["Location", listing.location || "—"],
+                ["Location", listing.location || "-"],
               ].map(([label, value]) => (
                 <div
                   key={label}

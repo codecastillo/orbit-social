@@ -212,7 +212,7 @@ export function Sidebar({
         })}
       </nav>
 
-      {/* Footer block — compose + user. Signed-out viewers (browsing via
+      {/* Footer block: compose + user. Signed-out viewers (browsing via
           "Explore first") get sign-up/sign-in CTAs instead. */}
       <div
         style={{
@@ -279,7 +279,7 @@ export function Sidebar({
             >
               {/* Plain <img> instead of Radix's Avatar so the picture is in
                   the SSR'd markup and reused from the browser cache on
-                  reload — no fallback-letter flash while Radix waits for
+                  reload, no fallback-letter flash while Radix waits for
                   the load event. */}
               {profile.avatar_url ? (
                 // eslint-disable-next-line @next/next/no-img-element

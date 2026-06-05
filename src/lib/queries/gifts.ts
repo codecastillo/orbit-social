@@ -27,7 +27,7 @@ let giftCounter = 0;
 
 /**
  * Send a gift on a live stream.
- * Currently visual-only — no real currency or database persistence.
+ * Currently visual-only, no real currency or database persistence.
  * Returns a SentGift object for rendering the animation.
  */
 export function sendGift(
