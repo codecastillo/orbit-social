@@ -1,6 +1,6 @@
-# Lint and typecheck gate on every push and PR. The production build itself
-# is gated by Vercel, which builds every push with real environment variables
-# and refuses to deploy on failure, so it is not duplicated here.
+# Lint, typecheck, and build gate on every push and PR. Vercel still builds
+# with real environment variables before deploying; the build here catches
+# breakage earlier and without a deploy attempt.
 name: CI
 
 on:
@@ -23,3 +23,10 @@ jobs:
       - run: npm run lint
         continue-on-error: true
       - run: npm run typecheck
+      # Static prerendering (/, /admin/*) instantiates the Supabase browser
+      # client at build time, so the public vars must exist. Placeholders are
+      # fine: nothing is fetched during prerender.
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
