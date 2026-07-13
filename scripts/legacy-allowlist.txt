@@ -1,9 +1,3 @@
-src/app/(auth)/forgot-password/page.tsx
-src/app/(auth)/login/page.tsx
-src/app/(auth)/onboarding/page.tsx
-src/app/(auth)/reset-password/page.tsx
-src/app/(auth)/signup/page.tsx
-src/app/(auth)/verify-email/page.tsx
 src/app/(main)/clips/page.tsx
 src/app/(main)/communities/page.tsx
 src/app/(main)/drafts/page.tsx

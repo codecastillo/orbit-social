@@ -17,13 +17,17 @@ import {
   Shield,
   Camera,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { fullSignUpSchema, type FullSignUpFormData } from "@/lib/utils/validators";
-import { O, orbitBg, panel, aurora } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
-import { Field, Input, TextArea } from "@/components/orbit/forms";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AuthShell,
+  AuthHeading,
+  AuthField,
+  AuthInput,
+} from "@/components/auth/auth-shell";
 import {
   TurnstileWidget,
   type TurnstileWidgetHandle,
@@ -43,56 +47,28 @@ function PasswordStrength({ password }: { password: string }) {
   if (!password) return null;
   const metCount = checks.filter((c) => c.met).length;
   const pct = (metCount / checks.length) * 100;
-  const color = pct <= 40 ? O.a2 : pct <= 70 ? "#ffd76a" : "#7dffa3";
+  const barColor =
+    pct <= 40 ? "bg-destructive" : pct <= 70 ? "bg-warning" : "bg-success";
 
   return (
-    <div style={{ marginTop: 10 }}>
-      <div
-        style={{
-          height: 4,
-          borderRadius: 2,
-          background: O.glass2,
-          overflow: "hidden",
-        }}
-      >
-        <motion.div
-          style={{
-            height: "100%",
-            borderRadius: 2,
-            background: color,
-            boxShadow: `0 0 10px color-mix(in oklab, ${color} 40%, transparent)`,
-          }}
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.25 }}
+    <div className="mt-2.5">
+      <div className="h-1 overflow-hidden rounded-full bg-muted">
+        <div
+          className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+          style={{ width: `${pct}%` }}
         />
       </div>
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 6,
-          marginTop: 10,
-        }}
-      >
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
         {checks.map((c) => (
           <span
             key={c.label}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "3px 9px",
-              borderRadius: 99,
-              fontSize: 10.5,
-              fontFamily: O.mono,
-              letterSpacing: "0.04em",
-              background: c.met ? "rgba(125,255,163,0.10)" : O.glass,
-              color: c.met ? "#7dffa3" : O.ink4,
-              border: `1px solid ${c.met ? "rgba(125,255,163,0.25)" : O.hair}`,
-            }}
+            className={`inline-flex items-center gap-1 rounded-full border px-2 py-[3px] font-mono text-[10.5px] tracking-[0.04em] ${
+              c.met
+                ? "border-success/25 bg-success/10 text-success"
+                : "border-border bg-muted text-muted-foreground"
+            }`}
           >
-            {c.met ? <Check style={{ width: 10, height: 10 }} /> : <X style={{ width: 10, height: 10 }} />}
+            {c.met ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
             {c.label}
           </span>
         ))}
@@ -103,54 +79,27 @@ function PasswordStrength({ password }: { password: string }) {
 
 function StepPills({ current }: { current: number }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 10,
-        marginTop: 16,
-      }}
-    >
+    <div className="mt-4 flex items-center justify-center gap-2.5">
       {stepLabels.map((label, i) => {
         const done = i < current;
         const active = i === current;
         return (
-          <div
-            key={label}
-            style={{ display: "flex", alignItems: "center", gap: 10 }}
-          >
+          <div key={label} className="flex items-center gap-2.5">
             {i > 0 && (
               <div
-                style={{
-                  width: 22,
-                  height: 1,
-                  background: done ? aurora : O.hair,
-                }}
+                className={`h-px w-[22px] ${done ? "bg-primary" : "bg-border"}`}
               />
             )}
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "5px 12px",
-                borderRadius: 99,
-                background: active || done ? aurora : O.glass,
-                border: `1px solid ${active || done ? "transparent" : O.hair2}`,
-                color: active || done ? "white" : O.ink3,
-                fontFamily: O.mono,
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.12em",
-                boxShadow: active
-                  ? `0 4px 16px color-mix(in oklab, ${O.a2} 33%, transparent)`
-                  : "none",
-              }}
+              className={`flex items-center gap-2 rounded-full px-3 py-[5px] font-mono text-[10px] font-bold tracking-[0.12em] ${
+                active || done
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border text-muted-foreground"
+              }`}
             >
               <span>{i + 1}</span>
               <span>{label}</span>
-              {done && <Check style={{ width: 10, height: 10 }} />}
+              {done && <Check className="h-2.5 w-2.5" />}
             </div>
           </div>
         );
@@ -159,53 +108,8 @@ function StepPills({ current }: { current: number }) {
   );
 }
 
-function Shell({ children, maxWidth = 520 }: { children: React.ReactNode; maxWidth?: number }) {
-  return (
-    <main
-      style={{
-        ...orbitBg,
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        padding: 48,
-        color: O.ink,
-        fontFamily: O.sans,
-      }}
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        style={{ width: "100%", maxWidth }}
-      >
-        <div style={{ textAlign: "center", marginBottom: 18 }}>
-          <Link href="/" style={{ textDecoration: "none" }}>
-            <span
-              style={{
-                fontFamily: O.serif,
-                fontStyle: "italic",
-                fontSize: 36,
-                background: aurora,
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              orbit
-            </span>
-          </Link>
-        </div>
-        <div style={{ ...panel({ borderRadius: 24 }), padding: 36 }}>
-          {children}
-        </div>
-      </motion.div>
-    </main>
-  );
-}
-
 export default function SignUpPage() {
   const [currentStep, setCurrentStep] = useState(0);
-  const [direction, setDirection] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
@@ -308,12 +212,10 @@ export default function SignUpPage() {
       toast.error("That username is taken");
       return;
     }
-    setDirection(1);
     setCurrentStep((s) => Math.min(s + 1, 2));
   };
 
   const goBack = () => {
-    setDirection(-1);
     setCurrentStep((s) => Math.max(s - 1, 0));
   };
 
@@ -360,402 +262,271 @@ export default function SignUpPage() {
     router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
   };
 
-  const slideVariants = {
-    enter: (dir: number) => ({ x: dir > 0 ? 60 : -60, opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit: (dir: number) => ({ x: dir > 0 ? -60 : 60, opacity: 0 }),
-  };
-
   return (
-    <Shell>
-      <div style={{ textAlign: "center" }}>
-        <Eyebrow accent>◇&nbsp;&nbsp;CREATE · ACCOUNT</Eyebrow>
-        <Display size={32} style={{ marginTop: 10 }}>
-          Join the <Acc>orbit</Acc>.
-        </Display>
-        <p
-          style={{
-            fontSize: 13.5,
-            color: O.ink3,
-            marginTop: 10,
-            lineHeight: 1.55,
-          }}
-        >
-          Small places. People you actually like.
-        </p>
-      </div>
+    <AuthShell>
+      <AuthHeading
+        eyebrow="Create account"
+        title="Join the"
+        accent="orbit"
+        sub="Small places. People you actually like."
+      />
 
       <StepPills current={currentStep} />
 
-      <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: 24 }}>
-        <div style={{ minHeight: 340, position: "relative", overflow: "hidden" }}>
-          <AnimatePresence mode="wait" custom={direction}>
-            {currentStep === 0 && (
-              <motion.div
-                key="step-0"
-                custom={direction}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <Field label="Display name" error={errors.fullName?.message}>
-                  <Input
-                    type="text"
-                    placeholder="How others will see you"
-                    {...register("fullName")}
-                  />
-                </Field>
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-6">
+        <div className="relative min-h-[340px]">
+          {currentStep === 0 && (
+            <div>
+              <AuthField label="Display name" error={errors.fullName?.message}>
+                <AuthInput
+                  type="text"
+                  placeholder="How others will see you"
+                  {...register("fullName")}
+                />
+              </AuthField>
 
-                <Field
-                  label="Username"
-                  error={
-                    errors.username?.message ||
-                    (usernameAvailable === false ? "That handle is taken" : undefined)
+              <AuthField
+                label="Username"
+                error={
+                  errors.username?.message ||
+                  (usernameAvailable === false ? "That handle is taken" : undefined)
+                }
+              >
+                <AuthInput
+                  type="text"
+                  placeholder="username"
+                  prefix={<span>@</span>}
+                  {...register("username")}
+                  suffix={
+                    checkingUsername ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    ) : usernameAvailable === true && usernameValue.length >= 3 ? (
+                      <Check className="h-3.5 w-3.5 text-success" />
+                    ) : usernameAvailable === false ? (
+                      <X className="h-3.5 w-3.5 text-destructive" />
+                    ) : null
                   }
-                >
-                  <Input
+                />
+              </AuthField>
+
+              <AuthField label="Email address" error={errors.email?.message}>
+                <AuthInput type="email" placeholder="you@example.com" {...register("email")} />
+              </AuthField>
+
+              <AuthField label="Date of birth" error={errors.dateOfBirth?.message} hint="Must be at least 13">
+                <div className="grid grid-cols-[1fr_1fr_1.3fr] gap-2">
+                  <AuthInput
                     type="text"
-                    placeholder="username"
-                    prefix={<span>@</span>}
-                    {...register("username")}
-                    suffix={
-                      checkingUsername ? (
-                        <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />
-                      ) : usernameAvailable === true && usernameValue.length >= 3 ? (
-                        <Check style={{ width: 14, height: 14, color: "#7dffa3" }} />
-                      ) : usernameAvailable === false ? (
-                        <X style={{ width: 14, height: 14, color: "#ff7a85" }} />
-                      ) : null
-                    }
-                  />
-                </Field>
-
-                <Field label="Email address" error={errors.email?.message}>
-                  <Input type="email" placeholder="you@example.com" {...register("email")} />
-                </Field>
-
-                <Field label="Date of birth" error={errors.dateOfBirth?.message} hint="Must be at least 13">
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.3fr", gap: 8 }}>
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="MM"
-                      maxLength={2}
-                      value={dobMonth}
-                      onChange={(e) => {
-                        const v = e.target.value.replace(/\D/g, "").slice(0, 2);
-                        setDobMonth(v);
-                        updateDob(v, dobDay, dobYear);
-                      }}
-                      style={{ textAlign: "center" }}
-                    />
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="DD"
-                      maxLength={2}
-                      value={dobDay}
-                      onChange={(e) => {
-                        const v = e.target.value.replace(/\D/g, "").slice(0, 2);
-                        setDobDay(v);
-                        updateDob(dobMonth, v, dobYear);
-                      }}
-                      style={{ textAlign: "center" }}
-                    />
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="YYYY"
-                      maxLength={4}
-                      value={dobYear}
-                      onChange={(e) => {
-                        const v = e.target.value.replace(/\D/g, "").slice(0, 4);
-                        setDobYear(v);
-                        updateDob(dobMonth, dobDay, v);
-                      }}
-                      style={{ textAlign: "center" }}
-                    />
-                  </div>
-                  <input type="hidden" {...register("dateOfBirth")} />
-                </Field>
-              </motion.div>
-            )}
-
-            {currentStep === 1 && (
-              <motion.div
-                key="step-1"
-                custom={direction}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <div style={{ textAlign: "center", marginBottom: 18 }}>
-                  <div
-                    style={{
-                      width: 56,
-                      height: 56,
-                      margin: "0 auto 12px",
-                      borderRadius: "50%",
-                      background: `color-mix(in oklab, ${O.a3} 8%, transparent)`,
-                      border: `1px solid color-mix(in oklab, ${O.a3} 27%, transparent)`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: O.a3,
+                    inputMode="numeric"
+                    placeholder="MM"
+                    maxLength={2}
+                    value={dobMonth}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+                      setDobMonth(v);
+                      updateDob(v, dobDay, dobYear);
                     }}
-                  >
-                    <Shield style={{ width: 22, height: 22 }} />
-                  </div>
-                  <p style={{ fontSize: 13, color: O.ink3, margin: 0 }}>
-                    Pick a password you&apos;ll remember. Long beats clever.
-                  </p>
+                    className="text-center"
+                  />
+                  <AuthInput
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="DD"
+                    maxLength={2}
+                    value={dobDay}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+                      setDobDay(v);
+                      updateDob(dobMonth, v, dobYear);
+                    }}
+                    className="text-center"
+                  />
+                  <AuthInput
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="YYYY"
+                    maxLength={4}
+                    value={dobYear}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                      setDobYear(v);
+                      updateDob(dobMonth, dobDay, v);
+                    }}
+                    className="text-center"
+                  />
                 </div>
+                <input type="hidden" {...register("dateOfBirth")} />
+              </AuthField>
+            </div>
+          )}
 
-                <Field label="Password" error={errors.password?.message}>
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Create a strong password"
-                    {...register("password")}
+          {currentStep === 1 && (
+            <div>
+              <div className="mb-4 text-center">
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 text-primary">
+                  <Shield className="h-[22px] w-[22px]" />
+                </div>
+                <p className="text-[13px] text-text-secondary">
+                  Pick a password you&apos;ll remember. Long beats clever.
+                </p>
+              </div>
+
+              <AuthField label="Password" error={errors.password?.message}>
+                <AuthInput
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Create a strong password"
+                  {...register("password")}
+                  suffix={
+                    <button
+                      type="button"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="flex cursor-pointer items-center border-none bg-transparent p-0 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-[15px] w-[15px]" />
+                      ) : (
+                        <Eye className="h-[15px] w-[15px]" />
+                      )}
+                    </button>
+                  }
+                />
+              </AuthField>
+              <PasswordStrength password={passwordValue} />
+
+              <div className="mt-4">
+                <AuthField label="Confirm password" error={errors.confirmPassword?.message}>
+                  <AuthInput
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Repeat your password"
+                    {...register("confirmPassword")}
                     suffix={
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          color: O.ink3,
-                          cursor: "pointer",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                        }}
+                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="flex cursor-pointer items-center border-none bg-transparent p-0 text-muted-foreground hover:text-foreground"
                       >
-                        {showPassword ? (
-                          <EyeOff style={{ width: 15, height: 15 }} />
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-[15px] w-[15px]" />
                         ) : (
-                          <Eye style={{ width: 15, height: 15 }} />
+                          <Eye className="h-[15px] w-[15px]" />
                         )}
                       </button>
                     }
                   />
-                </Field>
-                <PasswordStrength password={passwordValue} />
+                </AuthField>
+              </div>
+            </div>
+          )}
 
-                <div style={{ marginTop: 18 }}>
-                  <Field label="Confirm password" error={errors.confirmPassword?.message}>
-                    <Input
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="Repeat your password"
-                      {...register("confirmPassword")}
-                      suffix={
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: O.ink3,
-                            cursor: "pointer",
-                            padding: 0,
-                            display: "flex",
-                            alignItems: "center",
-                          }}
-                        >
-                          {showConfirmPassword ? (
-                            <EyeOff style={{ width: 15, height: 15 }} />
-                          ) : (
-                            <Eye style={{ width: 15, height: 15 }} />
-                          )}
-                        </button>
-                      }
-                    />
-                  </Field>
-                </div>
-              </motion.div>
-            )}
-
-            {currentStep === 2 && (
-              <motion.div
-                key="step-2"
-                custom={direction}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <div style={{ textAlign: "center", marginBottom: 18 }}>
-                  <p style={{ fontSize: 13, color: O.ink3, margin: 0 }}>
-                    Almost in. Add a face and a line.
-                  </p>
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <div
-                    onClick={() => avatarInputRef.current?.click()}
-                    style={{ position: "relative", cursor: "pointer" }}
-                  >
-                    <div
-                      style={{
-                        width: 96,
-                        height: 96,
-                        borderRadius: "50%",
-                        background: O.glass,
-                        border: `1px solid ${O.hair2}`,
-                        overflow: "hidden",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {avatarPreview ? (
-                        <img src={avatarPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      ) : (
-                        <User style={{ width: 36, height: 36, color: O.ink4 }} />
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        position: "absolute",
-                        bottom: -4,
-                        right: -4,
-                        width: 30,
-                        height: 30,
-                        borderRadius: "50%",
-                        background: aurora,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "white",
-                        boxShadow: `0 6px 18px color-mix(in oklab, ${O.a2} 40%, transparent)`,
-                      }}
-                    >
-                      <Camera style={{ width: 12, height: 12 }} />
-                    </div>
-                  </div>
-                  <input
-                    ref={avatarInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    onChange={handleAvatarSelect}
-                    className="hidden"
-                  />
-                </div>
-                <p
-                  style={{
-                    textAlign: "center",
-                    fontSize: 11,
-                    color: O.ink4,
-                    fontFamily: O.mono,
-                    letterSpacing: "0.08em",
-                    marginTop: 8,
-                    marginBottom: 20,
-                  }}
-                >
-                  TAP TO ADD A PHOTO
+          {currentStep === 2 && (
+            <div>
+              <div className="mb-4 text-center">
+                <p className="text-[13px] text-text-secondary">
+                  Almost in. Add a face and a line.
                 </p>
+              </div>
 
-                <Field
-                  label="Bio"
-                  hint="Optional"
-                  error={errors.bio?.message}
+              <div className="flex justify-center">
+                <div
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="relative cursor-pointer"
                 >
-                  <TextArea
-                    placeholder="Tell us about yourself…"
-                    {...register("bio")}
-                    rows={3}
-                    maxLength={160}
-                  />
-                </Field>
+                  <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                    {avatarPreview ? (
+                      <img src={avatarPreview} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <User className="h-9 w-9 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 flex h-[30px] w-[30px] items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <Camera className="h-3 w-3" />
+                  </div>
+                </div>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleAvatarSelect}
+                  className="hidden"
+                />
+              </div>
+              <p className="mb-5 mt-2 text-center font-mono text-[11px] tracking-[0.08em] text-muted-foreground">
+                TAP TO ADD A PHOTO
+              </p>
 
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 10,
-                    marginTop: 8,
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    {...register("agreeToTerms")}
-                    style={{
-                      marginTop: 3,
-                      width: 16,
-                      height: 16,
-                      accentColor: O.a2,
-                    }}
-                  />
-                  <span style={{ fontSize: 12, color: O.ink3, lineHeight: 1.5 }}>
-                    I agree to the Terms of Service and Privacy Policy.
-                  </span>
-                </label>
-                {errors.agreeToTerms && (
-                  <p style={{ fontSize: 11, color: "#ff7a85", marginTop: 6 }}>
-                    {errors.agreeToTerms.message}
-                  </p>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+              <AuthField
+                label="Bio"
+                hint="Optional"
+                error={errors.bio?.message}
+              >
+                <Textarea
+                  placeholder="Tell us about yourself…"
+                  {...register("bio")}
+                  rows={3}
+                  maxLength={160}
+                />
+              </AuthField>
+
+              <label className="mt-2 flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  {...register("agreeToTerms")}
+                  className="mt-[3px] h-4 w-4 accent-primary"
+                />
+                <span className="text-xs leading-normal text-text-secondary">
+                  I agree to the Terms of Service and Privacy Policy.
+                </span>
+              </label>
+              {errors.agreeToTerms && (
+                <p className="mt-1.5 text-[11px] text-destructive">
+                  {errors.agreeToTerms.message}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            marginTop: 20,
-          }}
-        >
+        <div className="mt-5 flex gap-2.5">
           {currentStep > 0 && (
-            <PillBtn type="button" size="lg" onClick={goBack} style={{ flex: 1, justifyContent: "center" }}>
-              <ArrowLeft style={{ width: 14, height: 14 }} />
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 flex-1 text-sm"
+              onClick={goBack}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
               Back
-            </PillBtn>
+            </Button>
           )}
           {currentStep < 2 ? (
-            <PillBtn
-              primary
+            <Button
               type="button"
-              size="lg"
+              className={currentStep === 0 ? "h-11 w-full text-sm" : "h-11 flex-1 text-sm"}
               onClick={goNext}
-              style={{ flex: currentStep === 0 ? "1 0 100%" : 1, justifyContent: "center" }}
             >
               Next
-              <ArrowRight style={{ width: 14, height: 14 }} />
-            </PillBtn>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
           ) : (
-            <PillBtn
-              primary
+            <Button
               type="submit"
-              size="lg"
+              className="h-11 flex-1 text-sm"
               disabled={isSubmitting || !agreeToTerms}
-              style={{ flex: 1, justifyContent: "center" }}
             >
               {isSubmitting ? (
-                <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "Create account →"
+                "Create account"
               )}
-            </PillBtn>
+            </Button>
           )}
         </div>
         <TurnstileWidget ref={turnstileRef} />
       </form>
 
-      <p
-        style={{
-          marginTop: 24,
-          textAlign: "center",
-          fontSize: 13,
-          color: O.ink3,
-        }}
-      >
+      <p className="mt-6 text-center text-[13px] text-text-secondary">
         Already have an account?{" "}
         <Link
           href={
@@ -763,11 +534,11 @@ export default function SignUpPage() {
               ? `/login?next=${encodeURIComponent(searchParams.get("next")!)}`
               : "/login"
           }
-          style={{ color: O.a3, textDecoration: "none", fontWeight: 600 }}
+          className="font-semibold text-primary no-underline hover:underline"
         >
-          Sign in →
+          Sign in
         </Link>
       </p>
-    </Shell>
+    </AuthShell>
   );
 }

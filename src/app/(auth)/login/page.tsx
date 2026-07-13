@@ -6,15 +6,18 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2, Lock, ShieldCheck } from "lucide-react";
-import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { loginSchema, type LoginFormData } from "@/lib/utils/validators";
 import { safeNext } from "@/lib/utils/post-auth-redirect";
 import { createLoginEvent } from "@/lib/queries/security";
-import { O, orbitBg, panel, aurora } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
-import { Field, Input } from "@/components/orbit/forms";
+import { Button } from "@/components/ui/button";
+import {
+  AuthShell,
+  AuthHeading,
+  AuthField,
+  AuthInput,
+} from "@/components/auth/auth-shell";
 import {
   TurnstileWidget,
   type TurnstileWidgetHandle,
@@ -47,62 +50,6 @@ function clearLockoutData() {
   try {
     localStorage.removeItem(LOCKOUT_KEY);
   } catch {}
-}
-
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <main
-      style={{
-        ...orbitBg,
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        padding: 48,
-        color: O.ink,
-        fontFamily: O.sans,
-      }}
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        style={{ width: "100%", maxWidth: 460 }}
-      >
-        <div style={{ textAlign: "center", marginBottom: 18 }}>
-          <Link href="/" style={{ textDecoration: "none" }}>
-            <span
-              style={{
-                fontFamily: O.serif,
-                fontStyle: "italic",
-                fontSize: 36,
-                background: aurora,
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              orbit
-            </span>
-          </Link>
-        </div>
-        <div style={{ ...panel({ borderRadius: 24 }), padding: 40 }}>
-          {children}
-        </div>
-        <p
-          style={{
-            textAlign: "center",
-            marginTop: 14,
-            fontSize: 11,
-            color: O.ink4,
-            fontFamily: O.mono,
-            letterSpacing: "0.08em",
-          }}
-        >
-          ◇&nbsp;&nbsp;SECURE · END-TO-END
-        </p>
-      </motion.div>
-    </main>
-  );
 }
 
 export default function LoginPage() {
@@ -263,79 +210,43 @@ export default function LoginPage() {
   // MFA screen
   if (mfaRequired) {
     return (
-      <Shell>
-        <div style={{ textAlign: "center" }}>
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              margin: "0 auto 16px",
-              borderRadius: "50%",
-              background: `color-mix(in oklab, ${O.a3} 8%, transparent)`,
-              border: `1px solid color-mix(in oklab, ${O.a3} 27%, transparent)`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: O.a3,
-            }}
-          >
-            <ShieldCheck style={{ width: 26, height: 26 }} />
-          </div>
-          <Eyebrow accent>◆&nbsp;&nbsp;TWO-FACTOR</Eyebrow>
-          <Display size={28} style={{ marginTop: 10 }}>
-            Verify it&apos;s <Acc>you</Acc>.
-          </Display>
-          <p
-            style={{
-              fontSize: 13.5,
-              color: O.ink3,
-              marginTop: 10,
-              lineHeight: 1.55,
-            }}
-          >
-            Enter the 6-digit code from your authenticator app.
-          </p>
+      <AuthShell>
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 text-primary">
+          <ShieldCheck className="h-6 w-6" />
         </div>
+        <AuthHeading
+          eyebrow="Two-factor"
+          title="Verify it's"
+          accent="you"
+          sub="Enter the 6-digit code from your authenticator app."
+        />
 
-        <div style={{ marginTop: 24 }}>
-          <Field label="Code">
-            <Input
+        <div className="mt-6">
+          <AuthField label="Code">
+            <AuthInput
               type="text"
               inputMode="numeric"
               maxLength={6}
               value={mfaCode}
-              onChange={(e) =>
-                setMfaCode(e.target.value.replace(/\D/g, ""))
-              }
+              onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
               placeholder="000000"
-              style={{
-                textAlign: "center",
-                fontSize: 22,
-                letterSpacing: "0.3em",
-                fontFamily: O.mono,
-              }}
+              className="text-center font-mono text-[22px] tracking-[0.3em]"
               autoFocus
             />
-          </Field>
+          </AuthField>
         </div>
 
-        <PillBtn
-          primary
-          size="lg"
+        <Button
+          className="mt-3 h-11 w-full text-sm"
           onClick={handleMfaVerify}
           disabled={mfaCode.length !== 6 || mfaVerifying}
-          style={{
-            width: "100%",
-            justifyContent: "center",
-            marginTop: 12,
-          }}
         >
           {mfaVerifying ? (
-            <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            "Verify →"
+            "Verify"
           )}
-        </PillBtn>
+        </Button>
 
         <button
           type="button"
@@ -344,133 +255,73 @@ export default function LoginPage() {
             setMfaCode("");
             setMfaFactorId(null);
           }}
-          style={{
-            width: "100%",
-            marginTop: 14,
-            padding: "10px 0",
-            background: "transparent",
-            border: "none",
-            fontSize: 12.5,
-            color: O.ink3,
-            cursor: "pointer",
-            fontFamily: O.mono,
-            letterSpacing: "0.04em",
-          }}
+          className="mt-3.5 w-full cursor-pointer border-none bg-transparent py-2.5 font-mono text-[12.5px] tracking-wide text-muted-foreground hover:text-foreground"
         >
-          ← BACK TO SIGN IN
+          BACK TO SIGN IN
         </button>
-      </Shell>
+      </AuthShell>
     );
   }
 
   return (
-    <Shell>
-      <div style={{ textAlign: "center" }}>
-        <Eyebrow accent>◇&nbsp;&nbsp;SIGN IN</Eyebrow>
-        <Display size={36} style={{ marginTop: 10 }}>
-          Welcome <Acc>back</Acc>.
-        </Display>
-        <p
-          style={{
-            fontSize: 13.5,
-            color: O.ink3,
-            marginTop: 10,
-            lineHeight: 1.55,
-          }}
-        >
-          Pick up where you left off.
-        </p>
-      </div>
+    <AuthShell>
+      <AuthHeading
+        eyebrow="Sign in"
+        title="Welcome"
+        accent="back"
+        sub="Pick up where you left off."
+      />
 
       {/* Lockout banner */}
       {isLocked && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          style={{
-            marginTop: 20,
-            padding: 14,
-            borderRadius: 14,
-            background: "rgba(255,122,133,0.08)",
-            border: "1px solid rgba(255,122,133,0.25)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Lock style={{ width: 15, height: 15, color: "#ff7a85" }} />
-            <p style={{ fontSize: 13, fontWeight: 600, color: "#ff9aa3", margin: 0 }}>
+        <div className="mt-5 rounded-lg border border-destructive/25 bg-destructive/10 p-3.5">
+          <div className="flex items-center gap-2">
+            <Lock className="h-[15px] w-[15px] text-destructive" />
+            <p className="text-[13px] font-semibold text-destructive">
               Account temporarily locked
             </p>
           </div>
-          <p
-            style={{
-              fontSize: 12,
-              color: "#ff9aa3",
-              opacity: 0.75,
-              marginTop: 6,
-              marginBottom: 0,
-            }}
-          >
+          <p className="mt-1.5 text-xs text-destructive/80">
             Too many failed attempts. Try again in{" "}
-            <span style={{ fontFamily: O.mono, fontWeight: 700, color: "#ff7a85" }}>
+            <span className="font-mono font-bold">
               {formatCountdown(lockoutRemaining)}
             </span>
             .
           </p>
-        </motion.div>
+        </div>
       )}
 
       {/* Attempts warning */}
       {!isLocked && attemptsLeft < MAX_ATTEMPTS && attemptsLeft > 0 && (
-        <div
-          style={{
-            marginTop: 20,
-            padding: "8px 14px",
-            borderRadius: 99,
-            background: "rgba(255,215,106,0.08)",
-            border: "1px solid rgba(255,215,106,0.24)",
-            fontFamily: O.mono,
-            fontSize: 10.5,
-            letterSpacing: "0.12em",
-            color: "#ffd76a",
-            textAlign: "center",
-          }}
-        >
-          ◆&nbsp;&nbsp;{attemptsLeft} ATTEMPT{attemptsLeft !== 1 ? "S" : ""} LEFT
+        <div className="mt-5 rounded-lg border border-warning/25 bg-warning/10 px-3.5 py-2 text-center font-mono text-[10.5px] tracking-[0.12em] text-warning">
+          {attemptsLeft} ATTEMPT{attemptsLeft !== 1 ? "S" : ""} LEFT
         </div>
       )}
 
       {/* Form */}
-      <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: 24 }}>
-        <Field label="Email" error={errors.email?.message}>
-          <Input
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-6">
+        <AuthField label="Email" error={errors.email?.message}>
+          <AuthInput
             type="email"
             placeholder="you@example.com"
             {...register("email")}
             disabled={isLocked}
           />
-        </Field>
+        </AuthField>
 
-        <Field
+        <AuthField
           label="Password"
           error={errors.password?.message}
           hint={
             <Link
               href="/forgot-password"
-              style={{
-                color: O.a3,
-                textDecoration: "none",
-                fontFamily: O.sans,
-                fontSize: 11,
-                fontWeight: 500,
-                letterSpacing: "normal",
-                textTransform: "none",
-              }}
+              className="text-[11px] font-medium text-primary no-underline hover:underline"
             >
               Forgot password?
             </Link>
           }
         >
-          <Input
+          <AuthInput
             type={showPassword ? "text" : "password"}
             placeholder="Enter your password"
             {...register("password")}
@@ -478,52 +329,36 @@ export default function LoginPage() {
             suffix={
               <button
                 type="button"
+                aria-label={showPassword ? "Hide password" : "Show password"}
                 onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: O.ink3,
-                  cursor: "pointer",
-                  padding: 0,
-                  display: "flex",
-                  alignItems: "center",
-                }}
+                className="flex cursor-pointer items-center border-none bg-transparent p-0 text-muted-foreground hover:text-foreground"
               >
                 {showPassword ? (
-                  <EyeOff style={{ width: 15, height: 15 }} />
+                  <EyeOff className="h-[15px] w-[15px]" />
                 ) : (
-                  <Eye style={{ width: 15, height: 15 }} />
+                  <Eye className="h-[15px] w-[15px]" />
                 )}
               </button>
             }
           />
-        </Field>
+        </AuthField>
 
-        <PillBtn
-          primary
-          size="lg"
+        <Button
           type="submit"
+          className="mt-2 h-11 w-full text-sm"
           disabled={isSubmitting || isLocked}
-          style={{ width: "100%", justifyContent: "center", marginTop: 8 }}
         >
           {isSubmitting ? (
-            <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            "Sign in →"
+            "Sign in"
           )}
-        </PillBtn>
+        </Button>
         <TurnstileWidget ref={turnstileRef} />
       </form>
 
       {/* Footer */}
-      <p
-        style={{
-          marginTop: 24,
-          textAlign: "center",
-          fontSize: 13,
-          color: O.ink3,
-        }}
-      >
+      <p className="mt-6 text-center text-[13px] text-text-secondary">
         No account?{" "}
         <Link
           href={
@@ -531,15 +366,11 @@ export default function LoginPage() {
               ? `/signup?next=${encodeURIComponent(nextPath)}`
               : "/signup"
           }
-          style={{
-            color: O.a3,
-            textDecoration: "none",
-            fontWeight: 600,
-          }}
+          className="font-semibold text-primary no-underline hover:underline"
         >
-          Create one →
+          Create one
         </Link>
       </p>
-    </Shell>
+    </AuthShell>
   );
 }

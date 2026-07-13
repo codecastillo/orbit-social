@@ -4,12 +4,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lock, Loader2, CheckCircle, Eye, EyeOff } from "lucide-react";
-import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { O, orbitBg, panel, aurora } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
-import { Field, Input } from "@/components/orbit/forms";
+import { Button } from "@/components/ui/button";
+import {
+  AuthShell,
+  AuthHeading,
+  AuthField,
+  AuthInput,
+} from "@/components/auth/auth-shell";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -69,184 +72,104 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <main
-      style={{
-        ...orbitBg,
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        padding: 48,
-        color: O.ink,
-        fontFamily: O.sans,
-      }}
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        style={{ width: "100%", maxWidth: 460 }}
+    <AuthShell>
+      <div
+        className={
+          done
+            ? "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-success/25 bg-success/10 text-success"
+            : "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 text-primary"
+        }
       >
-        <div style={{ textAlign: "center", marginBottom: 18 }}>
-          <Link href="/" style={{ textDecoration: "none" }}>
-            <span
-              style={{
-                fontFamily: O.serif,
-                fontStyle: "italic",
-                fontSize: 36,
-                background: aurora,
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              orbit
-            </span>
+        {done ? (
+          <CheckCircle className="h-6 w-6" strokeWidth={1.8} />
+        ) : (
+          <Lock className="h-6 w-6" strokeWidth={1.8} />
+        )}
+      </div>
+
+      {done ? (
+        <AuthHeading
+          eyebrow="New password"
+          title="All"
+          accent="set"
+          sub="Sending you to your feed."
+        />
+      ) : (
+        <AuthHeading
+          eyebrow="New password"
+          title="Set a new"
+          accent="password"
+          sub="Pick something at least 8 characters. You'll be signed in right after."
+        />
+      )}
+
+      {hasRecoverySession === false ? (
+        <div className="mt-5 rounded-lg border border-warning/25 bg-warning/10 p-3.5 text-center text-[13px] text-text-secondary">
+          This reset link is invalid or has expired.{" "}
+          <Link
+            href="/forgot-password"
+            className="font-semibold text-primary no-underline hover:underline"
+          >
+            Send a new one
           </Link>
         </div>
+      ) : (
+        !done && (
+          <form onSubmit={handleSubmit} className="mt-6">
+            <AuthField label="New password" error={error || undefined}>
+              <AuthInput
+                type={showPassword ? "text" : "password"}
+                autoFocus
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={submitting}
+                suffix={
+                  <button
+                    type="button"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="flex cursor-pointer items-center border-none bg-transparent p-0 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-[15px] w-[15px]" />
+                    ) : (
+                      <Eye className="h-[15px] w-[15px]" />
+                    )}
+                  </button>
+                }
+              />
+            </AuthField>
 
-        <div style={{ ...panel({ borderRadius: 24 }), padding: 40 }}>
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              margin: "0 auto 14px",
-              borderRadius: "50%",
-              background: `color-mix(in oklab, ${O.a3} 8%, transparent)`,
-              border: `1px solid color-mix(in oklab, ${O.a3} 27%, transparent)`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: O.a3,
-            }}
-          >
-            {done ? (
-              <CheckCircle style={{ width: 28, height: 28 }} strokeWidth={1.8} />
-            ) : (
-              <Lock style={{ width: 26, height: 26 }} strokeWidth={1.8} />
-            )}
-          </div>
+            <AuthField label="Confirm">
+              <AuthInput
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                placeholder="Re-enter the same password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                disabled={submitting}
+              />
+            </AuthField>
 
-          <div style={{ textAlign: "center" }}>
-            <Eyebrow accent>◇&nbsp;&nbsp;NEW · PASSWORD</Eyebrow>
-            <Display size={30} style={{ marginTop: 10 }}>
-              {done ? (
-                <>
-                  All <Acc>set</Acc>.
-                </>
+            <Button
+              type="submit"
+              className="mt-2 h-11 w-full text-sm"
+              disabled={submitting}
+            >
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <>
-                  Set a <Acc>new</Acc> password.
+                  <Lock className="h-4 w-4" />
+                  Update password
                 </>
               )}
-            </Display>
-            <p
-              style={{
-                fontSize: 13.5,
-                color: O.ink3,
-                marginTop: 10,
-                lineHeight: 1.55,
-              }}
-            >
-              {done
-                ? "Sending you to your feed…"
-                : "Pick something at least 8 characters. You'll be signed in right after."}
-            </p>
-          </div>
-
-          {hasRecoverySession === false ? (
-            <div
-              style={{
-                marginTop: 22,
-                padding: "12px 14px",
-                borderRadius: 12,
-                background: "rgba(255,193,76,0.08)",
-                border: "1px solid rgba(255,193,76,0.32)",
-                color: O.ink2,
-                fontSize: 13,
-                textAlign: "center",
-              }}
-            >
-              This reset link is invalid or has expired.{" "}
-              <Link
-                href="/forgot-password"
-                style={{ color: O.a3, textDecoration: "none", fontWeight: 600 }}
-              >
-                Send a new one →
-              </Link>
-            </div>
-          ) : (
-            !done && (
-              <form onSubmit={handleSubmit} style={{ marginTop: 26 }}>
-                <Field label="New password" error={error || undefined}>
-                  <div style={{ position: "relative" }}>
-                    <Input
-                      type={showPassword ? "text" : "password"}
-                      autoFocus
-                      autoComplete="new-password"
-                      placeholder="At least 8 characters"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={submitting}
-                      style={{ paddingRight: 40 }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      style={{
-                        position: "absolute",
-                        right: 12,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "transparent",
-                        border: "none",
-                        color: O.ink3,
-                        cursor: "pointer",
-                        padding: 0,
-                      }}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? (
-                        <EyeOff style={{ width: 16, height: 16 }} />
-                      ) : (
-                        <Eye style={{ width: 16, height: 16 }} />
-                      )}
-                    </button>
-                  </div>
-                </Field>
-
-                <Field label="Confirm">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    placeholder="Re-enter the same password"
-                    value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)}
-                    disabled={submitting}
-                  />
-                </Field>
-
-                <PillBtn
-                  size="lg"
-                  type="submit"
-                  disabled={submitting}
-                  style={{
-                    marginTop: 18,
-                    width: "100%",
-                    justifyContent: "center",
-                  }}
-                >
-                  {submitting ? (
-                    <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />
-                  ) : (
-                    <Lock style={{ width: 14, height: 14 }} />
-                  )}
-                  {submitting ? "Updating…" : "Update password"}
-                </PillBtn>
-              </form>
-            )
-          )}
-        </div>
-      </motion.div>
-    </main>
+            </Button>
+          </form>
+        )
+      )}
+    </AuthShell>
   );
 }
