@@ -68,3 +68,7 @@ Thumbs.db
 # Supabase local
 supabase/.temp/
 supabase/.branches/
+
+# Local Sentry QA pages, kept out of deploys until removed for good
+src/app/sentry-test/
+src/app/api/sentry-test/
