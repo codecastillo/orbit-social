@@ -22,6 +22,7 @@ import {
 import { FollowListDialog } from "@/components/profile/follow-list-dialog";
 import { BlockMuteDialog } from "@/components/shared/block-mute-dialog";
 import { ReportDialog } from "@/components/shared/report-dialog";
+import { normalizeAccent } from "@/lib/design/accents";
 import { getOrCreateDMConversation } from "@/lib/queries/messages";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -51,7 +52,6 @@ import { O, aurora, auroraSoft, panel } from "@/lib/design/orbit";
 import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 import { VerifiedStar } from "@/components/orbit/verified-star";
 import { StatCluster } from "@/components/orbit/stat-cluster";
-import { AuroraBanner } from "@/components/orbit/aurora-banner";
 
 interface ProfileContentProps {
   profile: {
@@ -458,7 +458,8 @@ export function ProfileContent({
     }
   }, [visibleTabs, activeTab]);
 
-  const accent = profile.theme_color || O.a2;
+  const themeAccent = normalizeAccent(profile.theme_color);
+  const accent = themeAccent || O.a2;
   const { first, rest } = splitName(profile.display_name);
   const avatarBorder = (profile.avatar_border || "none") as AvatarBorderStyle;
 
@@ -526,7 +527,7 @@ export function ProfileContent({
               }}
             />
           ) : (
-            <AuroraBanner height={200} />
+            <div style={{ height: 200, background: "var(--surface-elevated)" }} />
           )}
         </div>
 
@@ -589,14 +590,12 @@ export function ProfileContent({
             >
               <Display
                 size={32}
-                style={
-                  profile.theme_color ? { color: profile.theme_color } : undefined
-                }
+                style={themeAccent ? { color: themeAccent } : undefined}
               >
                 {rest ? (
                   <>
                     {first}{" "}
-                    <Acc color={profile.theme_color || undefined}>{rest}</Acc>
+                    <Acc color={themeAccent || undefined}>{rest}</Acc>
                   </>
                 ) : (
                   first || profile.username

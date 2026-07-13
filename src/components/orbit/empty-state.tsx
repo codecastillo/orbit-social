@@ -6,9 +6,8 @@ import { O, aurora } from "@/lib/design/orbit";
 import { Display, Acc } from "@/components/orbit/primitives";
 
 /**
- * Orbit empty-state template, ported from design-src/orbit-forms.jsx.
- * One template with aurora orbit rings + serif-italic accent headline
- * + optional dual CTA. Used across Rooms / Live / Events / Notifications.
+ * Empty-state template: flat icon tile, accent headline word, optional dual
+ * CTA. Used across Rooms / Live / Events / Notifications.
  */
 export function OrbitEmptyState({
   icon: Icon,
@@ -24,9 +23,9 @@ export function OrbitEmptyState({
 }: {
   icon: LucideIcon;
   accent?: string;
-  /** Plain text that precedes the serif-italic accent word(s). */
+  /** Plain text that precedes the accent word(s). */
   headline: string;
-  /** Italic-serif word(s) inside the headline. */
+  /** Accent-colored word(s) inside the headline. */
   accentWord: string;
   /** Plain text that follows the accent word (optional). */
   headlineTail?: string;
@@ -53,45 +52,18 @@ export function OrbitEmptyState({
       <div style={{ textAlign: "center", maxWidth: 440 }}>
         <div
           style={{
-            position: "relative",
-            width: 140,
-            height: 140,
-            margin: "0 auto 28px",
+            width: 72,
+            height: 72,
+            margin: "0 auto 24px",
+            borderRadius: 16,
+            background: `color-mix(in oklab, ${accent} 10%, transparent)`,
+            border: `1px solid color-mix(in oklab, ${accent} 25%, transparent)`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              borderRadius: "50%",
-              border: `1px solid ${O.hair2}`,
-              animation: "orbitRing 8s linear infinite",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              inset: 14,
-              borderRadius: "50%",
-              border: `1px dashed ${O.hair2}`,
-              animation: "orbitRing 12s linear infinite reverse",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              inset: 34,
-              borderRadius: "50%",
-              background: `radial-gradient(circle, color-mix(in oklab, ${accent} 13%, transparent) 0%, transparent 70%)`,
-              boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${accent} 27%, transparent)`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Icon style={{ width: 28, height: 28, color: accent }} strokeWidth={1.8} />
-          </div>
-          <style>{`@keyframes orbitRing{to{transform:rotate(360deg)}}`}</style>
+          <Icon style={{ width: 28, height: 28, color: accent }} strokeWidth={1.8} />
         </div>
 
         <Display size={34} style={{ lineHeight: 1.08 }}>
@@ -116,8 +88,8 @@ export function OrbitEmptyState({
                 onClick={onSecondary}
                 style={{
                   padding: "11px 18px",
-                  borderRadius: 99,
-                  background: "rgba(255,255,255,0.04)",
+                  borderRadius: 8,
+                  background: "var(--surface)",
                   border: `1px solid ${O.hair2}`,
                   color: O.ink,
                   fontSize: 13,
@@ -135,14 +107,13 @@ export function OrbitEmptyState({
                 onClick={onCta}
                 style={{
                   padding: "12px 22px",
-                  borderRadius: 99,
+                  borderRadius: 8,
                   background: aurora,
-                  color: "#0c0a17",
+                  color: "var(--primary-foreground)",
                   border: "none",
                   fontSize: 13.5,
                   fontWeight: 600,
                   cursor: "pointer",
-                  boxShadow: `0 8px 24px color-mix(in oklab, ${accent} 33%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 8,

@@ -74,7 +74,7 @@ export function Field({
         <div
           style={{
             fontSize: 11.5,
-            color: "#ff7a85",
+            color: "var(--destructive)",
             marginTop: 6,
             fontFamily: O.mono,
             letterSpacing: "0.02em",
@@ -106,12 +106,12 @@ export function Input({ prefix, suffix, style, onFocus, onBlur, ...rest }: Input
         alignItems: "center",
         gap: 10,
         padding: "11px 14px",
-        borderRadius: 12,
-        background: "rgba(255,255,255,0.03)",
+        borderRadius: 8,
+        background: "var(--surface)",
         border: `1px solid ${focus ? `color-mix(in oklab, ${O.a2} 40%, transparent)` : O.hair2}`,
         boxShadow: focus
-          ? `0 0 0 3px color-mix(in oklab, ${O.a2} 10%, transparent), inset 0 1px 0 rgba(255,255,255,0.04)`
-          : "inset 0 1px 0 rgba(255,255,255,0.03)",
+          ? `0 0 0 3px color-mix(in oklab, ${O.a2} 10%, transparent)`
+          : "none",
         transition: "all 0.15s",
       }}
     >
@@ -186,8 +186,8 @@ export function TextArea({
       <div
         style={{
           padding: "11px 14px",
-          borderRadius: 12,
-          background: "rgba(255,255,255,0.03)",
+          borderRadius: 8,
+          background: "var(--surface)",
           border: `1px solid ${focus ? `color-mix(in oklab, ${O.a2} 40%, transparent)` : O.hair2}`,
           boxShadow: focus ? `0 0 0 3px color-mix(in oklab, ${O.a2} 10%, transparent)` : "none",
           transition: "all 0.15s",
@@ -269,10 +269,7 @@ export function Toggle({
           height: 20,
           borderRadius: 99,
           padding: 2,
-          background: on ? aurora : "rgba(255,255,255,0.08)",
-          boxShadow: on
-            ? `0 0 12px color-mix(in oklab, ${O.a2} 33%, transparent), inset 0 1px 0 rgba(255,255,255,0.15)`
-            : "inset 0 1px 2px rgba(0,0,0,0.3)",
+          background: on ? aurora : "var(--input)",
           transition: "all 0.2s",
         }}
       >
@@ -333,8 +330,8 @@ export function RadioRow<T extends string>({
             onClick={() => onChange(o.value)}
             style={{
               padding: "12px 14px",
-              borderRadius: 12,
-              background: active ? `color-mix(in oklab, ${accent} 9%, transparent)` : "rgba(255,255,255,0.025)",
+              borderRadius: 8,
+              background: active ? `color-mix(in oklab, ${accent} 9%, transparent)` : "var(--surface)",
               border: `1px solid ${active ? `color-mix(in oklab, ${accent} 40%, transparent)` : O.hair2}`,
               color: O.ink,
               cursor: "pointer",
@@ -359,7 +356,7 @@ export function RadioRow<T extends string>({
                   borderRadius: "50%",
                   border: `1.5px solid ${active ? accent : O.hair2}`,
                   background: active ? accent : "transparent",
-                  boxShadow: active ? `inset 0 0 0 2.5px #0a0b1f` : "none",
+                  boxShadow: active ? "inset 0 0 0 2.5px var(--surface)" : "none",
                 }}
               />
               <span style={{ fontSize: 13, fontWeight: 600 }}>{o.label}</span>
@@ -431,10 +428,9 @@ export function FormSection({
       <div
         style={{
           padding: 20,
-          borderRadius: 18,
-          background: "rgba(255,255,255,0.02)",
+          borderRadius: 12,
+          background: "var(--surface)",
           border: `1px solid ${O.hair2}`,
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
         }}
       >
         {children}
@@ -482,12 +478,10 @@ export function ModalShell({
         width: "100%",
         maxWidth: width,
         position: "relative",
-        background: "rgba(18,16,32,0.82)",
-        backdropFilter: "blur(40px) saturate(180%)",
-        WebkitBackdropFilter: "blur(40px) saturate(180%)",
+        background: "var(--surface-elevated)",
         border: `1px solid ${O.hair2}`,
-        borderRadius: 22,
-        boxShadow: `0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 100px color-mix(in oklab, ${accent} 13%, transparent)`,
+        borderRadius: 16,
+        boxShadow: "0 24px 48px -12px rgba(0,0,0,0.35)",
         overflow: "hidden",
         color: O.ink,
         fontFamily: O.sans,
@@ -501,7 +495,6 @@ export function ModalShell({
           display: "flex",
           alignItems: "flex-start",
           gap: 14,
-          background: "linear-gradient(180deg, rgba(255,255,255,0.03), transparent)",
         }}
       >
         {icon && (
@@ -517,7 +510,6 @@ export function ModalShell({
               justifyContent: "center",
               color: accent,
               flexShrink: 0,
-              boxShadow: `0 0 20px color-mix(in oklab, ${accent} 20%, transparent), inset 0 1px 0 rgba(255,255,255,0.08)`,
             }}
           >
             {icon}
@@ -553,8 +545,8 @@ export function ModalShell({
             style={{
               width: 30,
               height: 30,
-              borderRadius: 10,
-              background: "rgba(255,255,255,0.04)",
+              borderRadius: 8,
+              background: "var(--surface)",
               border: `1px solid ${O.hair}`,
               color: O.ink2,
               display: "flex",
@@ -582,7 +574,6 @@ export function ModalShell({
           alignItems: "center",
           gap: 10,
           justifyContent: "flex-end",
-          background: "linear-gradient(0deg, rgba(255,255,255,0.02), transparent)",
         }}
       >
         <button
@@ -590,7 +581,7 @@ export function ModalShell({
           onClick={onSecondary ?? onClose}
           style={{
             padding: "9px 16px",
-            borderRadius: 99,
+            borderRadius: 8,
             background: "transparent",
             border: `1px solid ${O.hair2}`,
             color: O.ink2,
@@ -608,20 +599,21 @@ export function ModalShell({
           disabled={!canSubmit || loading}
           style={{
             padding: "10px 20px",
-            borderRadius: 99,
+            borderRadius: 8,
             background: canSubmit
               ? danger
-                ? "linear-gradient(135deg, #ff6a7a, #c8435a)"
+                ? "var(--destructive)"
                 : aurora
-              : "rgba(255,255,255,0.06)",
-            color: canSubmit ? "#fff" : O.ink3,
+              : "var(--muted)",
+            color: canSubmit
+              ? danger
+                ? "#fff"
+                : "var(--primary-foreground)"
+              : O.ink3,
             border: "none",
             fontSize: 13,
             fontWeight: 600,
             cursor: canSubmit && !loading ? "pointer" : "not-allowed",
-            boxShadow: canSubmit
-              ? `0 6px 20px ${danger ? "#ff6a7a55" : `color-mix(in oklab, ${accent} 33%, transparent)`}, inset 0 1px 0 rgba(255,255,255,0.3)`
-              : "none",
             letterSpacing: "-0.005em",
             opacity: loading ? 0.7 : 1,
             fontFamily: "inherit",

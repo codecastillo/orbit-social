@@ -21,6 +21,7 @@ import { ImageCropper } from "@/components/shared/image-cropper";
 import { UserAvatar, type AvatarBorderStyle } from "@/components/shared/user-avatar";
 import { STORAGE_BUCKETS } from "@/lib/utils/constants";
 import { O, aurora, auroraSoft } from "@/lib/design/orbit";
+import { PROFILE_ACCENTS } from "@/lib/design/accents";
 import { Display, Acc } from "@/components/orbit/primitives";
 import { Field, FormSection } from "@/components/orbit/forms";
 import { SettingsHeader } from "@/components/settings/settings-header";
@@ -41,26 +42,15 @@ type ProfileFormData = z.infer<typeof profileFormSchema>;
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
-const ACCENTS: { value: string | null; hue: number }[] = [
-  { value: null, hue: 220 },
-  { value: "#ffffff", hue: 0 },
-  { value: "#ff6a7a", hue: 10 },
-  { value: "#ff9a3d", hue: 30 },
-  { value: "#ffd76a", hue: 50 },
-  { value: "#7dffa3", hue: 145 },
-  { value: O.a3, hue: 190 },
-  { value: O.a1, hue: 265 },
-  { value: O.a2, hue: 330 },
-  { value: "#ff8fd1", hue: 340 },
-];
+const ACCENTS = PROFILE_ACCENTS;
 
+// animated-glow is no longer offered; existing users who chose it render a
+// static accent ring (see UserAvatar).
 const BORDER_OPTIONS: { value: AvatarBorderStyle; label: string }[] = [
   { value: "none", label: "None" },
-  { value: "gradient-rainbow", label: "Aurora" },
   { value: "gold", label: "Gold" },
   { value: "silver", label: "Silver" },
   { value: "diamond", label: "Diamond" },
-  { value: "animated-glow", label: "Glow" },
 ];
 
 export default function EditProfilePage() {
@@ -561,11 +551,12 @@ export default function EditProfilePage() {
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               {ACCENTS.map((a, i) => {
                 const active = themeColor === a.value;
-                const ringColor = a.value || "#6a7280";
+                const swatch = a.value || "var(--primary)";
                 return (
                   <button
                     key={i}
                     type="button"
+                    aria-label={`${a.label} accent`}
                     onClick={() => {
                       setThemeColor(a.value);
                       setImageDirty(true);
@@ -574,13 +565,10 @@ export default function EditProfilePage() {
                       width: 40,
                       height: 40,
                       borderRadius: "50%",
-                      background:
-                        a.value === "#ffffff"
-                          ? "#ffffff"
-                          : `linear-gradient(135deg, oklch(0.72 0.16 ${a.hue}), oklch(0.5 0.17 ${(a.hue + 40) % 360}))`,
+                      background: swatch,
                       boxShadow: active
-                        ? `0 0 0 2px ${O.bg}, 0 0 0 4px ${ringColor}, 0 0 20px color-mix(in oklab, ${ringColor} 40%, transparent)`
-                        : "inset 0 1px 0 rgba(255,255,255,0.2)",
+                        ? `0 0 0 2px ${O.bg}, 0 0 0 4px ${swatch}`
+                        : "none",
                       cursor: "pointer",
                       display: "flex",
                       alignItems: "center",
@@ -594,7 +582,7 @@ export default function EditProfilePage() {
                         style={{
                           width: 16,
                           height: 16,
-                          color: a.value === "#ffffff" ? "#0c0a17" : "white",
+                          color: "white",
                         }}
                         strokeWidth={3}
                       />

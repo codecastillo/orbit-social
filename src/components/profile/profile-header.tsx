@@ -21,6 +21,7 @@ import {
 import { UserAvatar, type AvatarBorderStyle } from "@/components/shared/user-avatar";
 import { FollowButton } from "@/components/shared/follow-button";
 import { QRCodeDialog } from "@/components/profile/qr-code-dialog";
+import { normalizeAccent } from "@/lib/design/accents";
 import { formatNumber } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getMutualFollows } from "@/lib/queries/social";
@@ -65,7 +66,7 @@ export function ProfileHeader({
   const { user } = useAuth();
   const [qrOpen, setQrOpen] = useState(false);
 
-  const themeColor = profile.theme_color || undefined;
+  const themeColor = normalizeAccent(profile.theme_color) || undefined;
   const avatarBorder = (profile.avatar_border as AvatarBorderStyle) || "none";
 
   // Build inline accent style object when theme_color is set
@@ -108,7 +109,7 @@ export function ProfileHeader({
             style={
               themeColor
                 ? {
-                    background: `linear-gradient(135deg, color-mix(in oklab, ${themeColor} 20%, transparent), color-mix(in oklab, ${themeColor} 10%, transparent), transparent)`,
+                    background: `color-mix(in oklab, ${themeColor} 12%, transparent)`,
                   }
                 : undefined
             }

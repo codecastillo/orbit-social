@@ -134,7 +134,7 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
           width: "100%",
           padding: "11px 14px",
           borderRadius: 12,
-          background: "rgba(255,255,255,0.04)",
+          background: "var(--surface)",
           border: `1px solid ${O.hair2}`,
           color: display ? O.ink : O.ink3,
           fontSize: 13.5,
@@ -154,12 +154,10 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
         style={{
           width: 304,
           padding: 0,
-          background: "rgba(18,16,32,0.96)",
-          backdropFilter: "blur(40px) saturate(180%)",
-          WebkitBackdropFilter: "blur(40px) saturate(180%)",
+          background: "var(--surface-elevated)",
           border: `1px solid ${O.hair2}`,
           borderRadius: 16,
-          boxShadow: "0 24px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)",
+          boxShadow: "0 24px 48px -12px rgba(0,0,0,0.35)",
           color: O.ink,
           fontFamily: "inherit",
         }}
@@ -253,16 +251,13 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
                   borderRadius: 10,
                   border: isToday && !isSelected ? `1px solid ${O.hair2}` : "1px solid transparent",
                   background: isSelected ? aurora : "transparent",
-                  color: isSelected ? "#fff" : O.ink,
+                  color: isSelected ? "var(--primary-foreground)" : O.ink,
                   fontSize: 12.5,
                   fontWeight: isSelected ? 700 : 500,
                   cursor: "pointer",
                   fontFamily: "inherit",
                   transition: "background 120ms",
-                  boxShadow: isSelected
-                    ? `0 4px 14px color-mix(in oklab, ${O.a2} 33%, transparent), inset 0 1px 0 rgba(255,255,255,0.25)`
-                    : "none",
-                }}
+                                  }}
                 onMouseEnter={(e) => {
                   if (!isSelected) e.currentTarget.style.background = auroraSoft;
                 }}
@@ -338,14 +333,13 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
             onClick={() => setOpen(false)}
             style={{
               padding: "8px 18px",
-              borderRadius: 99,
+              borderRadius: 8,
               background: aurora,
-              color: "#fff",
+              color: "var(--primary-foreground)",
               border: "none",
               fontSize: 12.5,
               fontWeight: 600,
               cursor: "pointer",
-              boxShadow: `0 6px 18px color-mix(in oklab, ${O.a2} 33%, transparent), inset 0 1px 0 rgba(255,255,255,0.25)`,
               fontFamily: "inherit",
             }}
           >
@@ -376,7 +370,7 @@ function AmPmToggle({ isPm, onChange }: { isPm: boolean; onChange: (pm: boolean)
     <div
       style={{
         display: "flex",
-        background: "rgba(255,255,255,0.04)",
+        background: "var(--surface)",
         border: `1px solid ${O.hair2}`,
         borderRadius: 8,
         padding: 2,
@@ -394,17 +388,14 @@ function AmPmToggle({ isPm, onChange }: { isPm: boolean; onChange: (pm: boolean)
               padding: "4px 10px",
               borderRadius: 6,
               background: active ? aurora : "transparent",
-              color: active ? "#fff" : O.ink3,
+              color: active ? "var(--primary-foreground)" : O.ink3,
               border: "none",
               fontSize: 11,
               fontWeight: 700,
               fontFamily: O.mono,
               letterSpacing: "0.08em",
               cursor: "pointer",
-              boxShadow: active
-                ? `inset 0 1px 0 rgba(255,255,255,0.25)`
-                : "none",
-            }}
+                          }}
           >
             {label}
           </button>
@@ -420,7 +411,7 @@ const navBtnStyle: React.CSSProperties = {
   display: "grid",
   placeItems: "center",
   borderRadius: 8,
-  background: "rgba(255,255,255,0.04)",
+  background: "var(--surface)",
   border: `1px solid ${O.hair2}`,
   color: O.ink2,
   cursor: "pointer",
@@ -455,7 +446,7 @@ function TimeUnit({
         width: 48,
         padding: "6px 8px",
         borderRadius: 8,
-        background: "rgba(255,255,255,0.04)",
+        background: "var(--surface)",
         border: `1px solid ${O.hair2}`,
         color: O.ink,
         fontSize: 13,

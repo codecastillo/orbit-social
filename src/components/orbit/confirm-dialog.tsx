@@ -51,7 +51,7 @@ export function ConfirmDialog({
         <ModalShell
           title={title}
           subtitle={description}
-          accent={danger ? "#ff6a7a" : O.a3}
+          accent={danger ? "var(--destructive)" : O.a3}
           width={460}
           danger={danger}
           primaryLabel={busy ? "…" : confirmLabel}

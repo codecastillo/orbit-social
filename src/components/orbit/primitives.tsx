@@ -1,9 +1,10 @@
 "use client";
 
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
-import { O, aurora } from "@/lib/design/orbit";
+import { O } from "@/lib/design/orbit";
 
-/** Premium pill button: only button style used in the Glass system. */
+/** Legacy button shim: flat ember primary / bordered surface secondary.
+ *  Call sites migrate to ui/button batch by batch; keep the props stable. */
 export function PillBtn({
   children,
   primary = false,
@@ -16,16 +17,16 @@ export function PillBtn({
 }) {
   const sz: CSSProperties =
     size === "sm"
-      ? { padding: "7px 14px", fontSize: 12 }
+      ? { padding: "6px 12px", fontSize: 12 }
       : size === "lg"
-        ? { padding: "14px 28px", fontSize: 15 }
-        : { padding: "10px 18px", fontSize: 13 };
+        ? { padding: "12px 24px", fontSize: 15 }
+        : { padding: "9px 16px", fontSize: 13 };
   return (
     <button
       {...rest}
       style={{
         ...sz,
-        borderRadius: 99,
+        borderRadius: 8,
         fontWeight: 600,
         letterSpacing: "-0.005em",
         cursor: "pointer",
@@ -35,17 +36,13 @@ export function PillBtn({
         ...(primary
           ? {
               border: "none",
-              background: aurora,
-              color: "white",
-              boxShadow: `0 8px 24px -6px color-mix(in oklab, ${O.a1} 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.25)`,
+              background: "var(--primary)",
+              color: "var(--primary-foreground)",
             }
           : {
               background: O.glass,
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
               border: `1px solid ${O.hair2}`,
               color: O.ink,
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
             }),
         ...style,
       }}
@@ -79,7 +76,7 @@ export function Eyebrow({
   );
 }
 
-/** Display heading: sans with tight tracking. Pair with <Acc> for italic emphasis. */
+/** Display heading: sans with tight tracking. Pair with <Acc> for emphasis. */
 export function Display({
   children,
   size = 56,
@@ -107,24 +104,15 @@ export function Display({
   );
 }
 
-/** Inline italic-serif accent inside <Display>. Aurora-gradient text by
- *  default; pass `color` to override with a solid brand/accent color. */
+/** Inline accent inside <Display>: solid ember, weight inherited from the
+ *  heading. The italic serif treatment retired with the Glass system. */
 export function Acc({ children, color }: { children: ReactNode; color?: string }) {
-  const fillStyle = color
-    ? { color }
-    : {
-        background: aurora,
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-      };
   return (
     <em
       style={{
-        fontFamily: O.serif,
-        fontStyle: "italic",
-        fontWeight: 400,
+        fontStyle: "normal",
+        color: color || "var(--primary)",
         paddingRight: "0.04em",
-        ...fillStyle,
       }}
     >
       {children}

@@ -6,9 +6,8 @@ import { O, aurora } from "@/lib/design/orbit";
 import { Display, Acc } from "@/components/orbit/primitives";
 
 /**
- * Orbit error state, ported from design-src/orbit-forms.jsx ErrorMessagesState.
- * Red-glow ring + serif italic accent + try-again pill. For surfaces where
- * remote data couldn't load.
+ * Error state for surfaces where remote data couldn't load: destructive
+ * icon tile, accent headline word, try-again button.
  */
 export function OrbitErrorState({
   headline,
@@ -41,20 +40,19 @@ export function OrbitErrorState({
       <div style={{ textAlign: "center", maxWidth: 400 }}>
         <div
           style={{
-            width: 80,
-            height: 80,
-            borderRadius: "50%",
+            width: 72,
+            height: 72,
+            borderRadius: 16,
             margin: "0 auto 20px",
-            background: "rgba(255,106,122,0.1)",
-            border: "1px solid rgba(255,106,122,0.35)",
-            boxShadow: "0 0 30px rgba(255,106,122,0.25)",
+            background: "color-mix(in oklab, var(--destructive) 10%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--destructive) 30%, transparent)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
           <AlertCircle
-            style={{ width: 32, height: 32, color: "#ff6a7a" }}
+            style={{ width: 32, height: 32, color: "var(--destructive)" }}
             strokeWidth={1.6}
           />
         </div>
@@ -93,14 +91,13 @@ export function OrbitErrorState({
             style={{
               marginTop: 22,
               padding: "11px 22px",
-              borderRadius: 99,
+              borderRadius: 8,
               background: aurora,
-              color: "#0c0a17",
+              color: "var(--primary-foreground)",
               border: "none",
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
-              boxShadow: `0 8px 24px color-mix(in oklab, ${O.a2} 33%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
               fontFamily: "inherit",
             }}
           >

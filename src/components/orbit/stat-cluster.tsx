@@ -1,4 +1,4 @@
-import { O, aurora } from "@/lib/design/orbit";
+import { O } from "@/lib/design/orbit";
 import { formatNumber } from "@/lib/utils/format";
 
 type StatItem = { n: number; label: string; onClick?: () => void };
@@ -33,33 +33,20 @@ export function StatCluster({
             textAlign: "center",
             cursor: item.onClick ? "pointer" : "default",
             pointerEvents: item.onClick ? "auto" : "none",
-            // Native <button> in Chromium defaults to overflow:clip, which
-            // shaves the top off italic-serif glyphs that poke above the
-            // line box. Force visible so the digits render unclipped.
-            overflow: "visible",
             padding: divider && i > 0 ? "8px 0 0 32px" : "8px 0 0 0",
           }}
           className={item.onClick ? "hover:opacity-80 transition-opacity" : ""}
         >
           <div
             style={{
-              fontFamily: O.serif,
-              fontStyle: "italic",
+              fontFamily: O.mono,
               fontSize: size,
               fontWeight: 700,
-              // Italic-serif "1" has an aggressive ascender that sits above
-              // the cap height. Give the gradient-text element a roomy box
-              // (display:inline-block + tall lineHeight + padding) so the
-              // glyph never gets clipped at the top.
-              display: "inline-block",
-              lineHeight: 1.4,
-              padding: "0.25em 0.05em 0.05em",
-              overflow: "visible",
-              background: aurora,
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
+              lineHeight: 1.2,
+              color: O.ink,
               letterSpacing: "-0.015em",
               textAlign: "center",
+              fontVariantNumeric: "tabular-nums",
             }}
           >
             {formatNumber(item.n)}
