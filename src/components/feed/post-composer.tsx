@@ -185,17 +185,12 @@ export function InlineComposer({
         fallback={profile?.display_name || "U"}
         size="md"
       />
-      <div style={{ flex: 1, minWidth: 0, fontSize: 15, color: "rgba(255,255,255,0.5)" }}>
+      <div style={{ flex: 1, minWidth: 0, fontSize: 15, color: "var(--muted-foreground)" }}>
         What&apos;s{" "}
         <em
           style={{
-            fontFamily: '"Instrument Serif", Georgia, serif',
-            fontStyle: "italic",
-            fontWeight: 400,
-            background:
-              "linear-gradient(135deg, #8b73ff 0%, #ff5fae 55%, #5fd4ff 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
+            fontStyle: "normal",
+            color: "var(--primary)",
             paddingRight: "0.04em",
           }}
         >

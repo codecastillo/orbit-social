@@ -43,17 +43,12 @@ function DropdownMenuContent({
           data-slot="dropdown-menu-content"
           className={cn("z-50 max-h-(--available-height) min-w-[200px] origin-(--transform-origin) overflow-x-hidden overflow-y-auto duration-100 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0 data-closed:zoom-out-95", className )}
           style={{
-            background: "rgba(18,16,32,0.82)",
-            backdropFilter: "blur(40px) saturate(180%)",
-            WebkitBackdropFilter: "blur(40px) saturate(180%)",
-            border: "1px solid rgba(255,255,255,0.14)",
-            borderRadius: 14,
+            background: "var(--popover)",
+            border: "1px solid var(--border)",
+            borderRadius: 12,
             padding: 6,
-            boxShadow:
-              "0 18px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08)",
-            color: "rgba(255,255,255,0.92)",
-            fontFamily:
-              '"Geist", -apple-system, "Inter", system-ui, sans-serif',
+            boxShadow: "0 18px 40px -12px rgba(0,0,0,0.35)",
+            color: "var(--popover-foreground)",
           }}
           {...props}
         />

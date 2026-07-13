@@ -7,7 +7,7 @@ import { Home, Compass, Plus, MessageCircle, User } from "lucide-react";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
-import { O, aurora, panel } from "@/lib/design/orbit";
+import { cn } from "@/lib/utils";
 
 export function BottomNav({ initialHasUser = false }: { initialHasUser?: boolean }) {
   const pathname = usePathname();
@@ -52,16 +52,7 @@ export function BottomNav({ initialHasUser = false }: { initialHasUser?: boolean
       ];
 
   return (
-    <nav
-      className="fixed z-40 flex lg:hidden justify-around items-center"
-      style={{
-        left: 14,
-        right: 14,
-        bottom: 22,
-        ...panel({ borderRadius: 28 }),
-        padding: "12px 14px",
-      }}
-    >
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex select-none items-center justify-around border-t border-border bg-background px-3 pb-[env(safe-area-inset-bottom)] pt-1.5 lg:hidden">
       {items.map((item) => {
         const isCompose = item.href === "#compose";
         const isPrimary = "primary" in item && item.primary;
@@ -75,22 +66,11 @@ export function BottomNav({ initialHasUser = false }: { initialHasUser?: boolean
             <button
               key={item.key}
               type="button"
+              aria-label="Compose post"
               onClick={() => setComposeOpen(true)}
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: "50%",
-                background: aurora,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: `0 8px 22px -4px color-mix(in oklab, ${O.a2} 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
-                border: "none",
-                cursor: "pointer",
-                color: "white",
-              }}
+              className="mb-1.5 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground"
             >
-              <Icon style={{ width: 22, height: 22 }} strokeWidth={2.4} />
+              <Icon className="h-[22px] w-[22px]" strokeWidth={2.4} />
             </button>
           );
         }
@@ -100,20 +80,10 @@ export function BottomNav({ initialHasUser = false }: { initialHasUser?: boolean
             <Link
               key={item.key}
               href={item.href}
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: "50%",
-                background: aurora,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: `0 8px 22px -4px color-mix(in oklab, ${O.a2} 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
-                color: "white",
-                textDecoration: "none",
-              }}
+              aria-label={item.label}
+              className="mb-1.5 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground no-underline"
             >
-              <Icon style={{ width: 22, height: 22 }} strokeWidth={2.4} />
+              <Icon className="h-[22px] w-[22px]" strokeWidth={2.4} />
             </Link>
           );
         }
@@ -122,30 +92,15 @@ export function BottomNav({ initialHasUser = false }: { initialHasUser?: boolean
           <Link
             key={item.key}
             href={item.href}
-            style={{
-              position: "relative",
-              padding: 8,
-              color: isActive ? O.ink : O.ink3,
-              textDecoration: "none",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            aria-label={item.label}
+            className={cn(
+              "relative flex items-center justify-center p-2 pb-3 no-underline",
+              isActive ? "text-foreground" : "text-muted-foreground"
+            )}
           >
-            <Icon style={{ width: 24, height: 24 }} strokeWidth={isActive ? 2.2 : 1.8} />
+            <Icon className="h-6 w-6" strokeWidth={isActive ? 2.2 : 1.8} />
             {isActive && (
-              <span
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  width: 4,
-                  height: 4,
-                  borderRadius: "50%",
-                  background: aurora,
-                }}
-              />
+              <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" />
             )}
           </Link>
         );

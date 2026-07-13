@@ -7,7 +7,6 @@ import { TopBar } from "@/components/layout/top-bar";
 import { RealtimeBridge } from "@/components/layout/realtime-bridge";
 import { EmailVerificationBanner } from "@/components/shared/email-verification-banner";
 import { PostComposer } from "@/components/feed/post-composer";
-import { orbitBg } from "@/lib/design/orbit";
 
 export default async function MainLayout({
   children,
@@ -33,12 +32,12 @@ export default async function MainLayout({
     : null;
 
   return (
-    <div className="min-h-screen relative" style={orbitBg}>
+    <div className="min-h-screen relative bg-background">
       <Sidebar initialProfile={initialProfile} initialHasUser={!!user} />
       <TopBar />
       {user && <RealtimeBridge userId={user.id} />}
 
-      <main className="lg:pl-[296px] lg:pr-6 min-h-screen pb-24 lg:pb-6 lg:pt-6 relative">
+      <main className="lg:pl-[260px] min-h-screen pb-24 lg:pb-6 lg:pt-6 relative">
         <EmailVerificationBanner />
         {children}
       </main>

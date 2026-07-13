@@ -3,20 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
-import {
-  Home,
-  Film,
-  Compass,
-  Globe,
-  Play,
-  Calendar,
-  MessageCircle,
-  Bell,
-  LogOut,
-  Settings,
-  MoreHorizontal,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { LogOut, Settings, MoreHorizontal } from "lucide-react";
 import { useUnreadCount, useUnreadMessagesCount } from "@/lib/hooks/use-notifications";
 import { useCurrentProfile, type CurrentProfile } from "@/lib/hooks/use-profile";
 import {
@@ -26,27 +13,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useUIStore } from "@/lib/stores/ui-store";
-import { O, aurora, auroraSoft, panel } from "@/lib/design/orbit";
-import { PillBtn } from "@/components/orbit/primitives";
-
-interface NavItem {
-  label: string;
-  href: string;
-  icon: LucideIcon;
-}
-
-const NAV: NavItem[] = [
-  { label: "Home", href: "/feed", icon: Home },
-  { label: "Clips", href: "/clips", icon: Film },
-  { label: "Discover", href: "/explore", icon: Compass },
-  { label: "Rooms", href: "/communities", icon: Globe },
-  { label: "Live", href: "/live", icon: Play },
-  { label: "Events", href: "/events", icon: Calendar },
-  { label: "Messages", href: "/messages", icon: MessageCircle },
-  { label: "Notifications", href: "/notifications", icon: Bell },
-];
+import { NAV_ITEMS } from "@/lib/navigation";
+import { cn } from "@/lib/utils";
 
 export function Sidebar({
   initialProfile,
@@ -71,141 +42,61 @@ export function Sidebar({
 
   const activeHref = useMemo(
     () =>
-      NAV.find((n) => pathname === n.href || pathname.startsWith(n.href + "/"))
-        ?.href ?? "",
+      NAV_ITEMS.find(
+        (n) => pathname === n.href || pathname.startsWith(n.href + "/")
+      )?.href ?? "",
     [pathname],
   );
 
   return (
-    <aside
-      className="fixed left-6 top-6 bottom-6 w-[260px] z-40 hidden lg:flex flex-col"
-      style={{ ...panel(), padding: "24px 18px", gap: 4 }}
-    >
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] select-none flex-col border-r border-border bg-background px-4 py-6 lg:flex">
       {/* Logo block */}
-      <Link
-        href="/feed"
-        className="flex items-center gap-[10px] px-2 pb-[18px] pt-1"
-      >
-        <div
-          className="relative"
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 10,
-            background: aurora,
-            boxShadow: `0 4px 14px -2px color-mix(in oklab, ${O.a2} 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              inset: 4,
-              borderRadius: 6,
-              border: "1.5px solid rgba(255,255,255,0.5)",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              top: 9,
-              left: 9,
-              width: 4,
-              height: 4,
-              borderRadius: "50%",
-              background: "white",
-            }}
-          />
+      <Link href="/feed" className="flex items-center gap-2.5 px-2 pb-5 pt-1">
+        <div className="relative h-8 w-8 shrink-0 rounded-lg bg-primary">
+          <div className="absolute inset-1 rounded-md border-[1.5px] border-primary-foreground/50" />
+          <div className="absolute left-[9px] top-[9px] h-1 w-1 rounded-full bg-primary-foreground" />
         </div>
         <div>
-          <div
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              letterSpacing: "-0.02em",
-              color: O.ink,
-            }}
-          >
+          <div className="text-lg font-bold tracking-tight text-foreground">
             Orbit
           </div>
-          <div
-            style={{
-              fontSize: 9.5,
-              color: O.ink3,
-              fontFamily: O.mono,
-              letterSpacing: "0.14em",
-              marginTop: -2,
-            }}
-          >
+          <div className="-mt-0.5 font-mono text-[9.5px] tracking-[0.14em] text-muted-foreground">
             EVERYONE&apos;S RADIUS
           </div>
         </div>
       </Link>
 
       {/* Nav */}
-      <nav className="flex flex-col gap-1 flex-1">
-        {NAV.map((item) => {
+      <nav className="flex flex-1 flex-col gap-1">
+        {NAV_ITEMS.map((item) => {
           const isActive = activeHref === item.href;
           const Icon = item.icon;
           const badge =
-            item.label === "Notifications" && unreadCount && unreadCount > 0
+            item.badge === "notifications" && unreadCount && unreadCount > 0
               ? unreadCount
-              : item.label === "Messages" && unreadMessages && unreadMessages > 0
+              : item.badge === "messages" && unreadMessages && unreadMessages > 0
                 ? unreadMessages
                 : null;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className="relative"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                padding: "11px 14px",
-                borderRadius: 14,
-                fontSize: 14,
-                fontWeight: isActive ? 600 : 500,
-                background: isActive ? auroraSoft : "transparent",
-                border: isActive
-                  ? `1px solid ${O.hair2}`
-                  : "1px solid transparent",
-                color: isActive ? O.ink : O.ink2,
-                boxShadow: isActive
-                  ? "inset 0 1px 0 rgba(255,255,255,0.06)"
-                  : "none",
-              }}
+              className={cn(
+                "relative flex items-center gap-3.5 rounded-lg px-3.5 py-2.5 text-sm",
+                isActive
+                  ? "bg-primary/10 font-semibold text-foreground"
+                  : "font-medium text-text-secondary hover:bg-surface hover:text-foreground"
+              )}
             >
-              <Icon style={{ width: 18, height: 18 }} strokeWidth={1.8} />
+              <Icon className="h-[18px] w-[18px]" strokeWidth={1.8} />
               <span>{item.label}</span>
               {badge && (
-                <span
-                  style={{
-                    marginLeft: "auto",
-                    background: O.a2,
-                    color: "white",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    padding: "2px 7px",
-                    borderRadius: 99,
-                  }}
-                >
+                <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground">
                   {badge > 9 ? "9+" : badge}
                 </span>
               )}
               {isActive && (
-                <span
-                  style={{
-                    position: "absolute",
-                    left: -19,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    width: 3,
-                    height: 18,
-                    borderRadius: 2,
-                    background: aurora,
-                    boxShadow: `0 0 12px ${O.a2}`,
-                  }}
-                />
+                <span className="absolute -left-4 top-1/2 h-[18px] w-0.5 -translate-y-1/2 rounded-sm bg-primary" />
               )}
             </Link>
           );
@@ -214,184 +105,104 @@ export function Sidebar({
 
       {/* Footer block: compose + user. Signed-out viewers (browsing via
           "Explore first") get sign-up/sign-in CTAs instead. */}
-      <div
-        style={{
-          marginTop: 18,
-          paddingTop: 18,
-          borderTop: `1px solid ${O.hair}`,
-        }}
-      >
+      <div className="mt-4 border-t border-border pt-4">
         {isSignedIn ? (
-          <PillBtn
-            primary
-            size="lg"
-            onClick={() => setComposeOpen(true)}
-            style={{ width: "100%", justifyContent: "center" }}
-          >
+          <Button size="lg" className="w-full" onClick={() => setComposeOpen(true)}>
             Post
-          </PillBtn>
+          </Button>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <Link href="/signup" style={{ display: "block" }}>
-              <PillBtn
-                primary
-                size="lg"
-                style={{ width: "100%", justifyContent: "center" }}
-              >
-                Sign up
-              </PillBtn>
-            </Link>
-            <Link href="/login" style={{ display: "block" }}>
-              <PillBtn
-                size="lg"
-                style={{ width: "100%", justifyContent: "center" }}
-              >
-                Sign in
-              </PillBtn>
-            </Link>
+          <div className="flex flex-col gap-2">
+            <Button size="lg" className="w-full" render={<Link href="/signup" />}>
+              Sign up
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full"
+              render={<Link href="/login" />}
+            >
+              Sign in
+            </Button>
           </div>
         )}
         {isSignedIn && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "14px 4px 0",
-            width: "100%",
-          }}
-        >
-          {/* Avatar + name go to the user's profile page directly. While
-              the profile is hydrating we render a transparent placeholder
-              of the same dimensions to avoid the 'You / @you' flash. */}
-          {profile ? (
-            <Link
-              href={`/${profile.username}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                flex: 1,
-                minWidth: 0,
-                color: O.ink,
-                textDecoration: "none",
-              }}
-            >
-              {/* Plain <img> instead of Radix's Avatar so the picture is in
-                  the SSR'd markup and reused from the browser cache on
-                  reload, no fallback-letter flash while Radix waits for
-                  the load event. */}
-              {profile.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={profile.avatar_url}
-                  alt=""
-                  width={36}
-                  height={36}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 999,
-                    objectFit: "cover",
-                    flexShrink: 0,
-                    background: aurora,
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 999,
-                    background: aurora,
-                    color: "white",
-                    fontWeight: 700,
-                    fontSize: 14,
-                    display: "grid",
-                    placeItems: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  {profile.display_name?.[0]?.toUpperCase() ||
-                    user?.email?.[0]?.toUpperCase() ||
-                    "U"}
-                </div>
-              )}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: O.ink,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {profile.display_name || profile.username}
-                </div>
-                <div style={{ fontSize: 11, color: O.ink3 }}>
-                  @{profile.username}
-                </div>
-              </div>
-            </Link>
-          ) : (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                flex: 1,
-                minWidth: 0,
-                opacity: 0,
-                pointerEvents: "none",
-              }}
-              aria-hidden
-            >
-              <div className="h-9 w-9 rounded-full" />
-              <div style={{ flex: 1 }}>
-                <div style={{ height: 16 }} />
-                <div style={{ height: 14 }} />
-              </div>
-            </div>
-          )}
-
-          {/* 3-dots opens the settings/sign-out menu. */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className="cursor-pointer shrink-0"
-              aria-label="Account menu"
-              style={{
-                width: 30,
-                height: 30,
-                display: "grid",
-                placeItems: "center",
-                background: "transparent",
-                border: 0,
-                color: O.ink3,
-                borderRadius: 999,
-              }}
-            >
-              <MoreHorizontal style={{ width: 16, height: 16 }} />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="top" className="w-56 rounded-2xl">
-              <Link href="/settings">
-                <DropdownMenuItem className="cursor-pointer rounded-lg">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
-              </Link>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={signOut}
-                className="text-destructive cursor-pointer rounded-lg"
+          <div className="flex w-full items-center gap-2.5 px-1 pt-3.5">
+            {/* Avatar + name go to the user's profile page directly. While
+                the profile is hydrating we render a transparent placeholder
+                of the same dimensions to avoid the 'You / @you' flash. */}
+            {profile ? (
+              <Link
+                href={`/${profile.username}`}
+                className="flex min-w-0 flex-1 items-center gap-2.5 text-foreground no-underline"
               >
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+                {/* Plain <img> instead of Radix's Avatar so the picture is in
+                    the SSR'd markup and reused from the browser cache on
+                    reload, no fallback-letter flash while Radix waits for
+                    the load event. */}
+                {profile.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profile.avatar_url}
+                    alt=""
+                    width={36}
+                    height={36}
+                    className="h-9 w-9 shrink-0 rounded-full bg-surface-elevated object-cover"
+                  />
+                ) : (
+                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                    {profile.display_name?.[0]?.toUpperCase() ||
+                      user?.email?.[0]?.toUpperCase() ||
+                      "U"}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[13px] font-semibold text-foreground">
+                    {profile.display_name || profile.username}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    @{profile.username}
+                  </div>
+                </div>
+              </Link>
+            ) : (
+              <div
+                className="pointer-events-none flex min-w-0 flex-1 items-center gap-2.5 opacity-0"
+                aria-hidden
+              >
+                <div className="h-9 w-9 rounded-full" />
+                <div className="flex-1">
+                  <div className="h-4" />
+                  <div className="h-3.5" />
+                </div>
+              </div>
+            )}
+
+            {/* 3-dots opens the settings/sign-out menu. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="grid h-[30px] w-[30px] shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-muted-foreground hover:text-foreground"
+                aria-label="Account menu"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" side="top" className="w-56">
+                <Link href="/settings">
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
+                </Link>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={signOut}
+                  className="cursor-pointer text-destructive"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
       </div>
     </aside>

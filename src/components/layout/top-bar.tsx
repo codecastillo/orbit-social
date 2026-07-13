@@ -1,83 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Search } from "lucide-react";
-import { O, aurora, panel } from "@/lib/design/orbit";
+import { Search } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 
 export function TopBar() {
   return (
-    <header
-      className="sticky top-0 z-30 flex lg:hidden items-center"
-      style={{
-        padding: "12px 16px 14px",
-        background: `linear-gradient(180deg, color-mix(in oklab, ${O.bg} 80%, transparent), color-mix(in oklab, ${O.bg} 0%, transparent))`,
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        gap: 10,
-        color: O.ink,
-        fontFamily: O.sans,
-      }}
-    >
+    <header className="sticky top-0 z-30 flex items-center gap-2.5 border-b border-border bg-background px-4 py-3 lg:hidden">
       <Link
         href="/feed"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          textDecoration: "none",
-          color: O.ink,
-          flexShrink: 0,
-        }}
+        className="flex shrink-0 items-center gap-2 text-foreground no-underline"
       >
-        <div
-          style={{
-            position: "relative",
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: aurora,
-            boxShadow: `0 4px 14px -2px color-mix(in oklab, ${O.a2} 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              inset: 3,
-              borderRadius: 5,
-              border: "1.5px solid rgba(255,255,255,0.5)",
-            }}
-          />
+        <div className="relative h-7 w-7 rounded-md bg-primary">
+          <div className="absolute inset-[3px] rounded-[5px] border-[1.5px] border-primary-foreground/50" />
         </div>
-        <span
-          style={{
-            fontSize: 22,
-            fontWeight: 700,
-            letterSpacing: "-0.02em",
-          }}
-        >
-          Orbit
-        </span>
+        <span className="text-[22px] font-bold tracking-tight">Orbit</span>
       </Link>
 
-      <div style={{ flex: 1 }} />
+      <div className="flex-1" />
 
-      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+      <div className="flex shrink-0 gap-2">
         <Link
           href="/explore"
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 12,
-            ...panel({ borderRadius: 12 }),
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: O.ink2,
-            textDecoration: "none",
-          }}
+          aria-label="Search"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-text-secondary no-underline"
         >
-          <Search style={{ width: 16, height: 16 }} />
+          <Search className="h-4 w-4" />
         </Link>
         <NotificationBell />
       </div>

@@ -10,9 +10,10 @@ export function NotificationBell() {
   return (
     <Link
       href="/notifications"
-      className="relative p-2 rounded-full hover:bg-accent transition-colors"
+      aria-label="Notifications"
+      className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-text-secondary transition-colors hover:text-foreground"
     >
-      <Bell className="h-5 w-5" />
+      <Bell className="h-4 w-4" />
       {!!count && count > 0 && (
         <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold leading-none text-white bg-destructive rounded-full">
           {count > 9 ? "9+" : count}
