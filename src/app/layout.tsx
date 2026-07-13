@@ -14,14 +14,33 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Canonicals and absolute OG URLs need the production host; previews and
+// local dev fall back to Next's automatic base. Set NEXT_PUBLIC_SITE_URL in
+// the Vercel production environment.
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
 export const metadata: Metadata = {
+  ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
   title: {
-    default: "Orbit: Social Network",
+    default: "Orbit: The internet, but smaller",
     template: "%s | Orbit",
   },
   description:
-    "Connect, share, and discover. The next generation social platform.",
+    "A social platform built for people who are tired of shouting into the void. Feed, clips, rooms, live, and messages in one place.",
   icons: { icon: "/favicon.ico" },
+  openGraph: {
+    siteName: "Orbit",
+    type: "website",
+    title: "Orbit: The internet, but smaller",
+    description:
+      "A social platform built for people who are tired of shouting into the void.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Orbit: The internet, but smaller",
+    description:
+      "A social platform built for people who are tired of shouting into the void.",
+  },
 };
 
 export const viewport: Viewport = {

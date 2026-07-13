@@ -56,7 +56,7 @@ export function QRCodeDialog({
       errorCorrectionLevel: "M",
       margin: 1,
       width: 480,
-      color: { dark: "#0c0a17", light: "#ffffff" },
+      color: { dark: "#000000", light: "#ffffff" },
     })
       .then((url) => {
         if (!cancelled) setQrDataUrl(url);
@@ -153,7 +153,7 @@ export function QRCodeDialog({
                 ) : (
                   <Loader2
                     className="animate-spin"
-                    style={{ width: 22, height: 22, color: "#0c0a17" }}
+                    style={{ width: 22, height: 22, color: "#000000" }}
                   />
                 )}
               </div>

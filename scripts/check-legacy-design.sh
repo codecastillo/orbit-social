@@ -19,8 +19,9 @@ collect_hits() {
     # CSS once the value is a var() reference.
     perl -lne 'print $ARGV and close ARGV if /\$\{[^{}]+\}[0-9a-fA-F]{2}(?![0-9a-zA-Z_-])/ && !/color-mix/' \
       $(find src -name '*.tsx' -o -name '*.ts') 2>/dev/null || true
-    # Legacy utility classes.
-    grep -rlE '\b(glass|avatar-animated-glow|hover-lift|landing-reveal|landing-fade-in|landing-scale-in)\b' \
+    # Legacy utility classes. The landing-* entrance keyframes are NOT
+    # legacy: they are reduced-motion-guarded reveals the new landing keeps.
+    grep -rlE '\b(glass|avatar-animated-glow|hover-lift)\b' \
       src --include='*.tsx' 2>/dev/null || true
   } | sort -u
 }

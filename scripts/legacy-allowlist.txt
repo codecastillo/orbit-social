@@ -31,7 +31,6 @@ src/app/(main)/settings/streaming/page.tsx
 src/app/[username]/profile-content.tsx
 src/app/hashtag/[tag]/page.tsx
 src/app/location/[place]/page.tsx
-src/app/page.tsx
 src/components/clips/clip-actions.tsx
 src/components/clips/clip-comments-sheet.tsx
 src/components/clips/clip-feed.tsx

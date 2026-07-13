@@ -1,15 +1,28 @@
-// Landing page is a Server Component: no "use client", no framer-motion
-// in the bundle. Animations are CSS keyframes defined in globals.css
+// Landing page is a Server Component: no "use client", no motion runtime in
+// the bundle. Entrance animations are the CSS keyframes in globals.css
 // (.landing-reveal / .landing-fade-in / .landing-scale-in).
+import type { Metadata } from "next";
 import Link from "next/link";
-import { O, aurora, auroraSoft, orbitBg, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import {
+  AudioLines,
+  Calendar,
+  Film,
+  Globe,
+  Heart,
+  MessageCircle,
+  Play,
+  Repeat2,
+} from "lucide-react";
 
-// Static reveal wrapper. Each section just fades+rises in on load (with a
-// staggered animation-delay) instead of being IntersectionObserver-driven.
-// The marketing page is short enough that everything is visible within
-// one scroll; the scroll-triggered version added complexity for no real
-// payoff. Keeps the motion-runtime out of the route entirely.
+export const metadata: Metadata = {
+  title: "Orbit: The internet, but smaller",
+  description:
+    "A social platform built for people who are tired of shouting into the void. Feed, clips, rooms, live, and messages in one place. Start with one room, one post, one voice note.",
+};
+
+// Static reveal wrapper: each section fades and rises in on load with a
+// staggered delay. The page is short enough that scroll-triggering added
+// complexity for no payoff.
 function Reveal({
   children,
   delay = 0,
@@ -29,79 +42,39 @@ function Reveal({
   );
 }
 
-/* ─── Top nav ───────────────────────────────────────────────────── */
+function LogoMark({ size = 28 }: { size?: number }) {
+  return (
+    <div
+      className="relative rounded-lg bg-primary"
+      style={{ width: size, height: size }}
+    >
+      <div className="absolute inset-[3px] rounded-[5px] border-[1.5px] border-primary-foreground/50" />
+    </div>
+  );
+}
 
 function TopNav() {
   return (
-    <nav
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 50,
-        backdropFilter: "blur(24px) saturate(180%)",
-        WebkitBackdropFilter: "blur(24px) saturate(180%)",
-        background: "rgba(7,8,24,0.6)",
-        borderBottom: `1px solid ${O.hair}`,
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 1240,
-          margin: "0 auto",
-          padding: "0 28px",
-          height: 64,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Link
-          href="/"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            textDecoration: "none",
-          }}
-        >
-          <div
-            style={{
-              position: "relative",
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              background: aurora,
-              boxShadow: `0 4px 14px -2px color-mix(in oklab, ${O.a2} 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                inset: 3,
-                borderRadius: 5,
-                border: "1.5px solid rgba(255,255,255,0.5)",
-              }}
-            />
-          </div>
-          <span
-            style={{
-              fontSize: 17,
-              fontWeight: 700,
-              letterSpacing: "-0.02em",
-              color: O.ink,
-            }}
-          >
+    <nav className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background">
+      <div className="mx-auto flex h-16 max-w-[1240px] items-center justify-between px-7">
+        <Link href="/" className="flex items-center gap-2.5 no-underline">
+          <LogoMark />
+          <span className="text-[17px] font-bold tracking-tight text-foreground">
             Orbit
           </span>
         </Link>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Link href="/signup">
-            <PillBtn primary size="sm">
-              Get started
-            </PillBtn>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/login"
+            className="rounded-lg px-3.5 py-2 text-[13px] font-medium text-text-secondary no-underline hover:text-foreground"
+          >
+            Log in
+          </Link>
+          <Link
+            href="/signup"
+            className="rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground no-underline"
+          >
+            Get started
           </Link>
         </div>
       </div>
@@ -109,622 +82,268 @@ function TopNav() {
   );
 }
 
-/* ─── Hero ──────────────────────────────────────────────────────── */
-
-function HeroOrbit() {
+/* Hero product mock: a feed card, a DM thread, and a live tile built from
+   the real token system. Doubles as proof of the design language. */
+function HeroMock() {
   return (
-    <div
-      style={{
-        position: "relative",
-        width: "100%",
-        aspectRatio: "1/1",
-        maxWidth: 520,
-      }}
-    >
-      {/* Ambient glow */}
-      <div
-        style={{
-          position: "absolute",
-          inset: "-15%",
-          borderRadius: "50%",
-          background: `radial-gradient(circle, color-mix(in oklab, ${O.a1} 15%, transparent) 0%, color-mix(in oklab, ${O.a2} 8%, transparent) 35%, transparent 65%)`,
-          filter: "blur(20px)",
-          animation: "pulse-glow 5s ease-in-out infinite",
-        }}
-      />
-
-      {/* Orbit rings with dots */}
-      {[
-        { inset: "6%", dur: 40, size: 6, color: O.a1, angle: 120 },
-        { inset: "16%", dur: 28, size: 10, color: O.a2, angle: 60 },
-        { inset: "28%", dur: 20, size: 7, color: O.a3, angle: 200, reverse: true },
-        { inset: "40%", dur: 14, size: 5, color: O.a2, angle: 310 },
-      ].map((r, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            inset: r.inset,
-            borderRadius: "50%",
-            border: `1px solid ${O.hair2}`,
-            animation: `orbit-spin ${r.dur}s linear infinite ${r.reverse ? "reverse" : ""}`,
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: -r.size / 2,
-              left: "50%",
-              transform: `translateX(-50%) rotate(${r.angle}deg)`,
-              transformOrigin: "center bottom",
-              width: r.size,
-              height: r.size,
-              borderRadius: "50%",
-              background: r.color,
-              boxShadow: `0 0 14px 2px ${r.color}`,
-            }}
-          />
+    <div className="relative mx-auto w-full max-w-[440px]">
+      {/* Feed card */}
+      <div className="rounded-xl border border-border bg-surface p-4">
+        <div className="flex items-center gap-2.5">
+          <div className="grid h-9 w-9 place-items-center rounded-full bg-primary text-[13px] font-bold text-primary-foreground">
+            M
+          </div>
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold leading-tight text-foreground">
+              Maya Chen
+            </p>
+            <p className="font-mono text-[11px] leading-tight text-muted-foreground">
+              @mayabuilds · 2h
+            </p>
+          </div>
         </div>
-      ))}
+        <p className="mt-3 text-[13.5px] leading-relaxed text-foreground">
+          Shipped the new pottery batch. Kiln cam replay is up, thanks for
+          watching the whole eight hours, you maniacs.
+        </p>
+        <div className="mt-3 grid grid-cols-3 gap-1.5 overflow-hidden rounded-lg">
+          <div className="aspect-square bg-surface-elevated" />
+          <div className="aspect-square bg-primary/20" />
+          <div className="aspect-square bg-surface-elevated" />
+        </div>
+        <div className="mt-3 flex items-center gap-5 text-muted-foreground">
+          <span className="flex items-center gap-1.5 text-[12px]">
+            <Heart className="h-3.5 w-3.5" /> 214
+          </span>
+          <span className="flex items-center gap-1.5 text-[12px]">
+            <MessageCircle className="h-3.5 w-3.5" /> 18
+          </span>
+          <span className="flex items-center gap-1.5 text-[12px]">
+            <Repeat2 className="h-3.5 w-3.5" /> 6
+          </span>
+        </div>
+      </div>
 
-      {/* Center planet */}
-      <div
-        style={{
-          position: "absolute",
-          inset: "42%",
-          borderRadius: "50%",
-          background: aurora,
-          boxShadow: `0 0 60px color-mix(in oklab, ${O.a2} 40%, transparent), 0 0 120px color-mix(in oklab, ${O.a1} 20%, transparent), inset 0 2px 0 rgba(255,255,255,0.3)`,
-        }}
-      />
+      {/* DM thread */}
+      <div className="relative z-10 -mt-3 ml-8 rounded-xl border border-border bg-surface-elevated p-3.5 shadow-lg">
+        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+          Messages
+        </p>
+        <div className="mt-2.5 flex flex-col gap-2">
+          <div className="max-w-[85%] self-start rounded-lg rounded-bl-sm bg-surface px-3 py-2 text-[12.5px] text-foreground">
+            are you streaming the glaze pull tonight?
+          </div>
+          <div className="max-w-[85%] self-end rounded-lg rounded-br-sm bg-primary px-3 py-2 text-[12.5px] font-medium text-primary-foreground">
+            8pm. bringing the good clay
+          </div>
+        </div>
+      </div>
+
+      {/* Live tile */}
+      <div className="relative z-20 -mt-2 mr-6 flex items-center gap-3 rounded-xl border border-border bg-surface p-3">
+        <div className="relative h-12 w-16 shrink-0 overflow-hidden rounded-md bg-surface-elevated">
+          <span className="absolute left-1 top-1 rounded-sm bg-destructive px-1 py-px font-mono text-[8px] font-bold tracking-wider text-white">
+            LIVE
+          </span>
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-[12.5px] font-semibold text-foreground">
+            Night studio session
+          </p>
+          <p className="font-mono text-[10.5px] text-muted-foreground">
+            342 watching
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
 
 function HeroSection() {
   return (
-    <section
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        paddingTop: 96,
-        paddingBottom: 64,
-        position: "relative",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 1240,
-          margin: "0 auto",
-          padding: "0 28px",
-          width: "100%",
-          display: "grid",
-          gap: 48,
-          alignItems: "center",
-        }}
-        className="md:grid-cols-2 grid-cols-1"
-      >
+    <section className="relative flex min-h-screen items-center pb-16 pt-24">
+      <div className="mx-auto grid w-full max-w-[1240px] grid-cols-1 items-center gap-12 px-7 md:grid-cols-2">
         <div className="landing-fade-in">
-          <div style={{ marginBottom: 18 }}>
-            <Eyebrow>◇&nbsp;&nbsp;ORBIT · EVERYONE&apos;S RADIUS</Eyebrow>
-          </div>
-          <Display size={76}>
+          <p className="mb-4 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Orbit · Everyone&apos;s radius
+          </p>
+          <h1 className="text-[clamp(2.75rem,6.5vw,4.75rem)] font-bold leading-[0.98] tracking-[-0.035em] text-foreground">
             The internet,
             <br />
-            but <Acc>smaller</Acc>.
-          </Display>
-          <p
-            style={{
-              fontSize: 16,
-              color: O.ink3,
-              marginTop: 22,
-              lineHeight: 1.6,
-              maxWidth: 460,
-            }}
-          >
-            A social platform built for people who are tired of shouting into the void. Start
-            with one room, one post, one voice note. Strangers find your orbit, or don&apos;t.
+            but <span className="text-primary">smaller</span>.
+          </h1>
+          <p className="mt-5 max-w-[460px] text-base leading-relaxed text-text-secondary">
+            A social platform built for people who are tired of shouting into
+            the void. Start with one room, one post, one voice note. Strangers
+            find your orbit, or don&apos;t.
           </p>
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              marginTop: 32,
-              flexWrap: "wrap",
-            }}
-          >
-            <Link href="/signup">
-              <PillBtn primary size="lg">
-                Get started
-              </PillBtn>
+          <div className="mt-8 flex flex-wrap gap-2.5">
+            <Link
+              href="/signup"
+              className="rounded-lg bg-primary px-6 py-3 text-[15px] font-semibold text-primary-foreground no-underline"
+            >
+              Get started
             </Link>
-            <Link href="/feed">
-              <PillBtn size="lg">Explore first</PillBtn>
+            <Link
+              href="/feed"
+              className="rounded-lg border border-border bg-surface px-6 py-3 text-[15px] font-medium text-foreground no-underline"
+            >
+              Explore first
             </Link>
           </div>
         </div>
 
-        <div
-          className="landing-scale-in"
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            animationDelay: "0.3s",
-          }}
-        >
-          <HeroOrbit />
+        <div className="landing-scale-in" style={{ animationDelay: "0.25s" }}>
+          <HeroMock />
         </div>
       </div>
     </section>
   );
 }
 
-/* ─── One platform. All the surface. (bento) ───────────────────── */
+const features = [
+  {
+    icon: Globe,
+    title: "Feed & Moments",
+    body: "A personalized feed with ephemeral Moments that vanish in 24 hours. Share what matters, not what performs.",
+  },
+  {
+    icon: Film,
+    title: "Clips",
+    body: "Short video, long attention. Vertical, snap-scroll, tuned for making, not doomscrolling.",
+  },
+  {
+    icon: Play,
+    title: "Live",
+    body: "Go on air in one tap. Broadcast from your studio, your desk, your kitchen. Replays land on your profile.",
+  },
+  {
+    icon: MessageCircle,
+    title: "Messages & calls",
+    body: "One-to-one and group chats with voice notes, reactions, and built-in video calls. No second app.",
+  },
+  {
+    icon: Calendar,
+    title: "Rooms & events",
+    body: "Small places, loud enough. Set the radius, set the rules, and take it offline with RSVPs and reminders.",
+  },
+  {
+    icon: AudioLines,
+    title: "Audio posts",
+    body: "Record voice notes with waveforms. Speak instead of typing, when it matters.",
+  },
+];
 
-function BentoSection() {
+function FeaturesSection() {
   return (
-    <section style={{ padding: "120px 0 80px", position: "relative" }}>
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 28px" }}>
+    <section className="py-24">
+      <div className="mx-auto max-w-[1240px] px-7">
         <Reveal>
-          <div style={{ textAlign: "center" }}>
-            <Display size={64} style={{ marginBottom: 20 }}>
-              One <Acc>platform</Acc>. All the <Acc>surface</Acc>.
-            </Display>
-            <p
-              style={{
-                fontSize: 15,
-                color: O.ink3,
-                maxWidth: 560,
-                lineHeight: 1.55,
-                margin: "0 auto",
-              }}
-            >
-              Feed, clips, audio, rooms, events. The core surfaces every social network
-              needs, built into one cohesive system.
+          <div className="max-w-[640px]">
+            <p className="mb-4 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              The surfaces
+            </p>
+            <h2 className="text-[clamp(2rem,4.5vw,3.5rem)] font-bold leading-[1.02] tracking-[-0.03em] text-foreground">
+              One <span className="text-primary">platform</span>. All the
+              surface.
+            </h2>
+            <p className="mt-4 max-w-[540px] text-[15px] leading-relaxed text-text-secondary">
+              Feed, clips, audio, rooms, live, events. The core surfaces every
+              social network needs, built into one cohesive system. No siloed
+              apps, no cross-posting.
             </p>
           </div>
         </Reveal>
 
-        <div
-          style={{
-            marginTop: 56,
-            display: "grid",
-            gridTemplateColumns: "1fr 1.4fr",
-            gap: 16,
-          }}
-          className="lg:grid-cols-[1fr_1.4fr] grid-cols-1"
-        >
-          {/* Left column */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <Reveal delay={0.05}>
-              <BentoCard
-                title="Feed & Moments"
-                sub="Share what matters. A personalized feed with ephemeral Moments that vanish in 24h."
-                tone="dim"
-              >
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <MiniPostRow color={O.a1} />
-                  <MiniPostRow color={O.a2} />
-                </div>
-              </BentoCard>
-            </Reveal>
-
-            <Reveal delay={0.1}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                <BentoCard title="Rooms" sub="Small places. Loud enough." compact>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 4,
-                      borderRadius: 10,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div style={{ aspectRatio: "1/1", background: "linear-gradient(135deg,#ff6a7a,#c8435a)" }} />
-                    <div style={{ aspectRatio: "1/1", background: "linear-gradient(135deg,#ff9a3d,#ff5a6a)" }} />
-                    <div style={{ aspectRatio: "1/1", background: "linear-gradient(135deg,#8b73ff,#5f4bd0)" }} />
-                    <div style={{ aspectRatio: "1/1", background: "linear-gradient(135deg,#4dd694,#2d9e67)" }} />
-                  </div>
-                </BentoCard>
-                <BentoCard title="Live" sub="Go on air in one tap." compact>
-                  <div
-                    style={{
-                      position: "relative",
-                      borderRadius: 10,
-                      aspectRatio: "1/0.9",
-                      background: `linear-gradient(135deg, ${O.a2}, ${O.a1})`,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: 8,
-                        left: 8,
-                        padding: "3px 7px",
-                        background: "#ff5a6a",
-                        borderRadius: 99,
-                        fontSize: 8.5,
-                        fontFamily: O.mono,
-                        letterSpacing: "0.1em",
-                        fontWeight: 700,
-                        color: "white",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: "white" }} />
-                      LIVE
-                    </div>
-                  </div>
-                </BentoCard>
+        <div className="mt-14 grid grid-cols-1 gap-x-10 gap-y-12 border-t border-border pt-12 sm:grid-cols-2 lg:grid-cols-3">
+          {features.map((f, i) => (
+            <Reveal key={f.title} delay={0.05 * i}>
+              <div>
+                <f.icon
+                  className="h-5 w-5 text-primary"
+                  strokeWidth={1.8}
+                  aria-hidden
+                />
+                <h3 className="mt-4 text-[17px] font-bold tracking-tight text-foreground">
+                  {f.title}
+                </h3>
+                <p className="mt-2 max-w-[340px] text-[13.5px] leading-relaxed text-text-secondary">
+                  {f.body}
+                </p>
               </div>
             </Reveal>
-          </div>
-
-          {/* Right side, Clips big */}
-          <Reveal delay={0.15}>
-            <BentoCard
-              title="Clips"
-              sub="Short video, long attention. Vertical, snap-scroll, tuned for making, not doomscrolling."
-              tall
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 10,
-                  marginTop: 16,
-                }}
-              >
-                {[
-                  "linear-gradient(135deg,#ff6a7a 0%,#c8435a 100%)",
-                  "linear-gradient(135deg,#4dc4ff 0%,#2d6fe0 100%)",
-                  "linear-gradient(135deg,#8b73ff 0%,#ba6aff 100%)",
-                  "linear-gradient(135deg,#4dd694 0%,#2d9e67 100%)",
-                ].map((bg, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      aspectRatio: "4/3",
-                      borderRadius: 12,
-                      background: bg,
-                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2)",
-                      position: "relative",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        position: "absolute",
-                        bottom: 8,
-                        left: 10,
-                        fontSize: 9.5,
-                        fontFamily: O.mono,
-                        letterSpacing: "0.06em",
-                        color: "rgba(255,255,255,0.75)",
-                      }}
-                    >
-                      [ clip {i + 1} ]
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </BentoCard>
-          </Reveal>
-        </div>
-
-        <div
-          style={{
-            marginTop: 16,
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 16,
-          }}
-          className="grid-cols-1 sm:grid-cols-2"
-        >
-          <Reveal delay={0.2}>
-            <BentoCard
-              title="Events"
-              sub="Meetups, launches, listening sessions. The real-world side of the network."
-              compact
-            />
-          </Reveal>
-          <Reveal delay={0.25}>
-            <BentoCard
-              title="Audio posts"
-              sub="Record voice notes with waveforms. Speak instead of typing, when it matters."
-              compact
-            />
-          </Reveal>
+          ))}
         </div>
       </div>
     </section>
   );
 }
 
-function BentoCard({
-  title,
-  sub,
-  children,
-  compact,
-  tall,
-  tone = "normal",
-}: {
-  title: string;
-  sub: string;
-  children?: React.ReactNode;
-  compact?: boolean;
-  tall?: boolean;
-  tone?: "normal" | "dim";
-}) {
+/* Framed app mock: the feed in place, flat, with rail and trending column. */
+function ProductFrameSection() {
   return (
-    <div
-      style={{
-        ...panel(),
-        padding: compact ? 22 : 26,
-        minHeight: tall ? 520 : compact ? 180 : undefined,
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-        background: tone === "dim" ? "rgba(255,255,255,0.025)" : O.glass,
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      <div>
-        <h3
-          style={{
-            fontSize: compact ? 17 : 22,
-            fontWeight: 700,
-            letterSpacing: "-0.015em",
-            color: O.ink,
-            margin: 0,
-          }}
-        >
-          {title}
-        </h3>
-        <p
-          style={{
-            fontSize: compact ? 12.5 : 13.5,
-            color: O.ink3,
-            marginTop: 8,
-            lineHeight: 1.55,
-            maxWidth: 400,
-          }}
-        >
-          {sub}
-        </p>
-      </div>
-      {children}
-      <div
-        style={{
-          marginTop: "auto",
-          paddingTop: 12,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          color: O.ink3,
-          fontSize: 11.5,
-          fontFamily: O.mono,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-        }}
-      >
-        Look in
-      </div>
-    </div>
-  );
-}
-
-function MiniPostRow({ color }: { color: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: 10,
-        borderRadius: 12,
-        background: O.glass,
-        border: `1px solid ${O.hair}`,
-      }}
-    >
-      <div
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: "50%",
-          background: `linear-gradient(135deg, ${color}, ${O.a3})`,
-          flexShrink: 0,
-        }}
-      />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-        <div style={{ height: 7, borderRadius: 3, background: "rgba(255,255,255,0.12)", width: "70%" }} />
-        <div style={{ height: 5, borderRadius: 2, background: "rgba(255,255,255,0.06)", width: "50%" }} />
-      </div>
-    </div>
-  );
-}
-
-/* ─── Feed in motion mockup ─────────────────────────────────────── */
-
-function FeedInMotionSection() {
-  return (
-    <section style={{ padding: "80px 0 80px" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 28px" }}>
+    <section className="py-16">
+      <div className="mx-auto max-w-[1100px] px-7">
         <Reveal>
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
-            <Display size={56}>
-              The feed, <Acc>in motion</Acc>.
-            </Display>
-            <p
-              style={{
-                fontSize: 15,
-                color: O.ink3,
-                marginTop: 16,
-                maxWidth: 520,
-                margin: "16px auto 0",
-                lineHeight: 1.55,
-              }}
-            >
-              A real app. No autoplay, no forced accelerations, no renewing.
-            </p>
-          </div>
-        </Reveal>
-
-        <Reveal delay={0.1}>
-          <div
-            style={{
-              ...panel({ borderRadius: 20 }),
-              padding: 0,
-              overflow: "hidden",
-            }}
-          >
-            {/* Browser chrome */}
-            <div
-              style={{
-                padding: "14px 18px",
-                borderBottom: `1px solid ${O.hair}`,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <div style={{ display: "flex", gap: 7 }}>
-                <div style={{ width: 11, height: 11, borderRadius: "50%", background: "#ff6a6a" }} />
-                <div style={{ width: 11, height: 11, borderRadius: "50%", background: "#ffbd2e" }} />
-                <div style={{ width: 11, height: 11, borderRadius: "50%", background: "#28ca42" }} />
+          <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+            <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
+              <div className="flex gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-border" />
+                <span className="h-2.5 w-2.5 rounded-full bg-border" />
+                <span className="h-2.5 w-2.5 rounded-full bg-border" />
               </div>
-              <div
-                style={{
-                  marginLeft: 18,
-                  padding: "5px 14px",
-                  borderRadius: 8,
-                  background: "rgba(255,255,255,0.04)",
-                  border: `1px solid ${O.hair}`,
-                  fontSize: 11,
-                  color: O.ink3,
-                  fontFamily: O.mono,
-                  letterSpacing: "0.04em",
-                }}
-              >
-                orbit.so/feed
-              </div>
+              <span className="ml-3 rounded-md border border-border bg-background px-3 py-1 font-mono text-[11px] tracking-wide text-muted-foreground">
+                orbit / feed
+              </span>
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "180px 1fr 260px",
-                minHeight: 440,
-              }}
-              className="md:grid-cols-[180px_1fr_260px] grid-cols-1"
-            >
-              {/* Rail */}
-              <div style={{ borderRight: `1px solid ${O.hair}`, padding: 16 }}>
-                {["Home", "Discover", "Rooms", "Live", "Events", "Messages"].map((l, i) => (
-                  <div
-                    key={l}
-                    style={{
-                      padding: "9px 12px",
-                      fontSize: 12.5,
-                      color: i === 0 ? O.ink : O.ink3,
-                      background: i === 0 ? auroraSoft : "transparent",
-                      border: `1px solid ${i === 0 ? O.hair2 : "transparent"}`,
-                      borderRadius: 10,
-                      marginBottom: 2,
-                      fontWeight: i === 0 ? 600 : 500,
-                    }}
-                  >
-                    {l}
-                  </div>
-                ))}
+            <div className="grid min-h-[420px] grid-cols-1 md:grid-cols-[180px_1fr_240px]">
+              <div className="hidden border-r border-border p-4 md:block">
+                {["Home", "Discover", "Rooms", "Live", "Events", "Messages"].map(
+                  (label, i) => (
+                    <div
+                      key={label}
+                      className={`mb-0.5 rounded-lg px-3 py-2 text-[12.5px] ${
+                        i === 0
+                          ? "bg-primary/10 font-semibold text-foreground"
+                          : "font-medium text-muted-foreground"
+                      }`}
+                    >
+                      {label}
+                    </div>
+                  )
+                )}
               </div>
 
-              {/* Feed */}
-              <div style={{ padding: 20 }}>
-                <div
-                  style={{
-                    aspectRatio: "16/10",
-                    borderRadius: 14,
-                    background:
-                      "linear-gradient(135deg,#ff6a7a 0%,#ff4a40 35%,#c8435a 100%)",
-                    position: "relative",
-                    overflow: "hidden",
-                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15)",
-                  }}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      background:
-                        "repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0 20px, transparent 20px 40px)",
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      bottom: 14,
-                      left: 16,
-                      fontSize: 11,
-                      fontFamily: O.mono,
-                      color: "rgba(255,255,255,0.7)",
-                      letterSpacing: "0.08em",
-                    }}
-                  >
+              <div className="p-5">
+                <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-surface-elevated">
+                  <span className="absolute bottom-3.5 left-4 font-mono text-[11px] tracking-wider text-muted-foreground">
                     [ photo · harbour, 17:42 ]
-                  </div>
+                  </span>
                 </div>
-                <div style={{ display: "flex", gap: 14, marginTop: 14, color: O.ink3, fontSize: 12 }}>
-                  <span>♥</span>
-                  <span>◌</span>
-                  <span>↻</span>
+                <div className="mt-3.5 flex items-center gap-5 text-muted-foreground">
+                  <Heart className="h-4 w-4" aria-hidden />
+                  <MessageCircle className="h-4 w-4" aria-hidden />
+                  <Repeat2 className="h-4 w-4" aria-hidden />
                 </div>
               </div>
 
-              {/* Right rail */}
-              <div style={{ borderLeft: `1px solid ${O.hair}`, padding: 18 }}>
-                <div
-                  style={{
-                    fontSize: 10,
-                    fontFamily: O.mono,
-                    letterSpacing: "0.12em",
-                    color: O.ink3,
-                    textTransform: "uppercase",
-                    marginBottom: 12,
-                  }}
-                >
-                  ◈ Trending
-                </div>
-                {["softlaunch", "sundaybest", "analoglife"].map((t, i) => (
+              <div className="hidden border-l border-border p-4 md:block">
+                <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                  Trending
+                </p>
+                {["softlaunch", "sundaybest", "analoglife"].map((tag, i) => (
                   <div
-                    key={t}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "7px 0",
-                      borderTop: i ? `1px solid ${O.hair}` : "none",
-                    }}
+                    key={tag}
+                    className={`flex items-center gap-2.5 py-2 ${i ? "border-t border-border" : ""}`}
                   >
                     <span
-                      style={{
-                        fontFamily: O.serif,
-                        fontStyle: "italic",
-                        fontSize: 17,
-                        color: i === 0 ? O.a2 : O.ink3,
-                        width: 18,
-                      }}
+                      className={`w-4 font-mono text-[13px] font-bold ${i === 0 ? "text-primary" : "text-muted-foreground"}`}
                     >
                       {i + 1}
                     </span>
-                    <span style={{ fontSize: 12, color: O.ink, fontWeight: 600 }}>
-                      #{t}
+                    <span className="text-[12px] font-semibold text-foreground">
+                      #{tag}
                     </span>
                   </div>
                 ))}
@@ -736,14 +355,12 @@ function FeedInMotionSection() {
     </section>
   );
 }
-
-/* ─── Built different ──────────────────────────────────────────── */
 
 const pillars = [
   {
     no: "01",
     title: "Fast",
-    desc: "Interactions land in <50ms. Scrolling is the point; friction is the enemy.",
+    desc: "Interactions land in under 50ms. Scrolling is the point; friction is the enemy.",
   },
   {
     no: "02",
@@ -762,69 +379,26 @@ const pillars = [
   },
 ];
 
-function BuiltDifferentSection() {
+function PillarsSection() {
   return (
-    <section style={{ padding: "80px 0" }}>
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 28px" }}>
+    <section className="py-24">
+      <div className="mx-auto max-w-[1240px] px-7">
         <Reveal>
-          <div style={{ textAlign: "center" }}>
-            <Display size={64}>
-              Built <Acc>different</Acc>.
-            </Display>
-          </div>
+          <h2 className="text-[clamp(2rem,4.5vw,3.5rem)] font-bold tracking-[-0.03em] text-foreground">
+            Built <span className="text-primary">different</span>.
+          </h2>
         </Reveal>
-
-        <div
-          style={{
-            marginTop: 48,
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 28,
-          }}
-          className="md:grid-cols-4 sm:grid-cols-2 grid-cols-1"
-        >
+        <div className="mt-12 grid grid-cols-1 gap-7 sm:grid-cols-2 md:grid-cols-4">
           {pillars.map((p, i) => (
             <Reveal key={p.no} delay={i * 0.08}>
-              <div
-                style={{
-                  borderTop: `1px solid ${O.hair2}`,
-                  paddingTop: 22,
-                }}
-              >
-                <div
-                  style={{
-                    fontFamily: O.serif,
-                    fontStyle: "italic",
-                    fontSize: 44,
-                    fontWeight: 400,
-                    lineHeight: 1,
-                    background: aurora,
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    marginBottom: 18,
-                  }}
-                >
+              <div className="border-t border-border pt-5">
+                <p className="font-mono text-[28px] font-bold leading-none text-primary">
                   {p.no}
-                </div>
-                <h3
-                  style={{
-                    fontSize: 18,
-                    fontWeight: 700,
-                    letterSpacing: "-0.01em",
-                    color: O.ink,
-                    margin: 0,
-                  }}
-                >
+                </p>
+                <h3 className="mt-4 text-lg font-bold tracking-tight text-foreground">
                   {p.title}
                 </h3>
-                <p
-                  style={{
-                    fontSize: 13,
-                    color: O.ink3,
-                    marginTop: 8,
-                    lineHeight: 1.55,
-                  }}
-                >
+                <p className="mt-2 text-[13px] leading-relaxed text-text-secondary">
                   {p.desc}
                 </p>
               </div>
@@ -836,102 +410,46 @@ function BuiltDifferentSection() {
   );
 }
 
-/* ─── Made for makers ─────────────────────────────────────────── */
-
-const madeForRows = [
+const audiences = [
   {
     title: "Creators",
     body: "Clips, audio posts, and live streaming in one feed. Your work surfaces because of what it is, not what you paid for.",
-    accent: O.a1,
   },
   {
     title: "Communities",
     body: "Rooms keep small groups loud enough. Set the radius, set the rules, keep the algorithm out of the room.",
-    accent: O.a2,
   },
   {
     title: "Hosts",
     body: "Events, listening sessions, drop-ins. RSVPs and reminders that show up where people already are: the feed.",
-    accent: O.a3,
   },
 ];
 
 function MadeForSection() {
   return (
-    <section style={{ padding: "80px 0" }}>
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 28px" }}>
+    <section className="py-16">
+      <div className="mx-auto max-w-[1240px] px-7">
         <Reveal>
-          <div style={{ textAlign: "center" }}>
-            <Display size={56} style={{ marginBottom: 14 }}>
-              Made for <Acc>makers</Acc>, not advertisers.
-            </Display>
-            <p
-              style={{
-                fontSize: 15,
-                color: O.ink3,
-                maxWidth: 540,
-                lineHeight: 1.55,
-                margin: "0 auto",
-              }}
-            >
-              Whatever shape your work takes, there&apos;s a surface for it. No siloed
-              apps, no cross-posting. One platform, all the formats.
+          <div className="text-center">
+            <h2 className="text-[clamp(1.9rem,4vw,3.25rem)] font-bold tracking-[-0.03em] text-foreground">
+              Made for <span className="text-primary">makers</span>, not
+              advertisers.
+            </h2>
+            <p className="mx-auto mt-4 max-w-[540px] text-[15px] leading-relaxed text-text-secondary">
+              Whatever shape your work takes, there&apos;s a surface for it.
+              One platform, all the formats.
             </p>
           </div>
         </Reveal>
-
-        <div
-          style={{
-            marginTop: 48,
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 16,
-          }}
-          className="md:grid-cols-3 grid-cols-1"
-        >
-          {madeForRows.map((row, i) => (
+        <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3">
+          {audiences.map((row, i) => (
             <Reveal key={row.title} delay={i * 0.08}>
-              <div
-                style={{
-                  ...panel(),
-                  padding: 26,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 14,
-                  height: "100%",
-                  position: "relative",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 2,
-                    background: `linear-gradient(90deg, ${row.accent}, transparent)`,
-                  }}
-                />
-                <h3
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    letterSpacing: "-0.015em",
-                    color: O.ink,
-                    margin: 0,
-                  }}
-                >
+              <div className="relative h-full overflow-hidden rounded-xl border border-border bg-surface p-6">
+                <div className="absolute left-0 top-0 h-0.5 w-12 bg-primary" />
+                <h3 className="text-[20px] font-bold tracking-tight text-foreground">
                   {row.title}
                 </h3>
-                <p
-                  style={{
-                    fontSize: 13.5,
-                    color: O.ink3,
-                    lineHeight: 1.6,
-                    margin: 0,
-                  }}
-                >
+                <p className="mt-3 text-[13.5px] leading-relaxed text-text-secondary">
                   {row.body}
                 </p>
               </div>
@@ -943,66 +461,34 @@ function MadeForSection() {
   );
 }
 
-/* ─── CTA ──────────────────────────────────────────────────────── */
-
 function CtaSection() {
   return (
-    <section style={{ padding: "100px 0 60px" }}>
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 28px" }}>
+    <section className="py-24">
+      <div className="mx-auto max-w-[960px] px-7">
         <Reveal>
-          <div
-            style={{
-              ...panel({ borderRadius: 28 }),
-              padding: "80px 40px",
-              textAlign: "center",
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                inset: "-40%",
-                background: `radial-gradient(ellipse at center, color-mix(in oklab, ${O.a2} 13%, transparent) 0%, transparent 65%)`,
-                pointerEvents: "none",
-              }}
-            />
-            <div style={{ position: "relative" }}>
-              <Display size={64}>
-                Ready to join
-                <br />
-                the <Acc>orbit</Acc>?
-              </Display>
-              <p
-                style={{
-                  fontSize: 14.5,
-                  color: O.ink3,
-                  marginTop: 20,
-                  maxWidth: 420,
-                  margin: "20px auto 0",
-                  lineHeight: 1.55,
-                }}
+          <div className="rounded-2xl border border-border bg-surface px-10 py-20 text-center">
+            <h2 className="text-[clamp(2rem,4.5vw,3.5rem)] font-bold leading-[1.02] tracking-[-0.03em] text-foreground">
+              Ready to join
+              <br />
+              the <span className="text-primary">orbit</span>?
+            </h2>
+            <p className="mx-auto mt-5 max-w-[420px] text-[14.5px] leading-relaxed text-text-secondary">
+              Your community is waiting. Start with one room, one post, one
+              voice note.
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-2.5">
+              <Link
+                href="/signup"
+                className="rounded-lg bg-primary px-6 py-3 text-[15px] font-semibold text-primary-foreground no-underline"
               >
-                Your community is waiting. Start with one room, one post, one voice note.
-              </p>
-              <div
-                style={{
-                  marginTop: 32,
-                  display: "flex",
-                  gap: 10,
-                  justifyContent: "center",
-                  flexWrap: "wrap",
-                }}
+                Get started
+              </Link>
+              <Link
+                href="/feed"
+                className="rounded-lg border border-border bg-background px-6 py-3 text-[15px] font-medium text-foreground no-underline"
               >
-                <Link href="/signup">
-                  <PillBtn primary size="lg">
-                    Get started
-                  </PillBtn>
-                </Link>
-                <Link href="/feed">
-                  <PillBtn size="lg">Explore first</PillBtn>
-                </Link>
-              </div>
+                Explore first
+              </Link>
             </div>
           </div>
         </Reveal>
@@ -1011,9 +497,7 @@ function CtaSection() {
   );
 }
 
-/* ─── Footer ─────────────────────────────────────────────────────── */
-
-const footerCols: { title: string; links: { label: string; href?: string }[] }[] = [
+const footerCols: { title: string; links: { label: string; href: string }[] }[] = [
   {
     title: "Product",
     links: [
@@ -1032,99 +516,40 @@ const footerCols: { title: string; links: { label: string; href?: string }[] }[]
       { label: "Explore", href: "/explore" },
     ],
   },
-  {
-    title: "Legal",
-    links: [
-      { label: "Terms" },
-      { label: "Privacy" },
-      { label: "Cookies" },
-      { label: "Community guidelines" },
-    ],
-  },
 ];
 
 function Footer() {
   return (
-    <footer style={{ borderTop: `1px solid ${O.hair}`, padding: "56px 0 28px" }}>
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 28px" }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 48,
-            alignItems: "start",
-          }}
-          className="md:grid-cols-3 grid-cols-2"
-        >
+    <footer className="border-t border-border pb-7 pt-14">
+      <div className="mx-auto max-w-[1240px] px-7">
+        <div className="grid grid-cols-2 items-start gap-12 md:grid-cols-3">
+          <div className="flex items-center gap-2.5">
+            <LogoMark size={24} />
+            <span className="text-[15px] font-bold tracking-tight text-foreground">
+              Orbit
+            </span>
+          </div>
           {footerCols.map((col) => (
             <div key={col.title}>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontFamily: O.mono,
-                  letterSpacing: "0.16em",
-                  color: O.ink4,
-                  marginBottom: 16,
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                }}
-              >
+              <p className="mb-4 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-text-faint">
                 {col.title}
-              </div>
-              <ul
-                style={{
-                  listStyle: "none",
-                  padding: 0,
-                  margin: 0,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                }}
-              >
-                {col.links.map((l) =>
-                  l.href ? (
-                    <li key={l.label}>
-                      <Link
-                        href={l.href}
-                        style={{
-                          fontSize: 13,
-                          color: O.ink2,
-                          textDecoration: "none",
-                        }}
-                      >
-                        {l.label}
-                      </Link>
-                    </li>
-                  ) : (
-                    <li
-                      key={l.label}
-                      style={{ fontSize: 13, color: O.ink3, cursor: "default" }}
+              </p>
+              <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+                {col.links.map((l) => (
+                  <li key={l.label}>
+                    <Link
+                      href={l.href}
+                      className="text-[13px] text-text-secondary no-underline hover:text-foreground"
                     >
                       {l.label}
-                    </li>
-                  ),
-                )}
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </div>
           ))}
         </div>
-
-        <div
-          style={{
-            marginTop: 48,
-            paddingTop: 22,
-            borderTop: `1px solid ${O.hair}`,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            fontSize: 11,
-            fontFamily: O.mono,
-            letterSpacing: "0.1em",
-            color: O.ink4,
-            flexWrap: "wrap",
-            gap: 12,
-          }}
-        >
+        <div className="mt-12 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5 font-mono text-[11px] tracking-wider text-text-faint">
           <span>© 2026 ORBIT LABS</span>
           <span>EVERYONE&apos;S RADIUS</span>
         </div>
@@ -1133,24 +558,14 @@ function Footer() {
   );
 }
 
-/* ─── Page ─────────────────────────────────────────────────────── */
-
 export default function LandingPage() {
   return (
-    <div
-      style={{
-        ...orbitBg,
-        minHeight: "100vh",
-        color: O.ink,
-        fontFamily: O.sans,
-        overflow: "hidden",
-      }}
-    >
+    <div className="min-h-screen bg-background text-foreground">
       <TopNav />
       <HeroSection />
-      <BentoSection />
-      <FeedInMotionSection />
-      <BuiltDifferentSection />
+      <FeaturesSection />
+      <ProductFrameSection />
+      <PillarsSection />
       <MadeForSection />
       <CtaSection />
       <Footer />
