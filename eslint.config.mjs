@@ -13,6 +13,27 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    // Editor-time nudge during the refined-dark migration; the blocking
+    // gate is scripts/check-legacy-design.sh in CI. The bridge module and
+    // its compat components import it legitimately until the cleanup pass.
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/lib/design/orbit.ts", "src/components/orbit/**"],
+    rules: {
+      "no-restricted-imports": [
+        "warn",
+        {
+          paths: [
+            {
+              name: "@/lib/design/orbit",
+              message:
+                "Legacy bridge tokens. Migrated code styles with Tailwind classes on the globals.css tokens.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

@@ -23,6 +23,9 @@ jobs:
       - run: npm run lint
         continue-on-error: true
       - run: npm run typecheck
+      # Legacy-design ratchet: unmigrated files live in scripts/legacy-allowlist.txt,
+      # which only ever shrinks. See scripts/check-legacy-design.sh.
+      - run: bash scripts/check-legacy-design.sh
       # Static prerendering (/, /admin/*) instantiates the Supabase browser
       # client at build time, so the public vars must exist. Placeholders are
       # fine: nothing is fetched during prerender.
