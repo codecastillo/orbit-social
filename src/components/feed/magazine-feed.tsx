@@ -11,8 +11,6 @@ import { ClipsCarousel } from "./clips-carousel";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useFeed } from "@/lib/hooks/use-feed";
 
-const syne = { fontFamily: "var(--font-syne), sans-serif" };
-
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <motion.div
@@ -22,7 +20,7 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       className="px-4 pb-4"
     >
-      <h2 className="text-lg font-bold tracking-tight" style={syne}>
+      <h2 className="text-lg font-bold tracking-tight">
         {title}
       </h2>
       {subtitle && (

@@ -25,8 +25,6 @@ import { formatNumber } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getMutualFollows } from "@/lib/queries/social";
 
-const syne = { fontFamily: "var(--font-syne), sans-serif" };
-
 interface ProfileHeaderProps {
   profile: {
     id: string;
@@ -146,7 +144,7 @@ export function ProfileHeader({
                 key={stat.label}
                 className="flex flex-col items-center gap-0.5 hover:opacity-80 transition-opacity"
               >
-                <span className="text-2xl font-extrabold leading-tight" style={syne}>
+                <span className="text-2xl font-extrabold leading-tight">
                   {formatNumber(stat.value)}
                 </span>
                 <span className="text-[11px] text-muted-foreground font-medium">
@@ -160,7 +158,7 @@ export function ProfileHeader({
         {/* Name + Username */}
         <div>
           <div className="flex items-center gap-1.5">
-            <h1 className="text-xl font-extrabold" style={syne}>
+            <h1 className="text-xl font-extrabold">
               {profile.display_name}
             </h1>
             {profile.is_verified && (

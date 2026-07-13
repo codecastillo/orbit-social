@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Syne, Instrument_Serif } from "next/font/google";
-import { Toaster } from "sonner";
+import { Geist, Geist_Mono } from "next/font/google";
+import { AppToaster } from "@/components/layout/app-toaster";
 import { Providers } from "@/providers/providers";
 import "./globals.css";
 
@@ -14,19 +14,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const syne = Syne({
-  variable: "--font-syne",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-});
-
-const instrumentSerif = Instrument_Serif({
-  variable: "--font-instrument-serif",
-  subsets: ["latin"],
-  weight: ["400"],
-  style: ["normal", "italic"],
-});
-
 export const metadata: Metadata = {
   title: {
     default: "Orbit: Social Network",
@@ -38,10 +25,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#141312" },
+    { media: "(prefers-color-scheme: light)", color: "#f9f8f6" },
+  ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
 };
 
 export default function RootLayout({
@@ -50,24 +39,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+    // next-themes stamps the theme class on <html> before hydration, so React
+    // must not diff that attribute.
     <html
       lang="en"
-      // Static dark class until the theme provider takes over management.
-      className={`dark ${geistSans.variable} ${geistMono.variable} ${syne.variable} ${instrumentSerif.variable} h-full antialiased`}
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <Providers>{children}</Providers>
-        <Toaster
-          theme="dark"
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: "oklch(0.13 0 0)",
-              border: "1px solid oklch(1 0 0 / 8%)",
-              color: "oklch(0.985 0 0)",
-            },
-          }}
-        />
+        <Providers>
+          {children}
+          <AppToaster />
+        </Providers>
       </body>
     </html>
   );

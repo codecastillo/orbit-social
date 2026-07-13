@@ -26,7 +26,6 @@ export default function BookmarksPage() {
             <div>
               <h1
                 className="text-xl font-bold tracking-tight text-zinc-100"
-                style={{ fontFamily: "var(--font-syne), sans-serif" }}
               >
                 Saved
               </h1>

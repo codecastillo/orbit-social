@@ -9,8 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
 
-const syne = { fontFamily: "var(--font-syne), sans-serif" };
-
 export default function TrendingPage() {
   const { user } = useAuth();
 
@@ -32,7 +30,7 @@ export default function TrendingPage() {
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl px-5 py-4 border-b border-border/40">
         <div className="flex items-center gap-2">
           <Flame className="h-5 w-5 text-orange-400" />
-          <h1 className="text-lg font-extrabold" style={syne}>
+          <h1 className="text-lg font-extrabold">
             Trending
           </h1>
         </div>
