@@ -93,7 +93,7 @@ export function Sidebar({
             height: 32,
             borderRadius: 10,
             background: aurora,
-            boxShadow: `0 4px 14px -2px ${O.a2}80, inset 0 1px 0 rgba(255,255,255,0.3)`,
+            boxShadow: `0 4px 14px -2px color-mix(in oklab, ${O.a2} 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
           }}
         >
           <div

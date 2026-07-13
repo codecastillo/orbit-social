@@ -169,7 +169,7 @@ export function ClipFeed() {
               background: aurora,
               display: "grid",
               placeItems: "center",
-              boxShadow: `0 12px 32px -10px ${O.a2}66`,
+              boxShadow: `0 12px 32px -10px color-mix(in oklab, ${O.a2} 40%, transparent)`,
             }}
           >
             <Film style={{ width: 26, height: 26, color: "white" }} strokeWidth={1.8} />

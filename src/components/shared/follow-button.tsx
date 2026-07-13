@@ -51,7 +51,7 @@ export function FollowButton({
             ? {
                 background: aurora,
                 color: "white",
-                boxShadow: `0 8px 24px -6px ${O.a1}80, inset 0 1px 0 rgba(255,255,255,0.25)`,
+                boxShadow: `0 8px 24px -6px color-mix(in oklab, ${O.a1} 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.25)`,
                 ...style,
               }
             : style

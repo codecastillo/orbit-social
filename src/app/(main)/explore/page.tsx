@@ -244,7 +244,7 @@ function FeaturedTrend() {
             fontSize: 11,
             fontWeight: 700,
             letterSpacing: "0.1em",
-            boxShadow: `0 4px 16px ${O.a2}60`,
+            boxShadow: `0 4px 16px color-mix(in oklab, ${O.a2} 38%, transparent)`,
           }}
         >
           <span
@@ -633,7 +633,7 @@ function LiveRail() {
                     padding: "2px 5px",
                     borderRadius: 4,
                     letterSpacing: "0.1em",
-                    boxShadow: `0 0 10px ${O.a2}80`,
+                    boxShadow: `0 0 10px color-mix(in oklab, ${O.a2} 50%, transparent)`,
                   }}
                 >
                   LIVE

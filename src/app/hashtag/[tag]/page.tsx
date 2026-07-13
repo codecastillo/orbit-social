@@ -62,7 +62,7 @@ export default function HashtagPage({ params }: { params: Promise<{ tag: string 
           style={{
             position: "absolute",
             inset: 0,
-            background: `linear-gradient(135deg, ${O.a1}1a 0%, ${O.a2}14 50%, ${O.a3}1a 100%)`,
+            background: `linear-gradient(135deg, color-mix(in oklab, ${O.a1} 10%, transparent) 0%, color-mix(in oklab, ${O.a2} 8%, transparent) 50%, color-mix(in oklab, ${O.a3} 10%, transparent) 100%)`,
             pointerEvents: "none",
           }}
         />

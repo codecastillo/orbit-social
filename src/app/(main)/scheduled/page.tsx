@@ -171,7 +171,7 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
           bottom: 0,
           width: 3,
           background: accent,
-          boxShadow: `0 0 14px ${accent}80`,
+          boxShadow: `0 0 14px color-mix(in oklab, ${accent} 50%, transparent)`,
         }}
       />
 

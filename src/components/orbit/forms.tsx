@@ -108,9 +108,9 @@ export function Input({ prefix, suffix, style, onFocus, onBlur, ...rest }: Input
         padding: "11px 14px",
         borderRadius: 12,
         background: "rgba(255,255,255,0.03)",
-        border: `1px solid ${focus ? `${O.a2}66` : O.hair2}`,
+        border: `1px solid ${focus ? `color-mix(in oklab, ${O.a2} 40%, transparent)` : O.hair2}`,
         boxShadow: focus
-          ? `0 0 0 3px ${O.a2}1a, inset 0 1px 0 rgba(255,255,255,0.04)`
+          ? `0 0 0 3px color-mix(in oklab, ${O.a2} 10%, transparent), inset 0 1px 0 rgba(255,255,255,0.04)`
           : "inset 0 1px 0 rgba(255,255,255,0.03)",
         transition: "all 0.15s",
       }}
@@ -188,8 +188,8 @@ export function TextArea({
           padding: "11px 14px",
           borderRadius: 12,
           background: "rgba(255,255,255,0.03)",
-          border: `1px solid ${focus ? `${O.a2}66` : O.hair2}`,
-          boxShadow: focus ? `0 0 0 3px ${O.a2}1a` : "none",
+          border: `1px solid ${focus ? `color-mix(in oklab, ${O.a2} 40%, transparent)` : O.hair2}`,
+          boxShadow: focus ? `0 0 0 3px color-mix(in oklab, ${O.a2} 10%, transparent)` : "none",
           transition: "all 0.15s",
         }}
       >
@@ -271,7 +271,7 @@ export function Toggle({
           padding: 2,
           background: on ? aurora : "rgba(255,255,255,0.08)",
           boxShadow: on
-            ? `0 0 12px ${O.a2}55, inset 0 1px 0 rgba(255,255,255,0.15)`
+            ? `0 0 12px color-mix(in oklab, ${O.a2} 33%, transparent), inset 0 1px 0 rgba(255,255,255,0.15)`
             : "inset 0 1px 2px rgba(0,0,0,0.3)",
           transition: "all 0.2s",
         }}
@@ -334,12 +334,12 @@ export function RadioRow<T extends string>({
             style={{
               padding: "12px 14px",
               borderRadius: 12,
-              background: active ? `${accent}18` : "rgba(255,255,255,0.025)",
-              border: `1px solid ${active ? `${accent}66` : O.hair2}`,
+              background: active ? `color-mix(in oklab, ${accent} 9%, transparent)` : "rgba(255,255,255,0.025)",
+              border: `1px solid ${active ? `color-mix(in oklab, ${accent} 40%, transparent)` : O.hair2}`,
               color: O.ink,
               cursor: "pointer",
               textAlign: "left",
-              boxShadow: active ? `0 0 0 3px ${accent}18` : "none",
+              boxShadow: active ? `0 0 0 3px color-mix(in oklab, ${accent} 9%, transparent)` : "none",
               fontFamily: "inherit",
               transition: "all 0.15s",
             }}
@@ -487,7 +487,7 @@ export function ModalShell({
         WebkitBackdropFilter: "blur(40px) saturate(180%)",
         border: `1px solid ${O.hair2}`,
         borderRadius: 22,
-        boxShadow: `0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 100px ${accent}22`,
+        boxShadow: `0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 100px color-mix(in oklab, ${accent} 13%, transparent)`,
         overflow: "hidden",
         color: O.ink,
         fontFamily: O.sans,
@@ -510,14 +510,14 @@ export function ModalShell({
               width: 40,
               height: 40,
               borderRadius: 12,
-              background: `${accent}1f`,
-              border: `1px solid ${accent}55`,
+              background: `color-mix(in oklab, ${accent} 12%, transparent)`,
+              border: `1px solid color-mix(in oklab, ${accent} 33%, transparent)`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: accent,
               flexShrink: 0,
-              boxShadow: `0 0 20px ${accent}33, inset 0 1px 0 rgba(255,255,255,0.08)`,
+              boxShadow: `0 0 20px color-mix(in oklab, ${accent} 20%, transparent), inset 0 1px 0 rgba(255,255,255,0.08)`,
             }}
           >
             {icon}
@@ -620,7 +620,7 @@ export function ModalShell({
             fontWeight: 600,
             cursor: canSubmit && !loading ? "pointer" : "not-allowed",
             boxShadow: canSubmit
-              ? `0 6px 20px ${danger ? "#ff6a7a55" : `${accent}55`}, inset 0 1px 0 rgba(255,255,255,0.3)`
+              ? `0 6px 20px ${danger ? "#ff6a7a55" : `color-mix(in oklab, ${accent} 33%, transparent)`}, inset 0 1px 0 rgba(255,255,255,0.3)`
               : "none",
             letterSpacing: "-0.005em",
             opacity: loading ? 0.7 : 1,

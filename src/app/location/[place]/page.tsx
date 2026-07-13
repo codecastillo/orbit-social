@@ -72,7 +72,7 @@ export default function LocationPage() {
           style={{
             position: "absolute",
             inset: 0,
-            background: `linear-gradient(135deg, ${O.a3}1a 0%, ${O.a1}14 50%, ${O.a2}1a 100%)`,
+            background: `linear-gradient(135deg, color-mix(in oklab, ${O.a3} 10%, transparent) 0%, color-mix(in oklab, ${O.a1} 8%, transparent) 50%, color-mix(in oklab, ${O.a2} 10%, transparent) 100%)`,
             pointerEvents: "none",
           }}
         />

@@ -149,7 +149,7 @@ export default function LoginActivityPage() {
                   borderTop: i ? `1px solid ${O.hair}` : "none",
                   ...(isCurrentSession
                     ? {
-                        background: `linear-gradient(135deg, ${O.a1}1a 0%, ${O.a2}0e 50%, ${O.a3}14 100%)`,
+                        background: `linear-gradient(135deg, color-mix(in oklab, ${O.a1} 10%, transparent) 0%, color-mix(in oklab, ${O.a2} 5%, transparent) 50%, color-mix(in oklab, ${O.a3} 8%, transparent) 100%)`,
                         borderRadius: 12,
                       }
                     : {}),
@@ -160,8 +160,8 @@ export default function LoginActivityPage() {
                     width: 40,
                     height: 40,
                     borderRadius: 12,
-                    background: `${accent}1a`,
-                    border: `1px solid ${accent}33`,
+                    background: `color-mix(in oklab, ${accent} 10%, transparent)`,
+                    border: `1px solid color-mix(in oklab, ${accent} 20%, transparent)`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",

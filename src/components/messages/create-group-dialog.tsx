@@ -155,7 +155,7 @@ export function CreateGroupDialog({
                     padding: "4px 10px 4px 4px",
                     borderRadius: 99,
                     background: auroraSoft,
-                    border: `1px solid ${O.a2}44`,
+                    border: `1px solid color-mix(in oklab, ${O.a2} 27%, transparent)`,
                   }}
                 >
                   <UserAvatar

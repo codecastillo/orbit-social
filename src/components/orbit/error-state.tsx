@@ -100,7 +100,7 @@ export function OrbitErrorState({
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
-              boxShadow: `0 8px 24px ${O.a2}55, inset 0 1px 0 rgba(255,255,255,0.3)`,
+              boxShadow: `0 8px 24px color-mix(in oklab, ${O.a2} 33%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
               fontFamily: "inherit",
             }}
           >

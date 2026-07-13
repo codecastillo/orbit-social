@@ -329,7 +329,7 @@ function MemberRow({
             fontFamily: O.mono,
             letterSpacing: "0.1em",
             color: member.role === "owner" ? "#ffd76a" : O.a3,
-            border: `1px solid ${member.role === "owner" ? "#ffd76a55" : `${O.a3}55`}`,
+            border: `1px solid ${member.role === "owner" ? "#ffd76a55" : `color-mix(in oklab, ${O.a3} 33%, transparent)`}`,
             padding: "3px 8px",
             borderRadius: 99,
           }}

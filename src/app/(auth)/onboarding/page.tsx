@@ -246,7 +246,7 @@ export default function OnboardingPage() {
                 bottom: 0,
                 borderRadius: 99,
                 background: aurora,
-                boxShadow: `0 0 10px ${O.a2}80`,
+                boxShadow: `0 0 10px color-mix(in oklab, ${O.a2} 50%, transparent)`,
               }}
             />
           </div>
@@ -396,7 +396,7 @@ function Step1Welcome(props: any) {
               padding: 4,
               border: "none",
               background: aurora,
-              boxShadow: `0 8px 24px ${O.a2}66, inset 0 1px 0 rgba(255,255,255,0.3)`,
+              boxShadow: `0 8px 24px color-mix(in oklab, ${O.a2} 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
               cursor: "pointer",
             }}
           >

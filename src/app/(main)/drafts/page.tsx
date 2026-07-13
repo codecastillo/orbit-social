@@ -113,7 +113,7 @@ export default function DraftsPage() {
                   bottom: 0,
                   width: 3,
                   background: DRAFT_ACCENT,
-                  boxShadow: `0 0 14px ${DRAFT_ACCENT}80`,
+                  boxShadow: `0 0 14px color-mix(in oklab, ${DRAFT_ACCENT} 50%, transparent)`,
                 }}
               />
               <div style={{ flex: 1, minWidth: 0 }}>

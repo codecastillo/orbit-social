@@ -26,7 +26,7 @@ export function LiveBadge({
           padding: "2px 5px",
           borderRadius: 4,
           letterSpacing: "0.1em",
-          boxShadow: `0 0 10px ${O.a2}80`,
+          boxShadow: `0 0 10px color-mix(in oklab, ${O.a2} 50%, transparent)`,
         }}
       >
         {label}
@@ -48,7 +48,7 @@ export function LiveBadge({
           padding: "3px 8px",
           borderRadius: 4,
           letterSpacing: "0.12em",
-          boxShadow: `0 0 14px ${O.a2}66`,
+          boxShadow: `0 0 14px color-mix(in oklab, ${O.a2} 40%, transparent)`,
         }}
       >
         {pulse && <Dot />}
@@ -75,7 +75,7 @@ export function LiveBadge({
         fontWeight: 800,
         letterSpacing: "0.12em",
         fontFamily: dark ? O.mono : undefined,
-        boxShadow: dark ? "none" : `0 0 18px ${O.a2}80`,
+        boxShadow: dark ? "none" : `0 0 18px color-mix(in oklab, ${O.a2} 50%, transparent)`,
       }}
     >
       {pulse && <Dot />}

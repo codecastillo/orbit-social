@@ -60,7 +60,7 @@ function PasswordStrength({ password }: { password: string }) {
             height: "100%",
             borderRadius: 2,
             background: color,
-            boxShadow: `0 0 10px ${color}66`,
+            boxShadow: `0 0 10px color-mix(in oklab, ${color} 40%, transparent)`,
           }}
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
@@ -144,7 +144,7 @@ function StepPills({ current }: { current: number }) {
                 fontWeight: 700,
                 letterSpacing: "0.12em",
                 boxShadow: active
-                  ? `0 4px 16px ${O.a2}55`
+                  ? `0 4px 16px color-mix(in oklab, ${O.a2} 33%, transparent)`
                   : "none",
               }}
             >
@@ -500,8 +500,8 @@ export default function SignUpPage() {
                       height: 56,
                       margin: "0 auto 12px",
                       borderRadius: "50%",
-                      background: `${O.a3}15`,
-                      border: `1px solid ${O.a3}44`,
+                      background: `color-mix(in oklab, ${O.a3} 8%, transparent)`,
+                      border: `1px solid color-mix(in oklab, ${O.a3} 27%, transparent)`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -631,7 +631,7 @@ export default function SignUpPage() {
                         alignItems: "center",
                         justifyContent: "center",
                         color: "white",
-                        boxShadow: `0 6px 18px ${O.a2}66`,
+                        boxShadow: `0 6px 18px color-mix(in oklab, ${O.a2} 40%, transparent)`,
                       }}
                     >
                       <Camera style={{ width: 12, height: 12 }} />

@@ -428,7 +428,7 @@ function StreamDetailsPanel({
             cursor: dirty && !saving ? "pointer" : "not-allowed",
             boxShadow:
               dirty && !saving
-                ? `0 8px 24px -6px ${O.a1}80, inset 0 1px 0 rgba(255,255,255,0.25)`
+                ? `0 8px 24px -6px color-mix(in oklab, ${O.a1} 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.25)`
                 : "none",
             fontFamily: "inherit",
             letterSpacing: "-0.005em",
@@ -580,14 +580,14 @@ function ChatControlsPanel({
                 style={{
                   padding: "8px 14px",
                   borderRadius: 99,
-                  background: active ? `${O.a3}1f` : "rgba(255,255,255,0.04)",
-                  border: `1px solid ${active ? `${O.a3}66` : O.hair2}`,
+                  background: active ? `color-mix(in oklab, ${O.a3} 12%, transparent)` : "rgba(255,255,255,0.04)",
+                  border: `1px solid ${active ? `color-mix(in oklab, ${O.a3} 40%, transparent)` : O.hair2}`,
                   color: active ? "#5fd4ff" : O.ink2,
                   fontSize: 12.5,
                   fontWeight: 600,
                   cursor: "pointer",
                   fontFamily: "inherit",
-                  boxShadow: active ? `0 0 0 3px ${O.a3}14` : "none",
+                  boxShadow: active ? `0 0 0 3px color-mix(in oklab, ${O.a3} 8%, transparent)` : "none",
                   transition: "all 0.15s",
                 }}
               >

@@ -31,7 +31,7 @@ export function DMBubble({
           lineHeight: 1.45,
           wordBreak: "break-word",
           boxShadow: outgoing
-            ? `0 6px 18px ${O.a2}33`
+            ? `0 6px 18px color-mix(in oklab, ${O.a2} 20%, transparent)`
             : "none",
         }}
       >

@@ -230,7 +230,7 @@ function NotificationsSection({ items }: { items: any[] }) {
             style={{
               position: "relative",
               borderTop: i ? `1px solid ${O.hair}` : "none",
-              background: isUnread ? `${O.a2}0a` : "transparent",
+              background: isUnread ? `color-mix(in oklab, ${O.a2} 4%, transparent)` : "transparent",
             }}
           >
             {isUnread && (
@@ -242,7 +242,7 @@ function NotificationsSection({ items }: { items: any[] }) {
                   bottom: 0,
                   width: 3,
                   background: aurora,
-                  boxShadow: `0 0 12px ${O.a2}80`,
+                  boxShadow: `0 0 12px color-mix(in oklab, ${O.a2} 50%, transparent)`,
                 }}
               />
             )}

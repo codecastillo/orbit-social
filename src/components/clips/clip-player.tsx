@@ -309,7 +309,7 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
               border: `1px solid ${O.hair2}`,
               display: "grid",
               placeItems: "center",
-              boxShadow: `0 12px 40px -12px ${O.a1}66`,
+              boxShadow: `0 12px 40px -12px color-mix(in oklab, ${O.a1} 40%, transparent)`,
             }}
           >
             <Play

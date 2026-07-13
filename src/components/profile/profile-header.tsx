@@ -108,7 +108,7 @@ export function ProfileHeader({
             style={
               themeColor
                 ? {
-                    background: `linear-gradient(135deg, ${themeColor}33, ${themeColor}1a, transparent)`,
+                    background: `linear-gradient(135deg, color-mix(in oklab, ${themeColor} 20%, transparent), color-mix(in oklab, ${themeColor} 10%, transparent), transparent)`,
                   }
                 : undefined
             }
@@ -164,7 +164,7 @@ export function ProfileHeader({
             {profile.is_verified && (
               <BadgeCheck
                 className={themeColor ? "h-5 w-5" : "h-5 w-5 text-primary fill-primary/20"}
-                style={themeColor ? { color: themeColor, fill: `${themeColor}33` } : undefined}
+                style={themeColor ? { color: themeColor, fill: `color-mix(in oklab, ${themeColor} 20%, transparent)` } : undefined}
               />
             )}
           </div>

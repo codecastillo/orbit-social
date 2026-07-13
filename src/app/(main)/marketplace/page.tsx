@@ -104,7 +104,7 @@ export default function MarketplacePage() {
                   fontWeight: 600,
                   cursor: "pointer",
                   background: active
-                    ? `linear-gradient(135deg, ${O.a1}25 0%, ${O.a2}1f 55%, ${O.a3}25 100%)`
+                    ? `linear-gradient(135deg, color-mix(in oklab, ${O.a1} 15%, transparent) 0%, color-mix(in oklab, ${O.a2} 12%, transparent) 55%, color-mix(in oklab, ${O.a3} 15%, transparent) 100%)`
                     : O.glass,
                   border: `1px solid ${active ? O.hair2 : O.hair}`,
                   color: active ? O.ink : O.ink3,

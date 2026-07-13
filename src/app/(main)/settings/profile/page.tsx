@@ -579,7 +579,7 @@ export default function EditProfilePage() {
                           ? "#ffffff"
                           : `linear-gradient(135deg, oklch(0.72 0.16 ${a.hue}), oklch(0.5 0.17 ${(a.hue + 40) % 360}))`,
                       boxShadow: active
-                        ? `0 0 0 2px ${O.bg}, 0 0 0 4px ${ringColor}, 0 0 20px ${ringColor}66`
+                        ? `0 0 0 2px ${O.bg}, 0 0 0 4px ${ringColor}, 0 0 20px color-mix(in oklab, ${ringColor} 40%, transparent)`
                         : "inset 0 1px 0 rgba(255,255,255,0.2)",
                       cursor: "pointer",
                       display: "flex",
@@ -628,7 +628,7 @@ export default function EditProfilePage() {
                       padding: 12,
                       borderRadius: 14,
                       background: active ? auroraSoft : "rgba(255,255,255,0.025)",
-                      border: `1px solid ${active ? `${O.a2}66` : O.hair2}`,
+                      border: `1px solid ${active ? `color-mix(in oklab, ${O.a2} 40%, transparent)` : O.hair2}`,
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
@@ -735,9 +735,9 @@ export default function EditProfilePage() {
               marginTop: 30,
               padding: 16,
               borderRadius: 16,
-              background: `linear-gradient(135deg, ${O.a2}15, ${O.a3}10)`,
-              border: `1px solid ${O.a2}33`,
-              boxShadow: `0 8px 30px ${O.a2}22`,
+              background: `linear-gradient(135deg, color-mix(in oklab, ${O.a2} 8%, transparent), color-mix(in oklab, ${O.a3} 6%, transparent))`,
+              border: `1px solid color-mix(in oklab, ${O.a2} 20%, transparent)`,
+              boxShadow: `0 8px 30px color-mix(in oklab, ${O.a2} 13%, transparent)`,
               position: "sticky",
               bottom: 18,
               backdropFilter: "blur(20px)",
@@ -777,7 +777,7 @@ export default function EditProfilePage() {
                 fontSize: 13.5,
                 fontWeight: 600,
                 cursor: isSubmitting ? "not-allowed" : "pointer",
-                boxShadow: `0 8px 24px ${O.a2}66, inset 0 1px 0 rgba(255,255,255,0.3)`,
+                boxShadow: `0 8px 24px color-mix(in oklab, ${O.a2} 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 8,

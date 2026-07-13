@@ -84,7 +84,7 @@ export function BottomNav({ initialHasUser = false }: { initialHasUser?: boolean
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: `0 8px 22px -4px ${O.a2}80, inset 0 1px 0 rgba(255,255,255,0.3)`,
+                boxShadow: `0 8px 22px -4px color-mix(in oklab, ${O.a2} 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
                 border: "none",
                 cursor: "pointer",
                 color: "white",
@@ -108,7 +108,7 @@ export function BottomNav({ initialHasUser = false }: { initialHasUser?: boolean
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: `0 8px 22px -4px ${O.a2}80, inset 0 1px 0 rgba(255,255,255,0.3)`,
+                boxShadow: `0 8px 22px -4px color-mix(in oklab, ${O.a2} 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
                 color: "white",
                 textDecoration: "none",
               }}

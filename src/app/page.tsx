@@ -73,7 +73,7 @@ function TopNav() {
               height: 28,
               borderRadius: 8,
               background: aurora,
-              boxShadow: `0 4px 14px -2px ${O.a2}80, inset 0 1px 0 rgba(255,255,255,0.3)`,
+              boxShadow: `0 4px 14px -2px color-mix(in oklab, ${O.a2} 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
             }}
           >
             <div
@@ -127,7 +127,7 @@ function HeroOrbit() {
           position: "absolute",
           inset: "-15%",
           borderRadius: "50%",
-          background: `radial-gradient(circle, ${O.a1}25 0%, ${O.a2}15 35%, transparent 65%)`,
+          background: `radial-gradient(circle, color-mix(in oklab, ${O.a1} 15%, transparent) 0%, color-mix(in oklab, ${O.a2} 8%, transparent) 35%, transparent 65%)`,
           filter: "blur(20px)",
           animation: "pulse-glow 5s ease-in-out infinite",
         }}
@@ -174,7 +174,7 @@ function HeroOrbit() {
           inset: "42%",
           borderRadius: "50%",
           background: aurora,
-          boxShadow: `0 0 60px ${O.a2}66, 0 0 120px ${O.a1}33, inset 0 2px 0 rgba(255,255,255,0.3)`,
+          boxShadow: `0 0 60px color-mix(in oklab, ${O.a2} 40%, transparent), 0 0 120px color-mix(in oklab, ${O.a1} 20%, transparent), inset 0 2px 0 rgba(255,255,255,0.3)`,
         }}
       />
     </div>
@@ -963,7 +963,7 @@ function CtaSection() {
               style={{
                 position: "absolute",
                 inset: "-40%",
-                background: `radial-gradient(ellipse at center, ${O.a2}22 0%, transparent 65%)`,
+                background: `radial-gradient(ellipse at center, color-mix(in oklab, ${O.a2} 13%, transparent) 0%, transparent 65%)`,
                 pointerEvents: "none",
               }}
             />

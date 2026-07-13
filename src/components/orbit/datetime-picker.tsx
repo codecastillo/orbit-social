@@ -260,7 +260,7 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
                   fontFamily: "inherit",
                   transition: "background 120ms",
                   boxShadow: isSelected
-                    ? `0 4px 14px ${O.a2}55, inset 0 1px 0 rgba(255,255,255,0.25)`
+                    ? `0 4px 14px color-mix(in oklab, ${O.a2} 33%, transparent), inset 0 1px 0 rgba(255,255,255,0.25)`
                     : "none",
                 }}
                 onMouseEnter={(e) => {
@@ -345,7 +345,7 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
               fontSize: 12.5,
               fontWeight: 600,
               cursor: "pointer",
-              boxShadow: `0 6px 18px ${O.a2}55, inset 0 1px 0 rgba(255,255,255,0.25)`,
+              boxShadow: `0 6px 18px color-mix(in oklab, ${O.a2} 33%, transparent), inset 0 1px 0 rgba(255,255,255,0.25)`,
               fontFamily: "inherit",
             }}
           >

@@ -195,7 +195,7 @@ function LivePinned() {
         style={{
           position: "absolute",
           inset: 0,
-          background: `linear-gradient(135deg, ${O.a1}1a 0%, ${O.a2}14 50%, ${O.a3}1a 100%)`,
+          background: `linear-gradient(135deg, color-mix(in oklab, ${O.a1} 10%, transparent) 0%, color-mix(in oklab, ${O.a2} 8%, transparent) 50%, color-mix(in oklab, ${O.a3} 10%, transparent) 100%)`,
           pointerEvents: "none",
         }}
       />
@@ -244,7 +244,7 @@ function LivePinned() {
                     padding: "2px 5px",
                     borderRadius: 4,
                     letterSpacing: "0.1em",
-                    boxShadow: `0 0 10px ${O.a2}80`,
+                    boxShadow: `0 0 10px color-mix(in oklab, ${O.a2} 50%, transparent)`,
                   }}
                 >
                   LIVE

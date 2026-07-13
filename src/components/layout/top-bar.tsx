@@ -11,7 +11,7 @@ export function TopBar() {
       className="sticky top-0 z-30 flex lg:hidden items-center"
       style={{
         padding: "12px 16px 14px",
-        background: `linear-gradient(180deg, ${O.bg}cc, ${O.bg}00)`,
+        background: `linear-gradient(180deg, color-mix(in oklab, ${O.bg} 80%, transparent), color-mix(in oklab, ${O.bg} 0%, transparent))`,
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
         gap: 10,
@@ -37,7 +37,7 @@ export function TopBar() {
             height: 28,
             borderRadius: 8,
             background: aurora,
-            boxShadow: `0 4px 14px -2px ${O.a2}80, inset 0 1px 0 rgba(255,255,255,0.3)`,
+            boxShadow: `0 4px 14px -2px color-mix(in oklab, ${O.a2} 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
           }}
         >
           <div
