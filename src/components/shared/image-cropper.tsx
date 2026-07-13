@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { O, aurora } from "@/lib/design/orbit";
+import { cn } from "@/lib/utils";
 
 interface ImageCropperProps {
   open: boolean;
@@ -130,28 +130,8 @@ export function ImageCropper({
         className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
         showCloseButton={false}
       >
-        <div
-          style={{
-            background: O.bg,
-            border: `1px solid ${O.hair2}`,
-            borderRadius: 18,
-            padding: 20,
-            width: "min(92vw, 540px)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-          }}
-        >
-          <div
-            style={{
-              fontFamily: O.sans,
-              fontSize: 14,
-              fontWeight: 600,
-              color: O.ink,
-            }}
-          >
-            {title}
-          </div>
+        <div className="flex w-[min(92vw,540px)] flex-col gap-3.5 rounded-2xl border border-border bg-surface-elevated p-5">
+          <div className="text-sm font-semibold text-foreground">{title}</div>
 
           <div
             ref={frameRef}
@@ -159,19 +139,12 @@ export function ImageCropper({
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
-            style={{
-              position: "relative",
-              width: "100%",
-              maxWidth: frameWidth,
-              aspectRatio: `${aspectRatio} / 1`,
-              margin: "0 auto",
-              overflow: "hidden",
-              borderRadius: circular ? "50%" : 14,
-              background: "rgba(0,0,0,0.6)",
-              cursor: drag ? "grabbing" : "grab",
-              touchAction: "none",
-              userSelect: "none",
-            }}
+            className={cn(
+              "relative mx-auto w-full max-w-[480px] touch-none select-none overflow-hidden bg-black/60",
+              circular ? "rounded-full" : "rounded-xl",
+              drag ? "cursor-grabbing" : "cursor-grab"
+            )}
+            style={{ aspectRatio: `${aspectRatio} / 1` }}
           >
             {src && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -180,40 +153,24 @@ export function ImageCropper({
                 alt=""
                 onLoad={onImgLoad}
                 draggable={false}
+                className="pointer-events-none absolute left-1/2 top-1/2 max-w-none"
                 style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
                   transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px) scale(${totalScale})`,
                   transformOrigin: "center",
-                  pointerEvents: "none",
-                  maxWidth: "none",
                   width: imgSize?.w,
                   height: imgSize?.h,
                 }}
               />
             )}
             <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                pointerEvents: "none",
-                boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18)",
-                borderRadius: circular ? "50%" : 14,
-              }}
+              className={cn(
+                "pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/[0.18]",
+                circular ? "rounded-full" : "rounded-xl"
+              )}
             />
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              fontFamily: O.sans,
-              fontSize: 11,
-              color: O.ink3,
-            }}
-          >
+          <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground">
             <span>Zoom</span>
             <input
               type="range"
@@ -222,28 +179,19 @@ export function ImageCropper({
               step={0.01}
               value={scale}
               onChange={(e) => setScale(parseFloat(e.target.value))}
-              style={{ flex: 1, accentColor: O.a2 }}
+              className="flex-1 accent-primary"
             />
-            <span style={{ fontFamily: O.mono, minWidth: 34, textAlign: "right" }}>
+            <span className="min-w-[34px] text-right font-mono">
               {scale.toFixed(2)}×
             </span>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
               disabled={busy}
-              style={{
-                padding: "8px 14px",
-                borderRadius: 99,
-                background: "transparent",
-                border: `1px solid ${O.hair2}`,
-                color: O.ink2,
-                fontFamily: O.sans,
-                fontSize: 13,
-                cursor: "pointer",
-              }}
+              className="cursor-pointer rounded-lg border border-border bg-transparent px-3.5 py-2 text-[13px] text-text-secondary"
             >
               Cancel
             </button>
@@ -251,19 +199,7 @@ export function ImageCropper({
               type="button"
               onClick={handleSave}
               disabled={busy || !imgSize}
-              style={{
-                padding: "8px 16px",
-                borderRadius: 99,
-                background: aurora,
-                border: "1px solid rgba(255,255,255,0.18)",
-                color: "white",
-                fontFamily: O.sans,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: busy ? "default" : "pointer",
-                boxShadow: `0 6px 20px -8px ${O.a2}`,
-                opacity: busy || !imgSize ? 0.6 : 1,
-              }}
+              className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground disabled:cursor-default disabled:opacity-60"
             >
               {busy ? "Saving…" : "Save crop"}
             </button>

@@ -15,8 +15,7 @@ import { getLiveStreams } from "@/lib/queries/live";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { followUser } from "@/lib/queries/social";
 import { FollowButton } from "@/components/shared/follow-button";
-import { O, auroraSoft, panel } from "@/lib/design/orbit";
-import { Eyebrow } from "@/components/orbit/primitives";
+import { cn } from "@/lib/utils";
 
 const TABS = [
   { value: "foryou", label: "For you" },
@@ -51,13 +50,7 @@ export default function FeedPage() {
 
   return (
     <>
-      <div
-        className="grid gap-[18px] w-full grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px]"
-        style={{
-          color: O.ink,
-          fontFamily: O.sans,
-        }}
-      >
+      <div className="grid gap-[18px] w-full grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px] text-foreground">
         {/* MIDDLE, main feed column. Capped width so wide desktop viewports
             don't stretch posts (and images inside) edge-to-edge. */}
         <main className="flex flex-col gap-4 min-w-0 w-full max-w-[640px] mx-auto">
@@ -67,37 +60,21 @@ export default function FeedPage() {
             we reserve the panel height so the feed doesn't lurch downward
             once `user` resolves. */}
         {authLoading ? (
-          <div style={{ ...panel({ borderRadius: 18 }), height: 50 }} />
+          <div className="h-[50px] rounded-2xl border border-border bg-surface" />
         ) : user ? (
-          <div
-            style={{
-              ...panel({ borderRadius: 18 }),
-              padding: 6,
-              display: "flex",
-              gap: 4,
-            }}
-          >
+          <div className="flex gap-1 rounded-2xl border border-border bg-surface p-1.5">
             {TABS.map((t) => {
               const isActive = tab === t.value;
               return (
                 <button
                   key={t.value}
                   onClick={() => setTab(t.value)}
-                  style={{
-                    flex: 1,
-                    textAlign: "center",
-                    padding: "10px 0",
-                    borderRadius: 14,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    background: isActive ? auroraSoft : "transparent",
-                    border: isActive
-                      ? `1px solid ${O.hair2}`
-                      : "1px solid transparent",
-                    color: isActive ? O.ink : O.ink3,
-                    transition: "all 150ms cubic-bezier(0.16,1,0.3,1)",
-                  }}
+                  className={cn(
+                    "flex-1 cursor-pointer rounded-lg py-2.5 text-center text-[13px] font-semibold transition-all duration-150",
+                    isActive
+                      ? "border border-border bg-primary/10 text-foreground"
+                      : "border border-transparent text-muted-foreground"
+                  )}
                 >
                   {t.label}
                 </button>
@@ -109,7 +86,7 @@ export default function FeedPage() {
         {/* Composer doorway. Reserve its height while auth resolves so the
             feed below doesn't shift down once a signed-in user lands. */}
         {authLoading ? (
-          <div style={{ ...panel({ borderRadius: 18 }), height: 124 }} />
+          <div className="h-[124px] rounded-2xl border border-border bg-surface" />
         ) : user ? (
           <InlineComposer />
         ) : null}
@@ -117,11 +94,7 @@ export default function FeedPage() {
         {/* Editorial separator */}
         <div
           aria-hidden
-          style={{
-            height: 1,
-            background: `linear-gradient(90deg, transparent, ${O.hair2} 20%, ${O.hair2} 80%, transparent)`,
-            margin: "6px 2px",
-          }}
+          className="mx-0.5 my-1.5 h-px bg-gradient-to-r from-transparent via-border to-transparent"
         />
 
         {/* Pinned live-now signal */}
@@ -134,34 +107,14 @@ export default function FeedPage() {
         {/* RIGHT RAIL */}
         <aside className="hidden md:flex flex-col gap-[14px] sticky top-6 h-fit">
         {/* Search */}
-        <div style={{ ...panel(), padding: 18 }}>
+        <div className="rounded-xl border border-border bg-surface p-[18px]">
           <Link
             href="/explore"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "11px 14px",
-              borderRadius: 14,
-              background: O.glass,
-              border: `1px solid ${O.hair}`,
-              color: O.ink3,
-              textDecoration: "none",
-            }}
+            className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3.5 py-[11px] text-muted-foreground no-underline"
           >
-            <Search style={{ width: 16, height: 16 }} />
-            <span style={{ fontSize: 13 }}>Search Orbit</span>
-            <span
-              style={{
-                marginLeft: "auto",
-                fontFamily: O.mono,
-                fontSize: 10,
-                color: O.ink4,
-                padding: "2px 6px",
-                borderRadius: 4,
-                border: `1px solid ${O.hair}`,
-              }}
-            >
+            <Search className="h-4 w-4" />
+            <span className="text-[13px]">Search Orbit</span>
+            <span className="ml-auto rounded-sm border border-border px-1.5 py-0.5 font-mono text-[10px] text-text-faint">
               ⌘K
             </span>
           </Link>
@@ -190,79 +143,37 @@ function LivePinned() {
   const featured = streams.slice(0, 3);
 
   return (
-    <div style={{ ...panel(), padding: 0, overflow: "hidden", position: "relative" }}>
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: `linear-gradient(135deg, color-mix(in oklab, ${O.a1} 10%, transparent) 0%, color-mix(in oklab, ${O.a2} 8%, transparent) 50%, color-mix(in oklab, ${O.a3} 10%, transparent) 100%)`,
-          pointerEvents: "none",
-        }}
-      />
-      <div style={{ padding: 22, position: "relative" }}>
-        <Eyebrow accent>◇&nbsp;&nbsp;LIVE NOW · FROM YOUR ORBIT</Eyebrow>
+    <div className="relative overflow-hidden rounded-xl border border-border bg-surface">
+      <div className="pointer-events-none absolute inset-0 bg-primary/10" />
+      <div className="relative p-[22px]">
+        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
+          ◇&nbsp;&nbsp;LIVE NOW · FROM YOUR ORBIT
+        </p>
         <div
+          className="mt-3.5 grid gap-3"
           style={{
-            display: "grid",
             gridTemplateColumns: `repeat(${featured.length}, minmax(0,1fr))`,
-            gap: 12,
-            marginTop: 14,
           }}
         >
           {featured.map((s) => (
             <Link
               key={s.id}
               href={`/live/${s.id}`}
-              style={{
-                display: "flex",
-                gap: 10,
-                alignItems: "center",
-                padding: 10,
-                borderRadius: 14,
-                background: O.glass,
-                border: `1px solid ${O.hair}`,
-                color: O.ink,
-                textDecoration: "none",
-                minWidth: 0,
-              }}
+              className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-surface p-2.5 text-foreground no-underline"
             >
-              <div style={{ position: "relative", flexShrink: 0 }}>
+              <div className="relative shrink-0">
                 <UserAvatar
                   src={s.profiles.avatar_url}
                   fallback={s.profiles.display_name}
                   size="sm"
                 />
-                <span
-                  style={{
-                    position: "absolute",
-                    bottom: -3,
-                    right: -4,
-                    background: O.a2,
-                    color: "white",
-                    fontSize: 8,
-                    fontWeight: 800,
-                    padding: "2px 5px",
-                    borderRadius: 4,
-                    letterSpacing: "0.1em",
-                    boxShadow: `0 0 10px color-mix(in oklab, ${O.a2} 50%, transparent)`,
-                  }}
-                >
+                <span className="absolute -bottom-[3px] -right-1 rounded-sm bg-primary px-[5px] py-0.5 text-[8px] font-extrabold tracking-[0.1em] text-primary-foreground">
                   LIVE
                 </span>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {s.title}
-                </div>
-                <div style={{ fontSize: 10.5, color: O.ink3 }}>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs font-semibold">{s.title}</div>
+                <div className="text-[10.5px] text-muted-foreground">
                   {s.profiles.display_name.split(" ")[0]} · {s.viewer_count ?? 0} watching
                 </div>
               </div>
@@ -282,75 +193,56 @@ function TrendingCard() {
   });
 
   return (
-    <div style={{ ...panel(), padding: 20 }}>
-      <Eyebrow>◈&nbsp;&nbsp;TRENDING IN YOUR ORBIT</Eyebrow>
+    <div className="rounded-xl border border-border bg-surface p-5">
+      <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        ◈&nbsp;&nbsp;TRENDING IN YOUR ORBIT
+      </p>
       {isLoading ? (
-        <div style={{ marginTop: 14 }}>
+        <div className="mt-3.5">
           {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                padding: "11px 0",
-                borderTop: i ? `1px solid ${O.hair}` : "none",
-              }}
+              className={cn(
+                "flex items-center gap-3.5 py-[11px]",
+                i > 0 && "border-t border-border"
+              )}
             >
-              <div style={{ width: 22, height: 14, borderRadius: 4, background: "rgba(255,255,255,0.06)" }} />
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
-                <div style={{ width: "60%", height: 11, borderRadius: 4, background: "rgba(255,255,255,0.06)" }} />
-                <div style={{ width: "30%", height: 9, borderRadius: 4, background: "rgba(255,255,255,0.04)" }} />
+              <div className="h-3.5 w-[22px] rounded-sm bg-surface-elevated" />
+              <div className="flex flex-1 flex-col gap-[5px]">
+                <div className="h-[11px] w-[60%] rounded-sm bg-surface-elevated" />
+                <div className="h-[9px] w-[30%] rounded-sm bg-surface-elevated" />
               </div>
             </div>
           ))}
         </div>
       ) : !tags || tags.length === 0 ? (
-        <div
-          style={{
-            marginTop: 14,
-            fontSize: 12,
-            color: O.ink3,
-            lineHeight: 1.5,
-          }}
-        >
+        <div className="mt-3.5 text-xs leading-normal text-muted-foreground">
           Nothing orbiting yet. Post something and kick off a signal.
         </div>
       ) : (
-      <div style={{ marginTop: 14 }}>
+      <div className="mt-3.5">
         {tags.map((t, i) => (
           <Link
             key={t.id}
             href={`/explore?q=%23${t.name}`}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              padding: "11px 0",
-              borderTop: i ? `1px solid ${O.hair}` : "none",
-              color: O.ink,
-              textDecoration: "none",
-            }}
+            className={cn(
+              "flex items-center gap-3.5 py-[11px] text-foreground no-underline",
+              i > 0 && "border-t border-border"
+            )}
           >
             <span
-              style={{
-                fontFamily: O.serif,
-                fontSize: 22,
-                fontStyle: "italic",
-                color: i === 0 ? O.a2 : O.ink3,
-                minWidth: 22,
-              }}
+              className={cn(
+                "min-w-[22px] text-[22px] italic",
+                i === 0 ? "text-primary" : "text-muted-foreground"
+              )}
             >
               {i + 1}
             </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600 }}>#{t.name}</div>
-              <div style={{ fontSize: 11, color: O.ink3 }}>{t.post_count} posts</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13.5px] font-semibold">#{t.name}</div>
+              <div className="text-[11px] text-muted-foreground">{t.post_count} posts</div>
             </div>
-            <TrendingUp
-              style={{ width: 12, height: 12, color: "#7dffa3" }}
-              strokeWidth={2}
-            />
+            <TrendingUp className="h-3 w-3 text-emerald-400" strokeWidth={2} />
           </Link>
         ))}
       </div>
@@ -372,52 +264,31 @@ function PeopleToOrbitCard() {
   });
 
   return (
-    <div style={{ ...panel(), padding: 20 }}>
-      <Eyebrow>◇&nbsp;&nbsp;PEOPLE TO ORBIT</Eyebrow>
+    <div className="rounded-xl border border-border bg-surface p-5">
+      <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        ◇&nbsp;&nbsp;PEOPLE TO ORBIT
+      </p>
       {isLoading ? (
-        <div style={{ marginTop: 12 }}>
+        <div className="mt-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                gap: 10,
-                alignItems: "center",
-                padding: "8px 0",
-              }}
-            >
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
-                <div style={{ width: "55%", height: 11, borderRadius: 4, background: "rgba(255,255,255,0.06)" }} />
-                <div style={{ width: "35%", height: 9, borderRadius: 4, background: "rgba(255,255,255,0.04)" }} />
+            <div key={i} className="flex items-center gap-2.5 py-2">
+              <div className="h-8 w-8 rounded-full bg-surface-elevated" />
+              <div className="flex flex-1 flex-col gap-[5px]">
+                <div className="h-[11px] w-[55%] rounded-sm bg-surface-elevated" />
+                <div className="h-[9px] w-[35%] rounded-sm bg-surface-elevated" />
               </div>
-              <div style={{ width: 64, height: 24, borderRadius: 99, background: "rgba(255,255,255,0.05)" }} />
+              <div className="h-6 w-16 rounded-full bg-surface-elevated" />
             </div>
           ))}
         </div>
       ) : !people || people.length === 0 ? (
-        <div
-          style={{
-            marginTop: 12,
-            fontSize: 12,
-            color: O.ink3,
-            lineHeight: 1.5,
-          }}
-        >
+        <div className="mt-3 text-xs leading-normal text-muted-foreground">
           No suggestions yet. Follow a few people to bring your orbit to life.
         </div>
       ) : (
-      <div style={{ marginTop: 12 }}>
+      <div className="mt-3">
         {people.map((p) => (
-          <div
-            key={p.id}
-            style={{
-              display: "flex",
-              gap: 10,
-              alignItems: "center",
-              padding: "8px 0",
-            }}
-          >
+          <div key={p.id} className="flex items-center gap-2.5 py-2">
             <UserAvatar
               src={p.avatar_url}
               fallback={p.display_name}
@@ -425,18 +296,10 @@ function PeopleToOrbitCard() {
             />
             <Link
               href={`/${p.username}`}
-              style={{ flex: 1, minWidth: 0, color: O.ink, textDecoration: "none" }}
+              className="min-w-0 flex-1 text-foreground no-underline"
             >
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{p.display_name}</div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: O.ink3,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
+              <div className="text-[13px] font-semibold">{p.display_name}</div>
+              <div className="truncate text-[11px] text-muted-foreground">
                 @{p.username}
               </div>
             </Link>

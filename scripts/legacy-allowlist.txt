@@ -3,7 +3,6 @@ src/app/(main)/communities/page.tsx
 src/app/(main)/drafts/page.tsx
 src/app/(main)/events/page.tsx
 src/app/(main)/explore/page.tsx
-src/app/(main)/feed/page.tsx
 src/app/(main)/live/page.tsx
 src/app/(main)/marketplace/[listingId]/page.tsx
 src/app/(main)/marketplace/page.tsx
@@ -34,8 +33,6 @@ src/components/communities/join-requests-dialog.tsx
 src/components/communities/members-dialog.tsx
 src/components/events/attendees-dialog.tsx
 src/components/events/create-event-dialog.tsx
-src/components/feed/post-card.tsx
-src/components/feed/post-composer.tsx
 src/components/messages/create-group-dialog.tsx
 src/components/messages/new-conversation-dialog.tsx
 src/components/orbit/confirm-dialog.tsx
@@ -50,6 +47,4 @@ src/components/orbit/verified-star.tsx
 src/components/profile/follow-list-dialog.tsx
 src/components/profile/qr-code-dialog.tsx
 src/components/settings/settings-header.tsx
-src/components/shared/follow-button.tsx
-src/components/shared/image-cropper.tsx
 src/lib/design/orbit.ts

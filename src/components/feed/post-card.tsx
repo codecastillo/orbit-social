@@ -73,7 +73,6 @@ import { ReactionPicker, ReactionCountsDisplay } from "./reaction-picker";
 import { PostInsights, computeUserAverages } from "./post-insights";
 import { AudioPlayer } from "@/components/feed/audio-player";
 import { isAudioMediaItem } from "@/lib/utils/audio";
-import { O, panel } from "@/lib/design/orbit";
 import { VerifiedStar } from "@/components/orbit/verified-star";
 
 interface PostCardProps {
@@ -452,14 +451,10 @@ export function PostCard({
 
   return (
     <article
-      className={!compact ? "cursor-pointer" : undefined}
-      style={{
-        ...panel(),
-        padding: compact ? 16 : 22,
-        position: "relative",
-        color: O.ink,
-        fontFamily: O.sans,
-      }}
+      className={cn(
+        "relative rounded-xl border border-border bg-surface text-foreground",
+        compact ? "p-4" : "cursor-pointer p-[22px]"
+      )}
       onClick={
         compact
           ? undefined
@@ -477,7 +472,7 @@ export function PostCard({
 
       {/* Boosted indicator */}
       {isBoosted && (
-        <div className="flex items-center gap-1.5 mb-2" style={{ color: "#ffd76a", fontFamily: O.mono, fontSize: 10.5, letterSpacing: "0.1em" }}>
+        <div className="flex items-center gap-1.5 mb-2 font-mono text-[10.5px] tracking-[0.1em] text-amber-300">
           <Sparkles className="h-3 w-3" />
           <span>PROMOTED</span>
         </div>
@@ -485,13 +480,13 @@ export function PostCard({
 
       {/* Repost indicator */}
       {(isRepostType || repostedByUsername) && (
-        <div className="flex items-center gap-2 mb-2" style={{ color: O.ink3, fontSize: 12.5 }}>
+        <div className="flex items-center gap-2 mb-2 text-[12.5px] text-muted-foreground">
           <Repeat2 className="h-3.5 w-3.5" />
           <span>Reposted by @{repostedByUsername || profile.username}</span>
         </div>
       )}
 
-      <div className="flex" style={{ gap: 12, marginBottom: 14 }}>
+      <div className="flex gap-3 mb-3.5">
         {/* Avatar */}
         <Link href={`/${displayProfile.username}`} onClick={(e) => e.stopPropagation()} className="shrink-0">
           <UserAvatar src={displayProfile.avatar_url} fallback={displayProfile.display_name} size="md" />
@@ -499,53 +494,29 @@ export function PostCard({
 
         <div className="flex-1 min-w-0">
           {/* Header: name + verified, subline, right-side hashtag + menu */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
                 <Link
                   href={`/${displayProfile.username}`}
                   onClick={(e) => e.stopPropagation()}
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: O.ink,
-                    textDecoration: "none",
-                    letterSpacing: "-0.005em",
-                  }}
-                  className="truncate hover:underline"
+                  className="truncate text-sm font-semibold tracking-[-0.005em] text-foreground no-underline hover:underline"
                 >
                   {displayProfile.display_name}
                 </Link>
                 {displayProfile.is_verified && <VerifiedStar size={12} />}
               </div>
-              <div
-                style={{
-                  fontSize: 11.5,
-                  color: O.ink3,
-                  fontFamily: O.sans,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  flexWrap: "wrap",
-                  marginTop: 2,
-                }}
-              >
+              <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11.5px] text-muted-foreground">
                 <span>@{displayProfile.username}</span>
-                <span style={{ color: O.ink4 }}>·</span>
+                <span className="text-text-faint">·</span>
                 <span>{formatTimeAgo(post.created_at)}</span>
                 {displayPost.location && (
                   <>
-                    <span style={{ color: O.ink4 }}>·</span>
+                    <span className="text-text-faint">·</span>
                     <Link
                       href={`/location/${encodeURIComponent(displayPost.location)}`}
                       onClick={(e) => e.stopPropagation()}
-                      style={{
-                        color: O.ink4,
-                        textDecoration: "none",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 3,
-                      }}
+                      className="inline-flex items-center gap-[3px] text-text-faint no-underline"
                     >
                       via {displayPost.location}
                     </Link>
@@ -556,7 +527,10 @@ export function PostCard({
 
             <div className="shrink-0">
               <DropdownMenu>
-                <DropdownMenuTrigger onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuTrigger
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Post options"
+                >
                   <div className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors">
                     <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                   </div>
@@ -715,10 +689,10 @@ export function PostCard({
                 className={cn(
                   "mt-3 rounded-2xl overflow-hidden border border-white/[0.06] shadow-md shadow-black/20",
                   isMulti && "grid gap-0.5",
+                  !isMulti && "bg-black/40",
                   visualMedia.length === 2 && "grid-cols-2",
                   visualMedia.length >= 3 && "grid-cols-2 grid-rows-2",
                 )}
-                style={!isMulti ? { background: "rgba(0,0,0,0.4)" } : undefined}
                 onClick={(e) => e.stopPropagation()}
               >
                 {visualMedia.map((m, i) => {
@@ -728,13 +702,9 @@ export function PostCard({
                       key={m.id}
                       className={cn(
                         "overflow-hidden flex items-center justify-center",
+                        !isMulti && "max-h-[520px] w-full",
                         visualMedia.length === 3 && i === 0 && "row-span-2",
                       )}
-                      style={
-                        !isMulti
-                          ? { maxHeight: 520, width: "100%" }
-                          : undefined
-                      }
                     >
                       {isVideo ? (
                         <video
@@ -746,12 +716,7 @@ export function PostCard({
                           className={
                             isMulti
                               ? "w-full h-full object-cover"
-                              : "max-h-[520px] max-w-full"
-                          }
-                          style={
-                            !isMulti
-                              ? { width: "auto", height: "auto" }
-                              : undefined
+                              : "h-auto w-auto max-h-[520px] max-w-full"
                           }
                         />
                       ) : (
@@ -763,12 +728,7 @@ export function PostCard({
                           className={
                             isMulti
                               ? "w-full h-full object-cover"
-                              : "max-h-[520px] max-w-full"
-                          }
-                          style={
-                            !isMulti
-                              ? { width: "auto", height: "auto" }
-                              : undefined
+                              : "h-auto w-auto max-h-[520px] max-w-full"
                           }
                         />
                       )}
@@ -794,8 +754,7 @@ export function PostCard({
 
           {/* Actions, order: heart, chat, retweet, bookmark, [views] */}
           <div
-            className="flex items-center"
-            style={{ gap: 4, marginTop: 12, color: O.ink2, fontSize: 12.5 }}
+            className="mt-3 flex items-center gap-1 text-[12.5px] text-text-secondary"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Like */}
@@ -803,17 +762,17 @@ export function PostCard({
               {!compact && <ReactionPicker onSelect={handleReaction} currentReaction={userReaction} />}
               <button
                 onClick={handleLike}
+                aria-label="Like"
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full transition-colors",
+                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors",
                   userReaction || isLiked
                     ? "text-rose-400"
                     : "hover:text-rose-300 hover:bg-rose-500/10"
                 )}
-                style={{ padding: "6px 12px" }}
               >
                 <motion.span animate={animateHeart ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.3 }}>
                   {userReaction ? (
-                    <span style={{ fontSize: 15, lineHeight: 1 }}>{REACTION_EMOJI[userReaction]}</span>
+                    <span className="text-[15px] leading-none">{REACTION_EMOJI[userReaction]}</span>
                   ) : (
                     <Heart className={cn("h-[15px] w-[15px]", isLiked && "fill-current")} />
                   )}
@@ -825,8 +784,8 @@ export function PostCard({
             {/* Comment / Reply */}
             <button
               onClick={(e) => { e.stopPropagation(); if (!compact) router.push(`/post/${displayPost.id}`); }}
-              className="flex items-center gap-1.5 rounded-full hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
-              style={{ padding: "6px 12px" }}
+              aria-label="Reply"
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
             >
               <MessageCircle className="h-[15px] w-[15px]" />
               {post.comment_count > 0 && <span>{formatNumber(post.comment_count)}</span>}
@@ -838,11 +797,11 @@ export function PostCard({
             {!compact && !displayPost.community_id && (
               <button
                 onClick={handleRepost}
+                aria-label="Repost"
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full transition-colors",
+                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors",
                   isReposted ? "text-emerald-400" : "hover:text-emerald-300 hover:bg-emerald-500/10"
                 )}
-                style={{ padding: "6px 12px" }}
               >
                 <Repeat2 className="h-[15px] w-[15px]" />
                 {repostCount > 0 && <span>{formatNumber(repostCount)}</span>}
@@ -852,11 +811,11 @@ export function PostCard({
             {!compact && !displayPost.community_id && (
               <button
                 onClick={handleBookmark}
+                aria-label="Bookmark"
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full transition-colors",
+                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors",
                   isBookmarked ? "text-amber-400" : "hover:text-amber-300 hover:bg-amber-500/10"
                 )}
-                style={{ padding: "6px 12px" }}
               >
                 <Bookmark className={cn("h-[15px] w-[15px]", isBookmarked && "fill-current")} />
                 {bookmarkCount > 0 && <span>{formatNumber(bookmarkCount)}</span>}
@@ -866,8 +825,8 @@ export function PostCard({
             {!compact && !displayPost.community_id && (
               <button
                 onClick={handleShare}
-                className="flex items-center gap-1.5 rounded-full hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
-                style={{ padding: "6px 12px" }}
+                aria-label="Share"
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
               >
                 <Share2 className="h-[15px] w-[15px]" />
                 {shareCount > 0 && <span>{formatNumber(shareCount)}</span>}
@@ -1003,7 +962,7 @@ function PostContent({ content }: { content: string }) {
               key={i}
               href={`/hashtag/${encodeURIComponent(tag)}`}
               onClick={(e) => e.stopPropagation()}
-              style={{ color: O.a2, fontWeight: 600, textDecoration: "none" }}
+              className="font-semibold text-primary no-underline"
             >
               {part}
             </Link>
@@ -1015,7 +974,7 @@ function PostContent({ content }: { content: string }) {
               key={i}
               href={`/${part.slice(1)}`}
               onClick={(e) => e.stopPropagation()}
-              style={{ color: O.a2, fontWeight: 600, textDecoration: "none" }}
+              className="font-semibold text-primary no-underline"
             >
               {part}
             </Link>
