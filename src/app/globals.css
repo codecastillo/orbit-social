@@ -7,10 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-syne), var(--font-sans);
-  --font-serif: var(--font-instrument-serif), Georgia, serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-heading: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -35,91 +34,131 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
   --color-primary: var(--primary);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-faint: var(--text-faint);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  /* Explicit radius steps, no derived scale. Controls land at 8px through
+     rounded-lg (ui/button) and cards at 12px through rounded-xl (ui/card)
+     without touching the components. */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.25rem;
+  --radius-4xl: 1.5rem;
 }
 
-/* Dark-first: the app is always dark — Orbit Glass tokens */
+/* Light theme. Dark is the flagship and the default (the .dark class is
+   managed on <html>); both palettes live here so every token has exactly
+   one meaning. Backgrounds carry a faint warm cast (hue 80) so the neutral
+   scale harmonizes with the ember accent instead of fighting it. */
 :root {
-  --background: #070818;
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.17 0.005 260);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.17 0.005 260);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.623 0.214 259);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.20 0.005 260);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.20 0.005 260);
-  --muted-foreground: oklch(0.6 0 0);
-  --accent: oklch(0.20 0.005 260);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.623 0.214 259);
-  --chart-1: oklch(0.623 0.214 259);
-  --chart-2: oklch(0.6 0.2 150);
-  --chart-3: oklch(0.7 0.15 50);
-  --chart-4: oklch(0.65 0.2 330);
-  --chart-5: oklch(0.55 0.15 200);
-  --radius: 0.875rem;
-  --sidebar: oklch(0.12 0.005 260);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.623 0.214 259);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.18 0.005 260);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.623 0.214 259);
+  --background: oklch(0.975 0.003 80);
+  --surface: oklch(1 0 0);
+  --surface-elevated: oklch(1 0 0);
+  --foreground: oklch(0.22 0.012 80);
+  --text-secondary: oklch(0.45 0.012 80);
+  --muted-foreground: oklch(0.55 0.01 80);
+  --text-faint: oklch(0.68 0.008 80);
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-elevated);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.55 0.19 34);
+  --primary-hover: oklch(0.51 0.19 34);
+  --primary-active: oklch(0.48 0.18 34);
+  --primary-foreground: oklch(0.99 0.003 80);
+  --secondary: oklch(0.94 0.004 80);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.94 0.004 80);
+  --accent: oklch(0.94 0.004 80);
+  --accent-foreground: var(--foreground);
+  --destructive: oklch(0.55 0.21 25);
+  --success: oklch(0.52 0.15 152);
+  --warning: oklch(0.55 0.12 80);
+  --info: oklch(0.52 0.11 245);
+  --border: oklch(0.9 0.004 80);
+  --input: oklch(0.87 0.005 80);
+  --ring: var(--primary);
+  --chart-1: var(--primary);
+  --chart-2: var(--info);
+  --chart-3: var(--success);
+  --chart-4: var(--warning);
+  --chart-5: var(--muted-foreground);
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--surface-elevated);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+  color-scheme: light;
+}
+
+.dark {
+  --background: oklch(0.15 0.004 80);
+  --surface: oklch(0.19 0.005 80);
+  --surface-elevated: oklch(0.23 0.006 80);
+  --foreground: oklch(0.955 0.004 80);
+  --text-secondary: oklch(0.72 0.008 80);
+  --muted-foreground: oklch(0.55 0.01 80);
+  --text-faint: oklch(0.42 0.008 80);
+  /* Ember reads brighter on dark; the near-black foreground passes AA on it
+     (white does not, at roughly 3.1:1). */
+  --primary: oklch(0.68 0.21 34);
+  --primary-hover: oklch(0.72 0.19 34);
+  --primary-active: oklch(0.63 0.21 34);
+  --primary-foreground: oklch(0.16 0.02 34);
+  --secondary: oklch(0.23 0.006 80);
+  --muted: oklch(0.23 0.006 80);
+  --accent: oklch(0.24 0.006 80);
+  --destructive: oklch(0.64 0.21 25);
+  --success: oklch(0.72 0.17 152);
+  --warning: oklch(0.8 0.15 85);
+  --info: oklch(0.7 0.11 235);
+  --border: oklch(0.29 0.006 80);
+  --input: oklch(0.26 0.006 80);
   color-scheme: dark;
 }
 
 @layer base {
   * {
     @apply border-border;
-    /* Universal transitions used to include `background-color`, which made
-       any element whose background recomputed during scroll/layout flash
-       briefly. That read as random highlights as scrollbars faded. Drop
-       background-color from the universal list — components that need a
-       hover/active background animate it themselves. */
+    /* Universal transitions exclude background-color: elements whose
+       background recomputed during scroll/layout flashed briefly, reading
+       as random highlights. Components animate their own backgrounds. */
     transition-property: color, border-color, box-shadow, opacity, transform;
     transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
     transition-duration: 150ms;
-    /* Mobile/trackpad tap-highlight on scroll containers shows up as a
-       random box highlight when the cursor crosses an element while
-       scrollbars fade out. Kill it everywhere — interactive elements still
-       get :focus-visible below. */
+    /* Tap-highlight on scroll containers shows up as a random box highlight
+       when the cursor crosses an element while scrollbars fade out.
+       Interactive elements still get :focus-visible below. */
     -webkit-tap-highlight-color: transparent;
   }
-  /* When an interactive child gets focused (e.g. a button inside a card),
-     some browsers paint a focus-within ring on the ancestor. We don't want
-     that — only the focused leaf should ring. */
+  /* Only the focused leaf should ring, never an ancestor. */
   *:focus-within {
     outline: none;
   }
-  /* Drag-selection of layout chrome paints a flash when the scrollbar
-     disappears and the cursor lands on a fresh region. Override the
-     selection color to be subtle so accidental selection doesn't read as
-     random highlighting. */
   ::selection {
-    background: rgba(167, 139, 250, 0.25);
+    background: color-mix(in oklab, var(--primary) 30%, transparent);
     color: inherit;
   }
-  /* Scoped focus ring — only on actually-interactive elements that the user
-     has tabbed to. The previous universal "outline-ring/50" lit up scroll
-     containers and divs as users scrolled, which read as random highlighting. */
+  /* Scoped focus ring: only actually-interactive elements the user has
+     tabbed to. A universal outline lit up scroll containers during scroll. */
   :focus {
     outline: none;
   }
@@ -135,91 +174,43 @@
     @apply outline-ring/50;
     outline-offset: 2px;
   }
-  body {
-    @apply bg-background text-foreground antialiased;
-    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
-    background-repeat: repeat;
-    background-size: 256px 256px;
-  }
   html {
     @apply font-sans;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
   }
   h1, h2, h3, h4, h5, h6,
   [data-heading] {
-    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
     font-weight: 700;
   }
-  p, span, div, button, input, textarea, label, a, li {
-    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  a, button, [role="button"], [type="submit"] {
+    cursor: pointer;
+  }
+  /* Press feedback is the sanctioned micro-interaction; skip it for users
+     who asked for reduced motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    button:active,
+    [role="button"]:active,
+    [type="submit"]:active {
+      transform: scale(0.98);
+    }
   }
 }
 
-/* Orbit ring animation */
-@keyframes orbit-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@keyframes orbit-spin-reverse {
-  from { transform: rotate(360deg); }
-  to { transform: rotate(0deg); }
-}
-
-@keyframes pulse-glow {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.8; }
-}
-
-/* Orbit dropdown item hover/highlight */
+/* Dropdown/command item highlight (consumed via ui/dropdown-menu). */
 .orbit-dropdown-item[data-highlighted] {
-  background: rgba(255, 95, 174, 0.14);
-  color: #ffffff;
-}
-
-/* Orbit avatar edit overlay reveal on parent button hover */
-button:hover > div > .orbit-avatar-edit-overlay,
-button:focus-visible > div > .orbit-avatar-edit-overlay {
-  opacity: 1;
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  color: var(--foreground);
 }
 .orbit-dropdown-item[data-variant="destructive"][data-highlighted] {
-  background: rgba(255, 122, 133, 0.14);
-  color: #ff9aa3;
+  background: color-mix(in oklab, var(--destructive) 14%, transparent);
+  color: var(--destructive);
 }
 .orbit-dropdown-item[data-variant="destructive"] svg {
   color: currentColor;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-12px); }
-}
-
-@keyframes avatar-glow-spin {
-  to { --glow-angle: 360deg; }
-}
-
-@property --glow-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-
-@keyframes pulse-subtle {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-}
-
-@keyframes grain {
-  0%, 100% { transform: translate(0, 0); }
-  10% { transform: translate(-5%, -10%); }
-  30% { transform: translate(3%, -15%); }
-  50% { transform: translate(12%, 9%); }
-  70% { transform: translate(9%, 4%); }
-  90% { transform: translate(-1%, 7%); }
 }
 
 @keyframes shimmer {
@@ -227,30 +218,8 @@ button:focus-visible > div > .orbit-avatar-edit-overlay {
   100% { background-position: 200% 0; }
 }
 
-/* Stop browser text-selection from highlighting empty layout chrome
-   (sidebar gutter, panel padding, etc.) when the user click-drags. We
-   default the document to user-select: none and re-enable on the
-   elements that actually carry readable text + form inputs, so post
-   content and captions stay selectable. */
-html, body {
-  -webkit-user-select: none;
-  user-select: none;
-  /* Belt-and-suspenders for mobile Safari/Chrome where tap-highlight
-     bleeds through scroll containers. */
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-}
-p, span, h1, h2, h3, h4, h5, h6, li, td, th, blockquote, code, pre,
-article, time, label, dd, dt, em, strong, small, q, cite, abbr,
-input, textarea, select, [contenteditable], [contenteditable="true"],
-.selectable {
-  -webkit-user-select: text;
-  user-select: text;
-}
-
-/* Landing page entrance animations. Replaces the framer-motion Reveal +
-   motion.div on the marketing page so the route can be a server component
-   and the motion runtime stays out of the bundle. */
+/* Landing page entrance animations. Entrance-only (not looping), so they
+   survive the motion rules; the landing redesign will revisit them. */
 @keyframes landing-reveal {
   from { opacity: 0; transform: translateY(30px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -280,187 +249,24 @@ input, textarea, select, [contenteditable], [contenteditable="true"],
   }
 }
 
-@keyframes gradient-rotate {
-  0% { --gradient-angle: 0deg; }
-  100% { --gradient-angle: 360deg; }
-}
-
-@property --gradient-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-
-/* Glassmorphism utilities */
 @layer utilities {
+  /* Bridge for the legacy glass panels: flat surface, hairline border,
+     no blur. Consumers migrate to ui/card batch by batch; this keeps the
+     unmigrated ones coherent in the meantime. */
   .glass {
-    background: oklch(1 0 0 / 6%);
-    backdrop-filter: blur(64px) saturate(1.8);
-    -webkit-backdrop-filter: blur(64px) saturate(1.8);
-    border: 1px solid oklch(1 0 0 / 10%);
-    box-shadow:
-      0 0 0 1px oklch(1 0 0 / 4%) inset,
-      0 1px 0 0 oklch(1 0 0 / 6%) inset,
-      0 4px 24px oklch(0 0 0 / 30%);
-  }
-
-  .glass-strong {
-    background: oklch(1 0 0 / 6%);
-    backdrop-filter: blur(40px);
-    -webkit-backdrop-filter: blur(40px);
-    border: 1px solid oklch(1 0 0 / 10%);
-  }
-
-  .glass-hover:hover {
-    background: oklch(1 0 0 / 6%);
-  }
-
-  .card-elevated {
-    --gradient-angle: 0deg;
-    position: relative;
-    background: oklch(0.13 0.005 260 / 85%);
-    backdrop-filter: blur(48px) saturate(1.6);
-    -webkit-backdrop-filter: blur(48px) saturate(1.6);
-    border: 1px solid transparent;
-    background-image:
-      linear-gradient(oklch(0.13 0.005 260 / 85%), oklch(0.13 0.005 260 / 85%)),
-      conic-gradient(from var(--gradient-angle), oklch(0.623 0.214 259 / 50%), oklch(0.7 0.2 300 / 50%), oklch(0.5 0.2 200 / 50%), oklch(0.623 0.214 259 / 50%));
-    background-origin: border-box;
-    background-clip: padding-box, border-box;
-    box-shadow:
-      0 0 0 1px oklch(1 0 0 / 5%) inset,
-      0 0 80px oklch(0.623 0.214 259 / 8%),
-      0 8px 40px oklch(0 0 0 / 45%),
-      0 2px 6px oklch(0 0 0 / 35%);
-    border-radius: 1.25rem;
-    animation: gradient-rotate 6s linear infinite;
-  }
-
-  .glow-border {
-    --gradient-angle: 0deg;
-    position: relative;
-    border: 1px solid transparent;
-    background-image:
-      linear-gradient(var(--background), var(--background)),
-      conic-gradient(from var(--gradient-angle), oklch(0.623 0.214 259), oklch(0.7 0.2 300), oklch(0.5 0.25 180), oklch(0.65 0.2 330), oklch(0.623 0.214 259));
-    background-origin: border-box;
-    background-clip: padding-box, border-box;
-    animation: gradient-rotate 4s linear infinite;
-  }
-
-  .glow-text {
-    text-shadow:
-      0 0 12px oklch(0.623 0.214 259 / 50%),
-      0 0 32px oklch(0.623 0.214 259 / 20%);
-  }
-
-  .glow-box {
-    box-shadow:
-      0 0 16px oklch(0.623 0.214 259 / 25%),
-      0 0 48px oklch(0.623 0.214 259 / 10%);
-  }
-
-  .input-premium {
-    height: 3rem;
-    border-radius: 0.75rem;
-    background: oklch(1 0 0 / 4%);
-    border: 1px solid oklch(1 0 0 / 8%);
-    padding-left: 1rem;
-    padding-right: 1rem;
-    font-size: 0.9375rem;
-    box-shadow: 0 1px 3px oklch(0 0 0 / 20%) inset;
-    transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .input-premium::placeholder {
-    color: oklch(0.5 0 0);
-  }
-  .input-premium:focus {
-    border-color: oklch(0.623 0.214 259 / 50%);
-    box-shadow:
-      0 1px 3px oklch(0 0 0 / 20%) inset,
-      0 0 0 3px oklch(0.623 0.214 259 / 15%);
-    outline: none;
-  }
-
-  .btn-social {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 3rem;
-    border-radius: 9999px;
-    background: white;
-    color: #1d1d1f;
-    font-weight: 500;
-    font-size: 0.9375rem;
-    border: none;
-    box-shadow:
-      0 1px 3px oklch(0 0 0 / 12%),
-      0 4px 12px oklch(0 0 0 / 8%);
-    cursor: pointer;
-    transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .btn-social:hover {
-    background: #e8e8ed !important;
-    color: #1d1d1f !important;
-    box-shadow:
-      0 2px 8px oklch(0 0 0 / 16%),
-      0 8px 24px oklch(0 0 0 / 12%);
-    transform: translateY(-1px);
-  }
-  .btn-social:active {
-    transform: translateY(0);
-  }
-
-  /* Ensure all clickable elements show pointer cursor */
-  a, button, [role="button"], [type="submit"] {
-    cursor: pointer;
-  }
-
-  .divider-text {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-  .divider-text::before,
-  .divider-text::after {
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: oklch(1 0 0 / 8%);
-  }
-
-  .page-gradient {
-    background:
-      radial-gradient(ellipse 80% 60% at 50% 0%, oklch(0.623 0.214 259 / 6%) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 50% at 80% 100%, oklch(0.7 0.2 300 / 4%) 0%, transparent 50%),
-      oklch(0.09 0 0);
-  }
-
-  .text-gradient {
-    background: linear-gradient(135deg, oklch(0.623 0.214 259), oklch(0.7 0.2 300));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    background: var(--surface);
+    border: 1px solid var(--border);
   }
 
   .shimmer {
     background: linear-gradient(
       90deg,
-      oklch(1 0 0 / 0%) 0%,
-      oklch(1 0 0 / 5%) 50%,
-      oklch(1 0 0 / 0%) 100%
+      transparent 0%,
+      color-mix(in oklab, var(--foreground) 7%, transparent) 50%,
+      transparent 100%
     );
     background-size: 200% 100%;
     animation: shimmer 2s ease-in-out infinite;
-  }
-
-  .avatar-animated-glow {
-    background: conic-gradient(
-      from var(--glow-angle, 0deg),
-      #f43f5e, #a855f7, #3b82f6, #10b981, #eab308, #f43f5e
-    );
-    animation: avatar-glow-spin 3s linear infinite;
   }
 
   .scrollbar-hide {
@@ -477,193 +283,22 @@ input, textarea, select, [contenteditable], [contenteditable="true"],
   .snap-start {
     scroll-snap-align: start;
   }
-
-  .btn-gradient {
-    position: relative;
-    background: linear-gradient(135deg, oklch(0.623 0.214 259), oklch(0.55 0.2 280));
-    color: white;
-    font-weight: 600;
-    border: none;
-    transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow:
-      0 1px 0 oklch(1 0 0 / 15%) inset,
-      0 0 0 1px oklch(1 0 0 / 6%) inset,
-      0 2px 8px oklch(0.623 0.214 259 / 20%);
-  }
-  .btn-gradient:hover {
-    filter: brightness(1.12);
-    box-shadow:
-      0 1px 0 oklch(1 0 0 / 20%) inset,
-      0 0 0 1px oklch(1 0 0 / 8%) inset,
-      0 6px 24px oklch(0.623 0.214 259 / 40%);
-    transform: translateY(-1px);
-  }
-  .btn-gradient:active {
-    filter: brightness(0.95);
-    transform: translateY(0);
-  }
-
-  /* Lifting hover — gentle vertical rise + deeper shadow */
-  .hover-lift {
-    transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
-                box-shadow 250ms cubic-bezier(0.16, 1, 0.3, 1),
-                background-color 250ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .hover-lift:hover {
-    transform: translateY(-2px);
-    box-shadow:
-      0 12px 28px oklch(0 0 0 / 35%),
-      0 2px 6px oklch(0 0 0 / 25%);
-  }
-
-  /* Depth card — subtle inner light + outer shadow for premium feel */
-  .depth-card {
-    background: oklch(1 0 0 / 3%);
-    border: 1px solid oklch(1 0 0 / 7%);
-    box-shadow:
-      0 1px 0 0 oklch(1 0 0 / 5%) inset,
-      0 1px 2px oklch(0 0 0 / 20%);
-    border-radius: 1rem;
-  }
-
-  /* Pill-style tab trigger — consistent tab look across pages */
-  .pill-tab {
-    flex: 1;
-    border-radius: 9999px;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: oklch(0.6 0 0);
-    transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .pill-tab[data-state="active"] {
-    color: oklch(0.985 0 0);
-    background: oklch(1 0 0 / 7%);
-    box-shadow:
-      0 1px 0 0 oklch(1 0 0 / 8%) inset,
-      0 1px 2px oklch(0 0 0 / 20%);
-  }
-  .pill-tab:hover {
-    color: oklch(0.85 0 0);
-  }
-
-  /* Shimmer-cross animation — for premium button highlights */
-  .shine::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: linear-gradient(
-      105deg,
-      transparent 40%,
-      oklch(1 0 0 / 25%) 50%,
-      transparent 60%
-    );
-    transform: translateX(-100%);
-    transition: transform 600ms cubic-bezier(0.16, 1, 0.3, 1);
-    pointer-events: none;
-  }
-  .shine:hover::before {
-    transform: translateX(100%);
-  }
-
-  /* Section header — used across index pages */
-  .section-label {
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: oklch(0.55 0 0);
-  }
-
-  /* Editorial hero — giant display heading with italic-serif emphasis */
-  .hero-display {
-    font-family: var(--font-syne), sans-serif;
-    font-weight: 700;
-    font-size: clamp(2.75rem, 6vw, 4.5rem);
-    line-height: 0.95;
-    letter-spacing: -0.035em;
-    color: oklch(0.985 0 0);
-  }
-  .hero-display em {
-    font-family: var(--font-instrument-serif), serif;
-    font-style: italic;
-    font-weight: 400;
-    letter-spacing: -0.02em;
-  }
-  .hero-display-sm {
-    font-family: var(--font-syne), sans-serif;
-    font-weight: 700;
-    font-size: clamp(1.75rem, 3.5vw, 2.5rem);
-    line-height: 1.02;
-    letter-spacing: -0.03em;
-    color: oklch(0.985 0 0);
-  }
-  .hero-display-sm em {
-    font-family: var(--font-instrument-serif), serif;
-    font-style: italic;
-    font-weight: 400;
-    letter-spacing: -0.01em;
-  }
-
-  /* Gradient tile backgrounds — colorful content cards */
-  .tile-pink {
-    background: linear-gradient(135deg, oklch(0.75 0.18 0) 0%, oklch(0.55 0.22 330) 100%);
-  }
-  .tile-blue {
-    background: linear-gradient(135deg, oklch(0.55 0.2 240) 0%, oklch(0.45 0.22 280) 100%);
-  }
-  .tile-green {
-    background: linear-gradient(135deg, oklch(0.65 0.18 150) 0%, oklch(0.45 0.18 200) 100%);
-  }
-  .tile-amber {
-    background: linear-gradient(135deg, oklch(0.75 0.18 60) 0%, oklch(0.6 0.2 30) 100%);
-  }
-  .tile-violet {
-    background: linear-gradient(135deg, oklch(0.6 0.2 300) 0%, oklch(0.4 0.18 260) 100%);
-  }
-  .tile-sunset {
-    background: linear-gradient(135deg, oklch(0.7 0.2 30) 0%, oklch(0.55 0.22 350) 100%);
-  }
-
-  /* Gradient chip — for trending hashtags, categories */
-  .chip-gradient {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.375rem 0.875rem;
-    border-radius: 9999px;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    background: linear-gradient(135deg, oklch(0.623 0.214 259 / 12%), oklch(0.7 0.2 300 / 12%));
-    color: oklch(0.75 0.15 280);
-    border: 1px solid oklch(0.623 0.214 259 / 20%);
-    transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .chip-gradient:hover {
-    background: linear-gradient(135deg, oklch(0.623 0.214 259 / 20%), oklch(0.7 0.2 300 / 20%));
-    border-color: oklch(0.623 0.214 259 / 40%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 14px oklch(0.623 0.214 259 / 20%);
-  }
 }
 
-/* Skeleton shimmer animation */
+/* Skeleton shimmer: the sanctioned loading animation. */
 [data-slot="skeleton"] {
   background: linear-gradient(
     90deg,
-    oklch(1 0 0 / 0%) 0%,
-    oklch(1 0 0 / 5%) 50%,
-    oklch(1 0 0 / 0%) 100%
+    color-mix(in oklab, var(--foreground) 5%, transparent) 0%,
+    color-mix(in oklab, var(--foreground) 10%, transparent) 50%,
+    color-mix(in oklab, var(--foreground) 5%, transparent) 100%
   );
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
 }
-
-/* Button press effect */
-button:active,
-[role="button"]:active,
-[type="submit"]:active {
-  transform: scale(0.98);
+@media (prefers-reduced-motion: reduce) {
+  .shimmer,
+  [data-slot="skeleton"] {
+    animation: none;
+  }
 }

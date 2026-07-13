@@ -36,8 +36,9 @@ const borderClasses: Record<AvatarBorderStyle, string> = {
     "p-[2px] bg-gradient-to-br from-zinc-300 via-slate-400 to-zinc-500",
   diamond:
     "p-[2px] bg-gradient-to-br from-cyan-200 via-blue-300 to-indigo-400",
-  "animated-glow":
-    "p-[2px] avatar-animated-glow",
+  // Formerly a spinning conic-gradient ring; looping decorative motion is
+  // out, so legacy values render as a static accent ring.
+  "animated-glow": "p-[2px] bg-primary",
 };
 
 export function UserAvatar({

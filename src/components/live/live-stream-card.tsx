@@ -12,25 +12,12 @@ interface LiveStreamCardProps {
   className?: string;
 }
 
-const TILES = ["tile-pink", "tile-blue", "tile-green", "tile-amber", "tile-violet", "tile-sunset"];
-
-function tileFor(id: string) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return TILES[Math.abs(hash) % TILES.length];
-}
-
 export function LiveStreamCard({ stream, className }: LiveStreamCardProps) {
-  const tile = tileFor(stream.id);
-
   return (
     <Link
       href={`/live/${stream.id}`}
       className={cn(
-        "group relative block overflow-hidden rounded-2xl aspect-[4/5] hover-lift",
-        tile,
+        "group relative block overflow-hidden rounded-2xl aspect-[4/5] bg-surface-elevated border border-border hover:border-muted-foreground/40",
         className
       )}
     >
