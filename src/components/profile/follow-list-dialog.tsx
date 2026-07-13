@@ -23,7 +23,6 @@ import {
   type ProfileSummary,
 } from "@/lib/queries/social";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { O } from "@/lib/design/orbit";
 
 type Kind = "followers" | "following";
 
@@ -98,26 +97,13 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-md p-0 overflow-hidden border border-white/10"
-        style={{ background: O.bg }}
-      >
-        <DialogHeader className="px-5 pt-5 pb-3 border-b border-white/10">
-          <DialogTitle
-            style={{
-              fontFamily: O.sans,
-              color: O.ink,
-              fontSize: 16,
-              letterSpacing: "0.02em",
-            }}
-          >
+      <DialogContent className="sm:max-w-md overflow-hidden rounded-2xl border border-border bg-surface-elevated p-0">
+        <DialogHeader className="border-b border-border px-5 pt-5 pb-3">
+          <DialogTitle className="text-base tracking-wide text-foreground">
             {heading}
           </DialogTitle>
         </DialogHeader>
-        <div
-          style={{ maxHeight: 480, overflowY: "auto" }}
-          className="divide-y divide-white/5"
-        >
+        <div className="max-h-[480px] divide-y divide-border/50 overflow-y-auto">
           {isLoading ? (
             <div className="p-4 flex flex-col gap-3">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -131,14 +117,7 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
               ))}
             </div>
           ) : !data || data.length === 0 ? (
-            <div
-              style={{
-                color: O.ink3,
-                padding: "32px 20px",
-                textAlign: "center",
-                fontSize: 13,
-              }}
-            >
+            <div className="px-5 py-8 text-center text-[13px] text-muted-foreground">
               {kind === "followers"
                 ? "No followers yet."
                 : "Not following anyone yet."}
@@ -150,54 +129,30 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
               return (
                 <div
                   key={p.id}
-                  className="flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors"
+                  className="flex items-center gap-3 px-5 py-3 hover:bg-surface transition-colors"
                 >
                   <Link
                     href={`/${p.username}`}
                     onClick={() => onOpenChange(false)}
-                    style={{ textDecoration: "none", display: "contents" }}
+                    className="contents no-underline"
                   >
                     <UserAvatar
                       src={p.avatar_url}
                       fallback={p.display_name || p.username}
                       size="md"
                     />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                          color: O.ink,
-                          fontSize: 14,
-                          fontWeight: 600,
-                        }}
-                      >
-                        <span
-                          style={{
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                        <span className="truncate">
                           {p.display_name || p.username}
                         </span>
                         {p.is_verified && <VerifiedStar size={12} />}
                       </div>
-                      <div style={{ fontSize: 12, color: O.ink3 }}>
+                      <div className="text-xs text-muted-foreground">
                         @{p.username}
                       </div>
                       {p.bio && (
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: O.ink2,
-                            marginTop: 2,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
+                        <div className="mt-0.5 truncate text-xs text-text-secondary">
                           {p.bio}
                         </div>
                       )}

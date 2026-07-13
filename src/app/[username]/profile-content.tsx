@@ -48,8 +48,7 @@ import { ClipPlayer } from "@/components/clips/clip-player";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import type { AvatarBorderStyle } from "@/components/shared/user-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { O, aurora, auroraSoft, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { Button } from "@/components/ui/button";
 import { VerifiedStar } from "@/components/orbit/verified-star";
 import { StatCluster } from "@/components/orbit/stat-cluster";
 
@@ -459,29 +458,15 @@ export function ProfileContent({
   }, [visibleTabs, activeTab]);
 
   const themeAccent = normalizeAccent(profile.theme_color);
-  const accent = themeAccent || O.a2;
+  const accent = themeAccent || "var(--primary)";
   const { first, rest } = splitName(profile.display_name);
   const avatarBorder = (profile.avatar_border || "none") as AvatarBorderStyle;
 
   return (
-    <div
-      style={{
-        color: O.ink,
-        fontFamily: O.sans,
-        display: "flex",
-        flexDirection: "column",
-        gap: 18,
-      }}
-    >
+    <div className="flex flex-col gap-[18px] text-foreground">
 
       {/* HERO PANEL */}
-      <div
-        style={{
-          ...panel(),
-          padding: 0,
-          position: "relative",
-        }}
-      >
+      <div className="relative rounded-xl border border-border bg-surface">
         {/* Floating back button, sits on top of the banner so it doesn't
             occupy its own row above the panel. */}
         <button
@@ -493,82 +478,40 @@ export function ProfileContent({
             }
           }}
           aria-label="Back"
-          style={{
-            position: "absolute",
-            top: 14,
-            left: 14,
-            zIndex: 5,
-            width: 36,
-            height: 36,
-            borderRadius: 999,
-            background: "rgba(0,0,0,0.45)",
-            backdropFilter: "blur(14px)",
-            WebkitBackdropFilter: "blur(14px)",
-            border: "1px solid rgba(255,255,255,0.14)",
-            color: "white",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}
+          className="absolute top-3.5 left-3.5 z-[5] inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/60 text-white"
         >
-          <ArrowLeft style={{ width: 15, height: 15 }} strokeWidth={2} />
+          <ArrowLeft className="h-[15px] w-[15px]" strokeWidth={2} />
         </button>
 
         {/* Banner, clipped to top radius only */}
-        <div style={{ borderRadius: "24px 24px 0 0", overflow: "hidden" }}>
+        <div className="overflow-hidden rounded-t-xl">
           {profile.cover_url ? (
             <div
-              style={{
-                height: 200,
-                background: `url(${profile.cover_url}) center/cover`,
-                position: "relative",
-              }}
+              className="relative h-[200px] bg-cover bg-center"
+              style={{ backgroundImage: `url(${profile.cover_url})` }}
             />
           ) : (
-            <div style={{ height: 200, background: "var(--surface-elevated)" }} />
+            <div className="h-[200px] bg-surface-elevated" />
           )}
         </div>
 
         {/* Identity row: content flows BELOW the banner, only the avatar overlaps */}
-        <div
-          style={{
-            padding: "0 32px 24px",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 24,
-            flexWrap: "wrap",
-          }}
-        >
+        <div className="flex flex-wrap items-start gap-6 px-8 pb-6">
           {/* Avatar, accent ring and decorative avatar_border are mutually
               exclusive. When a decorative border is set, the wrapper hugs
-              the avatar so the dark panel doesn't show through as a gap. */}
+              the avatar so the dark panel doesn't show through as a gap.
+              The accent ring rides the dynamic per-profile color, so it
+              stays an inline box-shadow. */}
           <div
+            className={
+              avatarBorder === "none"
+                ? "relative z-[1] -mt-[68px] h-[136px] w-[136px] shrink-0 rounded-full bg-background p-[5px]"
+                : "relative z-[1] -mt-[68px] inline-block shrink-0 rounded-full leading-none shadow-[0_16px_40px_rgba(0,0,0,0.5)]"
+            }
             style={
               avatarBorder === "none"
-                ? {
-                    width: 136,
-                    height: 136,
-                    borderRadius: "50%",
-                    padding: 5,
-                    background: O.bg,
-                    boxShadow: `0 16px 40px rgba(0,0,0,0.5), 0 0 0 2px ${accent}`,
-                    flexShrink: 0,
-                    marginTop: -68,
-                    position: "relative",
-                    zIndex: 1,
-                  }
-                : {
-                    borderRadius: "50%",
-                    boxShadow: "0 16px 40px rgba(0,0,0,0.5)",
-                    flexShrink: 0,
-                    marginTop: -68,
-                    position: "relative",
-                    zIndex: 1,
-                    display: "inline-block",
-                    lineHeight: 0,
-                  }
+                ? { boxShadow: `0 16px 40px rgba(0,0,0,0.5), 0 0 0 2px ${accent}` }
+                : undefined
             }
           >
             <UserAvatar
@@ -579,75 +522,52 @@ export function ProfileContent({
             />
           </div>
 
-          <div style={{ flex: 1, paddingTop: 16, minWidth: 0 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                gap: 10,
-                flexWrap: "wrap",
-              }}
-            >
-              <Display
-                size={32}
+          <div className="min-w-0 flex-1 pt-4">
+            <div className="flex flex-wrap items-baseline gap-2.5">
+              <h1
+                className="text-[32px] font-bold leading-none tracking-[-0.03em]"
                 style={themeAccent ? { color: themeAccent } : undefined}
               >
                 {rest ? (
                   <>
                     {first}{" "}
-                    <Acc color={themeAccent || undefined}>{rest}</Acc>
+                    <span
+                      className={themeAccent ? undefined : "text-primary"}
+                      style={themeAccent ? { color: themeAccent } : undefined}
+                    >
+                      {rest}
+                    </span>
                   </>
                 ) : (
                   first || profile.username
                 )}
-              </Display>
+              </h1>
               {profile.is_verified && <VerifiedStar size={18} />}
             </div>
-            <div
-              style={{
-                fontSize: 13,
-                color: O.ink3,
-                marginTop: 4,
-                fontFamily: O.mono,
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-              }}
-            >
+            <div className="mt-1 font-mono text-[13px] uppercase tracking-[0.04em] text-muted-foreground">
               @{profile.username}
               {profile.location && ` · ${profile.location}`} · IN ORBIT SINCE{" "}
               {joinedYear(profile.created_at)}
             </div>
             {profile.bio && (
-              <p
-                style={{
-                  fontSize: 14.5,
-                  color: O.ink2,
-                  marginTop: 12,
-                  maxWidth: 580,
-                  lineHeight: 1.55,
-                }}
-              >
+              <p className="mt-3 max-w-[580px] text-[14.5px] leading-[1.55] text-text-secondary">
                 {profile.bio}
               </p>
             )}
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              paddingTop: 16,
-              flexWrap: "wrap",
-            }}
-          >
+          <div className="flex flex-wrap gap-2 pt-4">
             {!isOwnProfile && (
-              <PillBtn primary={!isFollowing} size="md" onClick={handleFollow}>
+              <Button
+                variant={isFollowing ? "outline" : "default"}
+                onClick={handleFollow}
+              >
                 {isFollowing ? "Following" : "Follow"}
-              </PillBtn>
+              </Button>
             )}
             {!isOwnProfile && (
-              <PillBtn
-                size="md"
+              <Button
+                variant="outline"
                 disabled={openingDm}
                 onClick={async () => {
                   if (!requireAuth() || !user) return;
@@ -665,33 +585,19 @@ export function ProfileContent({
                 }}
               >
                 {openingDm ? <Loader2 className="h-4 w-4 animate-spin" /> : "Message"}
-              </PillBtn>
+              </Button>
             )}
             {isOwnProfile && (
               <Link href="/settings/profile">
-                <PillBtn primary size="md">
-                  Edit profile
-                </PillBtn>
+                <Button>Edit profile</Button>
               </Link>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="More options"
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 999,
-                  border: `1px solid ${O.hair}`,
-                  background: O.glass,
-                  color: O.ink,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                }}
-                className="hover:bg-white/10 transition-colors"
+                className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-border bg-surface text-foreground transition-colors hover:bg-muted"
               >
-                <MoreHorizontal style={{ width: 16, height: 16 }} />
+                <MoreHorizontal className="h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 rounded-2xl">
                 <DropdownMenuItem
@@ -746,17 +652,7 @@ export function ProfileContent({
         </div>
 
         {/* Stats strip */}
-        <div
-          style={{
-            display: "flex",
-            padding: "20px 32px 24px",
-            borderTop: `1px solid ${O.hair}`,
-            flexWrap: "wrap",
-            rowGap: 14,
-            alignItems: "flex-end",
-            gap: 18,
-          }}
-        >
+        <div className="flex flex-wrap items-end gap-[18px] gap-y-3.5 border-t border-border px-8 pb-6 pt-5">
           <StatCluster
             items={[
               { n: profile.post_count, label: "posts" },
@@ -783,43 +679,17 @@ export function ProfileContent({
             ]}
           />
           {profile.website && (
-            <div
-              style={{
-                marginLeft: "auto",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 11,
-                  color: O.ink3,
-                  fontFamily: O.mono,
-                  letterSpacing: "0.08em",
-                }}
-              >
+            <div className="ml-auto flex items-center gap-2">
+              <span className="font-mono text-[11px] tracking-[0.08em] text-muted-foreground">
                 ALSO ON
               </span>
               <a
                 href={profile.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{
-                  padding: "5px 11px",
-                  borderRadius: 99,
-                  background: O.glass,
-                  border: `1px solid ${O.hair}`,
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: O.ink2,
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-[11px] py-[5px] text-[11px] font-medium text-text-secondary no-underline"
               >
-                <ExternalLink style={{ width: 11, height: 11 }} />
+                <ExternalLink className="h-[11px] w-[11px]" />
                 {(() => {
                   try {
                     return new URL(profile.website).hostname.replace(/^www\./, "");
@@ -838,69 +708,32 @@ export function ProfileContent({
           block for a lock card. Use explicit === true so a column that
           arrives as null/undefined doesn't accidentally unlock the profile. */}
       {profile.is_private === true && !isOwnProfile && !isFollowing ? (
-        <div
-          style={{
-            ...panel({ borderRadius: 18 }),
-            padding: "44px 24px",
-            textAlign: "center",
-            color: O.ink2,
-          }}
-        >
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              margin: "0 auto 14px",
-              borderRadius: 14,
-              background: O.glass,
-              border: `1px solid ${O.hair}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Lock style={{ width: 22, height: 22, color: O.ink3 }} strokeWidth={1.6} />
+        <div className="rounded-xl border border-border bg-surface px-6 py-11 text-center text-text-secondary">
+          <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-surface-elevated">
+            <Lock className="h-[22px] w-[22px] text-muted-foreground" strokeWidth={1.6} />
           </div>
-          <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: O.ink }}>
+          <p className="m-0 text-[15px] font-semibold text-foreground">
             This account is private.
           </p>
-          <p style={{ margin: "6px 0 0", fontSize: 13, color: O.ink3, lineHeight: 1.5 }}>
+          <p className="mb-0 mt-1.5 text-[13px] leading-normal text-muted-foreground">
             Follow @{profile.username} to see their posts, clips, and likes.
           </p>
         </div>
       ) : (
       <>
       {/* TABS */}
-      <div
-        style={{
-          ...panel({ borderRadius: 16 }),
-          padding: 5,
-          display: "flex",
-          gap: 4,
-        }}
-      >
+      <div className="flex gap-1 rounded-xl border border-border bg-surface p-[5px]">
         {visibleTabs.map((t) => {
           const isActive = activeTab === t.value;
           return (
             <button
               key={t.value}
               onClick={() => setActiveTab(t.value)}
-              style={{
-                flex: 1,
-                textAlign: "center",
-                padding: "10px 0",
-                borderRadius: 12,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                background: isActive ? auroraSoft : "transparent",
-                border: isActive
-                  ? `1px solid ${O.hair2}`
-                  : "1px solid transparent",
-                color: isActive ? O.ink : O.ink3,
-                fontFamily: "inherit",
-                transition: "all 0.15s",
-              }}
+              className={`flex-1 cursor-pointer rounded-lg border py-2.5 text-center text-[13px] font-semibold transition-all duration-150 ${
+                isActive
+                  ? "border-border bg-primary/10 text-foreground"
+                  : "border-transparent bg-transparent text-muted-foreground"
+              }`}
             >
               {t.label}
             </button>
@@ -913,25 +746,8 @@ export function ProfileContent({
         {activeTab === "posts" && (
           <>
             {pinnedPosts.length > 0 && (
-              <div
-                style={{
-                  marginBottom: 16,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontFamily: O.mono,
-                    letterSpacing: "0.14em",
-                    color: "#ffd76a",
-                    textTransform: "uppercase",
-                    fontWeight: 700,
-                    paddingLeft: 8,
-                  }}
-                >
+              <div className="mb-4 flex flex-col gap-2">
+                <div className="pl-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-amber-300">
                   ◇&nbsp;&nbsp;Pinned
                 </div>
                 {pinnedPosts.map((p: any) => (
@@ -942,9 +758,7 @@ export function ProfileContent({
             {posts.length === 0 && pinnedPosts.length === 0 ? (
               <EmptyTab />
             ) : (
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 8 }}
-              >
+              <div className="flex flex-col gap-2">
                 {posts.map((p: any) => (
                   <PostCard key={p.id} post={p} />
                 ))}
@@ -968,7 +782,7 @@ export function ProfileContent({
           ) : likedPosts.length === 0 ? (
             <EmptyTab />
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {likedPosts.map((p: any) => (
                 <PostCard key={p.id} post={p} />
               ))}
@@ -981,7 +795,7 @@ export function ProfileContent({
           ) : repostedPosts.length === 0 ? (
             <EmptyTab />
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {repostedPosts.map((p: any) => (
                 <PostCard key={p.id} post={p} />
               ))}
@@ -994,7 +808,7 @@ export function ProfileContent({
           ) : taggedPosts.length === 0 ? (
             <EmptyTab />
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {taggedPosts.map((p: any) => (
                 <PostCard key={p.id} post={p} />
               ))}
@@ -1008,7 +822,7 @@ export function ProfileContent({
           ) : savedPosts.length === 0 ? (
             <EmptyTab />
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {savedPosts.map((p: any) => (
                 <PostCard key={p.id} post={p} />
               ))}
@@ -1098,20 +912,16 @@ function PastStreamsSection({
   isOwner: boolean;
 }) {
   return (
-    <div style={{ ...panel(), padding: 24, marginTop: 4 }}>
-      <div style={{ marginBottom: 18 }}>
-        <Eyebrow accent>◇&nbsp;&nbsp;PAST STREAMS</Eyebrow>
-        <Display size={22} style={{ marginTop: 8 }}>
-          On the <Acc>record</Acc>
-        </Display>
+    <div className="mt-1 rounded-xl border border-border bg-surface p-6">
+      <div className="mb-[18px]">
+        <div className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
+          ◇&nbsp;&nbsp;PAST STREAMS
+        </div>
+        <h2 className="mt-2 text-[22px] font-bold leading-none tracking-[-0.03em] text-foreground">
+          On the <span className="text-primary">record</span>
+        </h2>
       </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          gap: 16,
-        }}
-      >
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
         {vods.map((vod) => (
           <VodCard key={vod.id} vod={vod} isOwner={isOwner} />
         ))}
@@ -1179,40 +989,18 @@ function VodCard({ vod, isOwner }: { vod: VodRow; isOwner: boolean }) {
     <>
       <Link
         href={`/vod/${vod.id}`}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-          textDecoration: "none",
-          color: "inherit",
-        }}
+        className="flex flex-col gap-2.5 text-inherit no-underline"
       >
-        <div
-          style={{
-            position: "relative",
-            width: "100%",
-            aspectRatio: "16 / 9",
-            borderRadius: 14,
-            overflow: "hidden",
-            background: O.glass,
-            border: `1px solid ${O.hair}`,
-          }}
-        >
+        <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-border bg-surface-elevated">
           {vod.thumbnail_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={vod.thumbnail_url}
               alt={vod.title ?? "Past stream"}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              className="h-full w-full object-cover"
             />
           ) : (
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                background: auroraSoft,
-              }}
-            />
+            <div className="h-full w-full bg-primary/10" />
           )}
           {isOwner && (
             <button
@@ -1223,96 +1011,28 @@ function VodCard({ vod, isOwner }: { vod: VodRow; isOwner: boolean }) {
                 e.stopPropagation();
                 setConfirmOpen(true);
               }}
-              style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                width: 30,
-                height: 30,
-                borderRadius: 999,
-                background: "rgba(0,0,0,0.6)",
-                backdropFilter: "blur(8px)",
-                border: "1px solid rgba(255,255,255,0.16)",
-                color: "white",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                padding: 0,
-              }}
-              className="hover:bg-black/80 transition-colors"
+              className="absolute right-2 top-2 inline-flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/60 p-0 text-white transition-colors hover:bg-black/80"
             >
-              <Trash2 style={{ width: 14, height: 14 }} />
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           )}
           {vod.duration_seconds ? (
-            <span
-              style={{
-                position: "absolute",
-                bottom: 8,
-                right: 8,
-                padding: "3px 8px",
-                borderRadius: 8,
-                background: "rgba(0,0,0,0.7)",
-                backdropFilter: "blur(8px)",
-                color: O.ink,
-                fontFamily: O.mono,
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "0.02em",
-              }}
-            >
+            <span className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-2 py-[3px] font-mono text-[11px] font-semibold tracking-[0.02em] text-white">
               {formatDuration(vod.duration_seconds)}
             </span>
           ) : null}
         </div>
         <div>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: O.ink,
-              lineHeight: 1.35,
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
+          <div className="line-clamp-2 text-sm font-semibold leading-[1.35] text-foreground">
             {vod.title ?? "Untitled stream"}
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-              marginTop: 6,
-            }}
-          >
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
             {vod.category && (
-              <span
-                style={{
-                  padding: "2px 8px",
-                  borderRadius: 99,
-                  background: O.glass,
-                  border: `1px solid ${O.hair}`,
-                  fontSize: 10.5,
-                  color: O.ink2,
-                  fontWeight: 500,
-                }}
-              >
+              <span className="rounded-full border border-border bg-surface-elevated px-2 py-0.5 text-[10.5px] font-medium text-text-secondary">
                 {vod.category}
               </span>
             )}
-            <span
-              style={{
-                fontSize: 11.5,
-                color: O.ink3,
-                fontFamily: O.mono,
-                letterSpacing: "0.04em",
-              }}
-            >
+            <span className="font-mono text-[11.5px] tracking-[0.04em] text-muted-foreground">
               {fmtNumber(vod.view_count)} views · {timeAgo(vod.created_at)}
             </span>
           </div>
@@ -1351,49 +1071,17 @@ function DeleteVodDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <button
-            type="button"
+          <Button
+            variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={deleting}
-            style={{
-              padding: "10px 16px",
-              borderRadius: 99,
-              background: "rgba(255,255,255,0.04)",
-              border: `1px solid ${O.hair2}`,
-              color: O.ink,
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
           >
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={deleting}
-            style={{
-              padding: "10px 18px",
-              borderRadius: 99,
-              background: "#ef4444",
-              border: "none",
-              color: "white",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: deleting ? "default" : "pointer",
-              fontFamily: "inherit",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              opacity: deleting ? 0.7 : 1,
-            }}
-          >
-            {deleting && (
-              <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />
-            )}
+          </Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={deleting}>
+            {deleting && <Loader2 className="animate-spin" />}
             Delete
-          </button>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1412,18 +1100,10 @@ function ProfileClipsFeed({ clips }: { clips: PostWithAuthor[] }) {
     s.scrollBy({ top: dir * s.clientHeight, behavior: "smooth" });
   };
   return (
-    <div
-      className="rounded-2xl overflow-hidden"
-      style={{
-        background: O.bg,
-        border: `1px solid ${O.hair}`,
-        height: "min(80vh, 720px)",
-      }}
-    >
+    <div className="h-[min(80vh,720px)] overflow-hidden rounded-2xl border border-border bg-background">
       <div
         ref={scrollerRef}
-        className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
-        style={{ background: O.bg }}
+        className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide bg-background"
       >
         {clips.map((clip) => (
           <ClipPlayer key={clip.id} clip={clip} onNavigate={scrollByOne} />
@@ -1448,13 +1128,7 @@ function ClipsGrid({
   }>;
 }) {
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: 6,
-      }}
-    >
+    <div className="grid grid-cols-3 gap-1.5">
       {clips.map((clip) => {
         const video = clip.post_media?.find((m) => m.type === "video");
         const thumb = video?.thumbnail_url ?? null;
@@ -1462,53 +1136,24 @@ function ClipsGrid({
           <Link
             key={clip.id}
             href={`/post/${clip.id}`}
-            style={{
-              position: "relative",
-              aspectRatio: "9 / 16",
-              overflow: "hidden",
-              borderRadius: 10,
-              background: O.glass,
-              border: `1px solid ${O.hair}`,
-              display: "block",
-              textDecoration: "none",
-            }}
+            className="relative block aspect-[9/16] overflow-hidden rounded-lg border border-border bg-surface no-underline"
           >
             {thumb ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={thumb}
-                alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
+              <img src={thumb} alt="" className="h-full w-full object-cover" />
             ) : video?.url ? (
               <video
                 src={video.url}
                 muted
                 playsInline
                 preload="metadata"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                className="h-full w-full object-cover"
               />
             ) : (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  background: auroraSoft,
-                }}
-              />
+              <div className="h-full w-full bg-primary/10" />
             )}
             {(clip.view_count ?? 0) > 0 && (
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 6,
-                  left: 8,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "white",
-                  textShadow: "0 1px 2px rgba(0,0,0,0.6)",
-                }}
-              >
+              <div className="absolute bottom-1.5 left-2 text-[11px] font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
                 ▶ {fmtNumber(clip.view_count ?? 0)}
               </div>
             )}
@@ -1521,25 +1166,21 @@ function ClipsGrid({
 
 function EmptyTab() {
   return (
-    <div
-      style={{
-        textAlign: "center",
-        padding: "60px 20px",
-        color: O.ink3,
-      }}
-    >
-      <Eyebrow>◇&nbsp;&nbsp;NOTHING HERE YET</Eyebrow>
+    <div className="px-5 py-[60px] text-center">
+      <div className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        ◇&nbsp;&nbsp;NOTHING HERE YET
+      </div>
     </div>
   );
 }
 
 function ListSkeleton() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className="flex flex-col gap-2">
       {Array.from({ length: 3 }).map((_, i) => (
         <div
           key={i}
-          style={{ ...panel(), padding: 16, display: "flex", gap: 12 }}
+          className="flex gap-3 rounded-xl border border-border bg-surface p-4"
         >
           <Skeleton className="h-10 w-10 rounded-2xl" />
           <div className="flex-1 space-y-2">

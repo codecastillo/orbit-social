@@ -2,7 +2,6 @@ src/app/(main)/clips/page.tsx
 src/app/(main)/communities/page.tsx
 src/app/(main)/drafts/page.tsx
 src/app/(main)/events/page.tsx
-src/app/(main)/explore/page.tsx
 src/app/(main)/live/page.tsx
 src/app/(main)/marketplace/[listingId]/page.tsx
 src/app/(main)/marketplace/page.tsx
@@ -21,9 +20,6 @@ src/app/(main)/settings/profile/page.tsx
 src/app/(main)/settings/security/activity/page.tsx
 src/app/(main)/settings/security/page.tsx
 src/app/(main)/settings/streaming/page.tsx
-src/app/[username]/profile-content.tsx
-src/app/hashtag/[tag]/page.tsx
-src/app/location/[place]/page.tsx
 src/components/clips/clip-actions.tsx
 src/components/clips/clip-comments-sheet.tsx
 src/components/clips/clip-feed.tsx
@@ -44,7 +40,5 @@ src/components/orbit/live-badge.tsx
 src/components/orbit/primitives.tsx
 src/components/orbit/stat-cluster.tsx
 src/components/orbit/verified-star.tsx
-src/components/profile/follow-list-dialog.tsx
-src/components/profile/qr-code-dialog.tsx
 src/components/settings/settings-header.tsx
 src/lib/design/orbit.ts

@@ -18,7 +18,6 @@ import {
   sendMessage,
   type ConversationWithPreview,
 } from "@/lib/queries/messages";
-import { O, aurora } from "@/lib/design/orbit";
 
 interface QRCodeDialogProps {
   username: string;
@@ -87,60 +86,19 @@ export function QRCodeDialog({
           className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
           showCloseButton={false}
         >
-          <div
-            style={{
-              background: O.bg,
-              border: `1px solid ${O.hair2}`,
-              borderRadius: 20,
-              padding: 22,
-              width: "min(92vw, 360px)",
-              fontFamily: O.sans,
-            }}
-          >
+          <div className="w-[min(92vw,360px)] rounded-2xl border border-border bg-surface-elevated p-5">
             <DialogHeader className="p-0">
-              <DialogTitle
-                style={{
-                  textAlign: "center",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: O.ink,
-                }}
-              >
+              <DialogTitle className="text-center text-sm font-semibold text-foreground">
                 QR Code
               </DialogTitle>
             </DialogHeader>
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 14,
-                marginTop: 14,
-              }}
-            >
-              <p
-                style={{
-                  fontSize: 12,
-                  color: O.ink3,
-                  textAlign: "center",
-                }}
-              >
+            <div className="mt-3.5 flex flex-col items-center gap-3.5">
+              <p className="text-center text-xs text-muted-foreground">
                 Scan to visit @{username}&apos;s profile
               </p>
 
-              <div
-                style={{
-                  background: "white",
-                  borderRadius: 18,
-                  padding: 14,
-                  border: `1px solid ${O.hair2}`,
-                  display: "grid",
-                  placeItems: "center",
-                  width: 268,
-                  height: 268,
-                }}
-              >
+              <div className="grid h-[268px] w-[268px] place-items-center rounded-2xl border border-border bg-white p-3.5">
                 {qrDataUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -148,60 +106,25 @@ export function QRCodeDialog({
                     alt={`QR code for @${username}`}
                     width={240}
                     height={240}
-                    style={{ display: "block", borderRadius: 6 }}
+                    className="block rounded-md"
                   />
                 ) : (
-                  <Loader2
-                    className="animate-spin"
-                    style={{ width: 22, height: 22, color: "#000000" }}
-                  />
+                  <Loader2 className="h-5 w-5 animate-spin text-black" />
                 )}
               </div>
 
-              <p
-                style={{
-                  fontSize: 11,
-                  color: O.ink3,
-                  fontFamily: O.mono,
-                  letterSpacing: "0.04em",
-                  maxWidth: "100%",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <p className="max-w-full truncate font-mono text-[11px] tracking-[0.04em] text-muted-foreground">
                 {profileUrl}
               </p>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                marginTop: 16,
-              }}
-            >
+            <div className="mt-4 flex gap-2">
               <button
                 type="button"
                 onClick={handleDownload}
-                style={{
-                  flex: 1,
-                  padding: "10px 14px",
-                  borderRadius: 99,
-                  background: "rgba(255,255,255,0.04)",
-                  border: `1px solid ${O.hair2}`,
-                  color: O.ink,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  fontFamily: "inherit",
-                }}
+                className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 py-2.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-surface/80"
               >
-                <Download style={{ width: 14, height: 14 }} />
+                <Download className="h-3.5 w-3.5" />
                 Download
               </button>
               <button
@@ -213,25 +136,9 @@ export function QRCodeDialog({
                   onOpenChange(false);
                   setShareOpen(true);
                 }}
-                style={{
-                  flex: 1,
-                  padding: "10px 14px",
-                  borderRadius: 99,
-                  background: aurora,
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  color: "white",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  fontFamily: "inherit",
-                  boxShadow: `0 6px 20px -8px ${O.a2}`,
-                }}
+                className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 py-2.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                <Share2 style={{ width: 14, height: 14 }} />
+                <Share2 className="h-3.5 w-3.5" />
                 Share
               </button>
             </div>
@@ -315,21 +222,9 @@ function ProfileShareDialog({
         className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
         showCloseButton={false}
       >
-        <div
-          style={{
-            background: O.bg,
-            border: `1px solid ${O.hair2}`,
-            borderRadius: 20,
-            padding: 18,
-            width: "min(92vw, 420px)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-            fontFamily: O.sans,
-          }}
-        >
+        <div className="flex w-[min(92vw,420px)] flex-col gap-3.5 rounded-2xl border border-border bg-surface-elevated p-4">
           <DialogHeader className="p-0">
-            <DialogTitle style={{ fontSize: 15, fontWeight: 600, color: O.ink }}>
+            <DialogTitle className="text-[15px] font-semibold text-foreground">
               Share {displayName || `@${username}`}
             </DialogTitle>
           </DialogHeader>
@@ -337,55 +232,20 @@ function ProfileShareDialog({
           <button
             type="button"
             onClick={handleCopy}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "12px 14px",
-              borderRadius: 14,
-              background: "rgba(255,255,255,0.03)",
-              border: `1px solid ${O.hair2}`,
-              color: O.ink,
-              fontSize: 13.5,
-              fontWeight: 500,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              textAlign: "left",
-            }}
+            className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-surface px-3.5 py-3 text-left text-[13.5px] font-medium text-foreground transition-colors hover:bg-surface/80"
           >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: aurora,
-                display: "grid",
-                placeItems: "center",
-                color: "white",
-                flexShrink: 0,
-              }}
-            >
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
               {copied ? (
-                <Check style={{ width: 16, height: 16 }} />
+                <Check className="h-4 w-4" />
               ) : (
-                <Copy style={{ width: 16, height: 16 }} />
+                <Copy className="h-4 w-4" />
               )}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600 }}>
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold">
                 {copied ? "Link copied" : "Copy link"}
               </div>
-              <div
-                style={{
-                  fontSize: 11.5,
-                  color: O.ink3,
-                  fontFamily: O.mono,
-                  marginTop: 2,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
+              <div className="mt-0.5 truncate font-mono text-[11.5px] text-muted-foreground">
                 {profileUrl}
               </div>
             </div>
@@ -395,94 +255,34 @@ function ProfileShareDialog({
             <button
               type="button"
               onClick={() => setShowConversations(true)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 14px",
-                borderRadius: 14,
-                background: "rgba(255,255,255,0.03)",
-                border: `1px solid ${O.hair2}`,
-                color: O.ink,
-                fontSize: 13.5,
-                fontWeight: 500,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                textAlign: "left",
-              }}
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-surface px-3.5 py-3 text-left text-[13.5px] font-medium text-foreground transition-colors hover:bg-surface/80"
             >
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: "rgba(255,255,255,0.06)",
-                  display: "grid",
-                  placeItems: "center",
-                  color: O.ink,
-                  flexShrink: 0,
-                }}
-              >
-                <Send style={{ width: 16, height: 16 }} />
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-foreground">
+                <Send className="h-4 w-4" />
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600 }}>Send to a chat</div>
-                <div style={{ fontSize: 11.5, color: O.ink3, marginTop: 2 }}>
+              <div className="flex-1">
+                <div className="font-semibold">Send to a chat</div>
+                <div className="mt-0.5 text-[11.5px] text-muted-foreground">
                   Pass it on with a message
                 </div>
               </div>
             </button>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className="flex flex-col gap-2.5">
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Add a message (optional)…"
                 rows={2}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  background: "rgba(255,255,255,0.03)",
-                  border: `1px solid ${O.hair2}`,
-                  color: O.ink,
-                  fontSize: 13,
-                  fontFamily: "inherit",
-                  resize: "none",
-                  outline: "none",
-                }}
+                className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2.5 text-[13px] text-foreground outline-none"
               />
-              <div
-                style={{
-                  maxHeight: 260,
-                  overflowY: "auto",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 4,
-                }}
-              >
+              <div className="flex max-h-[260px] flex-col gap-1 overflow-y-auto">
                 {isLoading ? (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      padding: 20,
-                    }}
-                  >
-                    <Loader2
-                      className="animate-spin"
-                      style={{ width: 16, height: 16, color: O.ink3 }}
-                    />
+                  <div className="flex justify-center p-5">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   </div>
                 ) : !conversations || conversations.length === 0 ? (
-                  <div
-                    style={{
-                      fontSize: 12.5,
-                      color: O.ink3,
-                      textAlign: "center",
-                      padding: 16,
-                    }}
-                  >
+                  <div className="p-4 text-center text-[12.5px] text-muted-foreground">
                     No conversations yet
                   </div>
                 ) : (
@@ -495,62 +295,28 @@ function ProfileShareDialog({
                         type="button"
                         onClick={() => handleSendTo(c)}
                         disabled={sent || sending}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          padding: "8px 10px",
-                          borderRadius: 12,
-                          background: "transparent",
-                          border: "none",
-                          color: O.ink,
-                          fontSize: 13.5,
-                          cursor: sent || sending ? "default" : "pointer",
-                          opacity: sent || sending ? 0.6 : 1,
-                          fontFamily: "inherit",
-                          textAlign: "left",
-                          width: "100%",
-                        }}
+                        className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13.5px] text-foreground transition-colors hover:bg-surface disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent"
                       >
                         <UserAvatar
                           src={c.other_member?.avatar_url ?? null}
                           fallback={c.other_member?.display_name || "?"}
                           size="sm"
                         />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontWeight: 600,
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-semibold">
                             {c.other_member?.display_name ?? "Chat"}
                           </div>
-                          <div
-                            style={{
-                              fontSize: 11.5,
-                              color: O.ink3,
-                            }}
-                          >
+                          <div className="text-[11.5px] text-muted-foreground">
                             @{c.other_member?.username ?? "user"}
                           </div>
                         </div>
-                        <div style={{ flexShrink: 0 }}>
+                        <div className="shrink-0">
                           {sending ? (
-                            <Loader2
-                              className="animate-spin"
-                              style={{ width: 14, height: 14, color: O.ink3 }}
-                            />
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                           ) : sent ? (
-                            <Check
-                              style={{ width: 14, height: 14, color: O.a2 }}
-                            />
+                            <Check className="h-3.5 w-3.5 text-primary" />
                           ) : (
-                            <Send
-                              style={{ width: 14, height: 14, color: O.ink3 }}
-                            />
+                            <Send className="h-3.5 w-3.5 text-muted-foreground" />
                           )}
                         </div>
                       </button>
