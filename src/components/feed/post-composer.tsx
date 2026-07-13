@@ -19,7 +19,6 @@ import { useAudioRecorder } from "@/lib/hooks/use-audio-recorder";
 import { formatDuration, generateWaveformBars, getAudioExtension } from "@/lib/utils/audio";
 import { cn } from "@/lib/utils";
 import { useDraftsStore } from "@/lib/stores/drafts-store";
-import { O } from "@/lib/design/orbit";
 import {
   moderateContent,
   moderateContentEnhanced,
@@ -57,44 +56,13 @@ export function PostComposer() {
         className="p-0 gap-0 border-0 bg-transparent shadow-none !max-w-[680px] sm:!max-w-[680px] w-[94vw] ring-0"
         style={{ boxShadow: "none" }}
       >
-        <div
-          style={{
-            background: "rgba(18,16,32,0.82)",
-            backdropFilter: "blur(40px) saturate(180%)",
-            WebkitBackdropFilter: "blur(40px) saturate(180%)",
-            border: "1px solid rgba(255,255,255,0.14)",
-            borderRadius: 22,
-            boxShadow:
-              "0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 100px rgba(255,95,174,0.15)",
-            display: "flex",
-            flexDirection: "column",
-            maxHeight: "85vh",
-            overflow: "hidden",
-            color: "#fff",
-            fontFamily: '"Geist", -apple-system, "Inter", system-ui, sans-serif',
-          }}
-        >
-          <div
-            style={{
-              padding: "18px 24px 14px",
-              borderBottom: "1px solid rgba(255,255,255,0.09)",
-              background: "linear-gradient(180deg, rgba(255,255,255,0.03), transparent)",
-            }}
-          >
-            <div
-              style={{
-                fontFamily: '"Geist Mono", ui-monospace, monospace',
-                fontSize: 10.5,
-                letterSpacing: "0.18em",
-                color: "rgba(255,255,255,0.5)",
-                textTransform: "uppercase",
-                fontWeight: 500,
-              }}
-            >
-              ◇&nbsp;&nbsp;NEW POST
+        <div className="flex flex-col max-h-[85vh] overflow-hidden rounded-2xl border border-border bg-surface-elevated text-foreground shadow-[0_24px_48px_-12px_rgba(0,0,0,0.35)]">
+          <div className="px-6 pt-[18px] pb-3.5 border-b border-border">
+            <div className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              NEW POST
             </div>
           </div>
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {user && (
               <ComposerForm
                 user={user}
@@ -160,69 +128,34 @@ export function InlineComposer({
           open(null);
         }
       }}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 14,
-        width: "100%",
-        padding: 18,
-        borderRadius: 24,
-        background: "rgba(255,255,255,0.05)",
-        backdropFilter: "blur(40px) saturate(180%)",
-        WebkitBackdropFilter: "blur(40px) saturate(180%)",
-        border: "1px solid rgba(255,255,255,0.09)",
-        boxShadow:
-          "inset 0 1px 0 0 rgba(255,255,255,0.08), inset 0 0 0 1px rgba(255,255,255,0.02), 0 24px 64px -24px rgba(0,0,0,0.4)",
-        cursor: "pointer",
-        color: "#fff",
-        fontFamily:
-          '"Geist", -apple-system, "Inter", system-ui, sans-serif',
-        textAlign: "left",
-      }}
+      className="flex items-center gap-3.5 w-full p-[18px] rounded-xl border border-border bg-surface text-foreground text-left cursor-pointer"
     >
       <UserAvatar
         src={profile?.avatar_url}
         fallback={profile?.display_name || "U"}
         size="md"
       />
-      <div style={{ flex: 1, minWidth: 0, fontSize: 15, color: "var(--muted-foreground)" }}>
+      <div className="flex-1 min-w-0 text-[15px] text-muted-foreground">
         What&apos;s{" "}
-        <em
-          style={{
-            fontStyle: "normal",
-            color: "var(--primary)",
-            paddingRight: "0.04em",
-          }}
-        >
+        <em className="not-italic text-primary pr-[0.04em]">
           orbiting
         </em>{" "}
         you{firstName ? `, ${firstName}` : ""}?
       </div>
-      <div className="hidden sm:flex" style={{ gap: 6 }}>
+      <div className="hidden sm:flex gap-1.5">
         {CHIPS.map(({ Ico, label, action }) => (
           <button
             key={label}
             type="button"
             title={label}
+            aria-label={label}
             onClick={(e) => {
               e.stopPropagation();
               open(action);
             }}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 12,
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.09)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              padding: 0,
-              color: "rgba(255,255,255,0.78)",
-            }}
+            className="h-9 w-9 flex items-center justify-center rounded-lg border border-border bg-surface p-0 text-text-secondary cursor-pointer"
           >
-            <Ico style={{ width: 16, height: 16 }} strokeWidth={1.8} />
+            <Ico className="h-4 w-4" strokeWidth={1.8} />
           </button>
         ))}
       </div>
@@ -646,7 +579,7 @@ function ComposerForm({
             placeholder={replyToId ? "Write a reply..." : "Write a caption..."}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="border-none bg-transparent resize-none p-0 pt-1.5 text-sm text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 focus-visible:border-none min-h-[60px]"
+            className="border-none bg-transparent resize-none p-0 pt-1.5 text-sm text-foreground placeholder:text-text-faint focus-visible:ring-0 focus-visible:border-none min-h-[60px]"
             rows={inline ? 2 : 3}
           />
 
@@ -671,14 +604,9 @@ function ComposerForm({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.2 }}
-                    className={`relative group/media overflow-hidden rounded-2xl ${
+                    className={`relative group/media overflow-hidden rounded-xl ${
                       media.length === 3 && i === 0 ? "row-span-2" : ""
-                    }`}
-                    style={
-                      media.length === 1
-                        ? { background: "rgba(0,0,0,0.55)" }
-                        : undefined
-                    }
+                    } ${media.length === 1 ? "bg-black/55" : ""}`}
                   >
                     {m.type === "video" ? (
                       <video
@@ -705,7 +633,8 @@ function ComposerForm({
                     )}
                     <button
                       onClick={() => removeMedia(i)}
-                      className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center bg-black/60 backdrop-blur-sm hover:bg-black/80 rounded-full opacity-0 group-hover/media:opacity-100 transition-all"
+                      aria-label="Remove media"
+                      className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center bg-black/60 hover:bg-black/80 rounded-full opacity-0 group-hover/media:opacity-100 transition-all"
                     >
                       <X className="h-3.5 w-3.5 text-white" />
                     </button>
@@ -718,36 +647,16 @@ function ComposerForm({
           {/* Feed / Clip destination toggle, only for single-video posts.
               Defaulted to Clip for portrait video, Feed for landscape. */}
           {media.length === 1 && media[0].type === "video" && (
-            <div
-              className="mt-4 flex items-center justify-between gap-3 px-4 py-3"
-              style={{
-                background: "rgba(255,255,255,0.025)",
-                border: `1px solid ${O.hair}`,
-                borderRadius: 14,
-              }}
-            >
+            <div className="mt-4 flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-border bg-surface">
               <div className="flex flex-col">
-                <span
-                  style={{
-                    fontFamily: O.sans,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: O.ink,
-                  }}
-                >
+                <span className="text-[13px] font-semibold text-foreground">
                   Where does this go?
                 </span>
-                <span style={{ fontSize: 11.5, color: O.ink3, marginTop: 2 }}>
+                <span className="mt-0.5 text-[11.5px] text-muted-foreground">
                   {videoDestination === "clip" ? "Lands in clips" : "Lands in feed"}
                 </span>
               </div>
-              <div
-                className="inline-flex p-0.5 rounded-full shrink-0"
-                style={{
-                  background: "rgba(0,0,0,0.35)",
-                  border: `1px solid ${O.hair2}`,
-                }}
-              >
+              <div className="inline-flex p-0.5 rounded-full shrink-0 border border-border bg-surface-elevated">
                 {(["feed", "clip"] as const).map((opt) => {
                   const active = videoDestination === opt;
                   return (
@@ -755,19 +664,12 @@ function ComposerForm({
                       key={opt}
                       type="button"
                       onClick={() => setVideoDestination(opt)}
-                      style={{
-                        padding: "6px 16px",
-                        borderRadius: 999,
-                        fontFamily: O.sans,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: active ? O.bg : O.ink2,
-                        background: active ? "white" : "transparent",
-                        border: 0,
-                        cursor: "pointer",
-                        letterSpacing: "0.01em",
-                        transition: "background 120ms, color 120ms",
-                      }}
+                      className={cn(
+                        "px-4 py-1.5 rounded-full border-0 text-xs font-semibold tracking-[0.01em] cursor-pointer transition-colors",
+                        active
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-transparent text-text-secondary"
+                      )}
                     >
                       {opt === "feed" ? "Feed" : "Clip"}
                     </button>
@@ -789,9 +691,9 @@ function ComposerForm({
                 transition={{ duration: 0.2 }}
                 className="mt-3"
               >
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.08]">
-                  <div className="h-9 w-9 rounded-full bg-rose-500/15 border border-rose-500/30 flex items-center justify-center">
-                    <Mic className="h-4 w-4 text-rose-400" />
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-surface border border-border">
+                  <div className="h-9 w-9 rounded-full bg-destructive/15 border border-destructive/30 flex items-center justify-center">
+                    <Mic className="h-4 w-4 text-destructive" />
                   </div>
                   <span className="text-sm text-foreground">
                     Tap start to record a voice post
@@ -801,13 +703,13 @@ function ComposerForm({
                       setVoiceArmed(false);
                       startAudioRecording();
                     }}
-                    className="ml-auto px-4 h-9 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold transition-colors"
+                    className="ml-auto px-4 h-9 rounded-lg bg-destructive hover:bg-destructive/90 text-white text-sm font-semibold transition-colors"
                   >
                     Start
                   </button>
                   <button
                     onClick={() => setVoiceArmed(false)}
-                    className="h-8 w-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors"
+                    className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-elevated transition-colors"
                     title="Cancel"
                     aria-label="Cancel"
                   >
@@ -828,19 +730,20 @@ function ComposerForm({
                 transition={{ duration: 0.2 }}
                 className="mt-3"
               >
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/20">
                   <div className="relative shrink-0">
-                    <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
-                    <div className="absolute inset-0 h-3 w-3 rounded-full bg-red-500 animate-ping opacity-30" />
+                    <div className="h-3 w-3 rounded-full bg-destructive animate-pulse" />
+                    <div className="absolute inset-0 h-3 w-3 rounded-full bg-destructive animate-ping opacity-30" />
                   </div>
-                  <span className="text-sm text-red-400">Recording...</span>
-                  <span className="text-sm font-mono text-red-400 tabular-nums ml-auto">
+                  <span className="text-sm text-destructive">Recording...</span>
+                  <span className="text-sm font-mono text-destructive tabular-nums ml-auto">
                     {formatDuration(audioDuration)}
                   </span>
                   <button
                     onClick={stopAudioRecording}
-                    className="h-8 w-8 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+                    className="h-8 w-8 flex items-center justify-center rounded-lg bg-destructive hover:bg-destructive/90 text-white transition-colors"
                     title="Stop recording"
+                    aria-label="Stop recording"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-3.5">
                       <rect x="6" y="6" width="8" height="8" rx="1" />
@@ -848,8 +751,9 @@ function ComposerForm({
                   </button>
                   <button
                     onClick={cancelAudioRecording}
-                    className="h-8 w-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors"
+                    className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-elevated transition-colors"
                     title="Cancel"
+                    aria-label="Cancel recording"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -868,7 +772,7 @@ function ComposerForm({
                 transition={{ duration: 0.2 }}
                 className="mt-3"
               >
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-800/60 border border-white/[0.06]">
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-elevated border border-border">
                   <audio
                     ref={audioPlayerRef}
                     src={currentAudioUrl}
@@ -876,7 +780,8 @@ function ComposerForm({
                   />
                   <button
                     onClick={toggleAudioPlayback}
-                    className="shrink-0 h-9 w-9 flex items-center justify-center rounded-full bg-blue-500 hover:bg-blue-600 text-white transition-colors"
+                    aria-label={isAudioPlaying ? "Pause audio" : "Play audio"}
+                    className="shrink-0 h-9 w-9 flex items-center justify-center rounded-full bg-primary hover:bg-primary/90 text-primary-foreground transition-colors"
                   >
                     {isAudioPlaying ? (
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4">
@@ -894,13 +799,13 @@ function ComposerForm({
                     {audioWaveform.map((height, i) => (
                       <div
                         key={i}
-                        className="w-[3px] rounded-full bg-blue-500/40"
+                        className="w-[3px] rounded-full bg-primary/40"
                         style={{ height: `${height * 100}%` }}
                       />
                     ))}
                   </div>
 
-                  <span className="text-xs text-zinc-400 font-mono tabular-nums shrink-0">
+                  <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0">
                     {audioBlob
                       ? formatDuration(audioDuration)
                       : "Audio"}
@@ -908,7 +813,8 @@ function ComposerForm({
 
                   <button
                     onClick={clearAudio}
-                    className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors"
+                    aria-label="Remove audio"
+                    className="shrink-0 h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -919,7 +825,7 @@ function ComposerForm({
 
           {/* Audio error */}
           {audioError && (
-            <div className="mt-2 text-xs text-red-400 flex items-center gap-1.5">
+            <div className="mt-2 text-xs text-destructive flex items-center gap-1.5">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-3.5 shrink-0">
                 <path fillRule="evenodd" d="M8 15A7 7 0 108 1a7 7 0 000 14zm.75-10.25a.75.75 0 00-1.5 0v4.5a.75.75 0 001.5 0v-4.5zM8 12a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
               </svg>
@@ -945,7 +851,7 @@ function ComposerForm({
                     transition={{ duration: 0.15, delay: i * 0.05 }}
                     type="button"
                     onClick={() => setContent(caption)}
-                    className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-white/[0.06] text-zinc-400 border border-white/[0.08] hover:bg-white/[0.1] hover:text-zinc-200 transition-colors"
+                    className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-surface text-muted-foreground border border-border hover:bg-surface-elevated hover:text-foreground transition-colors"
                   >
                     {caption}
                   </motion.button>
@@ -964,12 +870,12 @@ function ComposerForm({
                 transition={{ duration: 0.2 }}
                 className="mt-3"
               >
-                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 space-y-2">
+                <div className="rounded-xl border border-border bg-surface p-3 space-y-2">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[13px] font-medium text-zinc-300">Poll options</span>
+                    <span className="text-[13px] font-medium text-text-secondary">Poll options</span>
                     <button
                       onClick={togglePoll}
-                      className="text-[12px] text-muted-foreground hover:text-white transition-colors"
+                      className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
                     >
                       Remove poll
                     </button>
@@ -983,12 +889,13 @@ function ComposerForm({
                         onChange={(e) => updatePollOption(index, e.target.value)}
                         placeholder={`Option ${index + 1}`}
                         maxLength={50}
-                        className="flex-1 h-9 px-3 rounded-lg text-[13px] bg-white/[0.04] border border-white/[0.1] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors"
+                        className="flex-1 h-9 px-3 rounded-lg text-[13px] bg-surface-elevated border border-input text-foreground placeholder:text-text-faint focus:outline-none focus:border-primary/50 transition-colors"
                       />
                       {pollOptions.length > 2 && (
                         <button
                           onClick={() => removePollOption(index)}
-                          className="h-7 w-7 flex items-center justify-center rounded-full text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors"
+                          aria-label="Remove option"
+                          className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-elevated transition-colors"
                         >
                           <Minus className="h-3.5 w-3.5" />
                         </button>
@@ -999,19 +906,19 @@ function ComposerForm({
                   {pollOptions.length < 4 && (
                     <button
                       onClick={addPollOption}
-                      className="flex items-center gap-1.5 text-[12px] text-blue-400 hover:text-blue-300 transition-colors mt-1"
+                      className="flex items-center gap-1.5 text-[12px] text-primary hover:text-primary/80 transition-colors mt-1"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Add option
                     </button>
                   )}
 
-                  <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]">
+                  <div className="flex items-center gap-2 pt-2 border-t border-border">
                     <span className="text-[12px] text-muted-foreground">Poll duration:</span>
                     <select
                       value={pollEndHours}
                       onChange={(e) => setPollEndHours(Number(e.target.value))}
-                      className="h-7 px-2 rounded-md text-[12px] bg-white/[0.04] border border-white/[0.1] text-zinc-300 focus:outline-none focus:border-blue-500/50"
+                      className="h-7 px-2 rounded-lg text-[12px] bg-surface-elevated border border-input text-text-secondary focus:outline-none focus:border-primary/50"
                     >
                       <option value={1}>1 hour</option>
                       <option value={6}>6 hours</option>
@@ -1036,15 +943,15 @@ function ComposerForm({
                 transition={{ duration: 0.2 }}
                 className="mt-3"
               >
-                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 space-y-2">
+                <div className="rounded-xl border border-border bg-surface p-3 space-y-2">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[13px] font-medium text-zinc-300">Schedule post</span>
+                    <span className="text-[13px] font-medium text-text-secondary">Schedule post</span>
                     <button
                       onClick={() => {
                         setShowSchedule(false);
                         setScheduledAt("");
                       }}
-                      className="text-[12px] text-muted-foreground hover:text-white transition-colors"
+                      className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
                     >
                       Remove schedule
                     </button>
@@ -1054,10 +961,10 @@ function ComposerForm({
                     value={scheduledAt}
                     onChange={(e) => setScheduledAt(e.target.value)}
                     min={new Date().toISOString().slice(0, 16)}
-                    className="w-full h-9 px-3 rounded-lg text-[13px] bg-white/[0.04] border border-white/[0.1] text-zinc-200 focus:outline-none focus:border-blue-500/50 transition-colors"
+                    className="w-full h-9 px-3 rounded-lg text-[13px] bg-surface-elevated border border-input text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                   />
                   {scheduledAt && (
-                    <p className="text-[11px] text-zinc-500">
+                    <p className="text-[11px] text-muted-foreground">
                       Will be published on{" "}
                       {new Date(scheduledAt).toLocaleString(undefined, {
                         dateStyle: "medium",
@@ -1082,20 +989,21 @@ function ComposerForm({
             transition={{ duration: 0.2 }}
             className="px-4 pb-2"
           >
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.08]">
-              <MapPin className="h-4 w-4 text-zinc-500 shrink-0" />
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface border border-border">
+              <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
               <input
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="Add location..."
                 maxLength={100}
-                className="flex-1 bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none"
+                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-text-faint focus:outline-none"
               />
               {location && (
                 <button
                   onClick={() => { setLocation(""); setShowLocation(false); }}
-                  className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                  aria-label="Remove location"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -1115,19 +1023,20 @@ function ComposerForm({
             transition={{ duration: 0.2 }}
             className="px-4 pb-2"
           >
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/[0.05] border border-amber-500/20">
-              <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/5 border border-warning/20">
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
               <input
                 type="text"
                 value={contentWarning}
                 onChange={(e) => setContentWarning(e.target.value)}
                 placeholder="Content warning (e.g., spoilers, sensitive content)..."
                 maxLength={100}
-                className="flex-1 bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none"
+                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-text-faint focus:outline-none"
               />
               <button
                 onClick={() => { setContentWarning(""); setShowContentWarning(false); }}
-                className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                aria-label="Remove content warning"
+                className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -1139,12 +1048,13 @@ function ComposerForm({
       {/* Visibility Indicator */}
       {visibility === "close_friends" && (
         <div className="px-4 pb-2">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/[0.08] border border-emerald-500/20">
-            <Users className="h-3.5 w-3.5 text-emerald-400" />
-            <span className="text-[12px] font-medium text-emerald-400">Close Friends only</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/10 border border-success/20">
+            <Users className="h-3.5 w-3.5 text-success" />
+            <span className="text-[12px] font-medium text-success">Close Friends only</span>
             <button
               onClick={() => setVisibility("public")}
-              className="ml-auto text-zinc-500 hover:text-zinc-300 transition-colors"
+              aria-label="Set visibility to public"
+              className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
             >
               <X className="h-3 w-3" />
             </button>
@@ -1154,12 +1064,12 @@ function ComposerForm({
 
       {/* Moderation Warning */}
       {moderationWarning && (
-        <div className="mx-4 mb-2 rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 space-y-2">
+        <div className="mx-4 mb-2 rounded-xl bg-warning/10 border border-warning/20 p-3 space-y-2">
           <div className="flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-4 text-amber-400 shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-4 text-warning shrink-0">
               <path fillRule="evenodd" d="M6.701 2.25c.577-1 2.02-1 2.598 0l5.196 9a1.5 1.5 0 0 1-1.299 2.25H2.804a1.5 1.5 0 0 1-1.3-2.25l5.197-9ZM8 5a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5A.75.75 0 0 1 8 5Zm0 6.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clipRule="evenodd" />
             </svg>
-            <p className="text-xs text-amber-300 font-medium">{moderationWarning}</p>
+            <p className="text-xs text-warning font-medium">{moderationWarning}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -1167,13 +1077,13 @@ function ComposerForm({
                 setModerationConfirmed(true);
                 setModerationWarning(null);
               }}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-medium bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition-colors"
+              className="px-3 py-1.5 rounded-lg text-[11px] font-medium bg-warning/20 text-warning hover:bg-warning/30 transition-colors"
             >
               Post anyway
             </button>
             <button
               onClick={() => setModerationWarning(null)}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors"
+              className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-surface-elevated transition-colors"
             >
               Edit content
             </button>
@@ -1182,7 +1092,7 @@ function ComposerForm({
       )}
 
       {/* Actions Bar */}
-      <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-t border-white/[0.06]">
+      <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-t border-border">
         <div className="flex items-center gap-1 flex-wrap min-w-0">
           <input
             ref={fileInputRef}
@@ -1193,10 +1103,11 @@ function ComposerForm({
             className="hidden"
           />
           <button
-            className="h-9 w-9 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
             onClick={() => fileInputRef.current?.click()}
             disabled={media.length >= MAX_IMAGES}
             title="Add photo"
+            aria-label="Add photo"
           >
             <ImageIcon className="h-5 w-5" />
           </button>
@@ -1210,12 +1121,12 @@ function ComposerForm({
           />
           <button
             className={cn(
-              "h-9 w-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-40 disabled:pointer-events-none",
+              "h-9 w-9 flex items-center justify-center rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none",
               isAudioRecording
-                ? "text-red-400 hover:text-red-300"
+                ? "text-destructive hover:text-destructive/80"
                 : hasAudio
-                  ? "text-blue-400 hover:text-blue-300"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "text-primary hover:text-primary/80"
+                  : "text-muted-foreground hover:text-foreground"
             )}
             onClick={() => {
               if (isAudioRecording) {
@@ -1228,6 +1139,7 @@ function ComposerForm({
             }}
             disabled={media.length > 0 && hasAudio}
             title={isAudioRecording ? "Stop recording" : hasAudio ? "Audio attached" : "Record audio"}
+            aria-label={isAudioRecording ? "Stop recording" : hasAudio ? "Audio attached" : "Record audio"}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
               <path d="M8.25 4.5a3.75 3.75 0 117.5 0v8.25a3.75 3.75 0 11-7.5 0V4.5z" />
@@ -1236,45 +1148,48 @@ function ComposerForm({
           </button>
           <button
             className={cn(
-              "h-9 w-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-40 disabled:pointer-events-none",
+              "h-9 w-9 flex items-center justify-center rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none",
               showPoll
-                ? "text-blue-400 hover:text-blue-300"
-                : "text-zinc-400 hover:text-zinc-200"
+                ? "text-primary hover:text-primary/80"
+                : "text-muted-foreground hover:text-foreground"
             )}
             onClick={togglePoll}
             title={showPoll ? "Remove poll" : "Add poll"}
+            aria-label={showPoll ? "Remove poll" : "Add poll"}
           >
             <BarChart3 className="h-5 w-5" />
           </button>
           <button
             className={cn(
-              "h-9 w-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-40 disabled:pointer-events-none",
+              "h-9 w-9 flex items-center justify-center rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none",
               showSchedule
-                ? "text-blue-400 hover:text-blue-300"
-                : "text-zinc-400 hover:text-zinc-200"
+                ? "text-primary hover:text-primary/80"
+                : "text-muted-foreground hover:text-foreground"
             )}
             onClick={() => {
               setShowSchedule(!showSchedule);
               if (showSchedule) setScheduledAt("");
             }}
             title={showSchedule ? "Remove schedule" : "Schedule post"}
+            aria-label={showSchedule ? "Remove schedule" : "Schedule post"}
           >
             <Clock className="h-5 w-5" />
           </button>
           <button
             className={cn(
-              "h-9 w-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-40 disabled:pointer-events-none",
+              "h-9 w-9 flex items-center justify-center rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none",
               showLocation || location
-                ? "text-blue-400 hover:text-blue-300"
-                : "text-zinc-400 hover:text-zinc-200"
+                ? "text-primary hover:text-primary/80"
+                : "text-muted-foreground hover:text-foreground"
             )}
             onClick={() => setShowLocation(!showLocation)}
             title={showLocation ? "Hide location" : "Add location"}
+            aria-label={showLocation ? "Hide location" : "Add location"}
           >
             <MapPin className="h-5 w-5" />
           </button>
           <button
-            className="h-9 w-9 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
             onClick={() => {
               if (!content.trim() && media.length === 0) {
                 toast.error("Nothing to save as draft");
@@ -1288,19 +1203,21 @@ function ComposerForm({
               toast.success("Draft saved");
             }}
             title="Save as draft"
+            aria-label="Save as draft"
           >
             <FileText className="h-5 w-5" />
           </button>
           {/* Visibility toggle */}
           <button
             className={cn(
-              "h-9 w-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-40 disabled:pointer-events-none",
+              "h-9 w-9 flex items-center justify-center rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none",
               visibility === "close_friends"
-                ? "text-emerald-400 hover:text-emerald-300"
-                : "text-zinc-400 hover:text-zinc-200"
+                ? "text-success hover:text-success/80"
+                : "text-muted-foreground hover:text-foreground"
             )}
             onClick={() => setVisibility(visibility === "public" ? "close_friends" : "public")}
             title={visibility === "public" ? "Switch to Close Friends" : "Switch to Public"}
+            aria-label={visibility === "public" ? "Switch to Close Friends" : "Switch to Public"}
           >
             {visibility === "close_friends" ? (
               <Users className="h-5 w-5" />
@@ -1311,16 +1228,17 @@ function ComposerForm({
           {/* Content warning toggle */}
           <button
             className={cn(
-              "h-9 w-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-40 disabled:pointer-events-none",
+              "h-9 w-9 flex items-center justify-center rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none",
               showContentWarning
-                ? "text-amber-400 hover:text-amber-300"
-                : "text-zinc-400 hover:text-zinc-200"
+                ? "text-warning hover:text-warning/80"
+                : "text-muted-foreground hover:text-foreground"
             )}
             onClick={() => {
               setShowContentWarning(!showContentWarning);
               if (showContentWarning) setContentWarning("");
             }}
             title={showContentWarning ? "Remove content warning" : "Add content warning"}
+            aria-label={showContentWarning ? "Remove content warning" : "Add content warning"}
           >
             <AlertTriangle className="h-5 w-5" />
           </button>
@@ -1331,10 +1249,10 @@ function ComposerForm({
             <span
               className={`text-xs font-medium ${
                 isOverLimit
-                  ? "text-rose-400"
+                  ? "text-destructive"
                   : charCount > MAX_POST_LENGTH * 0.8
-                    ? "text-amber-400"
-                    : "text-zinc-600"
+                    ? "text-warning"
+                    : "text-text-faint"
               }`}
             >
               {charCount}/{MAX_POST_LENGTH}
@@ -1344,27 +1262,10 @@ function ComposerForm({
             type="button"
             onClick={handleSubmit}
             disabled={!canPost || posting || (showSchedule && !scheduledAt)}
-            style={{
-              padding: "10px 22px",
-              borderRadius: 99,
-              border: 0,
-              cursor: "pointer",
-              background:
-                showSchedule && scheduledAt
-                  ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
-                  : "linear-gradient(135deg, #8b73ff 0%, #ff5fae 55%, #5fd4ff 100%)",
-              color: "white",
-              fontWeight: 600,
-              fontSize: 13,
-              boxShadow:
-                "0 6px 20px rgba(255,95,174,0.45), inset 0 1px 0 rgba(255,255,255,0.3)",
-              opacity: !canPost || posting || (showSchedule && !scheduledAt) ? 0.45 : 1,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              transition: "opacity 0.15s, transform 0.15s",
-            }}
-            className="hover:enabled:scale-[1.02] active:enabled:scale-[0.98]"
+            className={cn(
+              "inline-flex items-center gap-1.5 px-[22px] py-2.5 rounded-lg border-0 cursor-pointer text-[13px] font-semibold text-primary-foreground transition-[opacity,transform] duration-150 disabled:opacity-45 hover:enabled:scale-[1.02] active:enabled:scale-[0.98]",
+              showSchedule && scheduledAt ? "bg-warning" : "bg-primary"
+            )}
           >
             {posting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
