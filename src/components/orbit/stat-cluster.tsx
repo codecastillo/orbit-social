@@ -1,4 +1,3 @@
-import { O } from "@/lib/design/orbit";
 import { formatNumber } from "@/lib/utils/format";
 
 type StatItem = { n: number; label: string; onClick?: () => void };
@@ -22,7 +21,7 @@ export function StatCluster({
           disabled={!item.onClick}
           style={{
             borderLeft:
-              divider && i > 0 ? `1px solid ${O.hair}` : "none",
+              divider && i > 0 ? `1px solid var(--border)` : "none",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -39,11 +38,11 @@ export function StatCluster({
         >
           <div
             style={{
-              fontFamily: O.mono,
+              fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
               fontSize: size,
               fontWeight: 700,
               lineHeight: 1.2,
-              color: O.ink,
+              color: "var(--foreground)",
               letterSpacing: "-0.015em",
               textAlign: "center",
               fontVariantNumeric: "tabular-nums",
@@ -53,11 +52,11 @@ export function StatCluster({
           </div>
           <div
             style={{
-              fontFamily: O.mono,
+              fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
               fontSize: 10.5,
               letterSpacing: "0.14em",
               textTransform: "uppercase",
-              color: O.ink3,
+              color: "var(--muted-foreground)",
               textAlign: "center",
             }}
           >

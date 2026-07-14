@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import { AlertCircle } from "lucide-react";
-import { O, aurora } from "@/lib/design/orbit";
 import { Display, Acc } from "@/components/orbit/primitives";
 
 /**
@@ -30,8 +29,8 @@ export function OrbitErrorState({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        color: O.ink,
-        fontFamily: O.sans,
+        color: "var(--foreground)",
+        fontFamily: "var(--font-geist-sans), -apple-system, system-ui, sans-serif",
         padding: 60,
         boxSizing: "border-box",
         minHeight: 420,
@@ -63,7 +62,7 @@ export function OrbitErrorState({
           <p
             style={{
               fontSize: 13.5,
-              color: O.ink3,
+              color: "var(--muted-foreground)",
               marginTop: 14,
               lineHeight: 1.55,
             }}
@@ -75,9 +74,9 @@ export function OrbitErrorState({
           <div
             style={{
               fontSize: 10.5,
-              color: O.ink3,
+              color: "var(--muted-foreground)",
               marginTop: 12,
-              fontFamily: O.mono,
+              fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
               letterSpacing: "0.08em",
             }}
           >
@@ -92,7 +91,7 @@ export function OrbitErrorState({
               marginTop: 22,
               padding: "11px 22px",
               borderRadius: 8,
-              background: aurora,
+              background: "var(--primary)",
               color: "var(--primary-foreground)",
               border: "none",
               fontSize: 13,

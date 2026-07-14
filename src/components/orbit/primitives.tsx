@@ -1,7 +1,6 @@
 "use client";
 
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
-import { O } from "@/lib/design/orbit";
 
 /** Legacy button shim: flat ember primary / bordered surface secondary.
  *  Call sites migrate to ui/button batch by batch; keep the props stable. */
@@ -40,9 +39,9 @@ export function PillBtn({
               color: "var(--primary-foreground)",
             }
           : {
-              background: O.glass,
-              border: `1px solid ${O.hair2}`,
-              color: O.ink,
+              background: "var(--surface)",
+              border: `1px solid var(--border)`,
+              color: "var(--foreground)",
             }),
         ...style,
       }}
@@ -63,10 +62,10 @@ export function Eyebrow({
   return (
     <div
       style={{
-        fontFamily: O.mono,
+        fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
         fontSize: 10.5,
         letterSpacing: "0.18em",
-        color: accent ? O.a3 : O.ink3,
+        color: accent ? "var(--primary)" : "var(--muted-foreground)",
         fontWeight: 500,
         textTransform: "uppercase",
       }}
@@ -89,13 +88,13 @@ export function Display({
   return (
     <h1
       style={{
-        fontFamily: O.sans,
+        fontFamily: "var(--font-geist-sans), -apple-system, system-ui, sans-serif",
         fontSize: size,
         fontWeight: 700,
         letterSpacing: "-0.035em",
         lineHeight: 1,
         margin: 0,
-        color: O.ink,
+        color: "var(--foreground)",
         ...style,
       }}
     >

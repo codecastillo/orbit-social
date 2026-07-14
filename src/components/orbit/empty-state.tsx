@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { O, aurora } from "@/lib/design/orbit";
 import { Display, Acc } from "@/components/orbit/primitives";
 
 /**
@@ -11,7 +10,7 @@ import { Display, Acc } from "@/components/orbit/primitives";
  */
 export function OrbitEmptyState({
   icon: Icon,
-  accent = O.a2,
+  accent = "var(--primary)",
   headline,
   accentWord,
   sub,
@@ -42,8 +41,8 @@ export function OrbitEmptyState({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        color: O.ink,
-        fontFamily: O.sans,
+        color: "var(--foreground)",
+        fontFamily: "var(--font-geist-sans), -apple-system, system-ui, sans-serif",
         padding: 60,
         boxSizing: "border-box",
         minHeight: 420,
@@ -72,7 +71,7 @@ export function OrbitEmptyState({
         <p
           style={{
             fontSize: 14,
-            color: O.ink3,
+            color: "var(--muted-foreground)",
             marginTop: 14,
             lineHeight: 1.55,
           }}
@@ -90,8 +89,8 @@ export function OrbitEmptyState({
                   padding: "11px 18px",
                   borderRadius: 8,
                   background: "var(--surface)",
-                  border: `1px solid ${O.hair2}`,
-                  color: O.ink,
+                  border: `1px solid var(--border)`,
+                  color: "var(--foreground)",
                   fontSize: 13,
                   fontWeight: 500,
                   cursor: "pointer",
@@ -108,7 +107,7 @@ export function OrbitEmptyState({
                 style={{
                   padding: "12px 22px",
                   borderRadius: 8,
-                  background: aurora,
+                  background: "var(--primary)",
                   color: "var(--primary-foreground)",
                   border: "none",
                   fontSize: 13.5,

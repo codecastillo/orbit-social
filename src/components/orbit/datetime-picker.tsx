@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { O, aurora, auroraSoft } from "@/lib/design/orbit";
 
 // Lightweight datetime picker matching the Orbit design. Operates on the
 // same `yyyy-MM-ddTHH:mm` string format used by <input type="datetime-local">
@@ -135,15 +134,15 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
           padding: "11px 14px",
           borderRadius: 12,
           background: "var(--surface)",
-          border: `1px solid ${O.hair2}`,
-          color: display ? O.ink : O.ink3,
+          border: `1px solid var(--border)`,
+          color: display ? "var(--foreground)" : "var(--muted-foreground)",
           fontSize: 13.5,
           fontFamily: "inherit",
           textAlign: "left",
           cursor: "pointer",
         }}
       >
-        <CalendarIcon style={{ width: 15, height: 15, color: O.ink3 }} strokeWidth={1.7} />
+        <CalendarIcon style={{ width: 15, height: 15, color: "var(--muted-foreground)" }} strokeWidth={1.7} />
         <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {display || placeholder}
         </span>
@@ -155,10 +154,10 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
           width: 304,
           padding: 0,
           background: "var(--surface-elevated)",
-          border: `1px solid ${O.hair2}`,
+          border: `1px solid var(--border)`,
           borderRadius: 16,
           boxShadow: "0 24px 48px -12px rgba(0,0,0,0.35)",
-          color: O.ink,
+          color: "var(--foreground)",
           fontFamily: "inherit",
         }}
       >
@@ -213,9 +212,9 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
               key={i}
               style={{
                 fontSize: 10,
-                fontFamily: O.mono,
+                fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
                 letterSpacing: "0.1em",
-                color: O.ink4,
+                color: "var(--text-faint)",
                 textAlign: "center",
                 padding: "4px 0",
               }}
@@ -249,9 +248,9 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
                 style={{
                   height: 34,
                   borderRadius: 10,
-                  border: isToday && !isSelected ? `1px solid ${O.hair2}` : "1px solid transparent",
-                  background: isSelected ? aurora : "transparent",
-                  color: isSelected ? "var(--primary-foreground)" : O.ink,
+                  border: isToday && !isSelected ? `1px solid var(--border)` : "1px solid transparent",
+                  background: isSelected ? "var(--primary)" : "transparent",
+                  color: isSelected ? "var(--primary-foreground)" : "var(--foreground)",
                   fontSize: 12.5,
                   fontWeight: isSelected ? 700 : 500,
                   cursor: "pointer",
@@ -259,7 +258,7 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
                   transition: "background 120ms",
                                   }}
                 onMouseEnter={(e) => {
-                  if (!isSelected) e.currentTarget.style.background = auroraSoft;
+                  if (!isSelected) e.currentTarget.style.background = "color-mix(in oklab, var(--primary) 10%, transparent)";
                 }}
                 onMouseLeave={(e) => {
                   if (!isSelected) e.currentTarget.style.background = "transparent";
@@ -278,15 +277,15 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
             alignItems: "center",
             gap: 10,
             padding: "12px 14px",
-            borderTop: `1px solid ${O.hair}`,
+            borderTop: `1px solid var(--border)`,
           }}
         >
           <span
             style={{
               fontSize: 11,
-              fontFamily: O.mono,
+              fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
               letterSpacing: "0.08em",
-              color: O.ink3,
+              color: "var(--muted-foreground)",
               textTransform: "uppercase",
             }}
           >
@@ -302,7 +301,7 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
                 handleTimeChange(h24, parsed?.minutes ?? 0);
               }}
             />
-            <span style={{ color: O.ink3, fontWeight: 600 }}>:</span>
+            <span style={{ color: "var(--muted-foreground)", fontWeight: 600 }}>:</span>
             <TimeUnit
               value={parsed?.minutes ?? 0}
               min={0}
@@ -334,7 +333,7 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", m
             style={{
               padding: "8px 18px",
               borderRadius: 8,
-              background: aurora,
+              background: "var(--primary)",
               color: "var(--primary-foreground)",
               border: "none",
               fontSize: 12.5,
@@ -371,7 +370,7 @@ function AmPmToggle({ isPm, onChange }: { isPm: boolean; onChange: (pm: boolean)
       style={{
         display: "flex",
         background: "var(--surface)",
-        border: `1px solid ${O.hair2}`,
+        border: `1px solid var(--border)`,
         borderRadius: 8,
         padding: 2,
         marginLeft: 4,
@@ -387,12 +386,12 @@ function AmPmToggle({ isPm, onChange }: { isPm: boolean; onChange: (pm: boolean)
             style={{
               padding: "4px 10px",
               borderRadius: 6,
-              background: active ? aurora : "transparent",
-              color: active ? "var(--primary-foreground)" : O.ink3,
+              background: active ? "var(--primary)" : "transparent",
+              color: active ? "var(--primary-foreground)" : "var(--muted-foreground)",
               border: "none",
               fontSize: 11,
               fontWeight: 700,
-              fontFamily: O.mono,
+              fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
               letterSpacing: "0.08em",
               cursor: "pointer",
                           }}
@@ -412,8 +411,8 @@ const navBtnStyle: React.CSSProperties = {
   placeItems: "center",
   borderRadius: 8,
   background: "var(--surface)",
-  border: `1px solid ${O.hair2}`,
-  color: O.ink2,
+  border: `1px solid var(--border)`,
+  color: "var(--text-secondary)",
   cursor: "pointer",
 };
 
@@ -447,8 +446,8 @@ function TimeUnit({
         padding: "6px 8px",
         borderRadius: 8,
         background: "var(--surface)",
-        border: `1px solid ${O.hair2}`,
-        color: O.ink,
+        border: `1px solid var(--border)`,
+        color: "var(--foreground)",
         fontSize: 13,
         fontVariantNumeric: "tabular-nums",
         textAlign: "center",

@@ -250,14 +250,6 @@
 }
 
 @layer utilities {
-  /* Bridge for the legacy glass panels: flat surface, hairline border,
-     no blur. Consumers migrate to ui/card batch by batch; this keeps the
-     unmigrated ones coherent in the meantime. */
-  .glass {
-    background: var(--surface);
-    border: 1px solid var(--border);
-  }
-
   .shimmer {
     background: linear-gradient(
       90deg,

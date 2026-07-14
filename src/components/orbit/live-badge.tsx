@@ -1,6 +1,5 @@
 "use client";
 
-import { O } from "@/lib/design/orbit";
 
 type Variant = "pill" | "pill-dark" | "corner" | "dot";
 
@@ -70,7 +69,7 @@ export function LiveBadge({
         fontSize: 10.5,
         fontWeight: 800,
         letterSpacing: "0.12em",
-        fontFamily: dark ? O.mono : undefined,
+        fontFamily: dark ? "var(--font-geist-mono), ui-monospace, monospace" : undefined,
               }}
     >
       {pulse && <Dot />}

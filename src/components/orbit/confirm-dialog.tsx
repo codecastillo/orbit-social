@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ModalShell } from "@/components/orbit/forms";
-import { O } from "@/lib/design/orbit";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -51,7 +50,7 @@ export function ConfirmDialog({
         <ModalShell
           title={title}
           subtitle={description}
-          accent={danger ? "var(--destructive)" : O.a3}
+          accent={danger ? "var(--destructive)" : "var(--primary)"}
           width={460}
           danger={danger}
           primaryLabel={busy ? "…" : confirmLabel}

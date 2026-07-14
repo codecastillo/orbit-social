@@ -10,7 +10,6 @@ import type {
 } from "react";
 import { useState } from "react";
 import { X } from "lucide-react";
-import { O, aurora, auroraSoft } from "@/lib/design/orbit";
 
 /**
  * Orbit form primitives, ported verbatim from design-src/orbit-forms.jsx.
@@ -48,7 +47,7 @@ export function Field({
               style={{
                 fontSize: 12,
                 fontWeight: 600,
-                color: O.ink,
+                color: "var(--foreground)",
                 letterSpacing: "-0.005em",
               }}
             >
@@ -59,8 +58,8 @@ export function Field({
             <span
               style={{
                 fontSize: 11,
-                color: O.ink3,
-                fontFamily: O.mono,
+                color: "var(--muted-foreground)",
+                fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
                 letterSpacing: "0.02em",
               }}
             >
@@ -76,7 +75,7 @@ export function Field({
             fontSize: 11.5,
             color: "var(--destructive)",
             marginTop: 6,
-            fontFamily: O.mono,
+            fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
             letterSpacing: "0.02em",
           }}
         >
@@ -108,9 +107,9 @@ export function Input({ prefix, suffix, style, onFocus, onBlur, ...rest }: Input
         padding: "11px 14px",
         borderRadius: 8,
         background: "var(--surface)",
-        border: `1px solid ${focus ? `color-mix(in oklab, ${O.a2} 40%, transparent)` : O.hair2}`,
+        border: `1px solid ${focus ? `color-mix(in oklab, var(--primary) 40%, transparent)` : "var(--border)"}`,
         boxShadow: focus
-          ? `0 0 0 3px color-mix(in oklab, ${O.a2} 10%, transparent)`
+          ? `0 0 0 3px color-mix(in oklab, var(--primary) 10%, transparent)`
           : "none",
         transition: "all 0.15s",
       }}
@@ -119,8 +118,8 @@ export function Input({ prefix, suffix, style, onFocus, onBlur, ...rest }: Input
         <span
           style={{
             fontSize: 13.5,
-            color: O.ink3,
-            fontFamily: O.mono,
+            color: "var(--muted-foreground)",
+            fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
             fontWeight: 500,
           }}
         >
@@ -140,7 +139,7 @@ export function Input({ prefix, suffix, style, onFocus, onBlur, ...rest }: Input
         style={{
           flex: 1,
           fontSize: 14,
-          color: O.ink,
+          color: "var(--foreground)",
           fontWeight: 500,
           letterSpacing: "-0.005em",
           background: "transparent",
@@ -155,8 +154,8 @@ export function Input({ prefix, suffix, style, onFocus, onBlur, ...rest }: Input
         <span
           style={{
             fontSize: 11.5,
-            color: O.ink3,
-            fontFamily: O.mono,
+            color: "var(--muted-foreground)",
+            fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
           }}
         >
           {suffix}
@@ -188,8 +187,8 @@ export function TextArea({
           padding: "11px 14px",
           borderRadius: 8,
           background: "var(--surface)",
-          border: `1px solid ${focus ? `color-mix(in oklab, ${O.a2} 40%, transparent)` : O.hair2}`,
-          boxShadow: focus ? `0 0 0 3px color-mix(in oklab, ${O.a2} 10%, transparent)` : "none",
+          border: `1px solid ${focus ? `color-mix(in oklab, var(--primary) 40%, transparent)` : "var(--border)"}`,
+          boxShadow: focus ? `0 0 0 3px color-mix(in oklab, var(--primary) 10%, transparent)` : "none",
           transition: "all 0.15s",
         }}
       >
@@ -207,7 +206,7 @@ export function TextArea({
           style={{
             width: "100%",
             fontSize: 14,
-            color: O.ink,
+            color: "var(--foreground)",
             lineHeight: 1.55,
             letterSpacing: "-0.005em",
             background: "transparent",
@@ -224,8 +223,8 @@ export function TextArea({
         <div
           style={{
             fontSize: 10.5,
-            color: O.ink3,
-            fontFamily: O.mono,
+            color: "var(--muted-foreground)",
+            fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
             letterSpacing: "0.04em",
             marginTop: 6,
             textAlign: "right",
@@ -269,7 +268,7 @@ export function Toggle({
           height: 20,
           borderRadius: 99,
           padding: 2,
-          background: on ? aurora : "var(--input)",
+          background: on ? "var(--primary)" : "var(--input)",
           transition: "all 0.2s",
         }}
       >
@@ -286,7 +285,7 @@ export function Toggle({
         />
       </div>
       {label && (
-        <span style={{ fontSize: 13, color: O.ink2, fontWeight: 500 }}>
+        <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 500 }}>
           {label}
         </span>
       )}
@@ -322,7 +321,7 @@ export function RadioRow<T extends string>({
     >
       {options.map((o) => {
         const active = o.value === value;
-        const accent = o.accent || O.a2;
+        const accent = o.accent || "var(--primary)";
         return (
           <button
             key={o.value}
@@ -332,8 +331,8 @@ export function RadioRow<T extends string>({
               padding: "12px 14px",
               borderRadius: 8,
               background: active ? `color-mix(in oklab, ${accent} 9%, transparent)` : "var(--surface)",
-              border: `1px solid ${active ? `color-mix(in oklab, ${accent} 40%, transparent)` : O.hair2}`,
-              color: O.ink,
+              border: `1px solid ${active ? `color-mix(in oklab, ${accent} 40%, transparent)` : "var(--border)"}`,
+              color: "var(--foreground)",
               cursor: "pointer",
               textAlign: "left",
               boxShadow: active ? `0 0 0 3px color-mix(in oklab, ${accent} 9%, transparent)` : "none",
@@ -354,7 +353,7 @@ export function RadioRow<T extends string>({
                   width: 14,
                   height: 14,
                   borderRadius: "50%",
-                  border: `1.5px solid ${active ? accent : O.hair2}`,
+                  border: `1.5px solid ${active ? accent : "var(--border)"}`,
                   background: active ? accent : "transparent",
                   boxShadow: active ? "inset 0 0 0 2.5px var(--surface)" : "none",
                 }}
@@ -365,8 +364,8 @@ export function RadioRow<T extends string>({
               <div
                 style={{
                   fontSize: 11,
-                  color: O.ink3,
-                  fontFamily: O.mono,
+                  color: "var(--muted-foreground)",
+                  fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
                   letterSpacing: "0.02em",
                 }}
               >
@@ -407,7 +406,7 @@ export function FormSection({
             fontWeight: 600,
             margin: 0,
             letterSpacing: "-0.01em",
-            color: O.ink,
+            color: "var(--foreground)",
           }}
         >
           {title}
@@ -416,8 +415,8 @@ export function FormSection({
           <span
             style={{
               fontSize: 11,
-              color: O.ink3,
-              fontFamily: O.mono,
+              color: "var(--muted-foreground)",
+              fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
               letterSpacing: "0.04em",
             }}
           >
@@ -430,7 +429,7 @@ export function FormSection({
           padding: 20,
           borderRadius: 12,
           background: "var(--surface)",
-          border: `1px solid ${O.hair2}`,
+          border: `1px solid var(--border)`,
         }}
       >
         {children}
@@ -446,7 +445,7 @@ export function ModalShell({
   title,
   subtitle,
   icon,
-  accent = O.a2,
+  accent = "var(--primary)",
   width = 520,
   danger,
   primaryLabel = "Confirm",
@@ -479,19 +478,19 @@ export function ModalShell({
         maxWidth: width,
         position: "relative",
         background: "var(--surface-elevated)",
-        border: `1px solid ${O.hair2}`,
+        border: `1px solid var(--border)`,
         borderRadius: 16,
         boxShadow: "0 24px 48px -12px rgba(0,0,0,0.35)",
         overflow: "hidden",
-        color: O.ink,
-        fontFamily: O.sans,
+        color: "var(--foreground)",
+        fontFamily: "var(--font-geist-sans), -apple-system, system-ui, sans-serif",
       }}
     >
       {/* Header */}
       <div
         style={{
           padding: "20px 22px 18px",
-          borderBottom: `1px solid ${O.hair}`,
+          borderBottom: `1px solid var(--border)`,
           display: "flex",
           alignItems: "flex-start",
           gap: 14,
@@ -529,7 +528,7 @@ export function ModalShell({
             <div
               style={{
                 fontSize: 12.5,
-                color: O.ink3,
+                color: "var(--muted-foreground)",
                 marginTop: 4,
                 lineHeight: 1.5,
               }}
@@ -547,8 +546,8 @@ export function ModalShell({
               height: 30,
               borderRadius: 8,
               background: "var(--surface)",
-              border: `1px solid ${O.hair}`,
-              color: O.ink2,
+              border: `1px solid var(--border)`,
+              color: "var(--text-secondary)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -569,7 +568,7 @@ export function ModalShell({
       <div
         style={{
           padding: "14px 22px 18px",
-          borderTop: `1px solid ${O.hair}`,
+          borderTop: `1px solid var(--border)`,
           display: "flex",
           alignItems: "center",
           gap: 10,
@@ -583,8 +582,8 @@ export function ModalShell({
             padding: "9px 16px",
             borderRadius: 8,
             background: "transparent",
-            border: `1px solid ${O.hair2}`,
-            color: O.ink2,
+            border: `1px solid var(--border)`,
+            color: "var(--text-secondary)",
             fontSize: 12.5,
             fontWeight: 500,
             cursor: "pointer",
@@ -603,13 +602,13 @@ export function ModalShell({
             background: canSubmit
               ? danger
                 ? "var(--destructive)"
-                : aurora
+                : "var(--primary)"
               : "var(--muted)",
             color: canSubmit
               ? danger
                 ? "#fff"
                 : "var(--primary-foreground)"
-              : O.ink3,
+              : "var(--muted-foreground)",
             border: "none",
             fontSize: 13,
             fontWeight: 600,
@@ -626,5 +625,3 @@ export function ModalShell({
   );
 }
 
-/* Re-export auroraSoft for modal internals */
-export { auroraSoft };
