@@ -10,7 +10,7 @@ Orbit's visual identity reads as a generic AI-generated product: dark cosmic bac
 
 - Refined dark: flat surfaces, no gradients, no glassmorphism or backdrop blur on panels, no glow, aurora, or spinning borders. Anchor for restraint: X and Discord. Dark is the flagship theme.
 - Light and dark themes from one token layer. Theme infrastructure ships with the foundation; the user-facing toggle is exposed only once core surfaces are verified in light (after the live/VOD batch), because unmigrated pages carry hardcoded dark literals until their batch lands.
-- Single flat accent, ember orange-coral. Dark: oklch(0.68 0.21 34), roughly #FF5C38, with a near-black foreground (white on ember fails AA at about 3.1:1; near-black passes at about 6:1). Light: oklch(0.55 0.19 34), roughly #CF4419.
+- Single flat accent. Amended 2026-07-14: violet replaced the original ember orange. Dark: oklch(0.68 0.19 300), roughly #AC77FA, with a near-black foreground (white on the bright accent fails AA; near-black passes). Light: oklch(0.5 0.21 300), roughly #7935C6, with a white foreground. Neutrals carry a matching faint cool cast (hue 300).
 - Typography: Geist for UI and display (weight and tight tracking carry hierarchy), Geist Mono for labels, counters, and eyebrows. Syne and Instrument Serif are removed. No third font.
 - Radius: 8px controls, 12px cards, 16px dialogs. Pill shapes only for chips and avatars. Spacing on a 4px grid.
 - Motion: purposeful 150-200ms micro-interactions only. Skeleton shimmer and loading spinners are the sanctioned looping animations. `prefers-reduced-motion` is respected.

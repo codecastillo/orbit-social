@@ -44,9 +44,9 @@ const COLORS = {
   hair: "rgba(255,255,255,0.09)",
   hair2: "rgba(255,255,255,0.14)",
   glass: "rgba(255,255,255,0.05)",
-  a1: "#ff5c38",
-  a2: "#ff5c38",
-  a3: "#ff5c38",
+  a1: "#ac77fa",
+  a2: "#ac77fa",
+  a3: "#ac77fa",
 };
 
 const aurora = COLORS.a1;

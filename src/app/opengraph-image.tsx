@@ -5,8 +5,8 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 // Satori supports neither CSS variables nor color-mix, so the brand values
-// are literal here: ember oklch(0.68 0.21 34) ~ #ff5c38 on the dark
-// background oklch(0.15 0.004 80) ~ #141312.
+// are literal here: violet oklch(0.68 0.19 300) ~ #ac77fa on the dark
+// background oklch(0.15 0.004 300) ~ #0b0b0d.
 export default function Image() {
   return new ImageResponse(
     (
@@ -18,8 +18,8 @@ export default function Image() {
           flexDirection: "column",
           justifyContent: "center",
           padding: 80,
-          background: "#141312",
-          color: "#f4f3f1",
+          background: "#0b0b0d",
+          color: "#f0eff2",
           fontFamily: "sans-serif",
         }}
       >
@@ -29,7 +29,7 @@ export default function Image() {
               width: 44,
               height: 44,
               borderRadius: 10,
-              background: "#ff5c38",
+              background: "#ac77fa",
               display: "flex",
             }}
           />
@@ -48,14 +48,14 @@ export default function Image() {
         >
           <span>The internet,</span>
           <span style={{ display: "flex", gap: 20 }}>
-            but <span style={{ color: "#ff5c38" }}>smaller</span>.
+            but <span style={{ color: "#ac77fa" }}>smaller</span>.
           </span>
         </div>
         <div
           style={{
             marginTop: 40,
             fontSize: 26,
-            color: "#a8a5a0",
+            color: "#a5a3a8",
             letterSpacing: "2px",
           }}
         >

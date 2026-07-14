@@ -63,35 +63,35 @@
 
 /* Light theme. Dark is the flagship and the default (the .dark class is
    managed on <html>); both palettes live here so every token has exactly
-   one meaning. Backgrounds carry a faint warm cast (hue 80) so the neutral
-   scale harmonizes with the ember accent instead of fighting it. */
+   one meaning. Backgrounds carry a faint cool cast (hue 300) so the neutral
+   scale harmonizes with the violet accent instead of fighting it. */
 :root {
-  --background: oklch(0.975 0.003 80);
+  --background: oklch(0.975 0.003 300);
   --surface: oklch(1 0 0);
   --surface-elevated: oklch(1 0 0);
-  --foreground: oklch(0.22 0.012 80);
-  --text-secondary: oklch(0.45 0.012 80);
-  --muted-foreground: oklch(0.55 0.01 80);
-  --text-faint: oklch(0.68 0.008 80);
+  --foreground: oklch(0.22 0.012 300);
+  --text-secondary: oklch(0.45 0.012 300);
+  --muted-foreground: oklch(0.55 0.01 300);
+  --text-faint: oklch(0.68 0.008 300);
   --card: var(--surface);
   --card-foreground: var(--foreground);
   --popover: var(--surface-elevated);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.55 0.19 34);
-  --primary-hover: oklch(0.51 0.19 34);
-  --primary-active: oklch(0.48 0.18 34);
-  --primary-foreground: oklch(0.99 0.003 80);
-  --secondary: oklch(0.94 0.004 80);
+  --primary: oklch(0.5 0.21 300);
+  --primary-hover: oklch(0.46 0.21 300);
+  --primary-active: oklch(0.43 0.2 300);
+  --primary-foreground: oklch(0.99 0.003 300);
+  --secondary: oklch(0.94 0.004 300);
   --secondary-foreground: var(--foreground);
-  --muted: oklch(0.94 0.004 80);
-  --accent: oklch(0.94 0.004 80);
+  --muted: oklch(0.94 0.004 300);
+  --accent: oklch(0.94 0.004 300);
   --accent-foreground: var(--foreground);
   --destructive: oklch(0.55 0.21 25);
   --success: oklch(0.52 0.15 152);
   --warning: oklch(0.55 0.12 80);
   --info: oklch(0.52 0.11 245);
-  --border: oklch(0.9 0.004 80);
-  --input: oklch(0.87 0.005 80);
+  --border: oklch(0.9 0.004 300);
+  --input: oklch(0.87 0.005 300);
   --ring: var(--primary);
   --chart-1: var(--primary);
   --chart-2: var(--info);
@@ -110,28 +110,28 @@
 }
 
 .dark {
-  --background: oklch(0.15 0.004 80);
-  --surface: oklch(0.19 0.005 80);
-  --surface-elevated: oklch(0.23 0.006 80);
-  --foreground: oklch(0.955 0.004 80);
-  --text-secondary: oklch(0.72 0.008 80);
-  --muted-foreground: oklch(0.55 0.01 80);
-  --text-faint: oklch(0.42 0.008 80);
-  /* Ember reads brighter on dark; the near-black foreground passes AA on it
-     (white does not, at roughly 3.1:1). */
-  --primary: oklch(0.68 0.21 34);
-  --primary-hover: oklch(0.72 0.19 34);
-  --primary-active: oklch(0.63 0.21 34);
-  --primary-foreground: oklch(0.16 0.02 34);
-  --secondary: oklch(0.23 0.006 80);
-  --muted: oklch(0.23 0.006 80);
-  --accent: oklch(0.24 0.006 80);
+  --background: oklch(0.15 0.004 300);
+  --surface: oklch(0.19 0.005 300);
+  --surface-elevated: oklch(0.23 0.006 300);
+  --foreground: oklch(0.955 0.004 300);
+  --text-secondary: oklch(0.72 0.008 300);
+  --muted-foreground: oklch(0.55 0.01 300);
+  --text-faint: oklch(0.42 0.008 300);
+  /* Violet reads brighter on dark; the near-black foreground passes AA on
+     it (white does not). */
+  --primary: oklch(0.68 0.19 300);
+  --primary-hover: oklch(0.72 0.17 300);
+  --primary-active: oklch(0.63 0.19 300);
+  --primary-foreground: oklch(0.16 0.02 300);
+  --secondary: oklch(0.23 0.006 300);
+  --muted: oklch(0.23 0.006 300);
+  --accent: oklch(0.24 0.006 300);
   --destructive: oklch(0.64 0.21 25);
   --success: oklch(0.72 0.17 152);
   --warning: oklch(0.8 0.15 85);
   --info: oklch(0.7 0.11 235);
-  --border: oklch(0.29 0.006 80);
-  --input: oklch(0.26 0.006 80);
+  --border: oklch(0.29 0.006 300);
+  --input: oklch(0.26 0.006 300);
   color-scheme: dark;
 }
 

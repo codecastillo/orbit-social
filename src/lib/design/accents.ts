@@ -12,7 +12,9 @@ export const PROFILE_ACCENTS: { value: string | null; label: string }[] = [
   { value: "#ffb224", label: "Amber" },
   { value: "#30a46c", label: "Green" },
   { value: "#0091ff", label: "Blue" },
-  { value: "#8e4ec6", label: "Violet" },
+  // Orange replaced Violet when the brand accent went purple; a violet
+  // personalization option would just disappear into the brand color.
+  { value: "#f76b15", label: "Orange" },
   { value: "#d6409f", label: "Pink" },
 ];
 
@@ -23,7 +25,10 @@ const LEGACY_ACCENT_MAP: Record<string, string | null> = {
   "#ffd76a": "#ffb224",
   "#7dffa3": "#30a46c",
   "#5fd4ff": "#0091ff",
-  "#8b73ff": "#8e4ec6",
+  // Aurora indigo and the retired curated violet both read as the brand
+  // accent now.
+  "#8b73ff": null,
+  "#8e4ec6": null,
   "#ff5fae": "#d6409f",
   "#ff8fd1": "#d6409f",
 };
