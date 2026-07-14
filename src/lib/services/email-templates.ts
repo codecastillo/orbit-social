@@ -44,16 +44,15 @@ const COLORS = {
   hair: "rgba(255,255,255,0.09)",
   hair2: "rgba(255,255,255,0.14)",
   glass: "rgba(255,255,255,0.05)",
-  a1: "#8b73ff",
-  a2: "#ff5fae",
-  a3: "#5fd4ff",
+  a1: "#ff5c38",
+  a2: "#ff5c38",
+  a3: "#ff5c38",
 };
 
-const aurora = `linear-gradient(135deg, ${COLORS.a1} 0%, ${COLORS.a2} 55%, ${COLORS.a3} 100%)`;
+const aurora = COLORS.a1;
 const SANS =
   '"Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", system-ui, sans-serif';
 const MONO = '"Geist Mono", ui-monospace, "SF Mono", Menlo, monospace';
-const SERIF = '"Instrument Serif", Georgia, "Times New Roman", serif';
 
 function shell(opts: { preheader: string; body: string }) {
   return `<!DOCTYPE html>
@@ -70,7 +69,7 @@ function shell(opts: { preheader: string; body: string }) {
   <tr><td align="center">
     <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;">
       <tr><td align="center" style="padding-bottom:28px;">
-        <span style="font-family:${SERIF};font-style:italic;font-size:32px;color:${COLORS.a2};letter-spacing:-0.02em;">orbit</span>
+        <span style="font-family:${SANS};font-weight:700;font-size:32px;color:${COLORS.a2};letter-spacing:-0.02em;">orbit</span>
       </td></tr>
       <tr><td style="background:${COLORS.glass};border:1px solid ${COLORS.hair2};border-radius:24px;padding:36px 32px;">
         ${opts.body}
@@ -94,7 +93,7 @@ function display(html: string, size = 28) {
 }
 
 function acc(word: string) {
-  return `<em style="font-family:${SERIF};font-style:italic;font-weight:400;color:${COLORS.a2};">${escapeHtml(word)}</em>`;
+  return `<em style="font-family:${SANS};font-weight:700;font-weight:400;color:${COLORS.a2};">${escapeHtml(word)}</em>`;
 }
 
 function paragraph(html: string) {
@@ -134,7 +133,7 @@ function welcome(vars: TemplateVars["welcome"]) {
   const subject = `Welcome to Orbit, ${vars.name.split(" ")[0]}.`;
   const body = `
 ${eyebrow("◇  WELCOME · ORBIT")}
-${display(`Glad you're <em style="font-family:${SERIF};font-style:italic;font-weight:400;color:${COLORS.a2};">here</em>.`, 32)}
+${display(`Glad you're <em style="font-family:${SANS};font-weight:700;font-weight:400;color:${COLORS.a2};">here</em>.`, 32)}
 ${paragraph(`Hey ${escapeHtml(vars.name.split(" ")[0])}, Orbit is small on purpose. Tighter circles, fewer signals, more of what you actually came for.`)}
 ${paragraph(`Three things to do first:`)}
 <ol style="margin:14px 0 0;padding-left:22px;font-size:14.5px;line-height:1.6;color:${COLORS.ink2};">
@@ -212,7 +211,7 @@ ${paragraph(`Hey ${escapeHtml(vars.name.split(" ")[0])}, ${total} signals from y
       ([label, n]) => `
     <tr>
       <td style="padding:12px 0;border-bottom:1px solid ${COLORS.hair};font-size:14px;color:${COLORS.ink2};">${label}</td>
-      <td align="right" style="padding:12px 0;border-bottom:1px solid ${COLORS.hair};font-family:${SERIF};font-style:italic;font-size:24px;background:${aurora};-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;">${n}</td>
+      <td align="right" style="padding:12px 0;border-bottom:1px solid ${COLORS.hair};font-family:${SANS};font-weight:700;font-size:24px;color:${COLORS.a2};">${n}</td>
     </tr>`
     )
     .join("")}

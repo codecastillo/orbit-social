@@ -156,12 +156,9 @@ export function MessageBubble({
           className={cn("max-w-[75%] py-1.5 px-1.5")}
           style={{
             borderRadius: isOwn ? "20px 20px 6px 20px" : "20px 20px 20px 6px",
-            background: isOwn
-              ? "linear-gradient(135deg, #8b73ff 0%, #ff5fae 55%, #5fd4ff 100%)"
-              : "rgba(255,255,255,0.08)",
-            border: isOwn ? "none" : "1px solid rgba(255,255,255,0.09)",
-            color: isOwn ? "white" : "rgba(255,255,255,0.92)",
-            boxShadow: isOwn ? "0 6px 18px rgba(255,95,174,0.25)" : "none",
+            background: isOwn ? "var(--primary)" : "var(--surface-elevated)",
+              border: isOwn ? "none" : "1px solid var(--border)",
+              color: isOwn ? "var(--primary-foreground)" : "var(--foreground)",
           }}
         >
           {showSender && !isOwn && message.sender && (
@@ -241,12 +238,9 @@ export function MessageBubble({
               )}
               style={{
                 borderRadius: isOwn ? "20px 20px 6px 20px" : "20px 20px 20px 6px",
-                background: isOwn
-                  ? "linear-gradient(135deg, #8b73ff 0%, #ff5fae 55%, #5fd4ff 100%)"
-                  : "rgba(255,255,255,0.08)",
-                border: isOwn ? "none" : "1px solid rgba(255,255,255,0.09)",
-                color: isOwn ? "white" : "rgba(255,255,255,0.92)",
-                boxShadow: isOwn ? "0 6px 18px rgba(255,95,174,0.25)" : "none",
+                background: isOwn ? "var(--primary)" : "var(--surface-elevated)",
+                  border: isOwn ? "none" : "1px solid var(--border)",
+                  color: isOwn ? "var(--primary-foreground)" : "var(--foreground)",
               }}
             >
               {showSender && !isOwn && message.sender && (
