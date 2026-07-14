@@ -26,7 +26,6 @@ import {
   removeCommunityMember,
   setCommunityMemberRole,
 } from "@/lib/queries/communities";
-import { O } from "@/lib/design/orbit";
 
 interface Props {
   open: boolean;
@@ -67,26 +66,13 @@ export function CommunityMembersDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-md p-0 overflow-hidden border border-white/10"
-        style={{ background: O.bg }}
-      >
-        <DialogHeader className="px-5 pt-5 pb-3 border-b border-white/10">
-          <DialogTitle
-            style={{
-              fontFamily: O.sans,
-              color: O.ink,
-              fontSize: 16,
-              letterSpacing: "0.02em",
-            }}
-          >
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden border border-border bg-background">
+        <DialogHeader className="px-5 pt-5 pb-3 border-b border-border">
+          <DialogTitle className="text-base tracking-[0.02em] text-foreground">
             Members
           </DialogTitle>
         </DialogHeader>
-        <div
-          style={{ maxHeight: 520, overflowY: "auto" }}
-          className="divide-y divide-white/5"
-        >
+        <div className="max-h-[520px] overflow-y-auto divide-y divide-border">
           {isLoading ? (
             <div className="p-4 flex flex-col gap-3">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -100,14 +86,7 @@ export function CommunityMembersDialog({
               ))}
             </div>
           ) : !data || data.length === 0 ? (
-            <div
-              style={{
-                color: O.ink3,
-                padding: "32px 20px",
-                textAlign: "center",
-                fontSize: 13,
-              }}
-            >
+            <div className="px-5 py-8 text-center text-[13px] text-muted-foreground">
               Nobody&apos;s here yet.
             </div>
           ) : (
@@ -178,16 +157,7 @@ function Section({
 }) {
   return (
     <div>
-      <div
-        style={{
-          padding: "10px 20px 6px",
-          fontSize: 10,
-          letterSpacing: "0.14em",
-          color: O.ink3,
-          fontFamily: O.mono,
-          fontWeight: 600,
-        }}
-      >
+      <div className="px-5 pb-1.5 pt-2.5 font-mono text-[10px] font-semibold tracking-[0.14em] text-muted-foreground">
         {label}
       </div>
       {items.map((m) => (
@@ -276,47 +246,25 @@ function MemberRow({
   };
 
   return (
-    <div className="flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors">
+    <div className="flex items-center gap-3 px-5 py-3 hover:bg-surface-elevated transition-colors">
       <Link
         href={`/${member.profiles.username}`}
         onClick={onClose}
-        style={{
-          textDecoration: "none",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          flex: 1,
-          minWidth: 0,
-        }}
+        className="flex min-w-0 flex-1 items-center gap-3 no-underline"
       >
         <UserAvatar
           src={member.profiles.avatar_url}
           fallback={member.profiles.display_name || member.profiles.username}
           size="md"
         />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              color: O.ink,
-              fontSize: 14,
-              fontWeight: 600,
-            }}
-          >
-            <span
-              style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <span className="truncate">
               {member.profiles.display_name || member.profiles.username}
             </span>
             {member.profiles.is_verified && <VerifiedStar size={12} />}
           </div>
-          <div style={{ fontSize: 12, color: O.ink3 }}>
+          <div className="text-xs text-muted-foreground">
             @{member.profiles.username}
           </div>
         </div>
@@ -324,15 +272,11 @@ function MemberRow({
 
       {member.role !== "member" && (
         <span
-          style={{
-            fontSize: 10,
-            fontFamily: O.mono,
-            letterSpacing: "0.1em",
-            color: member.role === "owner" ? "#ffd76a" : O.a3,
-            border: `1px solid ${member.role === "owner" ? "#ffd76a55" : `color-mix(in oklab, ${O.a3} 33%, transparent)`}`,
-            padding: "3px 8px",
-            borderRadius: 99,
-          }}
+          className={`rounded-full border px-2 py-[3px] font-mono text-[10px] tracking-[0.1em] ${
+            member.role === "owner"
+              ? "border-warning/40 bg-warning/10 text-warning"
+              : "border-primary/40 bg-primary/10 text-primary"
+          }`}
         >
           {ROLE_LABEL[member.role] ?? member.role.toUpperCase()}
         </span>
@@ -343,7 +287,7 @@ function MemberRow({
           <DropdownMenuTrigger
             disabled={busy}
             aria-label={`Manage @${member.profiles.username}`}
-            className="ml-1 inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-white/[0.06] hover:text-foreground transition-colors disabled:opacity-50"
+            className="ml-1 inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50"
           >
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin" />

@@ -12,7 +12,9 @@ import {
   ChevronRight,
   ImageOff,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { formatTimeAgo } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -21,8 +23,6 @@ import {
   getListingById,
   type ListingWithSeller,
 } from "@/lib/queries/marketplace";
-import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 import { VerifiedStar } from "@/components/orbit/verified-star";
 
 function formatPrice(price: number, currency = "USD") {
@@ -78,7 +78,7 @@ export default function ListingDetailPage({
 
   if (loading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div className="flex flex-col gap-[18px]">
         <Skeleton className="h-10 w-32 rounded-full" />
         <Skeleton className="aspect-[4/3] w-full rounded-2xl" />
         <Skeleton className="h-10 w-64 rounded-xl" />
@@ -89,7 +89,7 @@ export default function ListingDetailPage({
 
   if (!listing) {
     return (
-      <div style={{ padding: 48, textAlign: "center", color: O.ink3 }}>
+      <div className="p-12 text-center text-muted-foreground">
         <p>Listing not found.</p>
       </div>
     );
@@ -99,51 +99,25 @@ export default function ListingDetailPage({
   const hasMultiple = images.length > 1;
 
   return (
-    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 22 }}>
+    <div className="flex flex-col gap-[22px] text-foreground">
       <Link
         href="/marketplace"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          color: O.ink3,
-          fontFamily: O.mono,
-          fontSize: 11,
-          letterSpacing: "0.12em",
-          textDecoration: "none",
-          width: "fit-content",
-        }}
+        className="inline-flex w-fit items-center gap-1.5 font-mono text-[11px] tracking-[0.12em] text-muted-foreground no-underline"
       >
-        <ArrowLeft style={{ width: 12, height: 12 }} />
+        <ArrowLeft className="h-3 w-3" />
         BACK · MARKET
       </Link>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.4fr) 360px",
-          gap: 22,
-        }}
-        className="md:grid-cols-[minmax(0,1.4fr)_360px] grid-cols-1"
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          <div
-            style={{
-              ...panel({ borderRadius: 22 }),
-              padding: 0,
-              overflow: "hidden",
-              position: "relative",
-              aspectRatio: "4 / 3",
-              background: "rgba(255,255,255,0.02)",
-            }}
-          >
+      <div className="grid grid-cols-1 gap-[22px] md:grid-cols-[minmax(0,1.4fr)_360px]">
+        <div className="flex flex-col gap-[18px]">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-border bg-surface-elevated">
             {images.length > 0 ? (
               <>
                 <Image
                   src={images[currentImageIndex].url}
                   alt={listing.title}
                   fill
-                  style={{ objectFit: "cover" }}
+                  className="object-cover"
                   sizes="(max-width: 768px) 100vw, 800px"
                   priority
                 />
@@ -155,25 +129,10 @@ export default function ListingDetailPage({
                           i === 0 ? images.length - 1 : i - 1
                         )
                       }
-                      style={{
-                        position: "absolute",
-                        left: 14,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: 40,
-                        height: 40,
-                        borderRadius: "50%",
-                        background: "rgba(0,0,0,0.55)",
-                        backdropFilter: "blur(20px)",
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        color: "white",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                      }}
+                      aria-label="Previous image"
+                      className="absolute left-3.5 top-1/2 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur-md"
                     >
-                      <ChevronLeft style={{ width: 16, height: 16 }} />
+                      <ChevronLeft className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() =>
@@ -181,52 +140,22 @@ export default function ListingDetailPage({
                           i === images.length - 1 ? 0 : i + 1
                         )
                       }
-                      style={{
-                        position: "absolute",
-                        right: 14,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: 40,
-                        height: 40,
-                        borderRadius: "50%",
-                        background: "rgba(0,0,0,0.55)",
-                        backdropFilter: "blur(20px)",
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        color: "white",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                      }}
+                      aria-label="Next image"
+                      className="absolute right-3.5 top-1/2 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur-md"
                     >
-                      <ChevronRight style={{ width: 16, height: 16 }} />
+                      <ChevronRight className="h-4 w-4" />
                     </button>
-                    <div
-                      style={{
-                        position: "absolute",
-                        bottom: 16,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        display: "flex",
-                        gap: 6,
-                      }}
-                    >
+                    <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-1.5">
                       {images.map((_, i) => (
                         <button
                           key={i}
                           onClick={() => setCurrentImageIndex(i)}
-                          style={{
-                            width: i === currentImageIndex ? 18 : 6,
-                            height: 6,
-                            borderRadius: 99,
-                            border: "none",
-                            background:
-                              i === currentImageIndex
-                                ? "white"
-                                : "rgba(255,255,255,0.5)",
-                            cursor: "pointer",
-                            transition: "width 150ms ease",
-                          }}
+                          aria-label={`Go to image ${i + 1}`}
+                          className={cn(
+                            "h-1.5 cursor-pointer rounded-full border-none transition-[width] duration-150",
+                            i === currentImageIndex ? "bg-white" : "bg-white/50",
+                          )}
+                          style={{ width: i === currentImageIndex ? 18 : 6 }}
                         />
                       ))}
                     </div>
@@ -234,76 +163,32 @@ export default function ListingDetailPage({
                 )}
               </>
             ) : (
-              <div
-                style={{
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: O.ink4,
-                }}
-              >
-                <ImageOff style={{ width: 48, height: 48 }} strokeWidth={1} />
+              <div className="flex h-full items-center justify-center text-text-faint">
+                <ImageOff className="h-12 w-12" strokeWidth={1} />
               </div>
             )}
           </div>
 
           <div>
-            <Eyebrow accent>◆&nbsp;&nbsp;LISTING</Eyebrow>
-            <Display size={36} style={{ marginTop: 10 }}>
+            <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
+              ◆&nbsp;&nbsp;LISTING
+            </p>
+            <h1 className="mt-2.5 text-4xl font-bold leading-tight tracking-[-0.035em]">
               {listing.title}
-            </Display>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                gap: 14,
-                marginTop: 14,
-                flexWrap: "wrap",
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: O.serif,
-                  fontStyle: "italic",
-                  fontSize: 36,
-                  color: O.a3,
-                  lineHeight: 1,
-                }}
-              >
+            </h1>
+            <div className="mt-3.5 flex flex-wrap items-baseline gap-3.5">
+              <span className="font-mono text-4xl leading-none text-foreground">
                 {formatPrice(listing.price, listing.currency)}
               </span>
-              <span
-                style={{
-                  padding: "5px 11px",
-                  borderRadius: 99,
-                  background: O.glass,
-                  border: `1px solid ${O.hair2}`,
-                  fontSize: 11,
-                  fontFamily: O.mono,
-                  color: O.ink2,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                }}
-              >
+              <span className="rounded-full border border-border bg-surface px-[11px] py-[5px] font-mono text-[11px] uppercase tracking-[0.08em] text-text-secondary">
                 {listing.condition}
               </span>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                gap: 14,
-                marginTop: 14,
-                fontSize: 12,
-                color: O.ink3,
-                fontFamily: O.mono,
-                letterSpacing: "0.04em",
-              }}
-            >
+            <div className="mt-3.5 flex gap-3.5 font-mono text-xs tracking-[0.04em] text-muted-foreground">
               {listing.location && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                  <MapPin style={{ width: 11, height: 11 }} />
+                <span className="inline-flex items-center gap-[5px]">
+                  <MapPin className="h-[11px] w-[11px]" />
                   {listing.location}
                 </span>
               )}
@@ -311,15 +196,7 @@ export default function ListingDetailPage({
             </div>
 
             {listing.description && (
-              <p
-                style={{
-                  fontSize: 14.5,
-                  color: O.ink2,
-                  lineHeight: 1.6,
-                  marginTop: 18,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
+              <p className="mt-[18px] whitespace-pre-wrap text-[14.5px] leading-[1.6] text-text-secondary">
                 {listing.description}
               </p>
             )}
@@ -327,51 +204,47 @@ export default function ListingDetailPage({
         </div>
 
         {/* Seller rail */}
-        <aside style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ ...panel({ borderRadius: 20 }), padding: 22 }}>
-            <Eyebrow>◇&nbsp;&nbsp;SELLER</Eyebrow>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
+        <aside className="flex flex-col gap-3.5">
+          <div className="rounded-xl border border-border bg-surface p-[22px]">
+            <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              ◇&nbsp;&nbsp;SELLER
+            </p>
+            <div className="mt-3 flex items-center gap-3">
               <UserAvatar
                 src={listing.profiles.avatar_url}
                 fallback={listing.profiles.display_name || listing.profiles.username}
                 size="lg"
               />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: O.ink }}>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <p className="m-0 text-sm font-semibold text-foreground">
                     {listing.profiles.display_name || listing.profiles.username}
                   </p>
                   {listing.profiles.is_verified && <VerifiedStar size={12} />}
                 </div>
-                <p
-                  style={{
-                    fontSize: 11.5,
-                    color: O.ink3,
-                    margin: "2px 0 0",
-                    fontFamily: O.mono,
-                  }}
-                >
+                <p className="m-0 mt-0.5 font-mono text-[11.5px] text-muted-foreground">
                   @{listing.profiles.username}
                 </p>
               </div>
             </div>
-            <PillBtn
-              primary
+            <Button
               size="lg"
+              className="mt-[18px] w-full"
               onClick={handleMessageSeller}
               disabled={
                 messagingSeller || !user || user.id === listing.seller_id
               }
-              style={{ width: "100%", justifyContent: "center", marginTop: 18 }}
             >
-              <MessageCircle style={{ width: 14, height: 14 }} />
+              <MessageCircle />
               {messagingSeller ? "Opening…" : "Message seller"}
-            </PillBtn>
+            </Button>
           </div>
 
-          <div style={{ ...panel({ borderRadius: 18 }), padding: 18 }}>
-            <Eyebrow>◈&nbsp;&nbsp;DETAILS</Eyebrow>
-            <dl style={{ margin: "12px 0 0", fontSize: 12.5, color: O.ink3 }}>
+          <div className="rounded-xl border border-border bg-surface p-[18px]">
+            <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              ◈&nbsp;&nbsp;DETAILS
+            </p>
+            <dl className="m-0 mt-3 text-[12.5px] text-muted-foreground">
               {[
                 ["Category", listing.category],
                 ["Condition", listing.condition],
@@ -379,26 +252,12 @@ export default function ListingDetailPage({
               ].map(([label, value]) => (
                 <div
                   key={label}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "8px 0",
-                    borderTop: `1px solid ${O.hair}`,
-                  }}
+                  className="flex items-center justify-between border-t border-border py-2"
                 >
-                  <dt
-                    style={{
-                      fontFamily: O.mono,
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      fontSize: 10.5,
-                      color: O.ink4,
-                    }}
-                  >
+                  <dt className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-text-faint">
                     {label}
                   </dt>
-                  <dd style={{ margin: 0, color: O.ink2, fontWeight: 500 }}>
+                  <dd className="m-0 font-medium text-text-secondary">
                     {value}
                   </dd>
                 </div>

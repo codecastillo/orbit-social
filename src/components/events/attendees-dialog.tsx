@@ -12,7 +12,6 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VerifiedStar } from "@/components/orbit/verified-star";
 import { getEventAttendees } from "@/lib/queries/events";
-import { O } from "@/lib/design/orbit";
 
 interface Props {
   open: boolean;
@@ -32,26 +31,13 @@ export function AttendeesDialog({ open, onOpenChange, eventId }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-md p-0 overflow-hidden border border-white/10"
-        style={{ background: O.bg }}
-      >
-        <DialogHeader className="px-5 pt-5 pb-3 border-b border-white/10">
-          <DialogTitle
-            style={{
-              fontFamily: O.sans,
-              color: O.ink,
-              fontSize: 16,
-              letterSpacing: "0.02em",
-            }}
-          >
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden border border-border bg-background">
+        <DialogHeader className="px-5 pt-5 pb-3 border-b border-border">
+          <DialogTitle className="text-base tracking-[0.02em] text-foreground">
             Attendees
           </DialogTitle>
         </DialogHeader>
-        <div
-          style={{ maxHeight: 520, overflowY: "auto" }}
-          className="divide-y divide-white/5"
-        >
+        <div className="max-h-[520px] divide-y divide-border overflow-y-auto">
           {isLoading ? (
             <div className="p-4 flex flex-col gap-3">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -65,14 +51,7 @@ export function AttendeesDialog({ open, onOpenChange, eventId }: Props) {
               ))}
             </div>
           ) : going.length === 0 && interested.length === 0 ? (
-            <div
-              style={{
-                color: O.ink3,
-                padding: "32px 20px",
-                textAlign: "center",
-                fontSize: 13,
-              }}
-            >
+            <div className="px-5 py-8 text-center text-[13px] text-muted-foreground">
               No one has RSVP&apos;d yet.
             </div>
           ) : (
@@ -118,16 +97,7 @@ function Section({
 }) {
   return (
     <div>
-      <div
-        style={{
-          padding: "10px 20px 6px",
-          fontSize: 10,
-          letterSpacing: "0.14em",
-          color: O.ink3,
-          fontFamily: O.mono,
-          fontWeight: 600,
-        }}
-      >
+      <div className="px-5 pb-1.5 pt-2.5 font-mono text-[10px] font-semibold tracking-[0.14em] text-muted-foreground">
         {label}
       </div>
       {items.map((p) => (
@@ -135,37 +105,21 @@ function Section({
           key={p.user_id}
           href={`/${p.profiles.username}`}
           onClick={onClose}
-          style={{ textDecoration: "none" }}
-          className="flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors"
+          className="flex items-center gap-3 px-5 py-3 no-underline transition-colors hover:bg-muted"
         >
           <UserAvatar
             src={p.profiles.avatar_url}
             fallback={p.profiles.display_name || p.profiles.username}
             size="md"
           />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                color: O.ink,
-                fontSize: 14,
-                fontWeight: 600,
-              }}
-            >
-              <span
-                style={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <span className="truncate">
                 {p.profiles.display_name || p.profiles.username}
               </span>
               {p.profiles.is_verified && <VerifiedStar size={12} />}
             </div>
-            <div style={{ fontSize: 12, color: O.ink3 }}>
+            <div className="text-xs text-muted-foreground">
               @{p.profiles.username}
             </div>
           </div>

@@ -21,7 +21,6 @@ import {
   rejectCommunityRequest,
 } from "@/lib/queries/communities";
 import { formatTimeAgo } from "@/lib/utils/format";
-import { O } from "@/lib/design/orbit";
 
 interface Props {
   open: boolean;
@@ -79,26 +78,13 @@ export function JoinRequestsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-md p-0 overflow-hidden border border-white/10"
-        style={{ background: O.bg }}
-      >
-        <DialogHeader className="px-5 pt-5 pb-3 border-b border-white/10">
-          <DialogTitle
-            style={{
-              fontFamily: O.sans,
-              color: O.ink,
-              fontSize: 16,
-              letterSpacing: "0.02em",
-            }}
-          >
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden border border-border bg-background">
+        <DialogHeader className="px-5 pt-5 pb-3 border-b border-border">
+          <DialogTitle className="text-base tracking-[0.02em] text-foreground">
             Join requests · {requests.length}
           </DialogTitle>
         </DialogHeader>
-        <div
-          style={{ maxHeight: 520, overflowY: "auto" }}
-          className="divide-y divide-white/5"
-        >
+        <div className="max-h-[520px] overflow-y-auto divide-y divide-border">
           {isLoading ? (
             <div className="p-4 flex flex-col gap-3">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -112,14 +98,7 @@ export function JoinRequestsDialog({
               ))}
             </div>
           ) : requests.length === 0 ? (
-            <div
-              style={{
-                color: O.ink3,
-                padding: "32px 20px",
-                textAlign: "center",
-                fontSize: 13,
-              }}
-            >
+            <div className="px-5 py-8 text-center text-[13px] text-muted-foreground">
               No pending requests.
             </div>
           ) : (
@@ -139,34 +118,18 @@ export function JoinRequestsDialog({
                     size="md"
                   />
                 </Link>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      color: O.ink,
-                      fontSize: 14,
-                      fontWeight: 600,
-                    }}
-                  >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                     <Link
                       href={`/${r.profiles.username}`}
                       onClick={() => onOpenChange(false)}
-                      style={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        textDecoration: "none",
-                        color: "inherit",
-                      }}
-                      className="hover:underline"
+                      className="truncate text-inherit no-underline hover:underline"
                     >
                       {r.profiles.display_name || r.profiles.username}
                     </Link>
                     {r.profiles.is_verified && <VerifiedStar size={12} />}
                   </div>
-                  <div style={{ fontSize: 12, color: O.ink3 }}>
+                  <div className="text-xs text-muted-foreground">
                     @{r.profiles.username} · {formatTimeAgo(r.created_at)}
                   </div>
                 </div>

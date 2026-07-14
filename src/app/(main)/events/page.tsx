@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { CreateEventDialog } from "@/components/events/create-event-dialog";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
 import {
@@ -23,19 +24,8 @@ import {
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { createClient } from "@/lib/supabase/client";
-import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 
 type RsvpStatus = "going" | "interested" | "not_going" | null;
-
-function hueFor(seed: string): number {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) {
-    h = seed.charCodeAt(i) + ((h << 5) - h);
-  }
-  const hues = [18, 220, 290, 145, 50, 340, 180, 265];
-  return hues[Math.abs(h) % hues.length];
-}
 
 function formatDay(iso: string): { day: string; mo: string; weekday: string; time: string } {
   const d = new Date(iso);
@@ -160,38 +150,24 @@ export default function EventsPage() {
   );
 
   return (
-    <div
-      style={{
-        color: O.ink,
-        fontFamily: O.sans,
-        display: "flex",
-        flexDirection: "column",
-        gap: 22,
-      }}
-    >
+    <div className="flex flex-col gap-[22px] text-foreground">
       {/* Editorial hero */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          gap: 18,
-          flexWrap: "wrap",
-        }}
-      >
+      <div className="flex flex-wrap items-end justify-between gap-[18px]">
         <div>
-          <Eyebrow>◇&nbsp;&nbsp;EVENTS</Eyebrow>
-          <Display size={56} style={{ marginTop: 8 }}>
-            Things to <Acc>show up</Acc> for.
-          </Display>
-          <p style={{ fontSize: 14, color: O.ink2, marginTop: 8 }}>
+          <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            ◇&nbsp;&nbsp;EVENTS
+          </p>
+          <h1 className="mt-2 text-[56px] font-bold leading-none tracking-[-0.035em]">
+            Things to <span className="text-primary">show up</span> for.
+          </h1>
+          <p className="mt-2 text-sm text-text-secondary">
             Meetups, launches, listening sessions. The real-world side of your network.
           </p>
         </div>
         {user && (
-          <PillBtn primary size="lg" onClick={() => setShowCreate(true)}>
+          <Button size="lg" onClick={() => setShowCreate(true)}>
             Host
-          </PillBtn>
+          </Button>
         )}
       </div>
 
@@ -200,7 +176,7 @@ export default function EventsPage() {
       ) : events.length === 0 ? (
         <OrbitEmptyState
           icon={CalIcon}
-          accent={O.a3}
+          accent="var(--primary)"
           headline="Nothing"
           accentWord="scheduled"
           sub="No events on your orbit yet. Create a meetup, a listening session, a launch. The real-world side of this place."
@@ -243,8 +219,6 @@ function FeaturedEvent({
   onRsvp: (eventId: string, status: "going" | "interested" | "not_going") => void;
 }) {
   const dayInfo = formatDay(event.start_at);
-  const hue = hueFor(event.id);
-  const hue2 = (hue + 60) % 360;
 
   const stop = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -254,168 +228,81 @@ function FeaturedEvent({
   return (
     <Link
       href={`/events/${event.id}`}
-      style={{
-        ...panel(),
-        padding: 0,
-        overflow: "hidden",
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        textDecoration: "none",
-        color: O.ink,
-        maxHeight: 420,
-      }}
-      className="md:grid-cols-2 grid-cols-1"
+      className="grid grid-cols-1 overflow-hidden rounded-xl border border-border bg-surface text-foreground no-underline md:max-h-[420px] md:grid-cols-2"
     >
       {/* Cover, fixed height so it never grows on wide screens */}
-      <div
-        style={{
-          height: 420,
-          maxHeight: 420,
-          background: `linear-gradient(135deg, oklch(0.6 0.18 ${hue}), oklch(0.35 0.14 ${hue2}))`,
-          position: "relative",
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.25), transparent 60%), repeating-linear-gradient(45deg, transparent 0 28px, rgba(255,255,255,0.05) 28px 29px)",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            top: 22,
-            left: 22,
-            padding: 16,
-            borderRadius: 16,
-            background: "rgba(255,255,255,0.18)",
-            backdropFilter: "blur(20px)",
-            textAlign: "center",
-            minWidth: 70,
-            color: "white",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              fontFamily: O.mono,
-            }}
-          >
+      <div className="relative flex h-[420px] max-h-[420px] items-center justify-center bg-primary/10">
+        <CalIcon className="h-16 w-16 text-primary/30" strokeWidth={1} />
+        <div className="absolute left-[22px] top-[22px] min-w-[70px] rounded-xl border border-border bg-surface p-4 text-center">
+          <div className="font-mono text-[11px] font-bold tracking-[0.1em] text-primary">
             {dayInfo.mo}
           </div>
-          <div
-            style={{
-              fontFamily: O.serif,
-              fontStyle: "italic",
-              fontSize: 42,
-              lineHeight: 1,
-              marginTop: 2,
-            }}
-          >
+          <div className="mt-0.5 text-[42px] font-bold leading-none text-foreground">
             {dayInfo.day}
           </div>
-          <div
-            style={{
-              fontSize: 10.5,
-              color: "rgba(255,255,255,0.8)",
-              marginTop: 2,
-              fontFamily: O.mono,
-            }}
-          >
+          <div className="mt-0.5 font-mono text-[10.5px] text-muted-foreground">
             {dayInfo.weekday} · {dayInfo.time}
           </div>
         </div>
       </div>
 
       {/* Body */}
-      <div style={{ padding: 32, overflow: "hidden" }}>
-        <Eyebrow accent>
+      <div className="overflow-hidden p-8">
+        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
           ◆&nbsp;&nbsp;FEATURED · {event.attendee_count ?? 0} GOING
-        </Eyebrow>
-        <Display size={36} style={{ marginTop: 12 }}>
+        </p>
+        <h2 className="mt-3 text-4xl font-bold leading-tight tracking-[-0.035em]">
           {event.title.split(" ").slice(0, 2).join(" ")}{" "}
           {event.title.split(" ").length > 2 && (
-            <Acc>{event.title.split(" ").slice(2).join(" ")}</Acc>
+            <span className="text-primary">
+              {event.title.split(" ").slice(2).join(" ")}
+            </span>
           )}
-        </Display>
-        <div
-          style={{
-            fontSize: 13,
-            color: O.ink3,
-            marginTop: 8,
-            fontFamily: O.mono,
-            letterSpacing: "0.04em",
-          }}
-        >
+        </h2>
+        <div className="mt-2 font-mono text-[13px] tracking-[0.04em] text-muted-foreground">
           HOSTED BY {event.profiles.display_name.toUpperCase()}
           {event.location && ` · ${event.location.toUpperCase()}`}
         </div>
         {event.description && (
-          <p
-            style={{
-              fontSize: 14.5,
-              color: O.ink2,
-              lineHeight: 1.55,
-              marginTop: 16,
-              display: "-webkit-box",
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
+          <p className="mt-4 line-clamp-3 text-[14.5px] leading-[1.55] text-text-secondary">
             {event.description}
           </p>
         )}
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            marginTop: 22,
-            flexWrap: "nowrap",
-            alignItems: "center",
-            minWidth: 0,
-          }}
-        >
-          <PillBtn
-            primary={rsvpStatus === "going"}
-            size="md"
+        <div className="mt-[22px] flex min-w-0 flex-nowrap items-center gap-1.5">
+          <Button
+            variant={rsvpStatus === "going" ? "default" : "outline"}
+            size="sm"
             onClick={(e) => {
               stop(e);
               onRsvp(event.id, "going");
             }}
-            style={{ whiteSpace: "nowrap" }}
           >
-            <CheckCircle2 style={{ width: 13, height: 13 }} /> Going
-          </PillBtn>
-          <PillBtn
-            primary={rsvpStatus === "interested"}
-            size="md"
+            <CheckCircle2 /> Going
+          </Button>
+          <Button
+            variant={rsvpStatus === "interested" ? "default" : "outline"}
+            size="sm"
             onClick={(e) => {
               stop(e);
               onRsvp(event.id, "interested");
             }}
-            style={{ whiteSpace: "nowrap" }}
           >
-            <Star style={{ width: 13, height: 13 }} /> Interested
-          </PillBtn>
-          <PillBtn
-            primary={rsvpStatus === "not_going"}
-            size="md"
+            <Star /> Interested
+          </Button>
+          <Button
+            variant={rsvpStatus === "not_going" ? "default" : "outline"}
+            size="sm"
             onClick={(e) => {
               stop(e);
               onRsvp(event.id, "not_going");
             }}
-            style={{ whiteSpace: "nowrap" }}
           >
-            <XCircle style={{ width: 13, height: 13 }} /> Can&apos;t Go
-          </PillBtn>
-          <PillBtn
-            size="md"
-            style={{ marginLeft: "auto", padding: "10px 12px" }}
+            <XCircle /> Can&apos;t Go
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="ml-auto"
             onClick={(e) => {
               stop(e);
               if (typeof window !== "undefined" && navigator.clipboard) {
@@ -427,8 +314,8 @@ function FeaturedEvent({
             }}
             aria-label="Share event"
           >
-            <Share2 style={{ width: 14, height: 14 }} />
-          </PillBtn>
+            <Share2 />
+          </Button>
         </div>
       </div>
     </Link>
@@ -448,104 +335,45 @@ function EverythingElse({
 }) {
   return (
     <div>
-      <Eyebrow>◈&nbsp;&nbsp;EVERYTHING ELSE</Eyebrow>
-      <div
-        style={{
-          ...panel(),
-          padding: 0,
-          marginTop: 12,
-          overflow: "hidden",
-        }}
-      >
+      <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        ◈&nbsp;&nbsp;EVERYTHING ELSE
+      </p>
+      <div className="mt-3 overflow-hidden rounded-xl border border-border bg-surface">
         {events.map((e, i) => {
           const dayInfo = formatDay(e.start_at);
-          const hue = hueFor(e.id);
-          const hue2 = (hue + 60) % 360;
           const status = rsvpMap[e.id] ?? null;
           return (
             <Link
               key={e.id}
               href={`/events/${e.id}`}
-              style={{
-                display: "flex",
-                gap: 18,
-                padding: "18px 22px",
-                borderTop: i ? `1px solid ${O.hair}` : "none",
-                alignItems: "center",
-                cursor: "pointer",
-                color: O.ink,
-                textDecoration: "none",
-              }}
+              className={`flex cursor-pointer items-center gap-[18px] px-[22px] py-[18px] text-foreground no-underline${i ? " border-t border-border" : ""}`}
             >
-              <div
-                style={{
-                  width: 56,
-                  padding: 10,
-                  borderRadius: 12,
-                  background: `linear-gradient(135deg, oklch(0.6 0.16 ${hue}), oklch(0.4 0.12 ${hue2}))`,
-                  textAlign: "center",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2)",
-                  flexShrink: 0,
-                  color: "white",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 9,
-                    fontWeight: 700,
-                    letterSpacing: "0.1em",
-                    fontFamily: O.mono,
-                  }}
-                >
+              <div className="w-14 shrink-0 rounded-xl border border-primary/20 bg-primary/10 p-2.5 text-center">
+                <div className="font-mono text-[9px] font-bold tracking-[0.1em] text-primary">
                   {dayInfo.mo}
                 </div>
-                <div
-                  style={{
-                    fontFamily: O.serif,
-                    fontStyle: "italic",
-                    fontSize: 24,
-                    lineHeight: 1,
-                    marginTop: 1,
-                  }}
-                >
+                <div className="mt-px text-2xl font-bold leading-none text-foreground">
                   {dayInfo.day}
                 </div>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>{e.title}</div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: O.ink3,
-                    marginTop: 3,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
+              <div className="min-w-0 flex-1">
+                <div className="text-[15px] font-semibold">{e.title}</div>
+                <div className="mt-[3px] flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   {e.location && <span>{e.location}</span>}
                   {e.is_online && !e.location && "Online"}
                   {(e.location || e.is_online) && (
-                    <span style={{ color: O.ink4 }}>·</span>
+                    <span className="text-text-faint">·</span>
                   )}
                   hosted by {e.profiles.display_name}
                 </div>
               </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: O.ink3,
-                  fontFamily: O.mono,
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <div className="whitespace-nowrap font-mono text-[11px] text-muted-foreground">
                 {e.attendee_count ?? 0} going
               </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <PillBtn
+              <div className="flex gap-1.5">
+                <Button
                   size="sm"
-                  primary={status === "going"}
+                  variant={status === "going" ? "default" : "outline"}
                   onClick={(ev) => {
                     ev.preventDefault();
                     ev.stopPropagation();
@@ -553,11 +381,11 @@ function EverythingElse({
                   }}
                   title="Going"
                 >
-                  <CheckCircle2 style={{ width: 11, height: 11 }} /> Going
-                </PillBtn>
-                <PillBtn
-                  size="sm"
-                  primary={status === "interested"}
+                  <CheckCircle2 /> Going
+                </Button>
+                <Button
+                  size="icon-sm"
+                  variant={status === "interested" ? "default" : "outline"}
                   onClick={(ev) => {
                     ev.preventDefault();
                     ev.stopPropagation();
@@ -566,11 +394,11 @@ function EverythingElse({
                   title="Interested"
                   aria-label="Interested"
                 >
-                  <Star style={{ width: 11, height: 11 }} />
-                </PillBtn>
-                <PillBtn
-                  size="sm"
-                  primary={status === "not_going"}
+                  <Star />
+                </Button>
+                <Button
+                  size="icon-sm"
+                  variant={status === "not_going" ? "default" : "outline"}
                   onClick={(ev) => {
                     ev.preventDefault();
                     ev.stopPropagation();
@@ -579,10 +407,11 @@ function EverythingElse({
                   title="Can't go"
                   aria-label="Can't go"
                 >
-                  <XCircle style={{ width: 11, height: 11 }} />
-                </PillBtn>
-                <PillBtn
-                  size="sm"
+                  <XCircle />
+                </Button>
+                <Button
+                  size="icon-sm"
+                  variant="outline"
                   onClick={(ev) => {
                     ev.preventDefault();
                     ev.stopPropagation();
@@ -596,8 +425,8 @@ function EverythingElse({
                   title="Share event"
                   aria-label="Share event"
                 >
-                  <Share2 style={{ width: 11, height: 11 }} />
-                </PillBtn>
+                  <Share2 />
+                </Button>
               </div>
             </Link>
           );

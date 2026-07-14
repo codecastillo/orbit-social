@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PlusIcon, SearchIcon, ShoppingBagIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { ListingCard } from "@/components/marketplace/listing-card";
 import { CreateListingDialog } from "@/components/marketplace/create-listing-dialog";
 import {
@@ -10,8 +12,6 @@ import {
   searchListings,
   type ListingWithSeller,
 } from "@/lib/queries/marketplace";
-import { O } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 import { Input } from "@/components/orbit/forms";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
 
@@ -48,69 +48,46 @@ export default function MarketplacePage() {
   }, [fetchListings, searchQuery]);
 
   return (
-    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 22 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          gap: 18,
-          flexWrap: "wrap",
-        }}
-      >
+    <div className="flex flex-col gap-[22px] text-foreground">
+      <div className="flex flex-wrap items-end justify-between gap-[18px]">
         <div>
-          <Eyebrow accent>◈&nbsp;&nbsp;MARKET · OPEN</Eyebrow>
-          <Display size={56} style={{ marginTop: 8 }}>
-            Things, <Acc>traded</Acc>.
-          </Display>
-          <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 540 }}>
+          <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
+            ◈&nbsp;&nbsp;MARKET · OPEN
+          </p>
+          <h1 className="mt-2 text-[56px] font-bold leading-none tracking-[-0.035em]">
+            Things, <span className="text-primary">traded</span>.
+          </h1>
+          <p className="mt-2.5 max-w-[540px] text-[14.5px] leading-[1.55] text-muted-foreground">
             Hand-me-down economy. From people you already orbit.
           </p>
         </div>
-        <PillBtn primary size="lg" onClick={() => setShowCreate(true)}>
-          <PlusIcon style={{ width: 14, height: 14 }} />
+        <Button size="lg" onClick={() => setShowCreate(true)}>
+          <PlusIcon />
           List something
-        </PillBtn>
+        </Button>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="flex flex-col gap-3">
         <Input
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search listings…"
-          prefix={<SearchIcon style={{ width: 14, height: 14 }} />}
+          prefix={<SearchIcon className="h-3.5 w-3.5" />}
         />
 
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            overflowX: "auto",
-            paddingBottom: 2,
-          }}
-          className="no-scrollbar"
-        >
+        <div className="scrollbar-hide flex gap-2 overflow-x-auto pb-0.5">
           {CATEGORIES.map((cat) => {
             const active = activeCategory === cat;
             return (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                style={{
-                  flexShrink: 0,
-                  padding: "8px 16px",
-                  borderRadius: 99,
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  background: active
-                    ? `linear-gradient(135deg, color-mix(in oklab, ${O.a1} 15%, transparent) 0%, color-mix(in oklab, ${O.a2} 12%, transparent) 55%, color-mix(in oklab, ${O.a3} 15%, transparent) 100%)`
-                    : O.glass,
-                  border: `1px solid ${active ? O.hair2 : O.hair}`,
-                  color: active ? O.ink : O.ink3,
-                  fontFamily: O.sans,
-                  transition: "all 150ms cubic-bezier(0.16,1,0.3,1)",
-                }}
+                className={cn(
+                  "shrink-0 cursor-pointer rounded-full border px-4 py-2 text-[12.5px] font-semibold transition-colors",
+                  active
+                    ? "border-primary/40 bg-primary/15 text-primary"
+                    : "border-border bg-surface text-muted-foreground hover:text-foreground",
+                )}
               >
                 {cat}
               </button>
@@ -120,25 +97,14 @@ export default function MarketplacePage() {
       </div>
 
       {loading ? (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-            gap: 14,
-          }}
-        >
+        <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              style={{
-                borderRadius: 18,
-                overflow: "hidden",
-                background: "rgba(255,255,255,0.03)",
-                border: `1px solid ${O.hair}`,
-              }}
+              className="overflow-hidden rounded-xl border border-border bg-surface"
             >
               <Skeleton className="aspect-square w-full" />
-              <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div className="flex flex-col gap-2 p-3.5">
                 <Skeleton className="h-4 w-20" />
                 <Skeleton className="h-3 w-28" />
               </div>
@@ -148,7 +114,7 @@ export default function MarketplacePage() {
       ) : listings.length === 0 ? (
         <OrbitEmptyState
           icon={ShoppingBagIcon}
-          accent="#7dffa3"
+          accent="var(--primary)"
           headline={searchQuery ? "No" : "Quiet"}
           accentWord={searchQuery ? "matches" : "shelves"}
           sub={
@@ -157,17 +123,11 @@ export default function MarketplacePage() {
               : "Nothing listed yet. Put something up, someone in your orbit is probably looking."
           }
           ctaLabel={!searchQuery ? "List something" : undefined}
-          ctaIcon={<PlusIcon style={{ width: 12, height: 12 }} />}
+          ctaIcon={<PlusIcon className="h-3 w-3" />}
           onCta={!searchQuery ? () => setShowCreate(true) : undefined}
         />
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-            gap: 14,
-          }}
-        >
+        <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
           {listings.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
           ))}

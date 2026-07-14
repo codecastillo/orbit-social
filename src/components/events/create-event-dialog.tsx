@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Calendar } from "lucide-react";
+import { Calendar, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
@@ -12,7 +12,6 @@ import {
   Toggle,
 } from "@/components/orbit/forms";
 import { DateTimePicker } from "@/components/orbit/datetime-picker";
-import { O } from "@/lib/design/orbit";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createEvent } from "@/lib/queries/events";
 import { zonedLocalToUTCISO, COMMON_TIMEZONES, browserTimezone } from "@/lib/utils/timezone";
@@ -102,13 +101,11 @@ export function CreateEventDialog({
       <DialogContent
         showCloseButton={false}
         className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto ring-0"
-        style={{ boxShadow: "none" }}
       >
         <ModalShell
           title="Create an event"
           subtitle="Meetups, launches, listening sessions."
-          icon={<Calendar style={{ width: 17, height: 17 }} strokeWidth={1.8} />}
-          accent={O.a3}
+          icon={<Calendar className="h-[17px] w-[17px]" strokeWidth={1.8} />}
           width={560}
           primaryLabel={loading ? "Creating…" : "Create"}
           secondaryLabel="Cancel"
@@ -126,13 +123,7 @@ export function CreateEventDialog({
               autoFocus
             />
           </Field>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 14,
-            }}
-          >
+          <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
             <Field label="Starts" hint={timezone.replace("_", " ")}>
               <DateTimePicker
                 value={startAt}
@@ -152,20 +143,7 @@ export function CreateEventDialog({
             <select
               value={timezone}
               onChange={(e) => setTimezone(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "11px 14px",
-                borderRadius: 12,
-                background: "rgba(255,255,255,0.04)",
-                border: `1px solid ${O.hair2}`,
-                color: O.ink,
-                fontSize: 13.5,
-                fontFamily: "inherit",
-                outline: "none",
-                cursor: "pointer",
-                appearance: "none",
-                colorScheme: "dark",
-              }}
+              className="w-full cursor-pointer appearance-none rounded-lg border border-border bg-surface px-3.5 py-[11px] text-[13.5px] text-foreground outline-none"
             >
               {tzOptions.map((tz) => (
                 <option key={tz.value} value={tz.value}>
@@ -179,27 +157,16 @@ export function CreateEventDialog({
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="Venue or address"
-              prefix="📍"
+              prefix={<MapPin className="h-3.5 w-3.5" />}
             />
           </Field>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "12px 14px",
-              borderRadius: 12,
-              background: "rgba(255,255,255,0.025)",
-              border: `1px solid ${O.hair2}`,
-              marginBottom: 18,
-            }}
-          >
+          <div className="mb-[18px] flex items-center gap-3 rounded-xl border border-border bg-surface-elevated px-3.5 py-3">
             <Toggle on={isOnline} onChange={setIsOnline} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: O.ink }}>
+            <div className="flex-1">
+              <div className="text-[13px] font-medium text-foreground">
                 Online event
               </div>
-              <div style={{ fontSize: 11, color: O.ink3, marginTop: 2 }}>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">
                 we&apos;ll generate a video link
               </div>
             </div>
