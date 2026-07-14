@@ -9,16 +9,14 @@ import {
   EyeOff,
   ExternalLink,
   Check,
-  X as XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { O, panel, aurora } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow } from "@/components/orbit/primitives";
+import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/orbit/forms";
 import { SettingsHeader } from "@/components/settings/settings-header";
 import * as Icons from "lucide-react";
-import { Sparkles, ChevronDown, Pencil } from "lucide-react";
+import { Sparkles, ChevronDown } from "lucide-react";
 import {
   LIVE_CATEGORIES,
   LIVE_SLOW_MODE_OPTIONS,
@@ -88,30 +86,13 @@ export default function StreamingSettingsPage() {
   }, []);
 
   return (
-    <div
-      style={{
-        color: O.ink,
-        fontFamily: O.sans,
-        display: "flex",
-        flexDirection: "column",
-        gap: 22,
-      }}
-    >
+    <div className="flex flex-col gap-[22px] text-foreground">
       <div>
         <SettingsHeader section="Streaming" />
-        <div style={{ marginTop: -2 }} />
-        <Display size={44} style={{ marginTop: 8 }}>
-          Your <Acc>broadcast</Acc> credentials.
-        </Display>
-        <p
-          style={{
-            fontSize: 14.5,
-            color: O.ink3,
-            marginTop: 10,
-            lineHeight: 1.55,
-            maxWidth: 560,
-          }}
-        >
+        <h1 className="mt-2 text-[44px] font-bold leading-none tracking-[-0.035em] text-foreground">
+          Your <span className="text-primary">broadcast</span> credentials.
+        </h1>
+        <p className="mt-2.5 max-w-[560px] text-[14.5px] leading-[1.55] text-muted-foreground">
           Plug these into OBS, Streamlabs, or your IRL backpack once. Whenever
           you go live, your stream automatically appears in the Live feed.
           You don&apos;t need to do anything on this site. Just hit
@@ -120,7 +101,7 @@ export default function StreamingSettingsPage() {
       </div>
 
       {loading && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="flex flex-col gap-3">
           <Skeleton className="h-20 w-full rounded-2xl" />
           <Skeleton className="h-20 w-full rounded-2xl" />
           <Skeleton className="h-20 w-full rounded-2xl" />
@@ -128,14 +109,7 @@ export default function StreamingSettingsPage() {
       )}
 
       {error && (
-        <div
-          style={{
-            ...panel(),
-            padding: 18,
-            color: "#ff8a8a",
-            fontSize: 13,
-          }}
-        >
+        <div className="rounded-xl border border-border bg-surface p-[18px] text-[13px] text-destructive">
           Failed to load credentials: {error}
         </div>
       )}
@@ -143,49 +117,16 @@ export default function StreamingSettingsPage() {
       {creds && (
         <>
           {creds.status === "live" && (
-            <div
-              style={{
-                ...panel(),
-                padding: 14,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                borderColor: "rgba(255,90,106,0.4)",
-                background: "rgba(255,90,106,0.08)",
-              }}
-            >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: "#ff5a6a",
-                  boxShadow: "0 0 12px #ff5a6a",
-                }}
-              />
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#ff5a6a",
-                  letterSpacing: "0.04em",
-                }}
-              >
+            <div className="flex items-center gap-2.5 rounded-xl border border-destructive/40 bg-destructive/10 p-3.5">
+              <span className="h-2 w-2 rounded-full bg-destructive" />
+              <span className="text-[13px] font-bold tracking-[0.04em] text-destructive">
                 You are live right now.
               </span>
               <Link
                 href={`/live/${creds.streamId}`}
-                style={{
-                  marginLeft: "auto",
-                  fontSize: 12,
-                  color: O.ink2,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  textDecoration: "none",
-                }}
+                className="ml-auto inline-flex items-center gap-1 text-xs text-text-secondary no-underline"
               >
-                Open viewer <ExternalLink style={{ width: 12, height: 12 }} />
+                Open viewer <ExternalLink className="h-3 w-3" />
               </Link>
             </div>
           )}
@@ -200,7 +141,7 @@ export default function StreamingSettingsPage() {
             onSaved={(patch) => setCreds((prev) => (prev ? { ...prev, ...patch } : prev))}
           />
 
-          <div style={{ ...panel(), padding: 22, display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-[22px]">
             <CredField label="OBS · Server URL (RTMPS)" value={creds.rtmpsUrl} />
             <CredField label="OBS · Stream Key" value={creds.streamKey} secret />
             <CredField label="Belabox / SRT (single URL, key embedded)" value={creds.srtUrl} secret />
@@ -307,18 +248,12 @@ function StreamDetailsPanel({
   };
 
   return (
-    <div style={{ ...panel(), padding: 22, display: "flex", flexDirection: "column", gap: 18 }}>
+    <div className="flex flex-col gap-[18px] rounded-xl border border-border bg-surface p-[22px]">
       <div>
-        <Eyebrow>◆&nbsp;&nbsp;STREAM DETAILS</Eyebrow>
-        <div
-          style={{
-            fontSize: 16,
-            fontWeight: 600,
-            color: O.ink,
-            marginTop: 6,
-            letterSpacing: "-0.01em",
-          }}
-        >
+        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          ◆&nbsp;&nbsp;STREAM DETAILS
+        </p>
+        <div className="mt-1.5 text-base font-semibold tracking-[-0.01em] text-foreground">
           What viewers see when you go live
         </div>
       </div>
@@ -367,75 +302,27 @@ function StreamDetailsPanel({
         }}
       />
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "12px 14px",
-          borderRadius: 12,
-          background: "rgba(255,255,255,0.025)",
-          border: `1px solid ${O.hair2}`,
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: O.ink }}>
+      <div className="flex items-center justify-between rounded-xl border border-border bg-surface-elevated px-3.5 py-3">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[13px] font-semibold text-foreground">
             Mature content
           </span>
-          <span style={{ fontSize: 11.5, color: O.ink3, lineHeight: 1.4 }}>
+          <span className="text-[11.5px] leading-[1.4] text-muted-foreground">
             Stream may contain mature themes (language, violence, suggestive content).
           </span>
         </div>
         <Toggle on={mature} onChange={setMature} />
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          gap: 10,
-          marginTop: 4,
-        }}
-      >
+      <div className="mt-1 flex items-center justify-end gap-2.5">
         {savedFlash && (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              fontSize: 12,
-              color: "#5fd4ff",
-              fontFamily: O.mono,
-              letterSpacing: "0.04em",
-            }}
-          >
-            <Check style={{ width: 12, height: 12 }} /> Saved
+          <span className="inline-flex items-center gap-1 font-mono text-xs tracking-[0.04em] text-success">
+            <Check className="h-3 w-3" /> Saved
           </span>
         )}
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={!dirty || saving}
-          style={{
-            padding: "10px 20px",
-            borderRadius: 99,
-            border: "none",
-            background: dirty && !saving ? aurora : "rgba(255,255,255,0.06)",
-            color: dirty && !saving ? "white" : O.ink3,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: dirty && !saving ? "pointer" : "not-allowed",
-            boxShadow:
-              dirty && !saving
-                ? `0 8px 24px -6px color-mix(in oklab, ${O.a1} 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.25)`
-                : "none",
-            fontFamily: "inherit",
-            letterSpacing: "-0.005em",
-          }}
-        >
+        <Button onClick={onSave} disabled={!dirty || saving}>
           {saving ? "Saving…" : "Save details"}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -518,58 +405,28 @@ function ChatControlsPanel({
   };
 
   return (
-    <div style={{ ...panel(), padding: 22, display: "flex", flexDirection: "column", gap: 18 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-        }}
-      >
+    <div className="flex flex-col gap-[18px] rounded-xl border border-border bg-surface p-[22px]">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <Eyebrow>◆&nbsp;&nbsp;CHAT CONTROLS</Eyebrow>
-          <div
-            style={{
-              fontSize: 16,
-              fontWeight: 600,
-              color: O.ink,
-              marginTop: 6,
-              letterSpacing: "-0.01em",
-            }}
-          >
+          <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            ◆&nbsp;&nbsp;CHAT CONTROLS
+          </p>
+          <div className="mt-1.5 text-base font-semibold tracking-[-0.01em] text-foreground">
             Keep your chat civil
           </div>
         </div>
         {savedFlash && (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              fontSize: 12,
-              color: "#5fd4ff",
-              fontFamily: O.mono,
-              letterSpacing: "0.04em",
-            }}
-          >
-            <Check style={{ width: 12, height: 12 }} /> Saved
+          <span className="inline-flex items-center gap-1 font-mono text-xs tracking-[0.04em] text-success">
+            <Check className="h-3 w-3" /> Saved
           </span>
         )}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: O.ink,
-            letterSpacing: "-0.005em",
-          }}
-        >
+      <div className="flex flex-col gap-2">
+        <div className="text-xs font-semibold tracking-[-0.005em] text-foreground">
           Slow mode
         </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div className="flex flex-wrap gap-1.5">
           {LIVE_SLOW_MODE_OPTIONS.map((opt) => {
             const active = slowMode === opt;
             return (
@@ -577,54 +434,30 @@ function ChatControlsPanel({
                 key={opt}
                 type="button"
                 onClick={() => onSlowModeChange(opt)}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: 99,
-                  background: active ? `color-mix(in oklab, ${O.a3} 12%, transparent)` : "rgba(255,255,255,0.04)",
-                  border: `1px solid ${active ? `color-mix(in oklab, ${O.a3} 40%, transparent)` : O.hair2}`,
-                  color: active ? "#5fd4ff" : O.ink2,
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  boxShadow: active ? `0 0 0 3px color-mix(in oklab, ${O.a3} 8%, transparent)` : "none",
-                  transition: "all 0.15s",
-                }}
+                className={`cursor-pointer rounded-full border px-3.5 py-2 text-[12.5px] font-semibold transition-colors ${
+                  active
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border bg-surface-elevated text-text-secondary"
+                }`}
               >
                 {opt === 0 ? "Off" : `${opt}s`}
               </button>
             );
           })}
         </div>
-        <div
-          style={{
-            fontSize: 11.5,
-            color: O.ink3,
-            lineHeight: 1.4,
-          }}
-        >
+        <div className="text-[11.5px] leading-[1.4] text-muted-foreground">
           {slowMode === 0
             ? "Anyone can chat as fast as they want."
             : `Viewers must wait ${slowMode}s between messages.`}
         </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "12px 14px",
-          borderRadius: 12,
-          background: "rgba(255,255,255,0.025)",
-          border: `1px solid ${O.hair2}`,
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: O.ink }}>
+      <div className="flex items-center justify-between rounded-xl border border-border bg-surface-elevated px-3.5 py-3">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[13px] font-semibold text-foreground">
             Followers-only chat
           </span>
-          <span style={{ fontSize: 11.5, color: O.ink3, lineHeight: 1.4 }}>
+          <span className="text-[11.5px] leading-[1.4] text-muted-foreground">
             Only people who follow you can send messages.
           </span>
         </div>
@@ -644,33 +477,13 @@ function FieldLabel({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "baseline",
-          justifyContent: "space-between",
-        }}
-      >
-        <label
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: O.ink,
-            letterSpacing: "-0.005em",
-          }}
-        >
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between">
+        <label className="text-xs font-semibold tracking-[-0.005em] text-foreground">
           {label}
         </label>
         {hint && (
-          <span
-            style={{
-              fontSize: 11,
-              color: O.ink3,
-              fontFamily: O.mono,
-              letterSpacing: "0.02em",
-            }}
-          >
+          <span className="font-mono text-[11px] tracking-[0.02em] text-muted-foreground">
             {hint}
           </span>
         )}
@@ -684,18 +497,7 @@ function BareInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      style={{
-        padding: "11px 14px",
-        borderRadius: 12,
-        background: "rgba(255,255,255,0.03)",
-        border: `1px solid ${O.hair2}`,
-        color: O.ink,
-        fontSize: 14,
-        outline: "none",
-        fontFamily: "inherit",
-        width: "100%",
-        ...(props.style ?? {}),
-      }}
+      className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-[11px] text-sm text-foreground outline-none"
     />
   );
 }
@@ -721,20 +523,18 @@ function CategoryPickerButton({
           alt={game.label}
           width={26}
           height={34}
-          style={{
-            borderRadius: 4,
-            objectFit: "cover",
-            background: `oklch(0.4 0.18 ${game.accentHue})`,
-          }}
+          className="rounded object-cover"
+          // Per-game accent hue comes from data, so it stays inline.
+          style={{ background: `oklch(0.4 0.18 ${game.accentHue})` }}
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).style.display = "none";
           }}
         />
-        <div style={{ minWidth: 0, textAlign: "left" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: O.ink, lineHeight: 1.2 }}>
+        <div className="min-w-0 text-left">
+          <div className="text-[13px] font-bold leading-[1.2] text-foreground">
             {game.label}
           </div>
-          <div style={{ fontSize: 11, color: O.ink3, marginTop: 1 }}>in Gaming</div>
+          <div className="mt-px text-[11px] text-muted-foreground">in Gaming</div>
         </div>
       </>
     );
@@ -743,27 +543,23 @@ function CategoryPickerButton({
     inner = (
       <>
         <span
+          className="inline-flex h-[26px] w-[26px] items-center justify-center rounded-lg"
+          // Per-category hue comes from data, so it stays inline.
           style={{
-            width: 26,
-            height: 26,
-            borderRadius: 8,
             background: `oklch(0.55 0.18 ${cat.hue} / 0.18)`,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
             color: `oklch(0.85 0.16 ${cat.hue})`,
           }}
         >
           <Icon size={14} />
         </span>
-        <span style={{ fontSize: 13, fontWeight: 700, color: O.ink }}>{cat.label}</span>
+        <span className="text-[13px] font-bold text-foreground">{cat.label}</span>
       </>
     );
   } else {
     inner = (
       <>
-        <Sparkles size={14} style={{ color: O.ink3 }} />
-        <span style={{ fontSize: 13, color: O.ink3 }}>Pick a category</span>
+        <Sparkles size={14} className="text-muted-foreground" />
+        <span className="text-[13px] text-muted-foreground">Pick a category</span>
       </>
     );
   }
@@ -772,23 +568,10 @@ function CategoryPickerButton({
     <button
       type="button"
       onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "8px 12px 8px 10px",
-        borderRadius: 12,
-        background: "rgba(255,255,255,0.03)",
-        border: `1px solid ${O.hair2}`,
-        cursor: "pointer",
-        width: "100%",
-        textAlign: "left",
-        transition: "border-color 120ms ease, background 120ms ease",
-      }}
-      className="hover:border-cyan-400/40 hover:bg-white/[0.05]"
+      className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-surface-elevated py-2 pl-2.5 pr-3 text-left transition-colors hover:border-primary/40 hover:bg-surface"
     >
       {inner}
-      <ChevronDown size={14} style={{ color: O.ink3, marginLeft: "auto" }} />
+      <ChevronDown size={14} className="ml-auto text-muted-foreground" />
     </button>
   );
 }
@@ -806,73 +589,30 @@ function CredField({ label, value, secret = false }: { label: string; value: str
   const display = revealed ? value : "•".repeat(Math.min(value.length, 40));
   return (
     <div>
-      <div
-        style={{
-          fontSize: 11,
-          color: O.ink3,
-          fontFamily: O.mono,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          marginBottom: 6,
-        }}
-      >
+      <div className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
         {label}
       </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "10px 12px",
-          borderRadius: 10,
-          background: "rgba(255,255,255,0.04)",
-          border: `1px solid ${O.hair2}`,
-          fontFamily: O.mono,
-          fontSize: 12.5,
-        }}
-      >
-        <code
-          style={{
-            flex: 1,
-            color: O.ink,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-elevated px-3 py-2.5 font-mono text-[12.5px]">
+        <code className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-foreground">
           {display}
         </code>
         {secret && (
           <button
             type="button"
             onClick={() => setRevealed((v) => !v)}
-            style={{
-              color: O.ink3,
-              padding: 4,
-              borderRadius: 6,
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-            }}
+            className="cursor-pointer rounded-md border-none bg-transparent p-1 text-muted-foreground"
             aria-label={revealed ? "Hide" : "Reveal"}
           >
-            {revealed ? <EyeOff style={{ width: 14, height: 14 }} /> : <Eye style={{ width: 14, height: 14 }} />}
+            {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
           </button>
         )}
         <button
           type="button"
           onClick={handleCopy}
-          style={{
-            color: O.ink2,
-            padding: 4,
-            borderRadius: 6,
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-          }}
+          className="cursor-pointer rounded-md border-none bg-transparent p-1 text-text-secondary"
           aria-label="Copy"
         >
-          <Copy style={{ width: 14, height: 14 }} />
+          <Copy className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
@@ -881,15 +621,17 @@ function CredField({ label, value, secret = false }: { label: string; value: str
 
 function SetupGuide() {
   return (
-    <div style={{ ...panel(), padding: 22 }}>
-      <Eyebrow>◆&nbsp;&nbsp;SETUP GUIDE</Eyebrow>
+    <div className="rounded-xl border border-border bg-surface p-[22px]">
+      <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        ◆&nbsp;&nbsp;SETUP GUIDE
+      </p>
 
       <Section title="OBS Studio (desktop)">
         <Step n={1}>
           Open OBS &rarr; <strong>Settings</strong> &rarr; <strong>Stream</strong>.
         </Step>
         <Step n={2}>
-          Service: <code style={code}>Custom...</code>
+          Service: <code className={CODE_CLASS}>Custom...</code>
         </Step>
         <Step n={3}>Server: paste the RTMPS URL above.</Step>
         <Step n={4}>Stream Key: paste your Stream Key above.</Step>
@@ -916,15 +658,7 @@ function SetupGuide() {
         <Step n={4}>Tap the broadcast button. Live within ~5s.</Step>
       </Section>
 
-      <p
-        style={{
-          fontSize: 12,
-          color: O.ink3,
-          marginTop: 12,
-          fontStyle: "italic",
-          lineHeight: 1.5,
-        }}
-      >
+      <p className="mt-3 text-xs italic leading-normal text-muted-foreground">
         Your stream key never expires. Don&apos;t share it. Anyone with it
         can broadcast as you. If it leaks, contact support to rotate.
       </p>
@@ -932,33 +666,17 @@ function SetupGuide() {
   );
 }
 
-const code: React.CSSProperties = {
-  fontFamily: O.mono,
-  fontSize: 11,
-  padding: "1px 6px",
-  borderRadius: 4,
-  background: "rgba(255,255,255,0.06)",
-  border: `1px solid ${O.hair2}`,
-};
+const CODE_CLASS =
+  "rounded border border-border bg-surface-elevated px-1.5 py-px font-mono text-[11px]";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginTop: 16 }}>
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 700,
-          color: O.ink,
-          marginBottom: 8,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <Radio style={{ width: 14, height: 14, color: "#ff5a6a" }} />
+    <div className="mt-4">
+      <div className="mb-2 flex items-center gap-2 text-[13px] font-bold text-foreground">
+        <Radio className="h-3.5 w-3.5 text-destructive" />
         {title}
       </div>
-      <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+      <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
         {children}
       </ol>
     </div>
@@ -967,35 +685,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return (
-    <li
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 10,
-        fontSize: 13,
-        color: O.ink2,
-        lineHeight: 1.5,
-      }}
-    >
-      <span
-        style={{
-          flexShrink: 0,
-          width: 20,
-          height: 20,
-          borderRadius: 6,
-          background: "rgba(255,255,255,0.06)",
-          border: `1px solid ${O.hair2}`,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 11,
-          fontFamily: O.mono,
-          color: O.ink3,
-        }}
-      >
+    <li className="flex items-start gap-2.5 text-[13px] leading-normal text-text-secondary">
+      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-border bg-surface-elevated font-mono text-[11px] text-muted-foreground">
         {n}
       </span>
-      <span style={{ paddingTop: 1 }}>{children}</span>
+      <span className="pt-px">{children}</span>
     </li>
   );
 }

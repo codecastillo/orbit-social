@@ -11,8 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, PillBtn } from "@/components/orbit/primitives";
+import { Button } from "@/components/ui/button";
 import { Field, Input, FormSection, ModalShell } from "@/components/orbit/forms";
 import { SettingsHeader } from "@/components/settings/settings-header";
 
@@ -97,7 +96,7 @@ export default function AccountSettingsPage() {
 
   if (authLoading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div className="flex flex-col gap-[18px]">
         <Skeleton className="h-16 w-1/2 rounded-xl" />
         <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
@@ -105,14 +104,14 @@ export default function AccountSettingsPage() {
   }
 
   return (
-    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
+    <div className="flex flex-col gap-[18px] text-foreground">
       <SettingsHeader section="Account" />
 
       <div>
-        <Display size={48} style={{ marginTop: 4 }}>
-          Your <Acc>account</Acc>.
-        </Display>
-        <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>
+        <h1 className="mt-1 text-[48px] font-bold leading-none tracking-[-0.035em]">
+          Your <span className="text-primary">account</span>.
+        </h1>
+        <p className="mt-2.5 max-w-[560px] text-[14.5px] leading-[1.55] text-muted-foreground">
           Email, password, and how to leave.
         </p>
       </div>
@@ -121,7 +120,7 @@ export default function AccountSettingsPage() {
         <Field label="Signed in as">
           <Input type="email" value={user?.email || ""} readOnly />
         </Field>
-        <p style={{ fontSize: 12, color: O.ink4, fontFamily: O.mono, letterSpacing: "0.04em", marginTop: -6 }}>
+        <p className="-mt-1.5 font-mono text-xs tracking-[0.04em] text-text-faint">
           Email changes will be available soon.
         </p>
       </FormSection>
@@ -137,50 +136,29 @@ export default function AccountSettingsPage() {
           <Field label="Confirm new password" error={errors.confirmPassword?.message}>
             <Input type="password" placeholder="Repeat new password" {...register("confirmPassword")} />
           </Field>
-          <PillBtn primary size="lg" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : "Update password"}
-          </PillBtn>
+          <Button size="lg" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Update password"}
+          </Button>
         </form>
       </FormSection>
 
-      <div style={{ marginTop: 28 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "#ff9aa3", letterSpacing: "-0.01em" }}>
+      <div className="mt-7">
+        <h3 className="m-0 text-base font-semibold tracking-[-0.01em] text-destructive">
           Danger zone
         </h3>
-        <div
-          style={{
-            ...panel({ borderRadius: 18 }),
-            padding: 20,
-            marginTop: 16,
-            border: "1px solid rgba(255,122,133,0.25)",
-            background: "rgba(255,122,133,0.04)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-            <AlertTriangle style={{ width: 18, height: 18, color: "#ff7a85", flexShrink: 0, marginTop: 2 }} />
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: O.ink, margin: 0 }}>
+        <div className="mt-4 rounded-xl border border-destructive/25 bg-destructive/5 p-5">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-[18px] w-[18px] shrink-0 text-destructive" />
+            <div className="flex-1">
+              <p className="m-0 text-sm font-semibold text-foreground">
                 Delete account
               </p>
-              <p style={{ fontSize: 13, color: O.ink3, margin: "6px 0 14px", lineHeight: 1.5 }}>
+              <p className="mb-3.5 mt-1.5 text-[13px] leading-normal text-muted-foreground">
                 Permanent. Your orbit, posts, messages, and reactions all go with you.
               </p>
-              <button
-                onClick={() => setDeleteDialogOpen(true)}
-                style={{
-                  padding: "10px 18px",
-                  borderRadius: 99,
-                  background: "rgba(255,122,133,0.1)",
-                  border: "1px solid rgba(255,122,133,0.4)",
-                  color: "#ff9aa3",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  fontFamily: O.sans,
-                }}
-              >
+              <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
                 Delete account
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -206,11 +184,11 @@ export default function AccountSettingsPage() {
             loading={deleting}
             onClose={() => setDeleteDialogOpen(false)}
           >
-            <p style={{ fontSize: 13.5, color: O.ink3, lineHeight: 1.55, marginTop: 0 }}>
+            <p className="mt-0 text-[13.5px] leading-[1.55] text-muted-foreground">
               Every post, repost, and reaction will be wiped. This cannot be undone.
             </p>
-            <div style={{ marginTop: 16 }}>
-              <Field label={<>Type <span style={{ fontFamily: O.mono, color: O.ink }}>DELETE</span> to confirm</>}>
+            <div className="mt-4">
+              <Field label={<>Type <span className="font-mono text-foreground">DELETE</span> to confirm</>}>
                 <Input
                   value={deleteConfirmation}
                   onChange={(e) => setDeleteConfirmation(e.target.value)}

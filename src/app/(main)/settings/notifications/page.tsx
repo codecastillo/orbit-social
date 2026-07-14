@@ -13,8 +13,7 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
-import { O } from "@/lib/design/orbit";
-import { Display, Acc, PillBtn } from "@/components/orbit/primitives";
+import { Button } from "@/components/ui/button";
 import { FormSection, Toggle } from "@/components/orbit/forms";
 import { SettingsHeader } from "@/components/settings/settings-header";
 
@@ -24,16 +23,16 @@ interface NotificationPref {
   key: PrefKey;
   label: string;
   description: string;
-  icon: React.ComponentType<{ style?: React.CSSProperties }>;
-  hue: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tileClass: string;
 }
 
 const PREF_DEFS: NotificationPref[] = [
-  { key: "likes", label: "Likes", description: "When someone likes your post.", icon: Heart, hue: O.a2 },
-  { key: "comments", label: "Comments", description: "When someone comments on your post.", icon: MessageCircle, hue: O.a3 },
-  { key: "follows", label: "New followers", description: "When someone follows you.", icon: UserPlus, hue: O.a1 },
-  { key: "mentions", label: "Mentions", description: "When someone mentions you in a post.", icon: AtSign, hue: "#ffd76a" },
-  { key: "messages", label: "Direct messages", description: "When you receive a new DM.", icon: Mail, hue: "#7dffa3" },
+  { key: "likes", label: "Likes", description: "When someone likes your post.", icon: Heart, tileClass: "border-primary/20 bg-primary/10 text-primary" },
+  { key: "comments", label: "Comments", description: "When someone comments on your post.", icon: MessageCircle, tileClass: "border-primary/20 bg-primary/10 text-primary" },
+  { key: "follows", label: "New followers", description: "When someone follows you.", icon: UserPlus, tileClass: "border-primary/20 bg-primary/10 text-primary" },
+  { key: "mentions", label: "Mentions", description: "When someone mentions you in a post.", icon: AtSign, tileClass: "border-warning/20 bg-warning/10 text-warning" },
+  { key: "messages", label: "Direct messages", description: "When you receive a new DM.", icon: Mail, tileClass: "border-success/20 bg-success/10 text-success" },
 ];
 
 const DEFAULTS: Record<PrefKey, boolean> = {
@@ -94,7 +93,7 @@ export default function NotificationSettingsPage() {
 
   if (authLoading || loading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div className="flex flex-col gap-[18px]">
         <Skeleton className="h-16 w-1/2 rounded-xl" />
         <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
@@ -102,14 +101,14 @@ export default function NotificationSettingsPage() {
   }
 
   return (
-    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
+    <div className="flex flex-col gap-[18px] text-foreground">
       <SettingsHeader section="Notifications" glyph="◈" />
 
       <div>
-        <Display size={48} style={{ marginTop: 4 }}>
-          What breaks <Acc>through</Acc>.
-        </Display>
-        <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>
+        <h1 className="mt-1 text-5xl font-bold leading-none tracking-[-0.035em] text-foreground">
+          What breaks <span className="text-primary">through</span>.
+        </h1>
+        <p className="mt-2.5 max-w-[560px] text-[14.5px] leading-[1.55] text-muted-foreground">
           Pick the signals you actually want. Everything else stays quiet.
         </p>
       </div>
@@ -122,32 +121,16 @@ export default function NotificationSettingsPage() {
             return (
               <div
                 key={pref.key}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
-                  padding: "14px 0",
-                  borderTop: i ? `1px solid ${O.hair}` : "none",
-                }}
+                className={`flex items-center gap-3.5 py-3.5 ${i ? "border-t border-border" : ""}`}
               >
                 <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: `color-mix(in oklab, ${pref.hue} 10%, transparent)`,
-                    border: `1px solid color-mix(in oklab, ${pref.hue} 20%, transparent)`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${pref.tileClass}`}
                 >
-                  <Icon style={{ width: 16, height: 16, color: pref.hue }} />
+                  <Icon className="h-4 w-4" />
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: O.ink }}>{pref.label}</div>
-                  <div style={{ fontSize: 12.5, color: O.ink3, marginTop: 2 }}>{pref.description}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold text-foreground">{pref.label}</div>
+                  <div className="mt-0.5 text-[12.5px] text-muted-foreground">{pref.description}</div>
                 </div>
                 <Toggle on={enabled} onChange={() => togglePref(pref.key)} />
               </div>
@@ -156,10 +139,10 @@ export default function NotificationSettingsPage() {
         </div>
       </FormSection>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-        <PillBtn primary size="lg" onClick={handleSave} disabled={saving}>
-          {saving ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : "Save changes"}
-        </PillBtn>
+      <div className="mt-2 flex justify-end">
+        <Button size="lg" onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save changes"}
+        </Button>
       </div>
     </div>
   );

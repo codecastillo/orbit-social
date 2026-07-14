@@ -6,8 +6,7 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
-import { O } from "@/lib/design/orbit";
-import { Display, Acc, PillBtn } from "@/components/orbit/primitives";
+import { Button } from "@/components/ui/button";
 import { FormSection, Toggle } from "@/components/orbit/forms";
 import { SettingsHeader } from "@/components/settings/settings-header";
 
@@ -60,7 +59,7 @@ export default function PrivacySettingsPage() {
 
   if (authLoading || profileLoading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div className="flex flex-col gap-[18px]">
         <Skeleton className="h-16 w-1/2 rounded-xl" />
         <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
@@ -78,18 +77,10 @@ export default function PrivacySettingsPage() {
     on: boolean;
     onChange: (v: boolean) => void;
   }) => (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 18,
-        padding: "14px 0",
-        borderTop: `1px solid ${O.hair}`,
-      }}
-    >
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: O.ink }}>{label}</div>
-        <div style={{ fontSize: 12.5, color: O.ink3, marginTop: 4, lineHeight: 1.45 }}>
+    <div className="flex items-center gap-[18px] border-t border-border py-3.5">
+      <div className="flex-1">
+        <div className="text-sm font-semibold text-foreground">{label}</div>
+        <div className="mt-1 text-[12.5px] leading-[1.45] text-muted-foreground">
           {hint}
         </div>
       </div>
@@ -98,31 +89,24 @@ export default function PrivacySettingsPage() {
   );
 
   return (
-    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
+    <div className="flex flex-col gap-[18px] text-foreground">
       <SettingsHeader section="Privacy" glyph="◆" />
 
       <div>
-        <Display size={48} style={{ marginTop: 4 }}>
-          Kept <Acc>quiet</Acc>.
-        </Display>
-        <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>
+        <h1 className="mt-1 text-[48px] font-bold leading-none tracking-[-0.035em]">
+          Kept <span className="text-primary">quiet</span>.
+        </h1>
+        <p className="mt-2.5 max-w-[560px] text-[14.5px] leading-[1.55] text-muted-foreground">
           Who can see what, and when. Your radius, your rules.
         </p>
       </div>
 
       <FormSection title="Visibility">
-        <div style={{ paddingTop: 4 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 18,
-              paddingBottom: 14,
-            }}
-          >
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: O.ink }}>Private account</div>
-              <div style={{ fontSize: 12.5, color: O.ink3, marginTop: 4, lineHeight: 1.45 }}>
+        <div className="pt-1">
+          <div className="flex items-center gap-[18px] pb-3.5">
+            <div className="flex-1">
+              <div className="text-sm font-semibold text-foreground">Private account</div>
+              <div className="mt-1 text-[12.5px] leading-[1.45] text-muted-foreground">
                 Only approved followers can see your posts. Your profile card stays visible.
               </div>
             </div>
@@ -149,17 +133,10 @@ export default function PrivacySettingsPage() {
         </div>
       </FormSection>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 10,
-          marginTop: 8,
-        }}
-      >
-        <PillBtn primary size="lg" onClick={handleSave} disabled={saving}>
-          {saving ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : "Save changes"}
-        </PillBtn>
+      <div className="mt-2 flex justify-end gap-2.5">
+        <Button size="lg" onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save changes"}
+        </Button>
       </div>
     </div>
   );

@@ -10,8 +10,8 @@ import { OrbitErrorState } from "@/components/orbit/error-state";
 import { useNotifications, useUnreadCount } from "@/lib/hooks/use-notifications";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { markAllAsRead } from "@/lib/queries/notifications";
-import { O, aurora, auroraSoft, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const FILTERS = [
   { value: "all", label: "All" },
@@ -48,72 +48,39 @@ export default function NotificationsPage() {
   const filtered = (notifications ?? []).filter((n) => isMatchingFilter(n, filter));
 
   return (
-    <div
-      style={{
-        color: O.ink,
-        fontFamily: O.sans,
-        display: "flex",
-        flexDirection: "column",
-        gap: 18,
-      }}
-    >
+    <div className="flex flex-col gap-[18px] text-foreground">
       {/* Editorial hero */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          gap: 18,
-          flexWrap: "wrap",
-        }}
-      >
+      <div className="flex flex-wrap items-end justify-between gap-[18px]">
         <div>
-          <Eyebrow>
+          <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
             ◇&nbsp;&nbsp;ACTIVITY{unreadCount ? ` · ${unreadCount} NEW` : ""}
-          </Eyebrow>
-          <Display size={48} style={{ marginTop: 8 }}>
-            Signals from your <Acc>orbit</Acc>.
-          </Display>
+          </p>
+          <h1 className="mt-2 text-[48px] font-bold leading-none tracking-[-0.035em] text-foreground">
+            Signals from your <span className="text-primary">orbit</span>.
+          </h1>
         </div>
         {!!unreadCount && unreadCount > 0 && (
-          <PillBtn size="lg" onClick={handleMarkAllRead}>
-            <CheckCheck style={{ width: 14, height: 14 }} strokeWidth={1.8} />
+          <Button variant="outline" size="lg" onClick={handleMarkAllRead}>
+            <CheckCheck strokeWidth={1.8} />
             Mark all read
-          </PillBtn>
+          </Button>
         )}
       </div>
 
       {/* Filter tabs */}
-      <div
-        style={{
-          ...panel({ borderRadius: 16 }),
-          padding: 5,
-          display: "flex",
-          gap: 4,
-        }}
-      >
+      <div className="flex gap-1 rounded-xl border border-border bg-surface p-[5px]">
         {FILTERS.map((f) => {
           const isActive = filter === f.value;
           return (
             <button
               key={f.value}
               onClick={() => setFilter(f.value)}
-              style={{
-                flex: 1,
-                textAlign: "center",
-                padding: "10px 0",
-                borderRadius: 12,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                background: isActive ? auroraSoft : "transparent",
-                border: isActive
-                  ? `1px solid ${O.hair2}`
-                  : "1px solid transparent",
-                color: isActive ? O.ink : O.ink3,
-                fontFamily: "inherit",
-                transition: "all 0.15s",
-              }}
+              className={cn(
+                "flex-1 cursor-pointer rounded-lg py-2.5 text-center text-[13px] font-semibold transition-all duration-150",
+                isActive
+                  ? "border border-border bg-primary/10 text-foreground"
+                  : "border border-transparent text-muted-foreground"
+              )}
             >
               {f.label}
             </button>
@@ -130,21 +97,14 @@ export default function NotificationsPage() {
           onRetry={() => refetch()}
         />
       ) : isLoading ? (
-        <div
-          style={{ display: "flex", flexDirection: "column", gap: 8 }}
-        >
+        <div className="flex flex-col gap-2">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              style={{
-                ...panel({ borderRadius: 18 }),
-                padding: 14,
-                display: "flex",
-                gap: 14,
-              }}
+              className="flex gap-3.5 rounded-xl border border-border bg-surface p-3.5"
             >
               <Skeleton className="h-10 w-10 rounded-full shrink-0" />
-              <div style={{ flex: 1 }} className="space-y-2">
+              <div className="flex-1 space-y-2">
                 <Skeleton className="h-3.5 w-3/4" />
                 <Skeleton className="h-3 w-16" />
               </div>
@@ -154,7 +114,7 @@ export default function NotificationsPage() {
       ) : filtered.length === 0 ? (
         <OrbitEmptyState
           icon={Bell}
-          accent="#ffd76a"
+          accent="var(--warning)"
           headline="All"
           accentWord="caught up"
           sub="No new signals in your orbit. Come back later, or go post something and give someone else a reason to show up here."
@@ -178,7 +138,7 @@ function NotificationsList({ notifications }: { notifications: any[] }) {
   });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+    <div className="flex flex-col gap-[18px]">
       {fresh.length > 0 && (
         <Section label={`NEW · ${fresh.length}`} accent>
           <NotificationsSection items={fresh} />
@@ -204,15 +164,15 @@ function Section({
 }) {
   return (
     <div>
-      <Eyebrow accent={accent}>◇&nbsp;&nbsp;{label}</Eyebrow>
-      <div
-        style={{
-          ...panel(),
-          padding: 0,
-          marginTop: 12,
-          overflow: "hidden",
-        }}
+      <p
+        className={cn(
+          "font-mono text-[10.5px] font-medium uppercase tracking-[0.18em]",
+          accent ? "text-primary" : "text-muted-foreground"
+        )}
       >
+        ◇&nbsp;&nbsp;{label}
+      </p>
+      <div className="mt-3 overflow-hidden rounded-xl border border-border bg-surface">
         {children}
       </div>
     </div>
@@ -227,24 +187,14 @@ function NotificationsSection({ items }: { items: any[] }) {
         return (
           <div
             key={notification.id}
-            style={{
-              position: "relative",
-              borderTop: i ? `1px solid ${O.hair}` : "none",
-              background: isUnread ? `color-mix(in oklab, ${O.a2} 4%, transparent)` : "transparent",
-            }}
+            className={cn(
+              "relative",
+              i > 0 && "border-t border-border",
+              isUnread && "bg-primary/[0.04]"
+            )}
           >
             {isUnread && (
-              <div
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: 3,
-                  background: aurora,
-                  boxShadow: `0 0 12px color-mix(in oklab, ${O.a2} 50%, transparent)`,
-                }}
-              />
+              <div className="absolute inset-y-0 left-0 w-[3px] bg-primary" />
             )}
             <NotificationItem notification={notification} />
           </div>

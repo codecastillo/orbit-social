@@ -2,8 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { Eyebrow } from "@/components/orbit/primitives";
-import { O } from "@/lib/design/orbit";
 
 // Shared header for every /settings/<section> page. Gives the same back-tile
 // + eyebrow row the profile page uses, so breadcrumbs read consistently
@@ -18,14 +16,7 @@ export function SettingsHeader({
 }) {
   const router = useRouter();
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        marginBottom: 10,
-      }}
-    >
+    <div className="mb-2.5 flex items-center gap-3">
       <button
         type="button"
         onClick={() => {
@@ -35,26 +26,14 @@ export function SettingsHeader({
             router.push("/settings");
           }
         }}
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: 10,
-          background: "rgba(255,255,255,0.04)",
-          border: `1px solid ${O.hair2}`,
-          color: O.ink2,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          fontFamily: "inherit",
-        }}
+        className="flex h-[34px] w-[34px] cursor-pointer items-center justify-center rounded-lg border border-border bg-surface text-text-secondary"
         aria-label="Back"
       >
-        <ArrowLeft style={{ width: 14, height: 14 }} strokeWidth={1.8} />
+        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.8} />
       </button>
-      <Eyebrow>
+      <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
         {glyph}&nbsp;&nbsp;SETTINGS · {section.toUpperCase()}
-      </Eyebrow>
+      </p>
     </div>
   );
 }

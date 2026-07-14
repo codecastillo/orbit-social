@@ -12,8 +12,7 @@ import {
   searchUsers,
   type ProfileSummary,
 } from "@/lib/queries/social";
-import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { Button } from "@/components/ui/button";
 import { FormSection, Input } from "@/components/orbit/forms";
 import { SettingsHeader } from "@/components/settings/settings-header";
 
@@ -80,14 +79,14 @@ export default function CloseFriendsPage() {
   };
 
   return (
-    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
+    <div className="flex flex-col gap-[18px] text-foreground">
       <SettingsHeader section="Close friends" />
 
       <div>
-        <Display size={48} style={{ marginTop: 4 }}>
-          Your <Acc>inner</Acc> orbit.
-        </Display>
-        <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>
+        <h1 className="mt-1 text-5xl font-bold leading-none tracking-[-0.035em] text-foreground">
+          Your <span className="text-primary">inner</span> orbit.
+        </h1>
+        <p className="mt-2.5 max-w-[560px] text-[14.5px] leading-[1.55] text-muted-foreground">
           A smaller radius. Posts marked &ldquo;close friends&rdquo; only reach this list.
         </p>
       </div>
@@ -98,84 +97,54 @@ export default function CloseFriendsPage() {
           value={searchQuery}
           onChange={(e) => handleSearch(e.target.value)}
           placeholder="Search by name or username…"
-          prefix={<Search style={{ width: 14, height: 14 }} />}
+          prefix={<Search className="h-3.5 w-3.5" />}
           suffix={
-            searching ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : null
+            searching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null
           }
         />
         {searchResults.length > 0 && (
-          <div
-            style={{
-              marginTop: 12,
-              borderRadius: 14,
-              border: `1px solid ${O.hair}`,
-              background: "rgba(255,255,255,0.02)",
-              overflow: "hidden",
-            }}
-          >
+          <div className="mt-3 overflow-hidden rounded-xl border border-border bg-surface">
             {searchResults.map((profile, i) => (
               <div
                 key={profile.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "12px 14px",
-                  borderTop: i ? `1px solid ${O.hair}` : "none",
-                }}
+                className={`flex items-center gap-3 px-3.5 py-3 ${i ? "border-t border-border" : ""}`}
               >
                 <UserAvatar src={profile.avatar_url} fallback={profile.display_name} size="sm" />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13.5, fontWeight: 600, margin: 0, color: O.ink }}>
+                <div className="min-w-0 flex-1">
+                  <p className="m-0 text-[13.5px] font-semibold text-foreground">
                     {profile.display_name}
                   </p>
-                  <p style={{ fontSize: 11.5, color: O.ink3, margin: "2px 0 0" }}>
+                  <p className="mt-0.5 text-[11.5px] text-muted-foreground">
                     @{profile.username}
                   </p>
                 </div>
-                <PillBtn primary size="sm" onClick={() => handleAdd(profile)}>
+                <Button size="sm" onClick={() => handleAdd(profile)}>
                   + Add
-                </PillBtn>
+                </Button>
               </div>
             ))}
           </div>
         )}
       </FormSection>
 
-      <div style={{ marginTop: 22 }}>
-        <Eyebrow>◇&nbsp;&nbsp;YOURS · {closeFriends.length}</Eyebrow>
-        <div
-          style={{
-            ...panel({ borderRadius: 18 }),
-            padding: 10,
-            marginTop: 14,
-          }}
-        >
+      <div className="mt-[22px]">
+        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          ◇&nbsp;&nbsp;YOURS · {closeFriends.length}
+        </p>
+        <div className="mt-3.5 rounded-xl border border-border bg-surface p-2.5">
           {loading ? (
-            <div style={{ display: "flex", justifyContent: "center", padding: 32 }}>
-              <Loader2 style={{ width: 18, height: 18, color: O.ink3 }} className="animate-spin" />
+            <div className="flex justify-center p-8">
+              <Loader2 className="h-[18px] w-[18px] animate-spin text-muted-foreground" />
             </div>
           ) : closeFriends.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "32px 16px", color: O.ink3 }}>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  margin: "0 auto 12px",
-                  borderRadius: 12,
-                  background: "rgba(125,255,163,0.08)",
-                  border: "1px solid rgba(125,255,163,0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Users style={{ width: 20, height: 20, color: "#7dffa3" }} />
+            <div className="px-4 py-8 text-center text-muted-foreground">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-success/20 bg-success/10">
+                <Users className="h-5 w-5 text-success" />
               </div>
-              <p style={{ fontSize: 13, margin: 0, color: O.ink2, fontWeight: 600 }}>
+              <p className="m-0 text-[13px] font-semibold text-text-secondary">
                 No close friends yet.
               </p>
-              <p style={{ fontSize: 12, margin: "4px 0 0", color: O.ink4 }}>
+              <p className="mt-1 text-xs text-text-faint">
                 Search above to add someone.
               </p>
             </div>
@@ -184,40 +153,24 @@ export default function CloseFriendsPage() {
               {closeFriends.map((friend, i) => (
                 <div
                   key={friend.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "10px 12px",
-                    borderTop: i ? `1px solid ${O.hair}` : "none",
-                  }}
+                  className={`flex items-center gap-3 px-3 py-2.5 ${i ? "border-t border-border" : ""}`}
                 >
                   <UserAvatar src={friend.avatar_url} fallback={friend.display_name} size="sm" />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13.5, fontWeight: 600, margin: 0, color: O.ink }}>
+                  <div className="min-w-0 flex-1">
+                    <p className="m-0 text-[13.5px] font-semibold text-foreground">
                       {friend.display_name}
                     </p>
-                    <p style={{ fontSize: 11.5, color: O.ink3, margin: "2px 0 0" }}>
+                    <p className="mt-0.5 text-[11.5px] text-muted-foreground">
                       @{friend.username}
                     </p>
                   </div>
                   <button
                     onClick={() => handleRemove(friend.id)}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 10,
-                      border: "none",
-                      background: "transparent",
-                      color: O.ink3,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
                     title="Remove"
+                    aria-label={`Remove ${friend.display_name}`}
+                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-muted-foreground"
                   >
-                    <UserMinus style={{ width: 14, height: 14 }} />
+                    <UserMinus className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))}

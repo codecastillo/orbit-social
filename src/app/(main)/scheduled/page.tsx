@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, Send, Pencil, Trash2, CalendarClock, Loader2 } from "lucide-react";
+import { Send, Pencil, Trash2, CalendarClock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
@@ -13,11 +13,9 @@ import {
   deletePost,
   type PostWithAuthor,
 } from "@/lib/queries/posts";
-import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { Button } from "@/components/ui/button";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
-
-const SCHED_ACCENT = "#ffd76a";
+import { cn } from "@/lib/utils";
 
 function formatScheduledDate(dateStr: string): { abs: string; relative: string; overdue: boolean } {
   const date = new Date(dateStr);
@@ -53,37 +51,35 @@ export default function ScheduledPostsPage() {
   });
 
   return (
-    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
+    <div className="flex flex-col gap-[18px] text-foreground">
       <div>
-        <Eyebrow accent>◆&nbsp;&nbsp;COMPOSE · SCHEDULED · {posts?.length ?? 0}</Eyebrow>
-        <Display size={48} style={{ marginTop: 8 }}>
-          Waiting in the <Acc>wings</Acc>.
-        </Display>
-        <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 540 }}>
+        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
+          ◆&nbsp;&nbsp;COMPOSE · SCHEDULED · {posts?.length ?? 0}
+        </p>
+        <h1 className="mt-2 text-[48px] font-bold leading-none tracking-[-0.035em] text-foreground">
+          Waiting in the <span className="text-primary">wings</span>.
+        </h1>
+        <p className="mt-2.5 max-w-[540px] text-[14.5px] leading-[1.55] text-muted-foreground">
           Posts cued up to publish on their own. Edit, push now, or cancel.
         </p>
       </div>
 
       {isLoading ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              style={{ height: 120, borderRadius: 18, background: "rgba(255,255,255,0.03)" }}
-              className="animate-pulse"
-            />
+            <div key={i} className="h-[120px] animate-pulse rounded-xl bg-surface" />
           ))}
         </div>
       ) : !posts || posts.length === 0 ? (
         <OrbitEmptyState
           icon={CalendarClock}
-          accent={SCHED_ACCENT}
+          accent="var(--warning)"
           headline="Nothing"
           accentWord="in the queue"
           sub="Use the composer's schedule option to have posts publish automatically at a time you pick."
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="flex flex-col gap-3">
           <AnimatePresence mode="popLayout">
             {posts.map((post) => (
               <ScheduledPostCard key={post.id} post={post} />
@@ -147,7 +143,7 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
       : post.content;
 
   const sched = post.scheduled_at ? formatScheduledDate(post.scheduled_at) : null;
-  const accent = sched?.overdue ? "#ff9a3d" : SCHED_ACCENT;
+  const overdue = !!sched?.overdue;
 
   return (
     <motion.div
@@ -156,63 +152,30 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.2 }}
-      style={{
-        ...panel({ borderRadius: 18 }),
-        padding: 18,
-        position: "relative",
-        overflow: "hidden",
-      }}
+      className="relative overflow-hidden rounded-xl border border-border bg-surface p-[18px]"
     >
       <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          bottom: 0,
-          width: 3,
-          background: accent,
-          boxShadow: `0 0 14px color-mix(in oklab, ${accent} 50%, transparent)`,
-        }}
+        className={cn(
+          "absolute inset-y-0 left-0 w-[3px]",
+          overdue ? "bg-warning" : "bg-muted-foreground"
+        )}
       />
 
       <div
-        style={{
-          fontFamily: O.mono,
-          fontSize: 10.5,
-          letterSpacing: "0.12em",
-          color: accent,
-          marginBottom: 10,
-        }}
+        className={cn(
+          "mb-2.5 font-mono text-[10.5px] tracking-[0.12em]",
+          overdue ? "text-warning" : "text-muted-foreground"
+        )}
       >
         ◈&nbsp;&nbsp;{sched ? `${sched.abs.toUpperCase()} · ${sched.relative.toUpperCase()}` : "NO TIME SET"}
       </div>
 
-      <p
-        style={{
-          fontSize: 14.5,
-          color: O.ink,
-          margin: 0,
-          whiteSpace: "pre-wrap",
-          lineHeight: 1.55,
-          display: "-webkit-box",
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden",
-        }}
-      >
-        {preview || <span style={{ color: O.ink4, fontStyle: "italic" }}>Media only, no text.</span>}
+      <p className="line-clamp-3 whitespace-pre-wrap text-[14.5px] leading-[1.55] text-foreground">
+        {preview || <span className="italic text-text-faint">Media only, no text.</span>}
       </p>
 
       {post.post_media && post.post_media.length > 0 && (
-        <div
-          style={{
-            marginTop: 8,
-            fontSize: 11,
-            color: O.ink4,
-            fontFamily: O.mono,
-            letterSpacing: "0.04em",
-          }}
-        >
+        <div className="mt-2 font-mono text-[11px] tracking-[0.04em] text-text-faint">
           {post.post_media.length} ATTACHMENT{post.post_media.length > 1 ? "S" : ""}
         </div>
       )}
@@ -223,113 +186,58 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12, overflow: "hidden" }}
+            className="mt-3 flex items-center gap-2 overflow-hidden"
           >
             <input
               type="datetime-local"
               value={newTime}
               onChange={(e) => setNewTime(e.target.value)}
-              style={{
-                flex: 1,
-                height: 36,
-                padding: "0 12px",
-                borderRadius: 10,
-                fontFamily: O.sans,
-                fontSize: 13,
-                background: "rgba(255,255,255,0.03)",
-                border: `1px solid ${O.hair2}`,
-                color: O.ink,
-                outline: "none",
-              }}
+              className="h-9 flex-1 rounded-lg border border-border bg-surface-elevated px-3 text-[13px] text-foreground outline-none"
             />
-            <PillBtn
-              primary
+            <Button
               size="sm"
               onClick={handleReschedule}
               disabled={reschedMutation.isPending}
+              aria-label="Save schedule"
             >
-              {reschedMutation.isPending ? (
-                <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
-              ) : (
-                "Save"
-              )}
-            </PillBtn>
-            <PillBtn size="sm" onClick={() => setEditingTime(false)}>
+              {reschedMutation.isPending ? <Loader2 className="animate-spin" /> : "Save"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setEditingTime(false)}>
               Cancel
-            </PillBtn>
+            </Button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginTop: 14,
-          paddingTop: 12,
-          borderTop: `1px solid ${O.hair}`,
-        }}
-      >
+      <div className="mt-3.5 flex items-center gap-2 border-t border-border pt-3">
         <button
           onClick={() => setEditingTime(!editingTime)}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "6px 12px",
-            borderRadius: 99,
-            background: "transparent",
-            border: `1px solid ${O.hair2}`,
-            color: O.ink2,
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: O.sans,
-          }}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-transparent px-3 py-1.5 text-xs font-semibold text-text-secondary"
         >
-          <Pencil style={{ width: 12, height: 12 }} />
+          <Pencil className="size-3" />
           Reschedule
         </button>
 
-        <PillBtn
-          primary
+        <Button
           size="sm"
           onClick={() => publishMutation.mutate()}
           disabled={publishMutation.isPending}
         >
-          {publishMutation.isPending ? (
-            <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
-          ) : (
-            <Send style={{ width: 12, height: 12 }} />
-          )}
+          {publishMutation.isPending ? <Loader2 className="animate-spin" /> : <Send />}
           Publish now
-        </PillBtn>
+        </Button>
 
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
 
         <button
           onClick={() => deleteMutation.mutate()}
           disabled={deleteMutation.isPending}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "6px 12px",
-            borderRadius: 99,
-            background: "transparent",
-            border: "1px solid rgba(255,122,133,0.3)",
-            color: "#ff9aa3",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: O.sans,
-          }}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-destructive/30 bg-transparent px-3 py-1.5 text-xs font-semibold text-destructive"
         >
           {deleteMutation.isPending ? (
-            <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
+            <Loader2 className="size-3 animate-spin" />
           ) : (
-            <Trash2 style={{ width: 12, height: 12 }} />
+            <Trash2 className="size-3" />
           )}
           Delete
         </button>

@@ -15,8 +15,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
-import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, PillBtn } from "@/components/orbit/primitives";
+import { Button } from "@/components/ui/button";
 import { Field, Input, FormSection } from "@/components/orbit/forms";
 import { SettingsHeader } from "@/components/settings/settings-header";
 
@@ -152,8 +151,8 @@ export default function SecurityPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 48, display: "flex", justifyContent: "center" }}>
-        <Loader2 style={{ width: 20, height: 20, color: O.ink3 }} className="animate-spin" />
+      <div className="flex justify-center p-12">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -161,14 +160,14 @@ export default function SecurityPage() {
   const statusOn = mfaEnabled;
 
   return (
-    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
+    <div className="flex flex-col gap-[18px] text-foreground">
       <SettingsHeader section="Security" glyph="◈" />
 
       <div>
-        <Display size={48} style={{ marginTop: 4 }}>
-          Locked <Acc>down</Acc>.
-        </Display>
-        <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>
+        <h1 className="mt-1 text-5xl font-bold leading-none tracking-[-0.035em] text-foreground">
+          Locked <span className="text-primary">down</span>.
+        </h1>
+        <p className="mt-2.5 max-w-[560px] text-[14.5px] leading-[1.55] text-muted-foreground">
           2FA and session history for your account.
         </p>
       </div>
@@ -177,172 +176,84 @@ export default function SecurityPage() {
         title="Two-factor authentication"
         hint={statusOn ? "ENABLED" : "NOT ENABLED"}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
-          <div
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 12,
-              background: `color-mix(in oklab, ${O.a3} 8%, transparent)`,
-              border: `1px solid color-mix(in oklab, ${O.a3} 20%, transparent)`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <Smartphone style={{ width: 18, height: 18, color: O.a3 }} />
+        <div className="mb-3.5 flex items-center gap-3.5">
+          <div className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10">
+            <Smartphone className="h-[18px] w-[18px] text-primary" />
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>Authenticator app</div>
-            <div style={{ fontSize: 12.5, color: O.ink3, marginTop: 2 }}>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold">Authenticator app</div>
+            <div className="mt-0.5 text-[12.5px] text-muted-foreground">
               TOTP codes from apps like 1Password, Authy, or Google Authenticator.
             </div>
           </div>
           <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "4px 10px",
-              borderRadius: 99,
-              fontSize: 10.5,
-              fontWeight: 700,
-              fontFamily: O.mono,
-              letterSpacing: "0.12em",
-              background: statusOn
-                ? "rgba(125,255,163,0.12)"
-                : "rgba(255,255,255,0.04)",
-              border: `1px solid ${statusOn ? "rgba(125,255,163,0.3)" : O.hair}`,
-              color: statusOn ? "#7dffa3" : O.ink3,
-            }}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10.5px] font-bold tracking-[0.12em] ${
+              statusOn
+                ? "border-success/30 bg-success/10 text-success"
+                : "border-border bg-surface text-muted-foreground"
+            }`}
           >
             <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: statusOn ? "#7dffa3" : O.ink4,
-              }}
+              className={`h-1.5 w-1.5 rounded-full ${statusOn ? "bg-success" : "bg-text-faint"}`}
             />
             {statusOn ? "ENABLED" : "OFF"}
           </div>
         </div>
 
         {setupStep === "idle" && !mfaEnabled && (
-          <PillBtn primary size="lg" onClick={handleEnrollMfa}>
-            <KeyRound style={{ width: 14, height: 14 }} />
+          <Button size="lg" onClick={handleEnrollMfa}>
+            <KeyRound className="h-3.5 w-3.5" />
             Enable 2FA
-          </PillBtn>
+          </Button>
         )}
 
         {mfaEnabled && setupStep !== "complete" && (
-          <button
-            onClick={handleDisableMfa}
-            disabled={isDisabling}
-            style={{
-              padding: "10px 18px",
-              borderRadius: 99,
-              background: "rgba(255,122,133,0.1)",
-              border: "1px solid rgba(255,122,133,0.4)",
-              color: "#ff9aa3",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: O.sans,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            {isDisabling && <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />}
+          <Button variant="destructive" onClick={handleDisableMfa} disabled={isDisabling}>
+            {isDisabling && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Disable 2FA
-          </button>
+          </Button>
         )}
 
         {setupStep === "verifying" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 4 }}>
-            <div
-              style={{
-                ...panel({ borderRadius: 16 }),
-                padding: 18,
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: O.mono,
-                  fontSize: 10.5,
-                  letterSpacing: "0.18em",
-                  color: O.a3,
-                  marginBottom: 12,
-                }}
-              >
+          <div className="mt-1 flex flex-col gap-3.5">
+            <div className="rounded-xl border border-border bg-surface p-[18px]">
+              <p className="mb-3 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
                 ◇&nbsp;&nbsp;STEP 1 · SCAN
-              </div>
+              </p>
               {qrCodeUrl && (
-                <div style={{ display: "flex", justifyContent: "center", margin: "12px 0" }}>
-                  <div style={{ background: "white", padding: 12, borderRadius: 16 }}>
-                    <img src={qrCodeUrl} alt="2FA QR Code" style={{ width: 176, height: 176 }} />
+                <div className="my-3 flex justify-center">
+                  <div className="rounded-xl bg-white p-3">
+                    <img src={qrCodeUrl} alt="2FA QR Code" className="h-44 w-44" />
                   </div>
                 </div>
               )}
               {totpSecret && (
-                <div style={{ marginTop: 10 }}>
-                  <div style={{ fontSize: 11.5, color: O.ink3, marginBottom: 6 }}>
+                <div className="mt-2.5">
+                  <div className="mb-1.5 text-[11.5px] text-muted-foreground">
                     Or enter this key manually:
                   </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <code
-                      style={{
-                        flex: 1,
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        background: "rgba(0,0,0,0.3)",
-                        border: `1px solid ${O.hair}`,
-                        fontFamily: O.mono,
-                        fontSize: 12,
-                        color: O.ink,
-                        wordBreak: "break-all",
-                      }}
-                    >
+                  <div className="flex gap-2">
+                    <code className="flex-1 break-all rounded-lg border border-border bg-surface-elevated px-3 py-2.5 font-mono text-xs text-foreground">
                       {totpSecret}
                     </code>
                     <button
                       onClick={() => copyToClipboard(totpSecret)}
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 10,
-                        background: O.glass,
-                        border: `1px solid ${O.hair2}`,
-                        color: O.ink3,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
+                      aria-label="Copy setup key"
+                      className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground"
                     >
-                      <Copy style={{ width: 14, height: 14 }} />
+                      <Copy className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
               )}
             </div>
 
-            <div style={{ ...panel({ borderRadius: 16 }), padding: 18 }}>
-              <div
-                style={{
-                  fontFamily: O.mono,
-                  fontSize: 10.5,
-                  letterSpacing: "0.18em",
-                  color: O.a3,
-                  marginBottom: 12,
-                }}
-              >
+            <div className="rounded-xl border border-border bg-surface p-[18px]">
+              <p className="mb-3 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
                 ◆&nbsp;&nbsp;STEP 2 · VERIFY
-              </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <div style={{ flex: 1 }}>
+              </p>
+              <div className="flex gap-2.5">
+                <div className="flex-1">
                   <Field label="6-digit code from app">
                     <Input
                       type="text"
@@ -351,125 +262,90 @@ export default function SecurityPage() {
                       value={verifyCode}
                       onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ""))}
                       placeholder="000000"
+                      // Inline because the compat Input sets its own inline
+                      // font styles, which would override utility classes.
                       style={{
                         textAlign: "center",
-                        fontFamily: O.mono,
+                        fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
                         fontSize: 18,
                         letterSpacing: "0.3em",
                       }}
                     />
                   </Field>
                 </div>
-                <PillBtn
-                  primary
+                <Button
+                  className="mt-7 self-start"
                   onClick={handleVerifyMfa}
                   disabled={verifyCode.length !== 6 || isVerifying}
-                  style={{ alignSelf: "flex-start", marginTop: 28 }}
                 >
-                  {isVerifying ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : "Verify"}
-                </PillBtn>
+                  {isVerifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Verify"}
+                </Button>
               </div>
             </div>
           </div>
         )}
 
         {setupStep === "complete" && recoveryCodes.length > 0 && (
-          <div style={{ marginTop: 4 }}>
-            <div
-              style={{
-                ...panel({ borderRadius: 16 }),
-                padding: 18,
-                background: "rgba(255,215,106,0.06)",
-                border: "1px solid rgba(255,215,106,0.25)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <AlertTriangle style={{ width: 14, height: 14, color: "#ffd76a" }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#ffd76a" }}>
+          <div className="mt-1">
+            <div className="rounded-xl border border-warning/25 bg-warning/10 p-[18px]">
+              <div className="mb-2.5 flex items-center gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                <span className="text-[13px] font-semibold text-warning">
                   Save your recovery codes
                 </span>
               </div>
-              <p style={{ fontSize: 12, color: O.ink3, margin: "0 0 14px", lineHeight: 1.5 }}>
+              <p className="mb-3.5 text-xs leading-normal text-muted-foreground">
                 Keep these in a safe place. You'll need one if you lose your authenticator.
               </p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div className="grid grid-cols-2 gap-2">
                 {recoveryCodes.map((code) => (
                   <code
                     key={code}
-                    style={{
-                      padding: "8px 10px",
-                      borderRadius: 8,
-                      background: "rgba(0,0,0,0.3)",
-                      fontFamily: O.mono,
-                      fontSize: 12,
-                      color: O.ink,
-                      textAlign: "center",
-                      letterSpacing: "0.06em",
-                    }}
+                    className="rounded-lg bg-surface-elevated px-2.5 py-2 text-center font-mono text-xs tracking-[0.06em] text-foreground"
                   >
                     {code}
                   </code>
                 ))}
               </div>
-              <PillBtn
+              <Button
+                variant="outline"
                 size="sm"
+                className="mt-3.5"
                 onClick={() => copyToClipboard(recoveryCodes.join("\n"))}
-                style={{ marginTop: 14 }}
               >
-                <Copy style={{ width: 12, height: 12 }} />
+                <Copy className="h-3 w-3" />
                 Copy all
-              </PillBtn>
+              </Button>
             </div>
-            <PillBtn
-              primary
+            <Button
               size="lg"
-              style={{ marginTop: 14 }}
+              className="mt-3.5"
               onClick={() => {
                 setSetupStep("idle");
                 setRecoveryCodes([]);
               }}
             >
-              <Check style={{ width: 14, height: 14 }} />
+              <Check className="h-3.5 w-3.5" />
               Done
-            </PillBtn>
+            </Button>
           </div>
         )}
       </FormSection>
 
       <Link
         href="/settings/security/activity"
-        style={{
-          ...panel({ borderRadius: 18 }),
-          padding: 16,
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          textDecoration: "none",
-          color: O.ink,
-          marginTop: 8,
-        }}
+        className="mt-2 flex items-center gap-3.5 rounded-xl border border-border bg-surface p-4 text-foreground no-underline"
       >
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 12,
-            background: `color-mix(in oklab, ${O.a1} 10%, transparent)`,
-            border: `1px solid color-mix(in oklab, ${O.a1} 20%, transparent)`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Activity style={{ width: 16, height: 16, color: O.a1 }} />
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10">
+          <Activity className="h-4 w-4 text-primary" />
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>Login activity</div>
-          <div style={{ fontSize: 12.5, color: O.ink3, marginTop: 2 }}>
+        <div className="flex-1">
+          <div className="text-sm font-semibold">Login activity</div>
+          <div className="mt-0.5 text-[12.5px] text-muted-foreground">
             Recent sign-ins to your account.
           </div>
         </div>
-        <ChevronRight style={{ width: 16, height: 16, color: O.ink4 }} />
+        <ChevronRight className="h-4 w-4 text-text-faint" />
       </Link>
     </div>
   );

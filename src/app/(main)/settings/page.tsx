@@ -16,12 +16,14 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
-import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow } from "@/components/orbit/primitives";
 
 type Item = {
   href: string;
-  icon: React.ComponentType<{ style?: React.CSSProperties; strokeWidth?: number }>;
+  icon: React.ComponentType<{
+    className?: string;
+    style?: React.CSSProperties;
+    strokeWidth?: number;
+  }>;
   title: string;
   description: string;
   hue: string;
@@ -43,14 +45,14 @@ const sections: Section[] = [
         icon: User,
         title: "Profile",
         description: "Edit your avatar, display name, bio, and more",
-        hue: O.a1,
+        hue: "var(--primary)",
       },
       {
         href: "/settings/account",
         icon: SettingsIcon,
         title: "Account",
         description: "Manage your email, password, and account",
-        hue: O.a3,
+        hue: "var(--primary)",
       },
     ],
   },
@@ -63,7 +65,7 @@ const sections: Section[] = [
         icon: Shield,
         title: "Privacy",
         description: "Control who can see your content and activity",
-        hue: O.a3,
+        hue: "var(--primary)",
       },
       {
         href: "/settings/security",
@@ -77,7 +79,7 @@ const sections: Section[] = [
         icon: Filter,
         title: "Word Filters",
         description: "Hide posts containing specific words from your feed",
-        hue: O.a2,
+        hue: "var(--primary)",
       },
     ],
   },
@@ -134,30 +136,16 @@ export default function SettingsPage() {
   }, [user]);
 
   return (
-    <div
-      style={{
-        color: O.ink,
-        fontFamily: O.sans,
-        display: "flex",
-        flexDirection: "column",
-        gap: 22,
-      }}
-    >
+    <div className="flex flex-col gap-[22px] text-foreground">
       {/* Editorial hero */}
       <div>
-        <Eyebrow accent>◇&nbsp;&nbsp;SETTINGS</Eyebrow>
-        <Display size={48} style={{ marginTop: 8 }}>
-          Tune your <Acc>orbit</Acc>.
-        </Display>
-        <p
-          style={{
-            fontSize: 14.5,
-            color: O.ink3,
-            marginTop: 10,
-            lineHeight: 1.55,
-            maxWidth: 520,
-          }}
-        >
+        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
+          ◇&nbsp;&nbsp;SETTINGS
+        </p>
+        <h1 className="mt-2 text-[48px] font-bold leading-none tracking-[-0.035em]">
+          Tune your <span className="text-primary">orbit</span>.
+        </h1>
+        <p className="mt-2.5 max-w-[520px] text-[14.5px] leading-[1.55] text-muted-foreground">
           Preferences, privacy, and the people you keep close.
         </p>
       </div>
@@ -191,14 +179,10 @@ export default function SettingsPage() {
 function SettingsSection({ section }: { section: Section }) {
   return (
     <div>
-      <Eyebrow>{section.eyebrow}</Eyebrow>
-      <div
-        style={{
-          ...panel({ borderRadius: 22 }),
-          padding: "6px 22px",
-          marginTop: 12,
-        }}
-      >
+      <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        {section.eyebrow}
+      </p>
+      <div className="mt-3 rounded-xl border border-border bg-surface px-[22px] py-1.5">
         {section.items.map((item, i) => (
           <SettingsRow key={item.href} item={item} isFirst={i === 0} />
         ))}
@@ -208,65 +192,37 @@ function SettingsSection({ section }: { section: Section }) {
 }
 
 function SettingsRow({ item, isFirst }: { item: Item; isFirst: boolean }) {
-  const [hovered, setHovered] = useState(false);
   const Icon = item.icon;
   return (
     <Link
       href={item.href}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 14,
-        padding: "16px 0",
-        borderTop: isFirst ? "none" : `1px solid ${O.hair}`,
-        textDecoration: "none",
-        color: O.ink,
-      }}
+      className={`group flex items-center gap-3.5 py-4 text-foreground no-underline ${
+        isFirst ? "" : "border-t border-border"
+      }`}
     >
       <div
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border"
         style={{
-          width: 40,
-          height: 40,
-          borderRadius: 12,
           background: `color-mix(in oklab, ${item.hue} 10%, transparent)`,
-          border: `1px solid color-mix(in oklab, ${item.hue} 20%, transparent)`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
+          borderColor: `color-mix(in oklab, ${item.hue} 20%, transparent)`,
         }}
       >
         <Icon
-          style={{ width: 18, height: 18, color: item.hue }}
+          className="h-[18px] w-[18px]"
+          style={{ color: item.hue }}
           strokeWidth={1.8}
         />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14.5, fontWeight: 600, color: O.ink }}>
+      <div className="min-w-0 flex-1">
+        <div className="text-[14.5px] font-semibold text-foreground">
           {item.title}
         </div>
-        <div
-          style={{
-            fontSize: 12.5,
-            color: O.ink3,
-            marginTop: 2,
-            lineHeight: 1.4,
-          }}
-        >
+        <div className="mt-0.5 text-[12.5px] leading-[1.4] text-muted-foreground">
           {item.description}
         </div>
       </div>
       <ChevronRight
-        style={{
-          width: 18,
-          height: 18,
-          color: hovered ? O.ink2 : O.ink4,
-          transform: hovered ? "translateX(2px)" : "none",
-          transition: "all 150ms cubic-bezier(0.16,1,0.3,1)",
-          flexShrink: 0,
-        }}
+        className="h-[18px] w-[18px] shrink-0 text-text-faint transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-text-secondary"
         strokeWidth={1.8}
       />
     </Link>

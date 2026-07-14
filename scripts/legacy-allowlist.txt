@@ -1,17 +1,3 @@
-src/app/(main)/drafts/page.tsx
-src/app/(main)/notifications/page.tsx
-src/app/(main)/scheduled/page.tsx
-src/app/(main)/settings/account/page.tsx
-src/app/(main)/settings/close-friends/page.tsx
-src/app/(main)/settings/creator/page.tsx
-src/app/(main)/settings/filters/page.tsx
-src/app/(main)/settings/notifications/page.tsx
-src/app/(main)/settings/page.tsx
-src/app/(main)/settings/privacy/page.tsx
-src/app/(main)/settings/profile/page.tsx
-src/app/(main)/settings/security/activity/page.tsx
-src/app/(main)/settings/security/page.tsx
-src/app/(main)/settings/streaming/page.tsx
 src/components/orbit/confirm-dialog.tsx
 src/components/orbit/datetime-picker.tsx
 src/components/orbit/empty-state.tsx
@@ -21,5 +7,4 @@ src/components/orbit/live-badge.tsx
 src/components/orbit/primitives.tsx
 src/components/orbit/stat-cluster.tsx
 src/components/orbit/verified-star.tsx
-src/components/settings/settings-header.tsx
 src/lib/design/orbit.ts

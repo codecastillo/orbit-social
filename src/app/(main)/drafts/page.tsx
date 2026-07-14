@@ -6,11 +6,8 @@ import { toast } from "sonner";
 import { useDraftsStore, type Draft } from "@/lib/stores/drafts-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { formatTimeAgo } from "@/lib/utils/format";
-import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
+import { Button } from "@/components/ui/button";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
-
-const DRAFT_ACCENT = "#ff9a3d";
 
 export default function DraftsPage() {
   const { drafts, hydrate, hydrated, deleteDraft } = useDraftsStore();
@@ -39,15 +36,11 @@ export default function DraftsPage() {
 
   if (!hydrated) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        <div style={{ height: 68, borderRadius: 16, background: O.glass }} className="animate-pulse" />
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="flex flex-col gap-[18px]">
+        <div className="h-[68px] animate-pulse rounded-xl bg-surface" />
+        <div className="flex flex-col gap-2.5">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              style={{ height: 100, borderRadius: 18, background: "rgba(255,255,255,0.03)" }}
-              className="animate-pulse"
-            />
+            <div key={i} className="h-[100px] animate-pulse rounded-xl bg-surface" />
           ))}
         </div>
       </div>
@@ -55,168 +48,88 @@ export default function DraftsPage() {
   }
 
   return (
-    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          gap: 18,
-          flexWrap: "wrap",
-        }}
-      >
+    <div className="flex flex-col gap-[18px] text-foreground">
+      <div className="flex flex-wrap items-end justify-between gap-[18px]">
         <div>
-          <Eyebrow accent>◇&nbsp;&nbsp;COMPOSE · DRAFTS · {drafts.length}</Eyebrow>
-          <Display size={48} style={{ marginTop: 8 }}>
-            Unfinished <Acc>thoughts</Acc>.
-          </Display>
-          <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 540 }}>
+          <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
+            ◇&nbsp;&nbsp;COMPOSE · DRAFTS · {drafts.length}
+          </p>
+          <h1 className="mt-2 text-[48px] font-bold leading-none tracking-[-0.035em] text-foreground">
+            Unfinished <span className="text-primary">thoughts</span>.
+          </h1>
+          <p className="mt-2.5 max-w-[540px] text-[14.5px] leading-[1.55] text-muted-foreground">
             Picked back up when you&apos;re ready. Nothing posted, nothing lost.
           </p>
         </div>
-        <PillBtn primary size="lg" onClick={() => setComposeOpen(true)}>
-          <Pencil style={{ width: 14, height: 14 }} />
+        <Button size="lg" onClick={() => setComposeOpen(true)}>
+          <Pencil />
           New draft
-        </PillBtn>
+        </Button>
       </div>
 
       {drafts.length === 0 ? (
         <OrbitEmptyState
           icon={FileText}
-          accent={DRAFT_ACCENT}
+          accent="var(--primary)"
           headline="Nothing"
           accentWord="half-written"
           sub="Save a post as a draft and it'll show up here. Nothing posted until you say so."
           ctaLabel="Start a post"
-          ctaIcon={<Pencil style={{ width: 12, height: 12 }} />}
+          ctaIcon={<Pencil className="size-3" />}
           onCta={() => setComposeOpen(true)}
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="flex flex-col gap-3">
           {drafts.map((draft) => (
             <div
               key={draft.id}
-              style={{
-                ...panel({ borderRadius: 18 }),
-                padding: 18,
-                position: "relative",
-                display: "flex",
-                gap: 16,
-                overflow: "hidden",
-              }}
+              className="relative flex gap-4 overflow-hidden rounded-xl border border-border bg-surface p-[18px]"
             >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  bottom: 0,
-                  width: 3,
-                  background: DRAFT_ACCENT,
-                  boxShadow: `0 0 14px color-mix(in oklab, ${DRAFT_ACCENT} 50%, transparent)`,
-                }}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontFamily: O.mono,
-                    fontSize: 10.5,
-                    letterSpacing: "0.12em",
-                    color: DRAFT_ACCENT,
-                    marginBottom: 10,
-                  }}
-                >
+              <div className="absolute inset-y-0 left-0 w-[3px] bg-primary" />
+              <div className="min-w-0 flex-1">
+                <div className="mb-2.5 font-mono text-[10.5px] tracking-[0.12em] text-primary">
                   ◆&nbsp;&nbsp;DRAFT · {formatTimeAgo(draft.updatedAt || draft.createdAt).toUpperCase()}
                 </div>
 
                 {draft.content ? (
-                  <p
-                    style={{
-                      fontSize: 14.5,
-                      color: O.ink,
-                      margin: 0,
-                      whiteSpace: "pre-wrap",
-                      lineHeight: 1.5,
-                      display: "-webkit-box",
-                      WebkitLineClamp: 3,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden",
-                    }}
-                  >
+                  <p className="line-clamp-3 whitespace-pre-wrap text-[14.5px] leading-normal text-foreground">
                     {draft.content}
                   </p>
                 ) : (
-                  <p style={{ fontSize: 14, color: O.ink4, margin: 0, fontStyle: "italic" }}>
-                    No text yet, media only.
-                  </p>
+                  <p className="text-sm italic text-text-faint">No text yet, media only.</p>
                 )}
 
                 {draft.location && (
-                  <div
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 5,
-                      marginTop: 10,
-                      fontSize: 11,
-                      color: O.ink3,
-                      fontFamily: O.mono,
-                      letterSpacing: "0.04em",
-                    }}
-                  >
-                    <MapPin style={{ width: 11, height: 11 }} />
+                  <div className="mt-2.5 inline-flex items-center gap-[5px] font-mono text-[11px] tracking-[0.04em] text-muted-foreground">
+                    <MapPin className="size-[11px]" />
                     {draft.location}
                   </div>
                 )}
 
                 {draft.media.length > 0 && (
-                  <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                  <div className="mt-2.5 flex gap-1.5">
                     {draft.media.map((m, i) => (
                       <div
                         key={i}
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 8,
-                          overflow: "hidden",
-                          border: `1px solid ${O.hair}`,
-                        }}
+                        className="h-12 w-12 overflow-hidden rounded-lg border border-border"
                       >
-                        <img
-                          src={m.preview}
-                          alt=""
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        />
+                        <img src={m.preview} alt="" className="h-full w-full object-cover" />
                       </div>
                     ))}
                   </div>
                 )}
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
-                <PillBtn primary size="sm" onClick={() => handleEdit(draft)}>
-                  <Pencil style={{ width: 12, height: 12 }} />
+              <div className="flex shrink-0 flex-col gap-2">
+                <Button size="sm" onClick={() => handleEdit(draft)}>
+                  <Pencil />
                   Keep writing
-                </PillBtn>
+                </Button>
                 <button
                   onClick={() => handleDelete(draft.id)}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    padding: "7px 14px",
-                    borderRadius: 99,
-                    background: "transparent",
-                    border: `1px solid ${O.hair2}`,
-                    color: "#ff9aa3",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    fontFamily: O.sans,
-                    cursor: "pointer",
-                  }}
+                  className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full border border-border bg-transparent px-3.5 py-[7px] text-xs font-semibold text-destructive"
                 >
-                  <Trash2 style={{ width: 12, height: 12 }} />
+                  <Trash2 className="size-3" />
                   Delete
                 </button>
               </div>

@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import { Filter, Plus, X, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useFilterStore } from "@/lib/stores/filter-store";
-import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, PillBtn } from "@/components/orbit/primitives";
+import { Button } from "@/components/ui/button";
 import { FormSection, Input } from "@/components/orbit/forms";
 import { SettingsHeader } from "@/components/settings/settings-header";
 
@@ -47,108 +46,60 @@ export default function FiltersPage() {
   };
 
   return (
-    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 18 }}>
+    <div className="flex flex-col gap-[18px] text-foreground">
       <SettingsHeader section="Filters" glyph="◆" />
 
       <div>
-        <Display size={48} style={{ marginTop: 4 }}>
-          Mute <Acc>noise</Acc>.
-        </Display>
-        <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>
+        <h1 className="mt-1 text-5xl font-bold leading-none tracking-[-0.035em] text-foreground">
+          Mute <span className="text-primary">noise</span>.
+        </h1>
+        <p className="mt-2.5 max-w-[560px] text-[14.5px] leading-[1.55] text-muted-foreground">
           Words you don&apos;t want to read. Hidden from feeds on this device.
         </p>
       </div>
 
       <FormSection title="Muted words" hint={`${blockedWords.length} on this device`}>
-        <div style={{ display: "flex", gap: 10 }}>
-          <div style={{ flex: 1 }}>
+        <div className="flex gap-2.5">
+          <div className="flex-1">
             <Input
               type="text"
               value={newWord}
               onChange={(e) => setNewWord(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Type a word to mute…"
-              prefix={<Search style={{ width: 14, height: 14 }} />}
+              prefix={<Search className="h-3.5 w-3.5" />}
             />
           </div>
-          <PillBtn primary onClick={handleAdd} disabled={!newWord.trim()} size="md">
-            <Plus style={{ width: 14, height: 14 }} />
+          <Button onClick={handleAdd} disabled={!newWord.trim()}>
+            <Plus className="h-3.5 w-3.5" />
             Add
-          </PillBtn>
+          </Button>
         </div>
 
         {blockedWords.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "32px 0 16px",
-              color: O.ink3,
-              fontSize: 13,
-            }}
-          >
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                margin: "0 auto 14px",
-                borderRadius: 14,
-                background: O.glass,
-                border: `1px solid ${O.hair}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Filter style={{ width: 20, height: 20, color: O.ink4 }} />
+          <div className="pb-4 pt-8 text-center text-[13px] text-muted-foreground">
+            <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-surface">
+              <Filter className="h-5 w-5 text-text-faint" />
             </div>
-            <p style={{ margin: 0, fontWeight: 600, color: O.ink2 }}>Nothing muted yet.</p>
-            <p style={{ margin: "4px 0 0", fontSize: 12, color: O.ink4 }}>
+            <p className="m-0 font-semibold text-text-secondary">Nothing muted yet.</p>
+            <p className="mt-1 text-xs text-text-faint">
               Add a word above to filter it from your feed.
             </p>
           </div>
         ) : (
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 8,
-              marginTop: 18,
-            }}
-          >
+          <div className="mt-[18px] flex flex-wrap gap-2">
             {blockedWords.map((word) => (
               <div
                 key={word}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "6px 10px",
-                  borderRadius: 99,
-                  background: O.glass,
-                  border: `1px solid ${O.hair2}`,
-                  fontSize: 12,
-                  fontFamily: O.mono,
-                  letterSpacing: "0.02em",
-                  color: O.ink2,
-                }}
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-2.5 py-1.5 font-mono text-xs tracking-[0.02em] text-text-secondary"
               >
                 {word}
                 <button
                   onClick={() => handleRemove(word)}
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: "50%",
-                    border: "none",
-                    background: "transparent",
-                    color: O.ink3,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
+                  aria-label={`Unmute "${word}"`}
+                  className="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-muted-foreground"
                 >
-                  <X style={{ width: 10, height: 10 }} />
+                  <X className="h-2.5 w-2.5" />
                 </button>
               </div>
             ))}
@@ -156,17 +107,8 @@ export default function FiltersPage() {
         )}
       </FormSection>
 
-      <div
-        style={{
-          ...panel({ borderRadius: 18 }),
-          padding: 18,
-          marginTop: 8,
-          fontSize: 12.5,
-          color: O.ink3,
-          lineHeight: 1.55,
-        }}
-      >
-        <strong style={{ color: O.ink2, fontWeight: 600 }}>How this works:</strong>{" "}
+      <div className="mt-2 rounded-xl border border-border bg-surface p-[18px] text-[12.5px] leading-[1.55] text-muted-foreground">
+        <strong className="font-semibold text-text-secondary">How this works:</strong>{" "}
         Posts containing your muted words are hidden from every feed (Home, Discover,
         Hashtag, Location). This list is stored on your device and doesn't sync across
         other browsers.

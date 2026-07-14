@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Camera, Loader2, ImageIcon, QrCode, Check, ArrowRight, Edit3 } from "lucide-react";
+import { Camera, Loader2, ImageIcon, QrCode, Check, ArrowRight, Edit3, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -20,9 +20,7 @@ import { QRCodeDialog } from "@/components/profile/qr-code-dialog";
 import { ImageCropper } from "@/components/shared/image-cropper";
 import { UserAvatar, type AvatarBorderStyle } from "@/components/shared/user-avatar";
 import { STORAGE_BUCKETS } from "@/lib/utils/constants";
-import { O, aurora, auroraSoft } from "@/lib/design/orbit";
 import { PROFILE_ACCENTS } from "@/lib/design/accents";
-import { Display, Acc } from "@/components/orbit/primitives";
 import { Field, FormSection } from "@/components/orbit/forms";
 import { SettingsHeader } from "@/components/settings/settings-header";
 
@@ -232,7 +230,7 @@ export default function EditProfilePage() {
 
   if (authLoading || profileLoading) {
     return (
-      <div style={{ color: O.ink, fontFamily: O.sans }}>
+      <div className="text-foreground">
         <Skeleton className="h-12 w-72 rounded-xl mb-4" />
         <Skeleton className="h-[200px] w-full rounded-2xl mb-4" />
         <Skeleton className="h-[420px] w-full rounded-2xl" />
@@ -241,93 +239,37 @@ export default function EditProfilePage() {
   }
 
   return (
-    <div
-      style={{
-        color: O.ink,
-        fontFamily: O.sans,
-        width: "100%",
-        maxWidth: 880,
-        paddingBottom: 96,
-      }}
-    >
+    <div className="w-full max-w-[880px] pb-24 text-foreground">
       <SettingsHeader section="Profile" />
 
-      <Display size={42} style={{ marginTop: 4 }}>
-        Edit your <Acc>orbit</Acc>.
-      </Display>
-      <p
-        style={{
-          fontSize: 13.5,
-          color: O.ink3,
-          marginTop: 10,
-          lineHeight: 1.55,
-          maxWidth: 520,
-        }}
-      >
+      <h1 className="mt-1 text-[42px] font-bold leading-none tracking-[-0.035em]">
+        Edit your <span className="text-primary">orbit</span>.
+      </h1>
+      <p className="mt-2.5 max-w-[520px] text-[13.5px] leading-[1.55] text-muted-foreground">
         What people see when they land on your profile. Change anything, nothing saves until you hit the button at the bottom.
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)}>
         {/* Banner */}
-        <div
-          style={{
-            marginTop: 28,
-            borderRadius: 20,
-            overflow: "hidden",
-            border: `1px solid ${O.hair2}`,
-            position: "relative",
-          }}
-        >
+        <div className="relative mt-7 overflow-hidden rounded-xl border border-border">
           <button
             type="button"
             onClick={() => coverInputRef.current?.click()}
             disabled={uploadingCover}
-            style={{
-              height: 220,
-              width: "100%",
-              position: "relative",
-              background: coverUrl ? `url(${coverUrl}) center/cover` : aurora,
-              backgroundSize: coverUrl ? "cover" : "200% 200%",
-              border: "none",
-              padding: 0,
-              cursor: "pointer",
-              display: "block",
-            }}
+            className="relative block h-[220px] w-full cursor-pointer bg-primary p-0"
+            style={
+              coverUrl
+                ? { background: `url(${coverUrl}) center/cover` }
+                : undefined
+            }
           >
-            {!coverUrl && (
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0 2px, transparent 2px 6px)",
-                }}
-              />
-            )}
-            <span
-              style={{
-                position: "absolute",
-                top: 14,
-                right: 14,
-                padding: "8px 14px",
-                borderRadius: 99,
-                background: "rgba(0,0,0,0.55)",
-                backdropFilter: "blur(20px)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                color: "white",
-                fontSize: 12,
-                fontWeight: 500,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
+            <span className="absolute right-3.5 top-3.5 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3.5 py-2 text-xs font-medium text-white">
               {uploadingCover ? (
-                <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />
+                <Loader2 className="h-[13px] w-[13px] animate-spin" />
               ) : coverUrl ? (
-                <Camera style={{ width: 13, height: 13 }} />
+                <Camera className="h-[13px] w-[13px]" />
               ) : (
-                <ImageIcon style={{ width: 13, height: 13 }} />
+                <ImageIcon className="h-[13px] w-[13px]" />
               )}{" "}
               {coverUrl ? "Change banner" : "Add banner"}
             </span>
@@ -342,15 +284,7 @@ export default function EditProfilePage() {
         </div>
 
         {/* Avatar row sits BELOW the banner, with avatar overlapping via negative margin */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-end",
-            gap: 16,
-            padding: "0 4px",
-            marginTop: -56,
-          }}
-        >
+        <div className="-mt-14 flex items-end gap-4 px-1">
           {/* Avatar preview, matches the profile page exactly. The accent
               ring (theme color) and the decorative avatar_border are mutually
               exclusive. When a decorative border is set, the wrapper hugs
@@ -360,34 +294,15 @@ export default function EditProfilePage() {
             onClick={() => avatarInputRef.current?.click()}
             disabled={uploadingAvatar}
             aria-label="Change profile photo"
+            className={`relative z-[1] inline-block shrink-0 cursor-pointer rounded-full border-0 bg-transparent p-0 leading-none ${
+              avatarBorder === "none" ? "" : "shadow-[0_14px_36px_rgba(0,0,0,0.5)]"
+            }`}
             style={
               avatarBorder === "none"
                 ? {
-                    borderRadius: "50%",
-                    padding: 0,
-                    background: "transparent",
-                    boxShadow: `0 14px 36px rgba(0,0,0,0.5), 0 0 0 2px ${themeColor || O.a2}`,
-                    border: "none",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                    display: "inline-block",
-                    position: "relative",
-                    zIndex: 1,
-                    lineHeight: 0,
+                    boxShadow: `0 14px 36px rgba(0,0,0,0.5), 0 0 0 2px ${themeColor || "var(--primary)"}`,
                   }
-                : {
-                    borderRadius: "50%",
-                    boxShadow: "0 14px 36px rgba(0,0,0,0.5)",
-                    border: "none",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                    display: "inline-block",
-                    position: "relative",
-                    zIndex: 1,
-                    padding: 0,
-                    background: "transparent",
-                    lineHeight: 0,
-                  }
+                : undefined
             }
           >
             {avatarBorder === "none" ? (
@@ -398,29 +313,10 @@ export default function EditProfilePage() {
                   alt=""
                   width={126}
                   height={126}
-                  style={{
-                    width: 126,
-                    height: 126,
-                    borderRadius: "50%",
-                    objectFit: "cover",
-                    display: "block",
-                  }}
+                  className="block h-[126px] w-[126px] rounded-full object-cover"
                 />
               ) : (
-                <div
-                  style={{
-                    width: 126,
-                    height: 126,
-                    borderRadius: "50%",
-                    background: "linear-gradient(135deg, #a78bfa 0%, #f472b6 50%, #67e8f9 100%)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "white",
-                    fontSize: 36,
-                    fontWeight: 700,
-                  }}
-                >
+                <div className="flex h-[126px] w-[126px] items-center justify-center rounded-full bg-primary text-[36px] font-bold text-white">
                   {(displayName || "?").slice(0, 2).toUpperCase()}
                 </div>
               )
@@ -433,23 +329,12 @@ export default function EditProfilePage() {
               />
             )}
             <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                borderRadius: "50%",
-                pointerEvents: "none",
-                display: "flex",
-                alignItems: "flex-end",
-                justifyContent: "center",
-                paddingBottom: 10,
-                color: "white",
-                background: uploadingAvatar
-                  ? "rgba(0,0,0,0.45)"
-                  : "transparent",
-              }}
+              className={`pointer-events-none absolute inset-0 flex items-end justify-center rounded-full pb-2.5 text-white ${
+                uploadingAvatar ? "bg-black/45" : "bg-transparent"
+              }`}
             >
               {uploadingAvatar ? (
-                <Loader2 style={{ width: 18, height: 18 }} className="animate-spin" />
+                <Loader2 className="h-[18px] w-[18px] animate-spin" />
               ) : null}
             </div>
           </button>
@@ -461,26 +346,11 @@ export default function EditProfilePage() {
             className="hidden"
           />
 
-          <div style={{ flex: 1, minWidth: 0, paddingBottom: 6 }}>
-            <div
-              style={{
-                fontFamily: O.mono,
-                fontSize: 10.5,
-                letterSpacing: "0.14em",
-                color: O.ink3,
-                textTransform: "uppercase",
-              }}
-            >
+          <div className="min-w-0 flex-1 pb-1.5">
+            <div className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground">
               ◇&nbsp;&nbsp;Profile photo
             </div>
-            <div
-              style={{
-                fontSize: 12.5,
-                color: O.ink3,
-                marginTop: 4,
-                lineHeight: 1.4,
-              }}
-            >
+            <div className="mt-1 text-[12.5px] leading-[1.4] text-muted-foreground">
               JPG, PNG, WebP, or GIF · square works best
             </div>
           </div>
@@ -489,27 +359,12 @@ export default function EditProfilePage() {
             type="button"
             onClick={() => avatarInputRef.current?.click()}
             disabled={uploadingAvatar}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 99,
-              background: "rgba(255,255,255,0.06)",
-              border: `1px solid ${O.hair2}`,
-              color: O.ink,
-              fontSize: 12.5,
-              fontWeight: 500,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              fontFamily: "inherit",
-              flexShrink: 0,
-              marginBottom: 6,
-            }}
+            className="mb-1.5 inline-flex shrink-0 cursor-pointer items-center gap-[7px] rounded-full border border-border bg-surface px-3.5 py-2 text-[12.5px] font-medium text-foreground"
           >
             {uploadingAvatar ? (
-              <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
+              <Loader2 className="h-3 w-3 animate-spin" />
             ) : (
-              <Edit3 style={{ width: 12, height: 12 }} strokeWidth={1.8} />
+              <Edit3 className="h-3 w-3" strokeWidth={1.8} />
             )}{" "}
             Change photo
           </button>
@@ -517,7 +372,7 @@ export default function EditProfilePage() {
 
         {/* IDENTITY */}
         <FormSection title="Identity" hint="Public · shown on your profile">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="grid grid-cols-2 gap-3.5">
             <Field
               label="Display name"
               error={errors.displayName?.message}
@@ -535,12 +390,16 @@ export default function EditProfilePage() {
           <Field label="Bio" error={errors.bio?.message}>
             <RawTextArea {...register("bio")} placeholder="Tell the world about yourself..." rows={3} />
           </Field>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="grid grid-cols-2 gap-3.5">
             <Field label="Website" error={errors.website?.message}>
               <RawInput {...register("website")} placeholder="https://yoursite.com" />
             </Field>
             <Field label="Location" error={errors.location?.message}>
-              <RawInput {...register("location")} placeholder="City, State" prefix="📍" />
+              <RawInput
+                {...register("location")}
+                placeholder="City, State"
+                prefix={<MapPin className="h-3.5 w-3.5" strokeWidth={1.8} />}
+              />
             </Field>
           </div>
         </FormSection>
@@ -548,7 +407,7 @@ export default function EditProfilePage() {
         {/* APPEARANCE */}
         <FormSection title="Appearance" hint="Small personality tokens. Free.">
           <Field label="Accent color" hint="shows on your name, links, progress rings">
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <div className="flex flex-wrap gap-2.5">
               {ACCENTS.map((a, i) => {
                 const active = themeColor === a.value;
                 const swatch = a.value || "var(--primary)";
@@ -561,31 +420,16 @@ export default function EditProfilePage() {
                       setThemeColor(a.value);
                       setImageDirty(true);
                     }}
+                    className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-0 p-0"
                     style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: "50%",
                       background: swatch,
                       boxShadow: active
-                        ? `0 0 0 2px ${O.bg}, 0 0 0 4px ${swatch}`
+                        ? `0 0 0 2px var(--background), 0 0 0 4px ${swatch}`
                         : "none",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      border: "none",
-                      padding: 0,
                     }}
                   >
                     {active && (
-                      <Check
-                        style={{
-                          width: 16,
-                          height: 16,
-                          color: "white",
-                        }}
-                        strokeWidth={3}
-                      />
+                      <Check className="h-4 w-4 text-white" strokeWidth={3} />
                     )}
                   </button>
                 );
@@ -594,14 +438,7 @@ export default function EditProfilePage() {
           </Field>
 
           <Field label="Avatar border" hint="decorative · some require orbit+">
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(6, 1fr)",
-                gap: 10,
-              }}
-              className="md:grid-cols-6 grid-cols-3"
-            >
+            <div className="grid grid-cols-3 gap-2.5 md:grid-cols-6">
               {BORDER_OPTIONS.map((b) => {
                 const active = avatarBorder === b.value;
                 return (
@@ -612,18 +449,11 @@ export default function EditProfilePage() {
                       setAvatarBorder(b.value);
                       setImageDirty(true);
                     }}
-                    style={{
-                      padding: 12,
-                      borderRadius: 14,
-                      background: active ? auroraSoft : "rgba(255,255,255,0.025)",
-                      border: `1px solid ${active ? `color-mix(in oklab, ${O.a2} 40%, transparent)` : O.hair2}`,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 8,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
+                    className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border p-3 ${
+                      active
+                        ? "border-primary/40 bg-primary/10"
+                        : "border-border bg-surface"
+                    }`}
                   >
                     <UserAvatar
                       src={avatarUrl}
@@ -632,13 +462,9 @@ export default function EditProfilePage() {
                       avatarBorder={b.value}
                     />
                     <span
-                      style={{
-                        fontSize: 10.5,
-                        color: active ? O.ink : O.ink2,
-                        fontWeight: 500,
-                        fontFamily: O.mono,
-                        letterSpacing: "0.04em",
-                      }}
+                      className={`font-mono text-[10.5px] font-medium tracking-[0.04em] ${
+                        active ? "text-foreground" : "text-text-secondary"
+                      }`}
                     >
                       {b.label}
                     </span>
@@ -651,62 +477,22 @@ export default function EditProfilePage() {
 
         {/* SHARE */}
         <FormSection title="Share" hint="Ways to send people to you">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              padding: 16,
-              borderRadius: 14,
-              background: "rgba(255,255,255,0.025)",
-              border: `1px solid ${O.hair2}`,
-            }}
-          >
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 10,
-                background: aurora,
-                padding: 5,
-                flexShrink: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <QrCode style={{ width: 24, height: 24, color: "white" }} />
+          <div className="flex items-center gap-3.5 rounded-xl border border-border bg-surface p-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-primary p-[5px]">
+              <QrCode className="h-6 w-6 text-white" />
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: O.ink }}>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13.5px] font-semibold text-foreground">
                 Your QR code
               </div>
-              <div
-                style={{
-                  fontSize: 11.5,
-                  color: O.ink3,
-                  marginTop: 3,
-                  fontFamily: O.mono,
-                  letterSpacing: "0.02em",
-                }}
-              >
+              <div className="mt-[3px] font-mono text-[11.5px] tracking-[0.02em] text-muted-foreground">
                 orbit/@{currentUsername || "you"} · tap to expand
               </div>
             </div>
             <button
               type="button"
               onClick={() => setQrOpen(true)}
-              style={{
-                padding: "8px 14px",
-                borderRadius: 99,
-                background: "rgba(255,255,255,0.05)",
-                border: `1px solid ${O.hair2}`,
-                color: O.ink,
-                fontSize: 12,
-                fontWeight: 500,
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
+              className="cursor-pointer rounded-full border border-border bg-surface px-3.5 py-2 text-xs font-medium text-foreground"
             >
               View QR
             </button>
@@ -715,68 +501,27 @@ export default function EditProfilePage() {
 
         {/* Save bar */}
         {dirty && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginTop: 30,
-              padding: 16,
-              borderRadius: 16,
-              background: `linear-gradient(135deg, color-mix(in oklab, ${O.a2} 8%, transparent), color-mix(in oklab, ${O.a3} 6%, transparent))`,
-              border: `1px solid color-mix(in oklab, ${O.a2} 20%, transparent)`,
-              boxShadow: `0 8px 30px color-mix(in oklab, ${O.a2} 13%, transparent)`,
-              position: "sticky",
-              bottom: 18,
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-            }}
-          >
-            <div style={{ flex: 1, fontSize: 12.5, color: O.ink2 }}>
-              <b style={{ color: O.ink }}>Unsaved changes.</b> Don&apos;t forget to
+          <div className="sticky bottom-[18px] mt-[30px] flex items-center gap-2.5 rounded-xl border border-primary/20 bg-surface-elevated p-4 shadow-lg">
+            <div className="flex-1 text-[12.5px] text-text-secondary">
+              <b className="text-foreground">Unsaved changes.</b> Don&apos;t forget to
               save before you leave this page.
             </div>
             <button
               type="button"
               onClick={() => router.refresh()}
-              style={{
-                padding: "9px 16px",
-                borderRadius: 99,
-                background: "transparent",
-                border: `1px solid ${O.hair2}`,
-                color: O.ink2,
-                fontSize: 12.5,
-                fontWeight: 500,
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
+              className="cursor-pointer rounded-full border border-border bg-transparent px-4 py-[9px] text-[12.5px] font-medium text-text-secondary"
             >
               Discard
             </button>
             <button
               type="submit"
               disabled={isSubmitting || uploadingAvatar || uploadingCover}
-              style={{
-                padding: "11px 22px",
-                borderRadius: 99,
-                background: aurora,
-                color: "white",
-                border: "none",
-                fontSize: 13.5,
-                fontWeight: 600,
-                cursor: isSubmitting ? "not-allowed" : "pointer",
-                boxShadow: `0 8px 24px color-mix(in oklab, ${O.a2} 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)`,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                fontFamily: "inherit",
-                opacity: isSubmitting ? 0.7 : 1,
-              }}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border-0 bg-primary px-[22px] py-[11px] text-[13.5px] font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isSubmitting ? (
-                <Loader2 className="animate-spin" style={{ width: 13, height: 13 }} />
+                <Loader2 className="h-[13px] w-[13px] animate-spin" />
               ) : null}
-              Save changes <ArrowRight style={{ width: 13, height: 13 }} />
+              Save changes <ArrowRight className="h-[13px] w-[13px]" />
             </button>
           </div>
         )}
@@ -814,45 +559,15 @@ const RawInput = (() => {
   // forwardRef wrapper around a styled native input that mirrors orbit Input look
   return (function RawInputInner({ prefix, ...rest }: any) {
     return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "11px 14px",
-          borderRadius: 12,
-          background: "rgba(255,255,255,0.03)",
-          border: `1px solid ${O.hair2}`,
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
-          transition: "all 0.15s",
-        }}
-      >
+      <div className="flex items-center gap-2.5 rounded-lg border border-border bg-surface px-3.5 py-[11px] transition-all">
         {prefix && (
-          <span
-            style={{
-              fontSize: 13.5,
-              color: O.ink3,
-              fontFamily: O.mono,
-              fontWeight: 500,
-            }}
-          >
+          <span className="font-mono text-[13.5px] font-medium text-muted-foreground">
             {prefix}
           </span>
         )}
         <input
           {...rest}
-          style={{
-            flex: 1,
-            fontSize: 14,
-            color: O.ink,
-            fontWeight: 500,
-            letterSpacing: "-0.005em",
-            background: "transparent",
-            border: "none",
-            outline: "none",
-            fontFamily: "inherit",
-            minWidth: 0,
-          }}
+          className="min-w-0 flex-1 border-0 bg-transparent text-sm font-medium tracking-[-0.005em] text-foreground outline-none"
         />
       </div>
     );
@@ -861,31 +576,12 @@ const RawInput = (() => {
 
 const RawTextArea = (function RawTextAreaInner({ rows = 3, ...rest }: any) {
   return (
-    <div
-      style={{
-        padding: "11px 14px",
-        borderRadius: 12,
-        background: "rgba(255,255,255,0.03)",
-        border: `1px solid ${O.hair2}`,
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
-      }}
-    >
+    <div className="rounded-lg border border-border bg-surface px-3.5 py-[11px]">
       <textarea
         {...rest}
         rows={rows}
-        style={{
-          width: "100%",
-          fontSize: 14,
-          color: O.ink,
-          lineHeight: 1.55,
-          letterSpacing: "-0.005em",
-          background: "transparent",
-          border: "none",
-          outline: "none",
-          fontFamily: "inherit",
-          resize: "vertical",
-          minHeight: rows * 20,
-        }}
+        className="w-full resize-y border-0 bg-transparent text-sm leading-[1.55] tracking-[-0.005em] text-foreground outline-none"
+        style={{ minHeight: rows * 20 }}
       />
     </div>
   );

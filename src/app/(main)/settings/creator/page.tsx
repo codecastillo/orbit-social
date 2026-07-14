@@ -16,8 +16,6 @@ import {
   type PostPerformance,
 } from "@/lib/queries/analytics";
 import { Skeleton } from "@/components/ui/skeleton";
-import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow } from "@/components/orbit/primitives";
 import { StatCluster } from "@/components/orbit/stat-cluster";
 import { SettingsHeader } from "@/components/settings/settings-header";
 
@@ -46,7 +44,7 @@ export default function CreatorAnalyticsPage() {
 
   if (authLoading || loading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div className="flex flex-col gap-[18px]">
         <Skeleton className="h-16 w-1/2 rounded-xl" />
         <Skeleton className="h-40 w-full rounded-2xl" />
         <Skeleton className="h-80 w-full rounded-2xl" />
@@ -55,37 +53,25 @@ export default function CreatorAnalyticsPage() {
   }
 
   return (
-    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 22 }}>
+    <div className="flex flex-col gap-[22px] text-foreground">
       <SettingsHeader section="Creator" glyph="◆" />
 
       <div>
-        <Display size={48} style={{ marginTop: 4 }}>
-          Creator <Acc>tools</Acc>.
-        </Display>
-        <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>
+        <h1 className="mt-1 text-5xl font-bold leading-none tracking-[-0.035em] text-foreground">
+          Creator <span className="text-primary">tools</span>.
+        </h1>
+        <p className="mt-2.5 max-w-[560px] text-[14.5px] leading-[1.55] text-muted-foreground">
           How your work moves through the orbit.
         </p>
       </div>
 
-      <div
-        style={{
-          ...panel({ borderRadius: 22 }),
-          padding: 28,
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: `linear-gradient(135deg, color-mix(in oklab, ${O.a1} 10%, transparent) 0%, color-mix(in oklab, ${O.a2} 8%, transparent) 50%, color-mix(in oklab, ${O.a3} 10%, transparent) 100%)`,
-            pointerEvents: "none",
-          }}
-        />
-        <div style={{ position: "relative" }}>
-          <Eyebrow>◇&nbsp;&nbsp;LIFETIME TOTALS</Eyebrow>
-          <div style={{ marginTop: 18 }}>
+      <div className="relative overflow-hidden rounded-xl border border-border bg-surface p-7">
+        <div className="pointer-events-none absolute inset-0 bg-primary/10" />
+        <div className="relative">
+          <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            ◇&nbsp;&nbsp;LIFETIME TOTALS
+          </p>
+          <div className="mt-[18px]">
             <StatCluster
               items={[
                 { n: stats?.totalPosts ?? 0, label: "posts" },
@@ -99,23 +85,12 @@ export default function CreatorAnalyticsPage() {
       </div>
 
       <div>
-        <Eyebrow accent>◈&nbsp;&nbsp;TOP POSTS · BY REACH</Eyebrow>
-        <div
-          style={{
-            ...panel({ borderRadius: 18 }),
-            padding: 8,
-            marginTop: 14,
-          }}
-        >
+        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
+          ◈&nbsp;&nbsp;TOP POSTS · BY REACH
+        </p>
+        <div className="mt-3.5 rounded-xl border border-border bg-surface p-2">
           {topPosts.length === 0 ? (
-            <div
-              style={{
-                padding: "32px 16px",
-                textAlign: "center",
-                color: O.ink3,
-                fontSize: 13,
-              }}
-            >
+            <div className="px-4 py-8 text-center text-[13px] text-muted-foreground">
               No posts yet. Start creating to see your analytics here.
             </div>
           ) : (
@@ -123,68 +98,35 @@ export default function CreatorAnalyticsPage() {
               <Link
                 key={post.id}
                 href={`/post/${post.id}`}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 14,
-                  padding: "14px 14px",
-                  borderTop: index ? `1px solid ${O.hair}` : "none",
-                  color: O.ink,
-                  textDecoration: "none",
-                }}
+                className={`flex items-start gap-3.5 p-3.5 text-foreground no-underline ${
+                  index ? "border-t border-border" : ""
+                }`}
               >
                 <span
-                  style={{
-                    fontFamily: O.serif,
-                    fontStyle: "italic",
-                    fontSize: 20,
-                    color: index === 0 ? O.a2 : O.ink3,
-                    minWidth: 22,
-                    lineHeight: 1.1,
-                  }}
+                  className={`min-w-[22px] text-xl leading-[1.1] ${
+                    index === 0 ? "text-primary" : "text-muted-foreground"
+                  }`}
                 >
                   {index + 1}
                 </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p
-                    style={{
-                      fontSize: 13.5,
-                      lineHeight: 1.5,
-                      margin: 0,
-                      color: O.ink,
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden",
-                    }}
-                  >
+                <div className="min-w-0 flex-1">
+                  <p className="m-0 line-clamp-2 text-[13.5px] leading-normal text-foreground">
                     {post.content || "Media post"}
                   </p>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 14,
-                      marginTop: 6,
-                      fontSize: 11,
-                      color: O.ink4,
-                      fontFamily: O.mono,
-                      letterSpacing: "0.04em",
-                    }}
-                  >
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      <Heart style={{ width: 11, height: 11 }} />
+                  <div className="mt-1.5 flex items-center gap-3.5 font-mono text-[11px] tracking-[0.04em] text-text-faint">
+                    <span className="inline-flex items-center gap-1">
+                      <Heart className="h-[11px] w-[11px]" />
                       {formatNumber(post.like_count)}
                     </span>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      <MessageCircle style={{ width: 11, height: 11 }} />
+                    <span className="inline-flex items-center gap-1">
+                      <MessageCircle className="h-[11px] w-[11px]" />
                       {formatNumber(post.comment_count)}
                     </span>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      <Eye style={{ width: 11, height: 11 }} />
+                    <span className="inline-flex items-center gap-1">
+                      <Eye className="h-[11px] w-[11px]" />
                       {formatNumber(post.view_count)}
                     </span>
-                    <span style={{ marginLeft: "auto" }}>{formatTimeAgo(post.created_at)}</span>
+                    <span className="ml-auto">{formatTimeAgo(post.created_at)}</span>
                   </div>
                 </div>
               </Link>

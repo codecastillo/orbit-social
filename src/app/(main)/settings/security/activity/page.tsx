@@ -18,8 +18,6 @@ import {
   parseUserAgent,
   type LoginEvent,
 } from "@/lib/queries/security";
-import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc } from "@/components/orbit/primitives";
 import { SettingsHeader } from "@/components/settings/settings-header";
 
 export default function LoginActivityPage() {
@@ -68,61 +66,37 @@ export default function LoginActivityPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 48, display: "flex", justifyContent: "center" }}>
-        <Loader2 style={{ width: 20, height: 20, color: O.ink3 }} className="animate-spin" />
+      <div className="flex justify-center p-12">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div style={{ color: O.ink, fontFamily: O.sans, display: "flex", flexDirection: "column", gap: 22 }}>
+    <div className="flex flex-col gap-[22px] text-foreground">
       <SettingsHeader section="Activity" glyph="◈" />
 
       <div>
-        <Display size={48} style={{ marginTop: 4 }}>
-          Recent <Acc>activity</Acc>.
-        </Display>
-        <p style={{ fontSize: 14.5, color: O.ink3, marginTop: 10, lineHeight: 1.55, maxWidth: 560 }}>
+        <h1 className="mt-1 text-5xl font-bold leading-none tracking-[-0.035em] text-foreground">
+          Recent <span className="text-primary">activity</span>.
+        </h1>
+        <p className="mt-2.5 max-w-[560px] text-[14.5px] leading-[1.55] text-muted-foreground">
           Sign-ins to your account, newest first.
         </p>
       </div>
 
       {events.length === 0 ? (
-        <div
-          style={{
-            ...panel({ borderRadius: 18 }),
-            padding: "40px 20px",
-            textAlign: "center",
-            color: O.ink3,
-          }}
-        >
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              margin: "0 auto 14px",
-              borderRadius: 12,
-              background: O.glass,
-              border: `1px solid ${O.hair}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Activity style={{ width: 20, height: 20, color: O.ink4 }} />
+        <div className="rounded-xl border border-border bg-surface px-5 py-10 text-center text-muted-foreground">
+          <div className="mx-auto mb-3.5 flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-surface">
+            <Activity className="h-5 w-5 text-text-faint" />
           </div>
-          <p style={{ fontWeight: 600, color: O.ink2, margin: 0 }}>No activity yet</p>
-          <p style={{ fontSize: 12.5, color: O.ink4, margin: "4px 0 0" }}>
+          <p className="m-0 font-semibold text-text-secondary">No activity yet</p>
+          <p className="mt-1 text-[12.5px] text-text-faint">
             Your login history will appear here.
           </p>
         </div>
       ) : (
-        <div
-          style={{
-            ...panel({ borderRadius: 18 }),
-            padding: 8,
-          }}
-        >
+        <div className="rounded-xl border border-border bg-surface p-2">
           {events.map((event, i) => {
             const { browser, os } = parseUserAgent(event.user_agent);
             const DeviceIcon = getDeviceIcon(event.user_agent);
@@ -131,153 +105,65 @@ export default function LoginActivityPage() {
               event.user_agent === navigator.userAgent &&
               new Date(event.created_at).getTime() > Date.now() - 60 * 60 * 1000;
 
-            const accent =
+            const accentClass =
               event.status === "failed"
-                ? "#ff7a85"
+                ? "border-destructive/20 bg-destructive/10 text-destructive"
                 : event.flagged
-                  ? "#ffd76a"
-                  : O.ink3;
+                  ? "border-warning/20 bg-warning/10 text-warning"
+                  : "border-border bg-surface-elevated text-muted-foreground";
 
             return (
               <div
                 key={event.id}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 14,
-                  padding: "14px 14px",
-                  borderTop: i ? `1px solid ${O.hair}` : "none",
-                  ...(isCurrentSession
-                    ? {
-                        background: `linear-gradient(135deg, color-mix(in oklab, ${O.a1} 10%, transparent) 0%, color-mix(in oklab, ${O.a2} 5%, transparent) 50%, color-mix(in oklab, ${O.a3} 8%, transparent) 100%)`,
-                        borderRadius: 12,
-                      }
-                    : {}),
-                }}
+                className={`flex items-start gap-3.5 p-3.5 ${
+                  i ? "border-t border-border" : ""
+                } ${isCurrentSession ? "rounded-xl bg-primary/10" : ""}`}
               >
                 <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 12,
-                    background: `color-mix(in oklab, ${accent} 10%, transparent)`,
-                    border: `1px solid color-mix(in oklab, ${accent} 20%, transparent)`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${accentClass}`}
                 >
-                  <DeviceIcon style={{ width: 16, height: 16, color: accent }} />
+                  <DeviceIcon className="h-4 w-4" />
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <span style={{ fontSize: 13.5, fontWeight: 600, color: O.ink }}>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[13.5px] font-semibold text-foreground">
                       {browser} · {os}
                     </span>
                     {isCurrentSession && (
-                      <span
-                        style={{
-                          fontSize: 10,
-                          fontFamily: O.mono,
-                          fontWeight: 700,
-                          letterSpacing: "0.12em",
-                          padding: "2px 8px",
-                          borderRadius: 99,
-                          background: "rgba(125,255,163,0.12)",
-                          border: "1px solid rgba(125,255,163,0.25)",
-                          color: "#7dffa3",
-                        }}
-                      >
+                      <span className="rounded-full border border-success/25 bg-success/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-[0.12em] text-success">
                         CURRENT
                       </span>
                     )}
                     {event.status === "failed" && (
-                      <span
-                        style={{
-                          fontSize: 10,
-                          fontFamily: O.mono,
-                          fontWeight: 700,
-                          letterSpacing: "0.12em",
-                          padding: "2px 8px",
-                          borderRadius: 99,
-                          background: "rgba(255,122,133,0.1)",
-                          border: "1px solid rgba(255,122,133,0.3)",
-                          color: "#ff9aa3",
-                        }}
-                      >
+                      <span className="rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-[0.12em] text-destructive">
                         FAILED
                       </span>
                     )}
                   </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      marginTop: 6,
-                      fontSize: 11,
-                      color: O.ink4,
-                      fontFamily: O.mono,
-                      letterSpacing: "0.04em",
-                    }}
-                  >
+                  <div className="mt-1.5 flex items-center gap-2.5 font-mono text-[11px] tracking-[0.04em] text-text-faint">
                     <span>{formatDate(event.created_at)}</span>
                     {event.ip_address && (
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                        <Globe style={{ width: 11, height: 11 }} />
+                      <span className="inline-flex items-center gap-1">
+                        <Globe className="h-[11px] w-[11px]" />
                         {event.ip_address}
                       </span>
                     )}
                   </div>
-                  <div style={{ marginTop: 10 }}>
+                  <div className="mt-2.5">
                     {!event.flagged ? (
                       <button
                         onClick={() => handleFlag(event.id, true)}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          padding: "5px 10px",
-                          borderRadius: 99,
-                          background: "transparent",
-                          border: "1px solid rgba(255,122,133,0.3)",
-                          color: "#ff9aa3",
-                          fontSize: 11.5,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          fontFamily: O.sans,
-                        }}
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-destructive/30 bg-transparent px-2.5 py-[5px] text-[11.5px] font-semibold text-destructive"
                       >
-                        <AlertTriangle style={{ width: 11, height: 11 }} />
+                        <AlertTriangle className="h-[11px] w-[11px]" />
                         Not me
                       </button>
                     ) : (
                       <button
                         onClick={() => handleFlag(event.id, false)}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          padding: "5px 10px",
-                          borderRadius: 99,
-                          background: "transparent",
-                          border: "1px solid rgba(125,255,163,0.3)",
-                          color: "#7dffa3",
-                          fontSize: 11.5,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          fontFamily: O.sans,
-                        }}
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-success/30 bg-transparent px-2.5 py-[5px] text-[11.5px] font-semibold text-success"
                       >
-                        <Check style={{ width: 11, height: 11 }} />
+                        <Check className="h-[11px] w-[11px]" />
                         This was me
                       </button>
                     )}
