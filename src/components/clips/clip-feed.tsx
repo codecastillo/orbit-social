@@ -7,7 +7,6 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { getClips } from "@/lib/queries/clips";
 import { checkUserInteractions, type PostWithAuthor } from "@/lib/queries/posts";
 import { ClipPlayer } from "./clip-player";
-import { O, aurora, panel } from "@/lib/design/orbit";
 
 export function ClipFeed() {
   const { user } = useAuth();
@@ -116,26 +115,17 @@ export function ClipFeed() {
 
   if (isLoading) {
     return (
-      <div
-        className="h-full w-full flex items-center justify-center"
-        style={{ background: O.bg }}
-      >
-        <Loader2
-          style={{ width: 32, height: 32, color: O.ink2 }}
-          className="animate-spin"
-        />
+      <div className="h-full w-full flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-text-secondary" />
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div
-        className="h-full w-full flex items-center justify-center px-6"
-        style={{ background: O.bg }}
-      >
-        <div style={{ ...panel(), padding: "24px 28px", textAlign: "center" }}>
-          <p style={{ fontFamily: O.sans, color: O.ink2, fontSize: 14 }}>
+      <div className="h-full w-full flex items-center justify-center px-6 bg-background">
+        <div className="rounded-xl border border-border bg-surface px-7 py-6 text-center">
+          <p className="text-sm text-text-secondary">
             Couldn&apos;t load clips. Pull down to retry.
           </p>
         </div>
@@ -145,56 +135,16 @@ export function ClipFeed() {
 
   if (allClips.length === 0) {
     return (
-      <div
-        className="h-full w-full flex items-center justify-center px-6"
-        style={{ background: O.bg }}
-      >
-        <div
-          style={{
-            ...panel(),
-            padding: "32px 28px",
-            textAlign: "center",
-            maxWidth: 360,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 14,
-          }}
-        >
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 18,
-              background: aurora,
-              display: "grid",
-              placeItems: "center",
-              boxShadow: `0 12px 32px -10px color-mix(in oklab, ${O.a2} 40%, transparent)`,
-            }}
-          >
-            <Film style={{ width: 26, height: 26, color: "white" }} strokeWidth={1.8} />
+      <div className="h-full w-full flex items-center justify-center px-6 bg-background">
+        <div className="flex max-w-[360px] flex-col items-center gap-3.5 rounded-xl border border-border bg-surface px-7 py-8 text-center">
+          <div className="grid h-14 w-14 place-items-center rounded-[18px] bg-primary">
+            <Film className="h-[26px] w-[26px] text-primary-foreground" strokeWidth={1.8} />
           </div>
           <div>
-            <h2
-              style={{
-                fontFamily: O.sans,
-                color: O.ink,
-                fontSize: 17,
-                fontWeight: 600,
-                letterSpacing: "-0.01em",
-              }}
-            >
+            <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-foreground">
               No clips yet
             </h2>
-            <p
-              style={{
-                fontFamily: O.sans,
-                color: O.ink3,
-                fontSize: 13,
-                marginTop: 6,
-                lineHeight: 1.5,
-              }}
-            >
+            <p className="mt-1.5 text-[13px] leading-normal text-muted-foreground">
               Post a video from anywhere on Orbit and it lands here automatically.
             </p>
           </div>
@@ -204,11 +154,10 @@ export function ClipFeed() {
   }
 
   return (
-    <div className="relative h-full w-full" style={{ background: O.bg }}>
+    <div className="relative h-full w-full bg-black">
       <div
         ref={scrollerRef}
-        className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
-        style={{ background: O.bg }}
+        className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide bg-black"
       >
         {allClips.map((clip) => (
           <ClipPlayer key={clip.id} clip={clip} onNavigate={scrollByOne} />
@@ -217,14 +166,8 @@ export function ClipFeed() {
         <div ref={sentinelRef} className="h-1" />
 
         {isFetchingNextPage && (
-          <div
-            className="h-20 flex items-center justify-center"
-            style={{ background: O.bg }}
-          >
-            <Loader2
-              style={{ width: 22, height: 22, color: O.ink3 }}
-              className="animate-spin"
-            />
+          <div className="h-20 flex items-center justify-center bg-black">
+            <Loader2 className="h-[22px] w-[22px] animate-spin text-white/60" />
           </div>
         )}
       </div>

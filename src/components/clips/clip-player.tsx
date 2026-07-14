@@ -15,7 +15,6 @@ import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { checkFollowing, followUser, unfollowUser } from "@/lib/queries/social";
 import { createClient } from "@/lib/supabase/client";
 import { useUIStore } from "@/lib/stores/ui-store";
-import { O, aurora } from "@/lib/design/orbit";
 import type { PostWithAuthor } from "@/lib/queries/posts";
 
 interface ClipPlayerProps {
@@ -208,11 +207,7 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
             key={i}
             href={`/hashtag/${encodeURIComponent(tag)}`}
             onClick={(e) => e.stopPropagation()}
-            style={{
-              color: O.a2,
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
+            className="font-semibold text-primary no-underline"
           >
             {part}
           </Link>
@@ -225,8 +220,7 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
   return (
     <div
       ref={containerRef}
-      className="relative h-full w-full snap-start flex items-center justify-center overflow-hidden gap-4"
-      style={{ background: O.bg }}
+      className="relative h-full w-full snap-start flex items-center justify-center overflow-hidden gap-4 bg-black"
       onClick={togglePlay}
     >
       {/* Up/down nav arrows pinned to the LEFT of the player frame so
@@ -260,10 +254,7 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
           aspectRatio: "9 / 16",
         }}
       >
-      <div
-        className="relative h-full w-full overflow-hidden"
-        style={{ borderRadius: 18 }}
-      >
+      <div className="relative h-full w-full overflow-hidden rounded-[18px]">
       {videoUrl ? (
         <video
           ref={videoRef}
@@ -276,71 +267,32 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
           poster={clip.post_media?.[0]?.thumbnail_url || undefined}
         />
       ) : (
-        <div style={{ color: O.ink3, fontSize: 13 }}>Video unavailable</div>
+        <div className="text-[13px] text-white/60">Video unavailable</div>
       )}
 
-      {/* Aurora ambient scrims for legibility, subtle, not distracting */}
-      <div
-        className="absolute inset-x-0 top-0 h-32 pointer-events-none"
-        style={{
-          background:
-            "linear-gradient(to bottom, rgba(7,8,24,0.55) 0%, rgba(7,8,24,0) 100%)",
-        }}
-      />
-      <div
-        className="absolute inset-x-0 bottom-0 h-64 pointer-events-none"
-        style={{
-          background:
-            `linear-gradient(to top, rgba(7,8,24,0.85) 0%, rgba(7,8,24,0.45) 35%, rgba(7,8,24,0) 100%)`,
-        }}
-      />
+      {/* Ambient scrims for legibility, subtle, not distracting */}
+      <div className="absolute inset-x-0 top-0 h-32 pointer-events-none bg-gradient-to-b from-black/55 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-64 pointer-events-none bg-gradient-to-t from-black/85 via-black/45 via-35% to-transparent" />
 
       {/* Play indicator (paused state) */}
       {!isPlaying && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: "50%",
-              background: "rgba(10,12,28,0.55)",
-              backdropFilter: "blur(14px) saturate(160%)",
-              WebkitBackdropFilter: "blur(14px) saturate(160%)",
-              border: `1px solid ${O.hair2}`,
-              display: "grid",
-              placeItems: "center",
-              boxShadow: `0 12px 40px -12px color-mix(in oklab, ${O.a1} 40%, transparent)`,
-            }}
-          >
-            <Play
-              style={{ width: 30, height: 30, color: O.ink, fill: O.ink, marginLeft: 3 }}
-            />
+          <div className="grid h-20 w-20 place-items-center rounded-full border border-white/15 bg-black/60">
+            <Play className="ml-[3px] h-[30px] w-[30px] fill-white text-white" />
           </div>
         </div>
       )}
 
-      {/* Mute toggle, top right, glass pill */}
+      {/* Mute toggle, top right */}
       <button
         onClick={toggleMute}
-        className="absolute top-5 right-5 z-10"
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: "50%",
-          background: "rgba(10,12,28,0.55)",
-          backdropFilter: "blur(14px) saturate(160%)",
-          WebkitBackdropFilter: "blur(14px) saturate(160%)",
-          border: `1px solid ${O.hair}`,
-          display: "grid",
-          placeItems: "center",
-          color: O.ink,
-        }}
+        className="absolute top-5 right-5 z-10 grid h-[38px] w-[38px] place-items-center rounded-full border border-white/15 bg-black/60 text-white"
         aria-label={isMuted ? "Unmute" : "Mute"}
       >
         {isMuted ? (
-          <VolumeX style={{ width: 18, height: 18 }} strokeWidth={2} />
+          <VolumeX className="h-[18px] w-[18px]" strokeWidth={2} />
         ) : (
-          <Volume2 style={{ width: 18, height: 18 }} strokeWidth={2} />
+          <Volume2 className="h-[18px] w-[18px]" strokeWidth={2} />
         )}
       </button>
 
@@ -350,39 +302,20 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 mb-3">
-          <Link
-            href={`/${author.username}`}
-            style={{ display: "flex", alignItems: "center", gap: 10 }}
-          >
+          <Link href={`/${author.username}`} className="flex items-center gap-2.5">
             <UserAvatar
               src={author.avatar_url}
               fallback={author.display_name || author.username}
               size="md"
             />
-            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span
-                  style={{
-                    fontFamily: O.sans,
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: O.ink,
-                    letterSpacing: "-0.005em",
-                    textShadow: "0 1px 3px rgba(0,0,0,0.5)",
-                  }}
-                >
+            <div className="flex flex-col gap-px">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-bold tracking-[-0.005em] text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
                   {author.display_name || author.username}
                 </span>
                 {author.is_verified && <VerifiedStar size={12} />}
               </div>
-              <span
-                style={{
-                  fontFamily: O.sans,
-                  fontSize: 11,
-                  color: O.ink3,
-                  fontFeatureSettings: '"tnum"',
-                }}
-              >
+              <span className="text-[11px] text-white/60 tabular-nums">
                 @{author.username} · {formatTimeAgo(clip.created_at)}
               </span>
             </div>
@@ -391,24 +324,11 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
             <button
               onClick={toggleFollow}
               disabled={followBusy}
-              style={{
-                marginLeft: 4,
-                padding: "6px 14px",
-                borderRadius: 999,
-                fontFamily: O.sans,
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: "0.01em",
-                color: isFollowing ? O.ink : "white",
-                background: isFollowing ? "rgba(255,255,255,0.08)" : aurora,
-                border: isFollowing
-                  ? `1px solid ${O.hair2}`
-                  : "1px solid rgba(255,255,255,0.2)",
-                backdropFilter: isFollowing ? "blur(12px)" : undefined,
-                cursor: followBusy ? "default" : "pointer",
-                opacity: followBusy ? 0.65 : 1,
-                boxShadow: isFollowing ? "none" : `0 6px 20px -8px ${O.a2}`,
-              }}
+              className={`ml-1 rounded-full px-3.5 py-1.5 text-xs font-bold tracking-[0.01em] cursor-pointer disabled:cursor-default disabled:opacity-65 ${
+                isFollowing
+                  ? "border border-white/15 bg-white/10 text-white"
+                  : "border border-white/20 bg-primary text-white"
+              }`}
             >
               {isFollowing ? "Following" : "Follow"}
             </button>
@@ -420,36 +340,16 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
               e.stopPropagation();
               if (caption.length > 110) setShowCaption(!showCaption);
             }}
-            style={{
-              cursor: caption.length > 110 ? "pointer" : "default",
-            }}
+            className={caption.length > 110 ? "cursor-pointer" : "cursor-default"}
           >
-            <p
-              style={{
-                fontFamily: O.sans,
-                color: O.ink,
-                fontSize: 13.5,
-                lineHeight: 1.5,
-                textShadow: "0 1px 3px rgba(0,0,0,0.5)",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-              }}
-            >
+            <p className="text-[13.5px] leading-normal text-white whitespace-pre-wrap break-words [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
               {renderCaption(
                 showCaption || caption.length <= 110 ? caption : truncatedCaption,
               )}
               {caption.length > 110 && (
                 <>
                   {" "}
-                  <span
-                    style={{
-                      fontFamily: O.sans,
-                      color: O.ink3,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
+                  <span className="cursor-pointer text-[13px] font-semibold text-white/60">
                     {showCaption ? "less" : "more"}
                   </span>
                 </>
@@ -480,31 +380,13 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
           edge of the player frame. Click to seek. The hit area is taller
           than the visual bar so it's easy to grab on touch. */}
       <div
-        className="absolute left-0 right-0 z-20"
+        className="absolute bottom-0 left-0 right-0 z-20 flex h-3 items-end cursor-pointer"
         onClick={handleScrub}
-        style={{
-          bottom: 0,
-          height: 12,
-          display: "flex",
-          alignItems: "flex-end",
-          cursor: "pointer",
-        }}
       >
-        <div
-          style={{
-            width: "100%",
-            height: 3,
-            background: "rgba(255,255,255,0.18)",
-            overflow: "hidden",
-          }}
-        >
+        <div className="h-[3px] w-full overflow-hidden bg-white/20">
           <div
-            style={{
-              width: `${progress * 100}%`,
-              height: "100%",
-              background: aurora,
-              transition: "width 120ms linear",
-            }}
+            className="h-full bg-primary transition-[width] duration-[120ms] ease-linear"
+            style={{ width: `${progress * 100}%` }}
           />
         </div>
       </div>
@@ -552,22 +434,9 @@ function ClipNavArrow({
         onClick();
       }}
       aria-label={direction === "up" ? "Previous clip" : "Next clip"}
-      style={{
-        width: 38,
-        height: 38,
-        borderRadius: "50%",
-        background: "rgba(10,12,28,0.55)",
-        backdropFilter: "blur(14px) saturate(160%)",
-        WebkitBackdropFilter: "blur(14px) saturate(160%)",
-        border: `1px solid ${O.hair2}`,
-        display: "grid",
-        placeItems: "center",
-        color: O.ink,
-        cursor: "pointer",
-        boxShadow: "0 6px 20px -6px rgba(0,0,0,0.6)",
-      }}
+      className="grid h-[38px] w-[38px] cursor-pointer place-items-center rounded-full border border-white/15 bg-black/60 text-white"
     >
-      <Icon style={{ width: 18, height: 18 }} strokeWidth={2.2} />
+      <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
     </button>
   );
 }

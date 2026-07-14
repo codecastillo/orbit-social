@@ -19,7 +19,6 @@ import {
   type PostWithAuthor,
 } from "@/lib/queries/posts";
 import { formatTimeAgo, formatNumber } from "@/lib/utils/format";
-import { O } from "@/lib/design/orbit";
 
 interface Props {
   postId: string;
@@ -112,73 +111,29 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
 
   return (
     <div
-      className="h-full flex flex-col"
+      className="h-full w-full flex flex-col overflow-hidden rounded-2xl border border-border bg-surface-elevated"
       onClick={(e) => e.stopPropagation()}
-      style={{
-        width: "100%",
-        background: "rgba(7,8,24,0.92)",
-        backdropFilter: "blur(28px) saturate(160%)",
-        WebkitBackdropFilter: "blur(28px) saturate(160%)",
-        border: `1px solid ${O.hair2}`,
-        borderRadius: 18,
-        overflow: "hidden",
-      }}
     >
-      <div
-        className="flex items-center justify-between px-4 py-3 shrink-0"
-        style={{ borderBottom: `1px solid ${O.hair}` }}
-      >
-        <div
-          style={{
-            fontFamily: O.sans,
-            fontSize: 14,
-            fontWeight: 600,
-            color: O.ink,
-          }}
-        >
+      <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b border-border">
+        <div className="text-sm font-semibold text-foreground">
           Comments {comments && `· ${comments.length}`}
         </div>
         <button
           onClick={onClose}
           aria-label="Close"
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.06)",
-            border: `1px solid ${O.hair}`,
-            display: "grid",
-            placeItems: "center",
-            color: O.ink,
-            cursor: "pointer",
-          }}
+          className="grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-full border border-border bg-surface text-foreground"
         >
-          <X style={{ width: 14, height: 14 }} />
+          <X className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3" style={{ minHeight: 0 }}>
+      <div className="flex-1 overflow-y-auto px-4 py-3 min-h-0">
         {isLoading ? (
-          <div
-            style={{
-              color: O.ink3,
-              fontSize: 12,
-              textAlign: "center",
-              marginTop: 30,
-            }}
-          >
+          <div className="mt-[30px] text-center text-xs text-muted-foreground">
             Loading…
           </div>
         ) : !comments || comments.length === 0 ? (
-          <div
-            style={{
-              color: O.ink3,
-              fontSize: 12.5,
-              textAlign: "center",
-              marginTop: 60,
-              lineHeight: 1.5,
-            }}
-          >
+          <div className="mt-[60px] text-center text-[12.5px] leading-normal text-muted-foreground">
             No comments yet.
             <br />
             Be the first to say something.
@@ -198,10 +153,7 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
         )}
       </div>
 
-      <div
-        className="px-4 py-3 flex items-center gap-2 shrink-0"
-        style={{ borderTop: `1px solid ${O.hair}` }}
-      >
+      <div className="px-4 py-3 flex items-center gap-2 shrink-0 border-t border-border">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -213,36 +165,19 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
           }}
           placeholder="Add comment…"
           disabled={!user || posting}
-          style={{
-            flex: 1,
-            background: "rgba(255,255,255,0.05)",
-            border: `1px solid ${O.hair}`,
-            borderRadius: 999,
-            color: O.ink,
-            fontFamily: O.sans,
-            fontSize: 13,
-            padding: "8px 14px",
-            outline: "none",
-          }}
+          className="flex-1 rounded-lg border border-input bg-background px-3.5 py-2 text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
         />
         <button
           onClick={handleSend}
           disabled={!user || posting || !draft.trim()}
           aria-label="Send"
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: "50%",
-            background: draft.trim() ? O.a2 : "rgba(255,255,255,0.06)",
-            border: `1px solid ${O.hair}`,
-            display: "grid",
-            placeItems: "center",
-            color: "white",
-            cursor: draft.trim() ? "pointer" : "default",
-            opacity: posting ? 0.6 : 1,
-          }}
+          className={`grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full ${
+            draft.trim()
+              ? "cursor-pointer bg-primary text-primary-foreground"
+              : "border border-border bg-surface text-muted-foreground"
+          } ${posting ? "opacity-60" : ""}`}
         >
-          <SendHorizonal style={{ width: 14, height: 14 }} />
+          <SendHorizonal className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
@@ -353,70 +288,45 @@ function CommentRow({
           size="sm"
         />
       </Link>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
           <Link
             href={`/${comment.profiles.username}`}
             onClick={onClose}
-            style={{
-              fontFamily: O.sans,
-              fontSize: 12.5,
-              fontWeight: 600,
-              color: O.ink,
-            }}
+            className="text-[12.5px] font-semibold text-foreground"
           >
             {comment.profiles.display_name || comment.profiles.username}
           </Link>
           {comment.profiles.is_verified && <VerifiedStar size={10} />}
-          <span style={{ fontSize: 11, color: O.ink3 }}>
+          <span className="text-[11px] text-muted-foreground">
             · {formatTimeAgo(comment.created_at)}
           </span>
         </div>
-        <p
-          style={{
-            fontFamily: O.sans,
-            fontSize: 13,
-            color: O.ink2,
-            marginTop: 2,
-            lineHeight: 1.45,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-          }}
-        >
+        <p className="mt-0.5 text-[13px] leading-[1.45] text-text-secondary whitespace-pre-wrap break-words">
           {comment.content}
         </p>
         <div className="flex items-center gap-4 mt-1.5">
           <button
             onClick={() => setReplying((r) => !r)}
-            style={{
-              fontFamily: O.sans,
-              fontSize: 11,
-              color: O.ink3,
-              background: "transparent",
-              border: 0,
-              cursor: "pointer",
-              padding: 0,
-            }}
+            className="cursor-pointer text-[11px] text-muted-foreground"
           >
             Reply
           </button>
           <button
             onClick={handleLike}
-            className="flex items-center gap-1"
-            style={{ background: "transparent", border: 0, cursor: "pointer", padding: 0 }}
+            className="flex cursor-pointer items-center gap-1"
             aria-label={liked ? "Unlike" : "Like"}
           >
             <Heart
-              style={{
-                width: 13,
-                height: 13,
-                fill: liked ? O.a2 : "transparent",
-                color: liked ? O.a2 : O.ink3,
-              }}
+              className={`h-[13px] w-[13px] ${
+                liked
+                  ? "fill-primary text-primary"
+                  : "fill-transparent text-muted-foreground"
+              }`}
               strokeWidth={liked ? 0 : 1.8}
             />
             {likeCount > 0 && (
-              <span style={{ fontSize: 11, color: O.ink3 }}>
+              <span className="text-[11px] text-muted-foreground">
                 {formatNumber(likeCount)}
               </span>
             )}
@@ -439,33 +349,16 @@ function CommentRow({
               placeholder={`Reply to ${comment.profiles.username}…`}
               autoFocus
               disabled={sendingReply}
-              style={{
-                flex: 1,
-                background: "rgba(255,255,255,0.05)",
-                border: `1px solid ${O.hair}`,
-                borderRadius: 999,
-                color: O.ink,
-                fontFamily: O.sans,
-                fontSize: 12.5,
-                padding: "6px 12px",
-                outline: "none",
-              }}
+              className="flex-1 rounded-lg border border-input bg-background px-3 py-1.5 text-[12.5px] text-foreground outline-none placeholder:text-muted-foreground"
             />
             <button
               onClick={handleReplySend}
               disabled={sendingReply || !replyDraft.trim()}
-              style={{
-                fontSize: 11,
-                color: O.ink,
-                background: replyDraft.trim() ? O.a2 : "rgba(255,255,255,0.06)",
-                border: 0,
-                borderRadius: 999,
-                padding: "6px 12px",
-                cursor: replyDraft.trim() ? "pointer" : "default",
-                opacity: sendingReply ? 0.6 : 1,
-                fontFamily: O.sans,
-                fontWeight: 600,
-              }}
+              className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${
+                replyDraft.trim()
+                  ? "cursor-pointer bg-primary text-primary-foreground"
+                  : "bg-surface text-muted-foreground"
+              } ${sendingReply ? "opacity-60" : ""}`}
             >
               Send
             </button>
@@ -475,30 +368,14 @@ function CommentRow({
         {replyCount > 0 && (
           <button
             onClick={() => setRepliesOpen((o) => !o)}
-            className="flex items-center gap-1.5 mt-2"
-            style={{
-              background: "transparent",
-              border: 0,
-              cursor: "pointer",
-              padding: 0,
-              fontFamily: O.sans,
-              fontSize: 11,
-              color: O.ink3,
-            }}
+            className="flex cursor-pointer items-center gap-1.5 mt-2 text-[11px] text-muted-foreground"
           >
-            <span
-              style={{
-                display: "inline-block",
-                width: 14,
-                height: 1,
-                background: O.hair2,
-              }}
-            />
+            <span className="inline-block h-px w-3.5 bg-border" />
             View {replyCount} {replyCount === 1 ? "reply" : "replies"}
             {repliesOpen ? (
-              <ChevronUp style={{ width: 12, height: 12 }} />
+              <ChevronUp className="h-3 w-3" />
             ) : (
-              <ChevronDown style={{ width: 12, height: 12 }} />
+              <ChevronDown className="h-3 w-3" />
             )}
           </button>
         )}
@@ -566,55 +443,39 @@ function ReplyRow({
           size="sm"
         />
       </Link>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
           <Link
             href={`/${reply.profiles.username}`}
             onClick={onClose}
-            style={{
-              fontFamily: O.sans,
-              fontSize: 12,
-              fontWeight: 600,
-              color: O.ink,
-            }}
+            className="text-xs font-semibold text-foreground"
           >
             {reply.profiles.display_name || reply.profiles.username}
           </Link>
           {reply.profiles.is_verified && <VerifiedStar size={9} />}
-          <span style={{ fontSize: 10.5, color: O.ink3 }}>
+          <span className="text-[10.5px] text-muted-foreground">
             · {formatTimeAgo(reply.created_at)}
           </span>
         </div>
-        <p
-          style={{
-            fontFamily: O.sans,
-            fontSize: 12.5,
-            color: O.ink2,
-            marginTop: 2,
-            lineHeight: 1.4,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-          }}
-        >
+        <p className="mt-0.5 text-[12.5px] leading-[1.4] text-text-secondary whitespace-pre-wrap break-words">
           {reply.content}
         </p>
       </div>
       <button
         onClick={handleLike}
-        className="flex flex-col items-center"
-        style={{ background: "transparent", border: 0, cursor: "pointer", padding: 0 }}
+        className="flex cursor-pointer flex-col items-center"
+        aria-label={liked ? "Unlike" : "Like"}
       >
         <Heart
-          style={{
-            width: 12,
-            height: 12,
-            fill: liked ? O.a2 : "transparent",
-            color: liked ? O.a2 : O.ink3,
-          }}
+          className={`h-3 w-3 ${
+            liked
+              ? "fill-primary text-primary"
+              : "fill-transparent text-muted-foreground"
+          }`}
           strokeWidth={liked ? 0 : 1.8}
         />
         {likeCount > 0 && (
-          <span style={{ fontSize: 10, color: O.ink3, marginTop: 1 }}>
+          <span className="mt-px text-[10px] text-muted-foreground">
             {formatNumber(likeCount)}
           </span>
         )}

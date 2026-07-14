@@ -6,15 +6,15 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Radio, Eye, Sparkles } from "lucide-react";
 import * as Icons from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import {
   getLiveStreams,
   type LiveStreamWithProfile,
 } from "@/lib/queries/live";
-import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 import { LiveBadge } from "@/components/orbit/live-badge";
 import {
   LIVE_CATEGORIES,
@@ -47,15 +47,6 @@ function resolveLucideIcon(
     React.ComponentType<{ className?: string; size?: number; style?: React.CSSProperties }>
   >;
   return lookup[name] ?? Sparkles;
-}
-
-function hueFor(seed: string): number {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) {
-    h = seed.charCodeAt(i) + ((h << 5) - h);
-  }
-  const hues = [18, 220, 290, 145, 50, 340, 180, 265];
-  return hues[Math.abs(h) % hues.length];
 }
 
 function formatElapsed(iso: string | null, now: number): string {
@@ -93,15 +84,7 @@ export default function LivePage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          color: O.ink,
-          fontFamily: O.sans,
-          display: "flex",
-          flexDirection: "column",
-          gap: 18,
-        }}
-      >
+      <div className="flex flex-col gap-[18px] text-foreground">
         <Skeleton className="h-[480px] w-full rounded-2xl" />
       </div>
     );
@@ -116,7 +99,7 @@ export default function LivePage() {
         accentWord="on air"
         sub="When people you follow go live, you'll find their streams here. Set up your stream key once in OBS or your IRL backpack and you'll appear here automatically when you start broadcasting."
         ctaLabel="Set up streaming"
-        ctaIcon={<Radio style={{ width: 12, height: 12 }} />}
+        ctaIcon={<Radio className="h-3 w-3" />}
         onCta={goToStreamSettings}
       />
     );
@@ -139,23 +122,14 @@ export default function LivePage() {
         : LIVE_GAMES_BY_SLUG[filter.slug]?.label ?? filter.slug;
 
   return (
-    <div
-      style={{
-        color: O.ink,
-        fontFamily: O.sans,
-        display: "flex",
-        flexDirection: "column",
-        gap: 18,
-        minWidth: 0,
-      }}
-    >
+    <div className="flex min-w-0 flex-col gap-[18px] text-foreground">
       <div>
-        <Eyebrow accent>
+        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
           ◆&nbsp;&nbsp;ON AIR · {streams.length} LIVE
-        </Eyebrow>
-        <Display size={44} style={{ marginTop: 8 }}>
-          Live and <Acc>unrehearsed</Acc>.
-        </Display>
+        </p>
+        <h1 className="mt-2 text-[44px] font-bold leading-none tracking-[-0.035em]">
+          Live and <span className="text-primary">unrehearsed</span>.
+        </h1>
       </div>
 
       <CategoryChipRow filter={filter} onSelect={setFilter} />
@@ -177,15 +151,10 @@ export default function LivePage() {
 
           {others.length > 0 && (
             <div>
-              <Eyebrow accent>◆&nbsp;&nbsp;ALSO LIVE · {others.length}</Eyebrow>
-              <div
-                style={{
-                  display: "grid",
-                  gap: 14,
-                  marginTop: 12,
-                }}
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-              >
+              <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
+                ◆&nbsp;&nbsp;ALSO LIVE · {others.length}
+              </p>
+              <div className="mt-3 grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3">
                 {others.map((s) => (
                   <SmallLiveTile key={s.id} stream={s} />
                 ))}
@@ -207,23 +176,12 @@ function CategoryChipRow({
 }) {
   const isAll = filter.kind === "all";
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        overflowX: "auto",
-        paddingBottom: 4,
-        scrollbarWidth: "none",
-        WebkitOverflowScrolling: "touch",
-      }}
-      className="scrollbar-hide"
-    >
+    <div className="scrollbar-hide flex gap-2 overflow-x-auto pb-1">
       <CategoryChip
         active={isAll}
         onClick={() => onSelect({ kind: "all" })}
         icon={Sparkles}
         label="All"
-        hue={210}
       />
       {LIVE_CATEGORIES.map((c) => {
         const Icon = resolveLucideIcon(c.iconName);
@@ -235,7 +193,6 @@ function CategoryChipRow({
             onClick={() => onSelect({ kind: "category", slug: c.slug })}
             icon={Icon}
             label={c.label}
-            hue={c.hue}
           />
         );
       })}
@@ -248,39 +205,23 @@ function CategoryChip({
   onClick,
   icon: Icon,
   label,
-  hue,
 }: {
   active: boolean;
   onClick: () => void;
-  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
   label: string;
-  hue: number;
 }) {
   return (
     <button
       onClick={onClick}
-      style={{
-        flexShrink: 0,
-        height: 34,
-        padding: "0 14px",
-        borderRadius: 999,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        fontSize: 12.5,
-        fontWeight: 700,
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-        transition: "background 120ms ease, color 120ms ease, border-color 120ms ease",
-        background: active ? `oklch(0.55 0.18 ${hue} / 0.22)` : "rgba(255,255,255,0.03)",
-        color: active ? `oklch(0.85 0.16 ${hue})` : O.ink2,
-        border: active
-          ? `1px solid oklch(0.65 0.18 ${hue} / 0.5)`
-          : "1px solid rgba(255,255,255,0.08)",
-        fontFamily: O.sans,
-      }}
+      className={cn(
+        "inline-flex h-[34px] shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[12.5px] font-bold transition-colors",
+        active
+          ? "border-primary/40 bg-primary/15 text-primary"
+          : "border-border bg-surface text-text-secondary hover:text-foreground",
+      )}
     >
-      <Icon size={13} style={{ opacity: 0.9 }} />
+      <Icon size={13} className="opacity-90" />
       {label}
     </button>
   );
@@ -294,21 +235,13 @@ function EmptyCategoryState({
   onShowAll: () => void;
 }) {
   return (
-    <div
-      style={{
-        ...panel(),
-        padding: 28,
-        textAlign: "center",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 12,
-      }}
-    >
-      <p style={{ color: O.ink2, fontSize: 14 }}>
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-surface p-7 text-center">
+      <p className="text-sm text-text-secondary">
         No live streams in {label} right now
       </p>
-      <PillBtn onClick={onShowAll}>Show all</PillBtn>
+      <Button variant="outline" onClick={onShowAll}>
+        Show all
+      </Button>
     </div>
   );
 }
@@ -352,36 +285,19 @@ function RecommendedCategoriesRail({
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-        <Eyebrow accent>◆&nbsp;&nbsp;RECOMMENDED GAMES</Eyebrow>
+      <div className="flex items-baseline justify-between">
+        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
+          ◆&nbsp;&nbsp;RECOMMENDED GAMES
+        </p>
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          style={{
-            fontSize: 11.5,
-            color: O.ink2,
-            background: "transparent",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-            fontFamily: O.mono,
-            letterSpacing: "0.06em",
-          }}
-          className="hover:text-cyan-300 transition-colors"
+          className="cursor-pointer border-none bg-transparent p-0 font-mono text-[11.5px] tracking-[0.06em] text-text-secondary transition-colors hover:text-primary"
         >
           VIEW ALL
         </button>
       </div>
-      <div
-        ref={railRef}
-        style={{
-          display: "flex",
-          gap: 12,
-          marginTop: 12,
-          flexWrap: "nowrap",
-          overflow: "hidden",
-        }}
-      >
+      <div ref={railRef} className="mt-3 flex flex-nowrap gap-3 overflow-hidden">
         {LIVE_GAMES.slice(0, visibleCount).map((g) => {
           const liveCount = streams.filter((s) => s.game_slug === g.slug).length;
           return (
@@ -389,7 +305,6 @@ function RecommendedCategoriesRail({
               key={g.slug}
               label={g.label}
               slug={g.slug}
-              accentHue={g.accentHue}
               liveCount={liveCount}
               onClick={() => onPickGame(g.slug)}
             />
@@ -416,34 +331,21 @@ function RecommendedCategoriesRail({
 function GameCard({
   label,
   slug,
-  accentHue,
   liveCount,
   onClick,
 }: {
   label: string;
   slug: LiveGameSlug;
-  accentHue: number;
   liveCount: number;
   onClick: () => void;
 }) {
   const [errored, setErrored] = useState(false);
   const src = coverArtUrl(slug);
   return (
-    <div style={{ flexShrink: 0, width: 140 }}>
+    <div className="w-[140px] shrink-0">
       <button
         onClick={onClick}
-        style={{
-          width: 140,
-          height: 190,
-          borderRadius: 18,
-          overflow: "hidden",
-          position: "relative",
-          padding: 0,
-          cursor: "pointer",
-          border: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(255,255,255,0.02)",
-        }}
-        className="hover:ring-2 hover:ring-cyan-400/40 transition-all"
+        className="relative h-[190px] w-[140px] cursor-pointer overflow-hidden rounded-xl border border-border bg-surface p-0 transition-all hover:ring-2 hover:ring-primary/40"
       >
         {!errored && src ? (
           <img
@@ -451,67 +353,20 @@ function GameCard({
             alt={label}
             onError={() => setErrored(true)}
             draggable={false}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
+            className="absolute inset-0 h-full w-full object-cover"
           />
         ) : (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 10,
-              textAlign: "center",
-              background: `oklch(0.4 0.18 ${accentHue})`,
-              color: "rgba(255,255,255,0.95)",
-              fontSize: 14,
-              fontWeight: 800,
-              lineHeight: 1.15,
-            }}
-          >
+          <div className="absolute inset-0 flex items-center justify-center bg-surface-elevated p-2.5 text-center text-sm font-extrabold leading-tight text-foreground">
             {label}
           </div>
         )}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(to top, rgba(0,0,0,0.85), transparent 50%)",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            left: 8,
-            right: 8,
-            bottom: 8,
-            color: "white",
-            fontSize: 12,
-            fontWeight: 700,
-            lineHeight: 1.2,
-            textAlign: "left",
-          }}
-        >
+        {/* Legibility scrim so the title reads over cover art */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 to-transparent to-50%" />
+        <div className="absolute inset-x-2 bottom-2 text-left text-xs font-bold leading-tight text-white">
           {label}
         </div>
       </button>
-      <div
-        style={{
-          marginTop: 6,
-          fontSize: 11,
-          color: O.ink3,
-          fontFamily: O.mono,
-          letterSpacing: "0.04em",
-        }}
-      >
+      <div className="mt-1.5 font-mono text-[11px] tracking-[0.04em] text-muted-foreground">
         {liveCount} LIVE
       </div>
     </div>
@@ -549,13 +404,7 @@ function LiveThumbnail({
       alt={alt}
       onError={() => setErrored(true)}
       draggable={false}
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-      }}
+      className="absolute inset-0 h-full w-full object-cover"
     />
   );
 }
@@ -563,120 +412,48 @@ function LiveThumbnail({
 /* ─── Featured live tile (with overlay header + actions) ─────────── */
 
 function FeaturedLive({ stream }: { stream: LiveStreamWithProfile }) {
-  const hue = hueFor(stream.id);
-  const hue2 = (hue + 80) % 360;
   const now = useLiveClock();
   return (
     <Link
       href={`/live/${stream.id}`}
-      style={{
-        ...panel(),
-        padding: 0,
-        overflow: "hidden",
-        position: "relative",
-        textDecoration: "none",
-        color: O.ink,
-        display: "block",
-      }}
+      className="relative block overflow-hidden rounded-xl border border-border bg-surface text-foreground no-underline"
     >
-      <div
-        style={{
-          aspectRatio: "16/9",
-          background: `linear-gradient(160deg, oklch(0.45 0.18 ${hue}) 0%, oklch(0.3 0.14 ${hue2}) 50%, oklch(0.2 0.1 220) 100%)`,
-          position: "relative",
-        }}
-      >
+      <div className="relative aspect-video bg-surface-elevated">
         <LiveThumbnail
           playbackId={stream.mux_playback_id}
           alt={stream.title || "Live"}
           status={stream.status}
           startedAt={stream.started_at}
         />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "radial-gradient(circle at 70% 35%, rgba(255,200,100,0.4), transparent 50%)",
-          }}
-        />
 
         {/* Top badges */}
-        <div
-          style={{
-            position: "absolute",
-            top: 18,
-            left: 18,
-            display: "flex",
-            gap: 8,
-          }}
-        >
+        <div className="absolute left-[18px] top-[18px] flex gap-2">
           <LiveBadge variant="pill" pulse>
             LIVE
           </LiveBadge>
-          <div
-            style={{
-              padding: "6px 12px",
-              borderRadius: 99,
-              background: "rgba(0,0,0,0.5)",
-              backdropFilter: "blur(20px)",
-              fontSize: 11,
-              fontFamily: O.mono,
-              color: "white",
-              letterSpacing: "0.06em",
-            }}
-          >
+          <div className="rounded-full bg-black/50 px-3 py-1.5 font-mono text-[11px] tracking-[0.06em] text-white backdrop-blur-md">
             ◉ {stream.viewer_count ?? 0} watching · {formatElapsed(stream.started_at, now)}
           </div>
         </div>
 
-        {/* Bottom title strip */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            padding: 28,
-            background: "linear-gradient(to top, rgba(0,0,0,0.7), transparent)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
+        {/* Bottom title strip over a legibility scrim */}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-7">
+          <div className="flex flex-wrap items-center gap-3">
             <UserAvatar
               src={stream.profiles.avatar_url}
               fallback={stream.profiles.display_name}
               size="lg"
             />
-            <div style={{ minWidth: 0 }}>
-              <Display size={24}>
+            <div className="min-w-0">
+              <h2 className="text-2xl font-bold leading-none tracking-[-0.035em] text-white">
                 {stream.title}
-              </Display>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.7)",
-                  marginTop: 2,
-                }}
-              >
+              </h2>
+              <div className="mt-0.5 text-xs text-white/70">
                 {stream.profiles.display_name} · @{stream.profiles.username}
               </div>
             </div>
-            <div
-              style={{
-                marginLeft: "auto",
-                display: "flex",
-                gap: 8,
-                flexWrap: "wrap",
-              }}
-            >
-              <PillBtn primary>Join the room →</PillBtn>
+            <div className="ml-auto flex flex-wrap gap-2">
+              <Button>Join the room →</Button>
             </div>
           </div>
         </div>
@@ -688,94 +465,37 @@ function FeaturedLive({ stream }: { stream: LiveStreamWithProfile }) {
 /* ─── small live tile ────────────────────────────────────────────── */
 
 function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
-  const hue = hueFor(stream.id);
-  const hue2 = (hue + 60) % 360;
   return (
     <Link
       href={`/live/${stream.id}`}
-      style={{
-        ...panel(),
-        padding: 0,
-        overflow: "hidden",
-        cursor: "pointer",
-        textDecoration: "none",
-        color: O.ink,
-        display: "block",
-      }}
+      className="block overflow-hidden rounded-xl border border-border bg-surface text-foreground no-underline"
     >
-      <div
-        style={{
-          aspectRatio: "16/9",
-          background: `linear-gradient(135deg, oklch(0.55 0.18 ${hue}), oklch(0.3 0.12 ${hue2}))`,
-          position: "relative",
-        }}
-      >
+      <div className="relative aspect-video bg-surface-elevated">
         <LiveThumbnail
           playbackId={stream.mux_playback_id}
           alt={stream.title || "Live"}
           status={stream.status}
           startedAt={stream.started_at}
         />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "repeating-linear-gradient(135deg, transparent 0 18px, rgba(0,0,0,0.06) 18px 19px)",
-          }}
-        />
-        <div style={{ position: "absolute", top: 10, left: 10 }}>
+        <div className="absolute left-2.5 top-2.5">
           <LiveBadge variant="corner" pulse />
         </div>
-        <div
-          style={{
-            position: "absolute",
-            top: 10,
-            right: 10,
-            padding: "3px 8px",
-            borderRadius: 6,
-            background: "rgba(0,0,0,0.55)",
-            backdropFilter: "blur(8px)",
-            fontSize: 11,
-            color: "white",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            fontWeight: 700,
-          }}
-        >
-          <Eye style={{ width: 11, height: 11 }} />
+        <div className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-[3px] text-[11px] font-bold text-white backdrop-blur-md">
+          <Eye className="h-[11px] w-[11px]" />
           {stream.viewer_count ?? 0}
         </div>
       </div>
-      <div
-        style={{
-          padding: 14,
-          display: "flex",
-          gap: 10,
-          alignItems: "center",
-        }}
-      >
+      <div className="flex items-center gap-2.5 p-3.5">
         <UserAvatar
           src={stream.profiles.avatar_url}
           fallback={stream.profiles.display_name}
           size="sm"
         />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              lineHeight: 1.3,
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
+        <div className="min-w-0 flex-1">
+          <div className="line-clamp-2 text-[13px] font-bold leading-[1.3]">
             {stream.title || "Untitled stream"}
           </div>
-          <div style={{ fontSize: 11, color: O.ink3, marginTop: 4 }}>
+          <div className="mt-1 text-[11px] text-muted-foreground">
             {stream.profiles.display_name}
           </div>
         </div>
@@ -783,4 +503,3 @@ function SmallLiveTile({ stream }: { stream: LiveStreamWithProfile }) {
     </Link>
   );
 }
-

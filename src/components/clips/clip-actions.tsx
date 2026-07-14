@@ -12,7 +12,6 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { createClient } from "@/lib/supabase/client";
 import { ShareDialog } from "@/components/shared/share-dialog";
-import { O } from "@/lib/design/orbit";
 
 interface ClipActionsProps {
   postId: string;
@@ -28,42 +27,27 @@ interface ClipActionsProps {
 interface PillProps {
   icon: React.ReactNode;
   label: string;
+  ariaLabel: string;
   onClick?: () => void;
 }
 
 // Slim TikTok-style action: bare icon with a soft drop-shadow for legibility,
-// count below. No glass pill backdrop.
-function ActionPill({ icon, label, onClick }: PillProps) {
+// count below. No pill backdrop.
+function ActionPill({ icon, label, ariaLabel, onClick }: PillProps) {
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-1"
-      style={{ touchAction: "manipulation" }}
+      aria-label={ariaLabel}
+      className="flex flex-col items-center gap-1 touch-manipulation"
     >
       <motion.div
         whileTap={{ scale: 1.25 }}
         transition={{ type: "spring", stiffness: 420, damping: 12 }}
-        style={{
-          width: 32,
-          height: 32,
-          display: "grid",
-          placeItems: "center",
-          color: O.ink,
-          filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.7))",
-        }}
+        className="grid h-8 w-8 place-items-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]"
       >
         {icon}
       </motion.div>
-      <span
-        style={{
-          fontFamily: O.sans,
-          fontSize: 11,
-          fontWeight: 600,
-          color: O.ink,
-          textShadow: "0 1px 2px rgba(0,0,0,0.7)",
-          letterSpacing: "0.01em",
-        }}
-      >
+      <span className="text-[11px] font-semibold tracking-[0.01em] text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
         {label}
       </span>
     </button>
@@ -153,41 +137,39 @@ export function ClipActions({
       <ActionPill
         icon={
           <Heart
-            style={{
-              width: 26,
-              height: 26,
-              fill: isLiked ? O.a2 : "transparent",
-              color: isLiked ? O.a2 : O.ink,
-            }}
+            className={`h-[26px] w-[26px] ${
+              isLiked ? "fill-primary text-primary" : "fill-transparent text-white"
+            }`}
             strokeWidth={isLiked ? 0 : 1.8}
           />
         }
         label={formatNumber(localLikeCount)}
+        ariaLabel={isLiked ? "Unlike" : "Like"}
         onClick={handleLike}
       />
       <ActionPill
-        icon={<MessageCircle style={{ width: 26, height: 26 }} strokeWidth={1.8} />}
+        icon={<MessageCircle className="h-[26px] w-[26px]" strokeWidth={1.8} />}
         label={formatNumber(commentCount)}
+        ariaLabel="Comments"
         onClick={onComment}
       />
       <ActionPill
         icon={
           <Bookmark
-            style={{
-              width: 26,
-              height: 26,
-              fill: isBookmarked ? O.a3 : "transparent",
-              color: isBookmarked ? O.a3 : O.ink,
-            }}
+            className={`h-[26px] w-[26px] ${
+              isBookmarked ? "fill-primary text-primary" : "fill-transparent text-white"
+            }`}
             strokeWidth={isBookmarked ? 0 : 1.8}
           />
         }
         label={formatNumber(localBookmarkCount)}
+        ariaLabel={isBookmarked ? "Remove bookmark" : "Bookmark"}
         onClick={handleBookmark}
       />
       <ActionPill
-        icon={<Share2 style={{ width: 26, height: 26 }} strokeWidth={1.8} />}
+        icon={<Share2 className="h-[26px] w-[26px]" strokeWidth={1.8} />}
         label={localShareCount > 0 ? formatNumber(localShareCount) : "Share"}
+        ariaLabel="Share"
         onClick={handleShare}
       />
       <ShareDialog postId={postId} open={shareOpen} onOpenChange={setShareOpen} />

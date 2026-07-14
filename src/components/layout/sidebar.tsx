@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { NAV_ITEMS } from "@/lib/navigation";
@@ -192,6 +193,10 @@ export function Sidebar({
                     Settings
                   </DropdownMenuItem>
                 </Link>
+                <DropdownMenuSeparator />
+                <div className="px-2 py-1.5">
+                  <ThemeToggle className="w-full justify-between" />
+                </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={signOut}

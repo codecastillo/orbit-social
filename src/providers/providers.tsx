@@ -19,14 +19,12 @@ export function Providers({ children }: { children: ReactNode }) {
   );
 
   return (
-    // Dark-only until every core surface passes a light-theme review; then
-    // this flips to defaultTheme="system" enableSystem and the toggle ships.
     // disableTransitionOnChange is required: globals.css applies a universal
     // transition, so a theme swap would otherwise animate every element.
     <ThemeProvider
       attribute="class"
-      defaultTheme="dark"
-      enableSystem={false}
+      defaultTheme="system"
+      enableSystem
       disableTransitionOnChange
     >
       <QueryClientProvider client={queryClient}>
