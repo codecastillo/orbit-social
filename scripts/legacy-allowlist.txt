@@ -5,8 +5,6 @@ src/app/(main)/events/page.tsx
 src/app/(main)/live/page.tsx
 src/app/(main)/marketplace/[listingId]/page.tsx
 src/app/(main)/marketplace/page.tsx
-src/app/(main)/messages/[conversationId]/page.tsx
-src/app/(main)/messages/page.tsx
 src/app/(main)/notifications/page.tsx
 src/app/(main)/scheduled/page.tsx
 src/app/(main)/settings/account/page.tsx
@@ -29,8 +27,6 @@ src/components/communities/join-requests-dialog.tsx
 src/components/communities/members-dialog.tsx
 src/components/events/attendees-dialog.tsx
 src/components/events/create-event-dialog.tsx
-src/components/messages/create-group-dialog.tsx
-src/components/messages/new-conversation-dialog.tsx
 src/components/orbit/confirm-dialog.tsx
 src/components/orbit/datetime-picker.tsx
 src/components/orbit/empty-state.tsx

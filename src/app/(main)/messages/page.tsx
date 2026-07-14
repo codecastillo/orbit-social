@@ -3,13 +3,12 @@
 import { useState, useMemo } from "react";
 import { Plus, Search, Users } from "lucide-react";
 import { Input as BareInput } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { ConversationList } from "@/components/messages/conversation-list";
 import { CreateGroupDialog } from "@/components/messages/create-group-dialog";
 import { NewConversationDialog } from "@/components/messages/new-conversation-dialog";
 import { useConversations } from "@/lib/hooks/use-messages";
 import { OrbitErrorState } from "@/components/orbit/error-state";
-import { O, panel } from "@/lib/design/orbit";
-import { Display, Acc, Eyebrow, PillBtn } from "@/components/orbit/primitives";
 
 export default function MessagesPage() {
   const { data: conversations, isLoading, isError, refetch } = useConversations();
@@ -34,76 +33,45 @@ export default function MessagesPage() {
   }, [conversations, search]);
 
   return (
-    <div
-      style={{
-        color: O.ink,
-        fontFamily: O.sans,
-        display: "flex",
-        flexDirection: "column",
-        gap: 18,
-      }}
-    >
+    <div className="flex flex-col gap-[18px] text-foreground">
       {/* Editorial hero */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          gap: 18,
-          flexWrap: "wrap",
-        }}
-      >
+      <div className="flex flex-wrap items-end justify-between gap-[18px]">
         <div>
-          <Eyebrow>◇&nbsp;&nbsp;DIRECT MESSAGES</Eyebrow>
-          <Display size={48} style={{ marginTop: 8 }}>
-            Said <Acc>quietly</Acc>.
-          </Display>
-          <p
-            style={{
-              fontSize: 14,
-              color: O.ink2,
-              marginTop: 8,
-              maxWidth: 540,
-            }}
-          >
+          <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            ◇&nbsp;&nbsp;DIRECT MESSAGES
+          </p>
+          <h1 className="mt-2 text-5xl font-extrabold tracking-tight">
+            Said <span className="text-primary">quietly</span>.
+          </h1>
+          <p className="mt-2 max-w-[540px] text-sm text-text-secondary">
             One-to-one and small-group chat. End-to-end where it matters.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <PillBtn size="lg" onClick={() => setGroupDialogOpen(true)}>
-            <Users style={{ width: 14, height: 14 }} strokeWidth={1.8} />
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => setGroupDialogOpen(true)}
+          >
+            <Users className="h-3.5 w-3.5" strokeWidth={1.8} />
             New group
-          </PillBtn>
-          <PillBtn primary size="lg" onClick={() => setNewConvoDialogOpen(true)}>
-            <Plus style={{ width: 14, height: 14 }} strokeWidth={2.4} />
+          </Button>
+          <Button size="lg" onClick={() => setNewConvoDialogOpen(true)}>
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.4} />
             New
-          </PillBtn>
+          </Button>
         </div>
       </div>
 
       {/* List panel */}
-      <div
-        style={{
-          ...panel(),
-          padding: 0,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "14px 18px",
-            borderBottom: `1px solid ${O.hair}`,
-          }}
-        >
-          <Search style={{ width: 16, height: 16, color: O.ink3 }} />
+      <div className="overflow-hidden rounded-xl border border-border bg-surface">
+        <div className="flex items-center gap-2.5 border-b border-border px-[18px] py-3.5">
+          <Search className="h-4 w-4 text-muted-foreground" />
           <BareInput
             placeholder="Search conversations…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 border-0 bg-transparent h-9 text-sm text-white placeholder:text-white/40 focus-visible:ring-0"
+            className="flex-1 border-0 bg-transparent h-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-0"
           />
         </div>
 

@@ -10,7 +10,6 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { searchUsers, type ProfileSummary } from "@/lib/queries/social";
 import { createGroupConversation } from "@/lib/queries/messages";
-import { O, auroraSoft } from "@/lib/design/orbit";
 
 interface CreateGroupDialogProps {
   open: boolean;
@@ -102,13 +101,11 @@ export function CreateGroupDialog({
       <DialogContent
         showCloseButton={false}
         className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto ring-0"
-        style={{ boxShadow: "none" }}
       >
         <ModalShell
           title="New group"
           subtitle="A conversation between more than two."
-          icon={<Users style={{ width: 17, height: 17 }} strokeWidth={1.8} />}
-          accent={O.a1}
+          icon={<Users className="h-[17px] w-[17px]" strokeWidth={1.8} />}
           width={540}
           primaryLabel={creating ? "Creating…" : "Create group"}
           secondaryLabel="Cancel"
@@ -132,53 +129,27 @@ export function CreateGroupDialog({
             label="Members"
             hint={`${selectedUsers.length} selected`}
           >
-            <div
-              style={{
-                minHeight: 80,
-                padding: 10,
-                borderRadius: 12,
-                background: "rgba(255,255,255,0.03)",
-                border: `1px solid ${O.hair2}`,
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 6,
-                alignItems: "flex-start",
-              }}
-            >
+            <div className="flex min-h-20 flex-wrap items-start gap-1.5 rounded-xl border border-border bg-surface-elevated p-2.5">
               {selectedUsers.map((u) => (
                 <div
                   key={u.id}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "4px 10px 4px 4px",
-                    borderRadius: 99,
-                    background: auroraSoft,
-                    border: `1px solid color-mix(in oklab, ${O.a2} 27%, transparent)`,
-                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 py-1 pl-1 pr-2.5"
                 >
                   <UserAvatar
                     src={u.avatar_url}
                     fallback={u.display_name}
                     size="sm"
                   />
-                  <span style={{ fontSize: 12, fontWeight: 500, color: O.ink }}>
+                  <span className="text-xs font-medium text-foreground">
                     {u.display_name}
                   </span>
                   <button
                     type="button"
                     onClick={() => removeUser(u.id)}
-                    style={{
-                      background: "transparent",
-                      border: "none",
-                      cursor: "pointer",
-                      color: O.ink3,
-                      display: "flex",
-                      alignItems: "center",
-                    }}
+                    aria-label={`Remove ${u.display_name}`}
+                    className="flex cursor-pointer items-center text-muted-foreground"
                   >
-                    <X style={{ width: 10, height: 10 }} strokeWidth={2} />
+                    <X className="h-2.5 w-2.5" strokeWidth={2} />
                   </button>
                 </div>
               ))}
@@ -187,46 +158,20 @@ export function CreateGroupDialog({
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 placeholder="Search someone to add…"
-                style={{
-                  flex: 1,
-                  minWidth: 160,
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  color: O.ink,
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                  fontFamily: "inherit",
-                }}
+                className="min-w-[160px] flex-1 bg-transparent px-2.5 py-1 text-xs text-foreground outline-none"
               />
             </div>
           </Field>
 
           {searchResults.length > 0 && (
             <>
-              <div
-                style={{
-                  marginBottom: 10,
-                  fontSize: 11,
-                  color: O.ink3,
-                  fontFamily: O.mono,
-                  letterSpacing: "0.12em",
-                  fontWeight: 600,
-                }}
-              >
+              <div className="mb-2.5 font-mono text-[11px] font-semibold tracking-[0.12em] text-muted-foreground">
                 RESULTS
               </div>
               {searchResults.map((p) => (
                 <div
                   key={p.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "10px 10px",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                  }}
+                  className="flex cursor-pointer items-center gap-3 rounded-xl p-2.5"
                   onClick={() => addUser(p)}
                 >
                   <UserAvatar
@@ -234,30 +179,20 @@ export function CreateGroupDialog({
                     fallback={p.display_name}
                     size="sm"
                   />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: O.ink }}>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-semibold text-foreground">
                       {p.display_name}
                     </div>
-                    <div style={{ fontSize: 11, color: O.ink3 }}>
+                    <div className="text-[11px] text-muted-foreground">
                       @{p.username}
                     </div>
                   </div>
                   <button
                     type="button"
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: 8,
-                      background: "rgba(255,255,255,0.04)",
-                      border: `1px solid ${O.hair2}`,
-                      color: O.ink2,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor: "pointer",
-                    }}
+                    aria-label={`Add ${p.display_name}`}
+                    className="flex h-[26px] w-[26px] cursor-pointer items-center justify-center rounded-lg border border-border bg-surface-elevated text-text-secondary"
                   >
-                    <Plus style={{ width: 13, height: 13 }} strokeWidth={2} />
+                    <Plus className="h-[13px] w-[13px]" strokeWidth={2} />
                   </button>
                 </div>
               ))}

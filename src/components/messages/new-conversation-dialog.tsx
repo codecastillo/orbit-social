@@ -2,12 +2,11 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Edit3, AlertCircle, Loader2 } from "lucide-react";
+import { Edit3, AlertCircle, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ModalShell, Field, Input } from "@/components/orbit/forms";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { O, auroraSoft } from "@/lib/design/orbit";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { searchUsers, type ProfileSummary } from "@/lib/queries/social";
 import { getOrCreateDMConversation } from "@/lib/queries/messages";
@@ -81,13 +80,11 @@ export function NewConversationDialog({
       <DialogContent
         showCloseButton={false}
         className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto ring-0"
-        style={{ boxShadow: "none" }}
       >
         <ModalShell
           title="New conversation"
           subtitle="Search someone to start talking to."
-          icon={<Edit3 style={{ width: 17, height: 17 }} strokeWidth={1.8} />}
-          accent={O.a2}
+          icon={<Edit3 className="h-[17px] w-[17px]" strokeWidth={1.8} />}
           primaryLabel="Start"
           canSubmit={false}
           onClose={() => onOpenChange(false)}
@@ -99,50 +96,30 @@ export function NewConversationDialog({
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder="Search by name or @handle…"
-              prefix="🔎"
+              prefix={
+                <Search
+                  className="h-3.5 w-3.5 text-muted-foreground"
+                  strokeWidth={1.8}
+                />
+              }
               autoFocus
             />
           </Field>
 
           {searching && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "14px 16px",
-                borderRadius: 12,
-                background: "rgba(255,255,255,0.025)",
-                border: `1px solid ${O.hair2}`,
-                marginBottom: 18,
-              }}
-            >
-              <Loader2
-                style={{ width: 14, height: 14, color: O.ink3 }}
-                className="animate-spin"
-              />
-              <span style={{ fontSize: 12, color: O.ink3 }}>Searching…</span>
+            <div className="mb-[18px] flex items-center gap-2.5 rounded-xl border border-border bg-surface-elevated px-4 py-3.5">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Searching…</span>
             </div>
           )}
 
           {searchQuery.trim().length === 0 && (
-            <div
-              style={{
-                padding: "14px 16px",
-                borderRadius: 12,
-                background: "rgba(255,255,255,0.025)",
-                border: `1px solid ${O.hair2}`,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                marginBottom: 18,
-              }}
-            >
+            <div className="mb-[18px] flex items-center gap-2.5 rounded-xl border border-border bg-surface-elevated px-4 py-3.5">
               <AlertCircle
-                style={{ width: 14, height: 14, color: O.ink3 }}
+                className="h-3.5 w-3.5 text-muted-foreground"
                 strokeWidth={1.6}
               />
-              <span style={{ fontSize: 12, color: O.ink3 }}>
+              <span className="text-xs text-muted-foreground">
                 Type at least 2 characters to search
               </span>
             </div>
@@ -150,16 +127,7 @@ export function NewConversationDialog({
 
           {searchResults.length > 0 && (
             <>
-              <div
-                style={{
-                  marginBottom: 10,
-                  fontSize: 11,
-                  color: O.ink3,
-                  fontFamily: O.mono,
-                  letterSpacing: "0.12em",
-                  fontWeight: 600,
-                }}
-              >
+              <div className="mb-2.5 font-mono text-[11px] font-semibold tracking-[0.12em] text-muted-foreground">
                 RESULTS
               </div>
               {searchResults.map((p) => (
@@ -167,54 +135,22 @@ export function NewConversationDialog({
                   key={p.id}
                   onClick={() => handleSelectUser(p)}
                   disabled={navigating === p.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "10px 10px",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    width: "100%",
-                    background: "transparent",
-                    border: "none",
-                    color: O.ink,
-                    textAlign: "left",
-                    opacity: navigating === p.id ? 0.5 : 1,
-                    fontFamily: "inherit",
-                  }}
+                  className="flex w-full cursor-pointer items-center gap-3 rounded-xl p-2.5 text-left text-foreground disabled:opacity-50"
                 >
                   <UserAvatar
                     src={p.avatar_url}
                     fallback={p.display_name}
                     size="md"
                   />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 13.5,
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13.5px] font-semibold">
                       {p.display_name}
                     </div>
-                    <div style={{ fontSize: 11.5, color: O.ink3 }}>
+                    <div className="text-[11.5px] text-muted-foreground">
                       @{p.username}
                     </div>
                   </div>
-                  <span
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: 99,
-                      background: auroraSoft,
-                      border: `1px solid color-mix(in oklab, ${O.a2} 27%, transparent)`,
-                      color: O.ink,
-                      fontSize: 11.5,
-                      fontWeight: 500,
-                    }}
-                  >
+                  <span className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-[11.5px] font-medium text-foreground">
                     {navigating === p.id ? "…" : "Message"}
                   </span>
                 </button>
@@ -223,14 +159,7 @@ export function NewConversationDialog({
           )}
 
           {searchQuery.trim().length >= 2 && !searching && searchResults.length === 0 && (
-            <p
-              style={{
-                textAlign: "center",
-                fontSize: 12,
-                color: O.ink3,
-                padding: "24px 0",
-              }}
-            >
+            <p className="py-6 text-center text-xs text-muted-foreground">
               No users found
             </p>
           )}

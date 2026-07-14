@@ -30,10 +30,9 @@ import { CallButton } from "@/components/messages/call-button";
 import { CallOverlay } from "@/components/messages/call-overlay";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useWebRTC } from "@/lib/hooks/use-webrtc";
 import { cn } from "@/lib/utils";
-import { O, aurora, panel } from "@/lib/design/orbit";
-import { Eyebrow, PillBtn } from "@/components/orbit/primitives";
 
 interface ChatPageProps {
   params: Promise<{ conversationId: string }>;
@@ -261,8 +260,8 @@ export default function ChatPage({ params }: ChatPageProps) {
   if (authLoading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <div className="p-4 border-b border-white/[0.06] flex items-center gap-3">
-          <Skeleton className="h-10 w-10 rounded-2xl" />
+        <div className="p-4 border-b border-border flex items-center gap-3">
+          <Skeleton className="h-10 w-10 rounded-full" />
           <Skeleton className="h-5 w-32" />
         </div>
         <div className="flex-1" />
@@ -293,45 +292,23 @@ export default function ChatPage({ params }: ChatPageProps) {
       : null;
 
   return (
-    <div
-      style={{
-        color: O.ink,
-        fontFamily: O.sans,
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) 280px",
-        gap: 18,
-        height: "calc(100vh - 48px)",
-      }}
-      className="xl:grid-cols-[minmax(0,1fr)_280px] grid-cols-1"
-    >
+    <div className="grid h-[calc(100vh-48px)] grid-cols-1 gap-[18px] text-foreground xl:grid-cols-[minmax(0,1fr)_280px]">
       {/* CHAT PANEL */}
-      <div
-        style={{
-          ...panel(),
-          padding: 0,
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
-        }}
-      >
-        {/* Header, frosted, rounded chips */}
-        <div
-          style={{
-            borderBottom: `1px solid ${O.hair}`,
-          }}
-        >
+      <div className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-surface">
+        {/* Header */}
+        <div className="border-b border-border">
         <div className="flex items-center gap-3 px-4 py-3">
           <button
             onClick={() => router.push("/messages")}
-            className="h-10 w-10 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] flex items-center justify-center text-foreground transition-colors"
+            aria-label="Back to messages"
+            className="h-10 w-10 rounded-lg bg-surface-elevated hover:bg-muted border border-border flex items-center justify-center text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
 
           {loadingOther ? (
             <div className="flex items-center gap-3">
-              <Skeleton className="h-10 w-10 rounded-2xl" />
+              <Skeleton className="h-10 w-10 rounded-full" />
               <Skeleton className="h-4 w-24" />
             </div>
           ) : (
@@ -344,8 +321,8 @@ export default function ChatPage({ params }: ChatPageProps) {
                     size="sm"
                   />
                 ) : (
-                  <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-violet-500/25 to-cyan-500/20 border border-white/[0.06] flex items-center justify-center shrink-0">
-                    <Users className="h-4 w-4 text-violet-300" />
+                  <div className="h-10 w-10 rounded-full bg-primary/10 border border-border flex items-center justify-center shrink-0">
+                    <Users className="h-4 w-4 text-primary" />
                   </div>
                 )
               ) : otherUser ? (
@@ -372,11 +349,12 @@ export default function ChatPage({ params }: ChatPageProps) {
             <button
               onClick={togglePin}
               disabled={pinSaving}
+              aria-label={isPinned ? "Unpin conversation" : "Pin conversation"}
               className={cn(
-                "h-10 w-10 rounded-2xl flex items-center justify-center transition-colors shrink-0 border",
+                "h-10 w-10 rounded-lg flex items-center justify-center transition-colors shrink-0 border",
                 isPinned
-                  ? "text-amber-300 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20"
-                  : "text-muted-foreground bg-white/[0.04] border-white/[0.06] hover:bg-white/[0.08]"
+                  ? "text-primary bg-primary/10 border-primary/20 hover:bg-primary/20"
+                  : "text-muted-foreground bg-surface-elevated border-border hover:bg-muted"
               )}
               title={isPinned ? "Unpin conversation" : "Pin conversation"}
             >
@@ -397,7 +375,7 @@ export default function ChatPage({ params }: ChatPageProps) {
       {/* Body */}
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
-          <div className="h-6 w-6 rounded-full border-2 border-white/15 border-t-primary animate-spin" />
+          <div className="h-6 w-6 rounded-full border-2 border-border border-t-primary animate-spin" />
         </div>
       ) : messages.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -425,45 +403,14 @@ export default function ChatPage({ params }: ChatPageProps) {
 
       {/* PROFILE RAIL */}
       {!loadingOther && (otherUser || isGroup) && (
-        <aside
-          style={{
-            ...panel(),
-            padding: 22,
-            overflow: "auto",
-            height: "fit-content",
-            maxHeight: "calc(100vh - 48px)",
-            position: "sticky",
-            top: 24,
-          }}
-          className="hidden xl:block"
-        >
-          <div
-            style={{
-              textAlign: "center",
-              paddingBottom: 20,
-              borderBottom: `1px solid ${O.hair}`,
-            }}
-          >
+        <aside className="hidden xl:block sticky top-6 h-fit max-h-[calc(100vh-48px)] overflow-auto rounded-xl border border-border bg-surface p-[22px]">
+          <div className="border-b border-border pb-5 text-center">
             {isGroup ? (
-              <div
-                style={{
-                  width: 76,
-                  height: 76,
-                  borderRadius: "50%",
-                  margin: "0 auto",
-                  background: aurora,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 28,
-                  fontWeight: 700,
-                  color: "white",
-                }}
-              >
+              <div className="mx-auto flex h-[76px] w-[76px] items-center justify-center rounded-full bg-primary text-[28px] font-bold text-primary-foreground">
                 {headerName[0]?.toUpperCase()}
               </div>
             ) : otherUser ? (
-              <div style={{ display: "inline-block" }}>
+              <div className="inline-block">
                 <UserAvatar
                   src={otherUser.avatar_url}
                   fallback={otherUser.display_name}
@@ -471,55 +418,33 @@ export default function ChatPage({ params }: ChatPageProps) {
                 />
               </div>
             ) : null}
-            <div style={{ fontSize: 16, fontWeight: 600, marginTop: 10 }}>
+            <div className="mt-2.5 text-base font-semibold">
               {headerName}
             </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: O.ink3,
-                fontFamily: O.mono,
-                letterSpacing: "0.06em",
-              }}
-            >
+            <div className="font-mono text-[11px] tracking-[0.06em] text-muted-foreground">
               {isGroup
                 ? `${groupMembers.length + 1} MEMBERS`
                 : `@${otherUser?.username.toUpperCase()}`}
             </div>
             {!isGroup && otherUser && (
-              <Link href={`/${otherUser.username}`} style={{ textDecoration: "none" }}>
-                <PillBtn size="sm" style={{ marginTop: 12 }}>
+              <Link href={`/${otherUser.username}`} className="no-underline">
+                <Button variant="outline" size="sm" className="mt-3">
                   View profile →
-                </PillBtn>
+                </Button>
               </Link>
             )}
           </div>
 
           {pinnedMessages.length > 0 && (
-            <div style={{ marginTop: 18 }}>
-              <Eyebrow accent>
+            <div className="mt-[18px]">
+              <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
                 ◇&nbsp;&nbsp;PINNED · {pinnedMessages.length}
-              </Eyebrow>
-              <div
-                style={{
-                  marginTop: 10,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 6,
-                }}
-              >
+              </p>
+              <div className="mt-2.5 flex flex-col gap-1.5">
                 {pinnedMessages.slice(0, 3).map((m) => (
                   <div
                     key={m.id}
-                    style={{
-                      padding: "8px 10px",
-                      borderRadius: 10,
-                      background: "rgba(255,215,106,0.06)",
-                      border: "1px solid rgba(255,215,106,0.18)",
-                      fontSize: 12,
-                      color: O.ink2,
-                      lineHeight: 1.4,
-                    }}
+                    className="rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-2 text-xs leading-normal text-text-secondary"
                   >
                     {(m.content || "Media").slice(0, 60)}
                   </div>
@@ -528,36 +453,25 @@ export default function ChatPage({ params }: ChatPageProps) {
             </div>
           )}
 
-          <div style={{ marginTop: 18 }}>
-            <Eyebrow>◈&nbsp;&nbsp;ACTIONS</Eyebrow>
-            <div style={{ marginTop: 10 }}>
+          <div className="mt-[18px]">
+            <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              ◈&nbsp;&nbsp;ACTIONS
+            </p>
+            <div className="mt-2.5">
               {!isGroup && (
                 <button
                   type="button"
                   onClick={togglePin}
                   disabled={pinSaving}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    fontSize: 13,
-                    color: isPinned ? "#ffd86a" : O.ink2,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    cursor: pinSaving ? "default" : "pointer",
-                    background: "transparent",
-                    border: "none",
-                    fontFamily: "inherit",
-                    textAlign: "left",
-                    opacity: pinSaving ? 0.6 : 1,
-                  }}
-                  className="hover:bg-white/5"
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-surface-elevated disabled:opacity-60",
+                    isPinned ? "text-primary" : "text-text-secondary"
+                  )}
                 >
                   {isPinned ? (
-                    <PinOff style={{ width: 14, height: 14 }} strokeWidth={1.8} />
+                    <PinOff className="h-3.5 w-3.5" strokeWidth={1.8} />
                   ) : (
-                    <Pin style={{ width: 14, height: 14 }} strokeWidth={1.8} />
+                    <Pin className="h-3.5 w-3.5" strokeWidth={1.8} />
                   )}
                   {isPinned ? "Unpin conversation" : "Pin conversation"}
                 </button>
@@ -567,25 +481,9 @@ export default function ChatPage({ params }: ChatPageProps) {
                   type="button"
                   onClick={handleBlock}
                   disabled={blockSaving}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    fontSize: 13,
-                    color: "#ff6a7a",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    cursor: blockSaving ? "default" : "pointer",
-                    background: "transparent",
-                    border: "none",
-                    fontFamily: "inherit",
-                    textAlign: "left",
-                    opacity: blockSaving ? 0.6 : 1,
-                  }}
-                  className="hover:bg-white/5"
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] text-destructive transition-colors hover:bg-surface-elevated disabled:opacity-60"
                 >
-                  <Ban style={{ width: 14, height: 14 }} strokeWidth={1.8} />
+                  <Ban className="h-3.5 w-3.5" strokeWidth={1.8} />
                   Block @{otherUser.username}
                 </button>
               )}
