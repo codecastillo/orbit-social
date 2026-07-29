@@ -292,7 +292,9 @@ export default function ChatPage({ params }: ChatPageProps) {
       : null;
 
   return (
-    <div className="grid h-[calc(100vh-48px)] grid-cols-1 gap-[18px] text-foreground xl:grid-cols-[minmax(0,1fr)_280px]">
+    // dvh, not vh: iOS Safari's 100vh is the large viewport, which shoved the
+    // input under the URL bar. Mobile also subtracts the fixed bottom nav.
+    <div className="grid h-[calc(100dvh-112px-env(safe-area-inset-bottom))] lg:h-[calc(100dvh-48px)] grid-cols-1 gap-[18px] text-foreground xl:grid-cols-[minmax(0,1fr)_280px]">
       {/* CHAT PANEL */}
       <div className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-surface">
         {/* Header */}

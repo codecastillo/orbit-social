@@ -55,7 +55,7 @@ export default function NotificationsPage() {
           <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
             ◇&nbsp;&nbsp;ACTIVITY{unreadCount ? ` · ${unreadCount} NEW` : ""}
           </p>
-          <h1 className="mt-2 text-[48px] font-bold leading-none tracking-[-0.035em] text-foreground">
+          <h1 className="mt-2 text-4xl sm:text-[48px] font-bold leading-none tracking-[-0.035em] text-foreground">
             Signals from your <span className="text-primary">orbit</span>.
           </h1>
         </div>

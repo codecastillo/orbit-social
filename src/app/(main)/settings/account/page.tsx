@@ -108,7 +108,7 @@ export default function AccountSettingsPage() {
       <SettingsHeader section="Account" />
 
       <div>
-        <h1 className="mt-1 text-[48px] font-bold leading-none tracking-[-0.035em]">
+        <h1 className="mt-1 text-4xl sm:text-[48px] font-bold leading-none tracking-[-0.035em]">
           Your <span className="text-primary">account</span>.
         </h1>
         <p className="mt-2.5 max-w-[560px] text-[14.5px] leading-[1.55] text-muted-foreground">

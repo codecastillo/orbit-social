@@ -4,7 +4,7 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Heart, Send, Share2, X, Gift, Eye, Sparkles, Pencil, Check } from "lucide-react";
+import { Heart, Send, Share2, X, Gift, Eye, Sparkles, Pencil, Check, Link as LinkIcon } from "lucide-react";
 import * as Icons from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -683,26 +683,48 @@ export default function LiveViewerPage({ params }: Props) {
             <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-3">
               Share to
             </p>
-            <div className="grid grid-cols-4 gap-3">
-              {["Copy link", "Message", "Story", "More"].map((label) => (
-                <button
-                  key={label}
-                  className="flex flex-col items-center gap-2"
-                  onClick={() => {
-                    if (label === "Copy link") {
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                className="flex flex-col items-center gap-2"
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.href);
+                  toast.success("Link copied");
+                  setShareOpen(false);
+                }}
+              >
+                <div className="h-12 w-12 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-foreground">
+                  <LinkIcon className="h-5 w-5" />
+                </div>
+                <span className="text-[11px] font-semibold text-muted-foreground">
+                  Copy link
+                </span>
+              </button>
+              <button
+                className="flex flex-col items-center gap-2"
+                onClick={async () => {
+                  try {
+                    if (navigator.share) {
+                      await navigator.share({
+                        title: stream.title ?? "Live on Orbit",
+                        url: window.location.href,
+                      });
+                    } else {
                       navigator.clipboard.writeText(window.location.href);
-                      setShareOpen(false);
+                      toast.success("Link copied");
                     }
-                  }}
-                >
-                  <div className="h-12 w-12 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-foreground">
-                    <Sparkles className="h-5 w-5" />
-                  </div>
-                  <span className="text-[11px] font-semibold text-muted-foreground">
-                    {label}
-                  </span>
-                </button>
-              ))}
+                  } catch {
+                    // User dismissed the share sheet.
+                  }
+                  setShareOpen(false);
+                }}
+              >
+                <div className="h-12 w-12 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-foreground">
+                  <Share2 className="h-5 w-5" />
+                </div>
+                <span className="text-[11px] font-semibold text-muted-foreground">
+                  Share
+                </span>
+              </button>
             </div>
           </div>
 

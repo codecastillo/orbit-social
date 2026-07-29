@@ -142,7 +142,7 @@ export default function SettingsPage() {
         <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
           ◇&nbsp;&nbsp;SETTINGS
         </p>
-        <h1 className="mt-2 text-[48px] font-bold leading-none tracking-[-0.035em]">
+        <h1 className="mt-2 text-4xl sm:text-[48px] font-bold leading-none tracking-[-0.035em]">
           Tune your <span className="text-primary">orbit</span>.
         </h1>
         <p className="mt-2.5 max-w-[520px] text-[14.5px] leading-[1.55] text-muted-foreground">

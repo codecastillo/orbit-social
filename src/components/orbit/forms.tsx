@@ -560,7 +560,15 @@ export function ModalShell({
       </div>
 
       {/* Body */}
-      <div style={{ padding: "20px 22px", maxHeight: 520, overflow: "auto" }}>
+      <div
+        style={{
+          padding: "20px 22px",
+          // Cap to the small viewport too: a fixed 520px body plus header and
+          // footer overflowed short phones entirely.
+          maxHeight: "min(520px, calc(100dvh - 220px))",
+          overflow: "auto",
+        }}
+      >
         {children}
       </div>
 
@@ -578,6 +586,7 @@ export function ModalShell({
         <button
           type="button"
           onClick={onSecondary ?? onClose}
+          disabled={loading}
           style={{
             padding: "9px 16px",
             borderRadius: 8,
@@ -586,7 +595,8 @@ export function ModalShell({
             color: "var(--text-secondary)",
             fontSize: 12.5,
             fontWeight: 500,
-            cursor: "pointer",
+            cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.6 : 1,
             fontFamily: "inherit",
           }}
         >
@@ -596,6 +606,7 @@ export function ModalShell({
           type="button"
           onClick={onPrimary}
           disabled={!canSubmit || loading}
+          aria-busy={loading}
           style={{
             padding: "10px 20px",
             borderRadius: 8,

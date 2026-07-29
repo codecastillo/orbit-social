@@ -57,7 +57,7 @@ export default function CreatorAnalyticsPage() {
       <SettingsHeader section="Creator" glyph="◆" />
 
       <div>
-        <h1 className="mt-1 text-5xl font-bold leading-none tracking-[-0.035em] text-foreground">
+        <h1 className="mt-1 text-4xl sm:text-5xl font-bold leading-none tracking-[-0.035em] text-foreground">
           Creator <span className="text-primary">tools</span>.
         </h1>
         <p className="mt-2.5 max-w-[560px] text-[14.5px] leading-[1.55] text-muted-foreground">

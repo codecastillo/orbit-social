@@ -93,7 +93,7 @@ export default function PrivacySettingsPage() {
       <SettingsHeader section="Privacy" glyph="◆" />
 
       <div>
-        <h1 className="mt-1 text-[48px] font-bold leading-none tracking-[-0.035em]">
+        <h1 className="mt-1 text-4xl sm:text-[48px] font-bold leading-none tracking-[-0.035em]">
           Kept <span className="text-primary">quiet</span>.
         </h1>
         <p className="mt-2.5 max-w-[560px] text-[14.5px] leading-[1.55] text-muted-foreground">

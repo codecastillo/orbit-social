@@ -10,6 +10,8 @@ export function AppToaster() {
     <Toaster
       theme={resolvedTheme === "light" ? "light" : "dark"}
       position="bottom-right"
+      // Keep toasts clear of the fixed mobile bottom nav.
+      mobileOffset={{ bottom: 96 }}
       toastOptions={{
         style: {
           background: "var(--surface-elevated)",

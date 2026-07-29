@@ -40,7 +40,7 @@ export default function MessagesPage() {
           <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
             ◇&nbsp;&nbsp;DIRECT MESSAGES
           </p>
-          <h1 className="mt-2 text-5xl font-extrabold tracking-tight">
+          <h1 className="mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight">
             Said <span className="text-primary">quietly</span>.
           </h1>
           <p className="mt-2 max-w-[540px] text-sm text-text-secondary">

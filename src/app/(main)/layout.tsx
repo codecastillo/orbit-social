@@ -39,7 +39,10 @@ export default async function MainLayout({
 
       <main className="lg:pl-[260px] min-h-screen pb-24 lg:pb-6 lg:pt-6 relative">
         <EmailVerificationBanner />
-        {children}
+        {/* One shared gutter for every page; without it cards sit flush
+            against the viewport edge on phones. Full-bleed surfaces (clips)
+            use fixed positioning and are unaffected. */}
+        <div className="px-4 sm:px-5 lg:px-8">{children}</div>
       </main>
 
       {user && <LazyPostComposer />}
