@@ -499,10 +499,13 @@ export default function ChatPage({ params }: ChatPageProps) {
           peerAvatarUrl={callPeer.avatar_url}
           isVideo={webrtc.isVideo}
           isMuted={webrtc.isMuted}
+          isCameraOff={webrtc.isCameraOff}
           localStream={webrtc.localStream}
           remoteStream={webrtc.remoteStream}
           onToggleMute={webrtc.toggleMute}
           onToggleVideo={webrtc.toggleVideo}
+          onAcceptCall={webrtc.acceptCall}
+          onDeclineCall={webrtc.declineCall}
           onEndCall={webrtc.endCall}
         />
       )}

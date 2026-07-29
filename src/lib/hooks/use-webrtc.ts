@@ -11,7 +11,10 @@ interface UseWebRTCReturn {
   callState: CallState;
   isVideo: boolean;
   isMuted: boolean;
+  isCameraOff: boolean;
   startCall: (video: boolean) => Promise<void>;
+  acceptCall: () => Promise<void>;
+  declineCall: () => void;
   endCall: () => void;
   toggleMute: () => void;
   toggleVideo: () => void;
@@ -31,38 +34,53 @@ export function useWebRTC(
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [callState, setCallState] = useState<CallState>("idle");
+  // isVideo is the call type (audio vs video); isCameraOff is whether the
+  // local camera track is paused. Conflating them is what made the camera
+  // impossible to re-enable.
   const [isVideo, setIsVideo] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
   const supabaseRef = useRef(createClient());
+  const callStateRef = useRef<CallState>("idle");
+  // The offer waits here between "ringing" and the user pressing Accept.
+  const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
+  // ICE candidates that arrive before the remote description is set.
+  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+
+  useEffect(() => {
+    callStateRef.current = callState;
+  }, [callState]);
 
   const cleanup = useCallback(() => {
-    // Stop local tracks
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
     setLocalStream(null);
 
-    // Close peer connection
     peerConnectionRef.current?.close();
     peerConnectionRef.current = null;
+    pendingOfferRef.current = null;
+    pendingCandidatesRef.current = [];
 
     setRemoteStream(null);
     setIsMuted(false);
-
-    // Remove channel
-    if (channelRef.current) {
-      supabaseRef.current.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
+    setIsCameraOff(false);
   }, []);
+
+  const finishCall = useCallback(() => {
+    setCallState("ended");
+    setTimeout(() => {
+      setCallState("idle");
+      cleanup();
+    }, 2000);
+  }, [cleanup]);
 
   const createPeerConnection = useCallback(() => {
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
-    // Handle remote tracks
     const remote = new MediaStream();
     setRemoteStream(remote);
 
@@ -73,7 +91,6 @@ export function useWebRTC(
       setRemoteStream(new MediaStream(remote.getTracks()));
     };
 
-    // Handle ICE candidates - send via Supabase Realtime
     pc.onicecandidate = (event) => {
       if (event.candidate && channelRef.current) {
         channelRef.current.send({
@@ -95,111 +112,96 @@ export function useWebRTC(
         pc.connectionState === "failed" ||
         pc.connectionState === "closed"
       ) {
-        setCallState("ended");
-        setTimeout(() => {
-          setCallState("idle");
-          cleanup();
-        }, 2000);
+        finishCall();
       }
     };
 
     peerConnectionRef.current = pc;
     return pc;
-  }, [userId, cleanup]);
+  }, [userId, finishCall]);
 
-  const setupSignaling = useCallback(() => {
+  const flushPendingCandidates = useCallback(async () => {
+    const pc = peerConnectionRef.current;
+    if (!pc) return;
+    const queued = pendingCandidatesRef.current;
+    pendingCandidatesRef.current = [];
+    for (const candidate of queued) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch {
+        // A dropped candidate is recoverable; the rest may still connect.
+      }
+    }
+  }, []);
+
+  // One signaling channel per conversation, held for the life of the screen.
+  // Handlers read live state through refs so the subscription never has to be
+  // torn down and rebuilt mid-call (the old rebuild-on-state-change version
+  // leaked channels and could remove the one an outgoing call was using).
+  useEffect(() => {
+    if (!conversationId || !userId) return;
+
     const supabase = supabaseRef.current;
     const channel = supabase.channel(`call-${conversationId}`, {
       config: { broadcast: { self: false } },
     });
 
     channel
-      .on("broadcast", { event: "offer" }, async ({ payload }) => {
+      .on("broadcast", { event: "offer" }, ({ payload }) => {
         if (payload.senderId === userId) return;
+        if (callStateRef.current !== "idle") return;
 
-        // Incoming call
-        setCallState("ringing");
+        // Ring only. Media stays off until the user explicitly accepts.
+        pendingOfferRef.current = payload.offer;
         setIsVideo(payload.isVideo ?? false);
-
-        const pc = createPeerConnection();
-
-        // Get media
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: payload.isVideo ?? false,
-          });
-          localStreamRef.current = stream;
-          setLocalStream(stream);
-          stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-        } catch {
-          setCallState("idle");
-          cleanup();
-          return;
-        }
-
-        await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
-        channel.send({
-          type: "broadcast",
-          event: "answer",
-          payload: {
-            answer: answer,
-            senderId: userId,
-          },
-        });
-
-        setCallState("connected");
+        setCallState("ringing");
       })
       .on("broadcast", { event: "answer" }, async ({ payload }) => {
         if (payload.senderId === userId) return;
-        if (peerConnectionRef.current) {
-          await peerConnectionRef.current.setRemoteDescription(
-            new RTCSessionDescription(payload.answer)
-          );
+        const pc = peerConnectionRef.current;
+        if (pc) {
+          await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+          await flushPendingCandidates();
           setCallState("connected");
         }
       })
       .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
-        if (payload.senderId === userId) return;
-        if (peerConnectionRef.current && payload.candidate) {
-          try {
-            await peerConnectionRef.current.addIceCandidate(
-              new RTCIceCandidate(payload.candidate)
-            );
-          } catch {
-            // Ignore ICE candidate errors
-          }
+        if (payload.senderId === userId || !payload.candidate) return;
+        const pc = peerConnectionRef.current;
+        if (!pc || !pc.remoteDescription) {
+          pendingCandidatesRef.current.push(payload.candidate);
+          return;
+        }
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+        } catch {
+          // Ignore ICE candidate errors
         }
       })
       .on("broadcast", { event: "end-call" }, ({ payload }) => {
         if (payload.senderId === userId) return;
-        setCallState("ended");
-        setTimeout(() => {
-          setCallState("idle");
-          cleanup();
-        }, 2000);
+        if (callStateRef.current === "idle") return;
+        finishCall();
       })
       .subscribe();
 
     channelRef.current = channel;
-  }, [conversationId, userId, createPeerConnection, cleanup]);
+
+    return () => {
+      supabase.removeChannel(channel);
+      channelRef.current = null;
+    };
+  }, [conversationId, userId, finishCall, flushPendingCandidates]);
 
   const startCall = useCallback(
     async (video: boolean) => {
-      if (callState !== "idle") return;
+      if (callStateRef.current !== "idle") return;
 
       setIsVideo(video);
       setCallState("calling");
 
-      // Setup signaling channel
-      setupSignaling();
-
       const pc = createPeerConnection();
 
-      // Get local media
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
@@ -214,7 +216,6 @@ export function useWebRTC(
         return;
       }
 
-      // Create and send offer
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
@@ -228,8 +229,60 @@ export function useWebRTC(
         },
       });
     },
-    [callState, setupSignaling, createPeerConnection, userId, cleanup]
+    [createPeerConnection, userId, cleanup]
   );
+
+  const acceptCall = useCallback(async () => {
+    const offer = pendingOfferRef.current;
+    if (callStateRef.current !== "ringing" || !offer) return;
+    pendingOfferRef.current = null;
+
+    const pc = createPeerConnection();
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: isVideo,
+      });
+      localStreamRef.current = stream;
+      setLocalStream(stream);
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+    } catch {
+      channelRef.current?.send({
+        type: "broadcast",
+        event: "end-call",
+        payload: { senderId: userId },
+      });
+      setCallState("idle");
+      cleanup();
+      return;
+    }
+
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    await flushPendingCandidates();
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    channelRef.current?.send({
+      type: "broadcast",
+      event: "answer",
+      payload: {
+        answer,
+        senderId: userId,
+      },
+    });
+  }, [createPeerConnection, isVideo, userId, cleanup, flushPendingCandidates]);
+
+  const declineCall = useCallback(() => {
+    if (callStateRef.current !== "ringing") return;
+    channelRef.current?.send({
+      type: "broadcast",
+      event: "end-call",
+      payload: { senderId: userId },
+    });
+    setCallState("idle");
+    cleanup();
+  }, [userId, cleanup]);
 
   const endCall = useCallback(() => {
     channelRef.current?.send({
@@ -237,54 +290,24 @@ export function useWebRTC(
       event: "end-call",
       payload: { senderId: userId },
     });
-    setCallState("ended");
-    setTimeout(() => {
-      setCallState("idle");
-      cleanup();
-    }, 2000);
-  }, [userId, cleanup]);
+    finishCall();
+  }, [userId, finishCall]);
 
   const toggleMute = useCallback(() => {
-    if (localStreamRef.current) {
-      const audioTrack = localStreamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setIsMuted(!audioTrack.enabled);
-      }
+    const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      setIsMuted(!audioTrack.enabled);
     }
   }, []);
 
   const toggleVideo = useCallback(() => {
-    if (localStreamRef.current) {
-      const videoTrack = localStreamRef.current.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        setIsVideo(videoTrack.enabled);
-      }
+    const videoTrack = localStreamRef.current?.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      setIsCameraOff(!videoTrack.enabled);
     }
   }, []);
-
-  // Listen for incoming calls when idle
-  useEffect(() => {
-    if (!conversationId || !userId) return;
-    if (callState !== "idle") return;
-
-    setupSignaling();
-
-    return () => {
-      if (channelRef.current && callState === "idle") {
-        supabaseRef.current.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-    };
-  }, [conversationId, userId, callState, setupSignaling]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      cleanup();
-    };
-  }, [cleanup]);
 
   return {
     localStream,
@@ -292,7 +315,10 @@ export function useWebRTC(
     callState,
     isVideo,
     isMuted,
+    isCameraOff,
     startCall,
+    acceptCall,
+    declineCall,
     endCall,
     toggleMute,
     toggleVideo,

@@ -12,10 +12,13 @@ interface CallOverlayProps {
   peerAvatarUrl: string | null;
   isVideo: boolean;
   isMuted: boolean;
+  isCameraOff: boolean;
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
   onToggleMute: () => void;
   onToggleVideo: () => void;
+  onAcceptCall: () => void;
+  onDeclineCall: () => void;
   onEndCall: () => void;
 }
 
@@ -31,10 +34,13 @@ export function CallOverlay({
   peerAvatarUrl,
   isVideo,
   isMuted,
+  isCameraOff,
   localStream,
   remoteStream,
   onToggleMute,
   onToggleVideo,
+  onAcceptCall,
+  onDeclineCall,
   onEndCall,
 }: CallOverlayProps) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -126,54 +132,78 @@ export function CallOverlay({
       )}
 
       {/* Controls */}
-      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-4">
-        {/* Mute toggle */}
-        <button
-          onClick={onToggleMute}
-          className={cn(
-            "h-14 w-14 rounded-full flex items-center justify-center transition-all",
-            isMuted
-              ? "bg-red-500/20 text-red-400 ring-1 ring-red-500/30"
-              : "bg-white/10 text-white hover:bg-white/20"
-          )}
-          title={isMuted ? "Unmute" : "Mute"}
-        >
-          {isMuted ? (
-            <MicOff className="h-6 w-6" />
-          ) : (
-            <Mic className="h-6 w-6" />
-          )}
-        </button>
-
-        {/* End call */}
-        <button
-          onClick={onEndCall}
-          className="h-16 w-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-colors shadow-lg shadow-red-500/20"
-          title="End call"
-        >
-          <PhoneOff className="h-7 w-7" />
-        </button>
-
-        {/* Video toggle (only if video call) */}
-        {isVideo && (
+      {callState === "ringing" ? (
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-8">
           <button
-            onClick={onToggleVideo}
+            onClick={onDeclineCall}
+            aria-label="Decline call"
+            title="Decline"
+            className="h-16 w-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-colors shadow-lg shadow-red-500/20"
+          >
+            <PhoneOff className="h-7 w-7" />
+          </button>
+          <button
+            onClick={onAcceptCall}
+            aria-label={isVideo ? "Accept video call" : "Accept call"}
+            title="Accept"
+            className="h-16 w-16 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center transition-colors shadow-lg shadow-green-500/20"
+          >
+            <Phone className="h-7 w-7" />
+          </button>
+        </div>
+      ) : (
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-4">
+          {/* Mute toggle */}
+          <button
+            onClick={onToggleMute}
+            aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
             className={cn(
               "h-14 w-14 rounded-full flex items-center justify-center transition-all",
-              !isVideo
+              isMuted
                 ? "bg-red-500/20 text-red-400 ring-1 ring-red-500/30"
                 : "bg-white/10 text-white hover:bg-white/20"
             )}
-            title={isVideo ? "Turn off camera" : "Turn on camera"}
+            title={isMuted ? "Unmute" : "Mute"}
           >
-            {isVideo ? (
-              <Video className="h-6 w-6" />
+            {isMuted ? (
+              <MicOff className="h-6 w-6" />
             ) : (
-              <VideoOff className="h-6 w-6" />
+              <Mic className="h-6 w-6" />
             )}
           </button>
-        )}
-      </div>
+
+          {/* End call */}
+          <button
+            onClick={onEndCall}
+            aria-label="End call"
+            className="h-16 w-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-colors shadow-lg shadow-red-500/20"
+            title="End call"
+          >
+            <PhoneOff className="h-7 w-7" />
+          </button>
+
+          {/* Camera toggle (only on video calls) */}
+          {isVideo && (
+            <button
+              onClick={onToggleVideo}
+              aria-label={isCameraOff ? "Turn on camera" : "Turn off camera"}
+              className={cn(
+                "h-14 w-14 rounded-full flex items-center justify-center transition-all",
+                isCameraOff
+                  ? "bg-red-500/20 text-red-400 ring-1 ring-red-500/30"
+                  : "bg-white/10 text-white hover:bg-white/20"
+              )}
+              title={isCameraOff ? "Turn on camera" : "Turn off camera"}
+            >
+              {isCameraOff ? (
+                <VideoOff className="h-6 w-6" />
+              ) : (
+                <Video className="h-6 w-6" />
+              )}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Hidden audio for audio-only calls */}
       {!isVideo && (
