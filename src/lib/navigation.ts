@@ -7,6 +7,7 @@ import {
   Home,
   MessageCircle,
   Play,
+  Store,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -27,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Rooms", href: "/communities", icon: Globe },
   { label: "Live", href: "/live", icon: Play },
   { label: "Events", href: "/events", icon: Calendar },
+  { label: "Marketplace", href: "/marketplace", icon: Store },
   { label: "Messages", href: "/messages", icon: MessageCircle, badge: "messages" },
   { label: "Notifications", href: "/notifications", icon: Bell, badge: "notifications" },
 ];

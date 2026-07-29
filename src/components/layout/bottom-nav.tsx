@@ -13,7 +13,6 @@ import {
   Bookmark,
   FileText,
   CalendarClock,
-  Store,
   Settings,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -95,10 +94,9 @@ export function BottomNav({ initialHasUser = false }: { initialHasUser?: boolean
           { label: "Bookmarks", href: "/bookmarks", icon: Bookmark },
           { label: "Drafts", href: "/drafts", icon: FileText },
           { label: "Scheduled", href: "/scheduled", icon: CalendarClock },
-          { label: "Marketplace", href: "/marketplace", icon: Store },
           { label: "Settings", href: "/settings", icon: Settings },
         ]
-      : [{ label: "Marketplace", href: "/marketplace", icon: Store }];
+      : [];
 
   return (
     <>

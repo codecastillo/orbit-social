@@ -3,7 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
-import { LogOut, Settings, MoreHorizontal } from "lucide-react";
+import {
+  Bookmark,
+  CalendarClock,
+  FileText,
+  LogOut,
+  MoreHorizontal,
+  Settings,
+  ShieldCheck,
+} from "lucide-react";
 import { useUnreadCount, useUnreadMessagesCount } from "@/lib/hooks/use-notifications";
 import { useCurrentProfile, type CurrentProfile } from "@/lib/hooks/use-profile";
 import {
@@ -187,12 +195,39 @@ export function Sidebar({
                 <MoreHorizontal className="h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" side="top" className="w-56">
+                <Link href="/bookmarks">
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Bookmark className="mr-2 h-4 w-4" />
+                    Bookmarks
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/drafts">
+                  <DropdownMenuItem className="cursor-pointer">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Drafts
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/scheduled">
+                  <DropdownMenuItem className="cursor-pointer">
+                    <CalendarClock className="mr-2 h-4 w-4" />
+                    Scheduled
+                  </DropdownMenuItem>
+                </Link>
+                <DropdownMenuSeparator />
                 <Link href="/settings">
                   <DropdownMenuItem className="cursor-pointer">
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                   </DropdownMenuItem>
                 </Link>
+                {profile?.is_admin && (
+                  <Link href="/admin">
+                    <DropdownMenuItem className="cursor-pointer">
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      Admin
+                    </DropdownMenuItem>
+                  </Link>
+                )}
                 <DropdownMenuSeparator />
                 <div className="px-2 py-1.5">
                   <ThemeToggle className="w-full justify-between" />
