@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMux } from "@/lib/services/mux";
 
@@ -6,6 +7,14 @@ import { getMux } from "@/lib/services/mux";
 // duration looks wrong (e.g. webhook fired with a partial asset). Called
 // from the profile VodCard on mount when duration_seconds is suspect.
 export async function POST(request: Request) {
+  // Signed-in users only: this route reaches the Mux API with admin
+  // credentials, so it must not be an open enumeration endpoint.
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   const { vodId } = await request.json().catch(() => ({}));
   if (!vodId || typeof vodId !== "string") {
     return NextResponse.json({ error: "missing_vod_id" }, { status: 400 });

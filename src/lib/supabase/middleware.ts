@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { tokenAal } from "@/lib/supabase/aal";
 
 // Auth-only public routes: unauthenticated users can hit them, authenticated
 // users get bounced to /feed.
@@ -8,11 +9,16 @@ const publicAuthRoutes = [
   "/login",
   "/signup",
   "/callback",
-  "/auth",
   "/verify-email",
   "/forgot-password",
-  "/reset-password",
 ];
+
+// Reachable with or without a session, and exempt from the MFA gate:
+// /auth/confirm must run verifyOtp for users who already hold a session
+// (email change, recovery), and /reset-password is where a recovery-link
+// session lands. Neither is bounced like the auth routes above nor gated
+// like authRequiredRoutes.
+const sessionNeutralRoutes = ["/reset-password", "/auth"];
 
 // Routes that REQUIRE a signed-in user. Anon visitors hitting any of these get
 // bounced to /login?next=<pathname>. Everything else (feed, clips, profiles,
@@ -43,14 +49,18 @@ export async function updateSession(request: NextRequest) {
   const isAuthRoute = publicAuthRoutes.some((route) =>
     pathname.startsWith(route),
   );
+  const isSessionNeutralRoute = sessionNeutralRoutes.some((route) =>
+    pathname.startsWith(route),
+  );
   const isAuthRequiredRoute = authRequiredRoutes.some((route) =>
     pathname.startsWith(route),
   );
 
+  const useAuthLimit = isAuthRoute || isSessionNeutralRoute;
   const { success } = rateLimit(
-    `${ip}:${isAuthRoute ? "auth" : "general"}`,
-    isAuthRoute ? AUTH_RATE_LIMIT : GENERAL_RATE_LIMIT,
-    isAuthRoute ? AUTH_WINDOW_MS : GENERAL_WINDOW_MS,
+    `${ip}:${useAuthLimit ? "auth" : "general"}`,
+    useAuthLimit ? AUTH_RATE_LIMIT : GENERAL_RATE_LIMIT,
+    useAuthLimit ? AUTH_WINDOW_MS : GENERAL_WINDOW_MS,
   );
 
   if (!success) {
@@ -88,13 +98,43 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  let user = null;
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.user) {
-    user = session.user;
-  } else {
-    const { data: { user: confirmedUser } } = await supabase.auth.getUser();
-    user = confirmedUser;
+  // getUser() validates the token against the auth server; getSession() only
+  // decodes the cookie, which a client can forge. Redirect decisions below
+  // must rely on the verified user.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // A session stuck at aal1 while a verified TOTP factor demands aal2 means
+  // the password step succeeded but the TOTP step did not. Treat it as
+  // signed-out everywhere except /login, where the MFA screen lives, so the
+  // second factor cannot be skipped by navigating directly to a URL.
+  //
+  // Both inputs are server-verified: `user.factors` comes from the getUser()
+  // response above, and the aal claim is decoded from the same access token
+  // getUser() just validated. The client library's own
+  // getAuthenticatorAssuranceLevel() reads factors out of the cookie, which
+  // the client controls, so it must not be trusted here.
+  if (user && !isSessionNeutralRoute) {
+    const hasVerifiedFactor = (user.factors ?? []).some(
+      (f) => f.status === "verified",
+    );
+    if (hasVerifiedFactor) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (tokenAal(session?.access_token) !== "aal2") {
+        if (pathname === "/login") {
+          return supabaseResponse;
+        }
+        const url = request.nextUrl.clone();
+        url.pathname = "/login";
+        url.search = "";
+        url.searchParams.set("mfa", "1");
+        if (isAuthRequiredRoute) url.searchParams.set("next", pathname);
+        return NextResponse.redirect(url);
+      }
+    }
   }
 
   // Anon hitting an auth-required route: bounce to login, preserving deep link.

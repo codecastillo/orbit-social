@@ -66,6 +66,11 @@ export default function ResetPasswordPage() {
       setError(updateError.message);
       return;
     }
+    // A password reset usually means the old credential is suspect; revoke
+    // every other session so a hijacked one dies with it.
+    try {
+      await supabase.auth.signOut({ scope: "others" });
+    } catch {}
     setDone(true);
     toast.success("Password updated.");
     setTimeout(() => router.push("/feed"), 1500);

@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
     const captchaToken = (await turnstileRef.current?.getToken()) ?? undefined;
 
     const supabase = createClient();
-    const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/reset-password`;
+    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/reset-password`;
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(
       email.trim().toLowerCase(),
       { redirectTo, captchaToken }

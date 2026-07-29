@@ -3,7 +3,7 @@ import { renderTemplate, type TemplateName, type TemplateVars } from "./email-te
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM = process.env.RESEND_FROM || "Orbit <onboarding@resend.dev>";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
+const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001";
 
 let resend: Resend | null = null;
 function client() {

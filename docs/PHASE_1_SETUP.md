@@ -24,13 +24,13 @@ Save the value — you'll add it to Vercel and (optionally) `.env.local`.
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxx
 RESEND_FROM="Orbit <no-reply@mail.orbit.app>"
 CRON_SECRET=<your-32-byte-hex>
-NEXT_PUBLIC_APP_URL=http://localhost:3001
+NEXT_PUBLIC_SITE_URL=http://localhost:3001
 SUPABASE_AUTH_HOOK_SECRET=<generate one — see step 5>
 ```
 
 ### Vercel (Production + Preview)
 
-Same vars, plus `NEXT_PUBLIC_APP_URL` set to your production URL.
+Same vars, plus `NEXT_PUBLIC_SITE_URL` set to your production URL.
 
 ## 4. Apply the SQL migrations
 

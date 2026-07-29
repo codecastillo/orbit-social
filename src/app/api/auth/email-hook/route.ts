@@ -44,13 +44,26 @@ type SupabaseEmailPayload = {
   };
 };
 
+// /auth/confirm only accepts relative `next` paths, but Supabase delivers
+// redirect_to as an absolute URL. Reduce it to its pathname so the allowlist
+// check passes instead of silently falling back to /feed.
+function toRelativeNext(redirectTo: string): string {
+  if (!redirectTo) return "/feed";
+  if (redirectTo.startsWith("/")) return redirectTo;
+  try {
+    return new URL(redirectTo).pathname || "/feed";
+  } catch {
+    return "/feed";
+  }
+}
+
 function buildLink(payload: SupabaseEmailPayload): string {
   const { token_hash, email_action_type, redirect_to, site_url } = payload.email_data;
-  const base = process.env.NEXT_PUBLIC_APP_URL || site_url || "";
+  const base = process.env.NEXT_PUBLIC_SITE_URL || site_url || "";
   const params = new URLSearchParams({
     token_hash,
     type: email_action_type,
-    next: redirect_to || "/feed",
+    next: toRelativeNext(redirect_to),
   });
   return `${base}/auth/confirm?${params.toString()}`;
 }
@@ -75,11 +88,17 @@ export async function POST(req: Request) {
         "webhook-signature": req.headers.get("webhook-signature") || "",
       }) as SupabaseEmailPayload;
     } catch (err) {
-      return NextResponse.json(
-        { error: "invalid signature", detail: err instanceof Error ? err.message : String(err) },
-        { status: 401 }
+      console.error(
+        "[email-hook] signature verification failed:",
+        err instanceof Error ? err.message : err
       );
+      return NextResponse.json({ error: "invalid signature" }, { status: 401 });
     }
+  } else if (process.env.NODE_ENV === "production") {
+    // Fail closed: without the shared secret, anyone who finds this route
+    // could send branded auth emails with attacker-controlled links.
+    console.error("[email-hook] SUPABASE_AUTH_HOOK_SECRET unset in production, refusing payload");
+    return NextResponse.json({ error: "hook secret not configured" }, { status: 500 });
   } else {
     console.warn("[email-hook] SUPABASE_AUTH_HOOK_SECRET unset, accepting payload without verification (dev only)");
     try {

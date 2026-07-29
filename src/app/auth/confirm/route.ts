@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
-const ALLOWED_NEXT = ["/onboarding", "/feed", "/profile", "/settings", "/reset-password"];
+// Profiles live at /[username], so a literal /profile target would 404.
+const ALLOWED_NEXT = ["/onboarding", "/feed", "/settings", "/reset-password"];
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -19,9 +20,9 @@ export async function GET(request: Request) {
   const { error } = await supabase.auth.verifyOtp({ type, token_hash });
 
   if (error) {
-    return NextResponse.redirect(
-      `${origin}/login?error=verification_failed&detail=${encodeURIComponent(error.message)}`
-    );
+    // Keep the raw message out of query strings (browser history, referrers).
+    console.error("[auth-confirm] verifyOtp failed:", error.message);
+    return NextResponse.redirect(`${origin}/login?error=verification_failed`);
   }
 
   return NextResponse.redirect(`${origin}${next}`);

@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     type: "signup",
     email,
     options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || ""}/auth/confirm?next=/feed`,
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || ""}/auth/confirm?next=/feed`,
     },
   });
 

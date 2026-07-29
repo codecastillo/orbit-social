@@ -128,7 +128,7 @@ Public (`NEXT_PUBLIC_*`, exposed to the browser bundle):
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_SITE_URL`
 - `NEXT_PUBLIC_SENTRY_DSN` (optional; error capture is off when unset)
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (optional; CAPTCHA is skipped when unset)
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`

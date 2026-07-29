@@ -67,7 +67,27 @@ export default function LoginPage() {
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState("");
   const [mfaVerifying, setMfaVerifying] = useState(false);
+  const [useRecoveryCode, setUseRecoveryCode] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState("");
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+
+  // The middleware redirects half-authenticated sessions (password ok, TOTP
+  // pending) back here. Resume the MFA screen instead of showing the sign-in
+  // form for a user who is already past the password step.
+  useEffect(() => {
+    const resumePendingMfa = async () => {
+      const { data: aal } =
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal?.currentLevel !== "aal1" || aal?.nextLevel !== "aal2") return;
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const verifiedFactor = factors?.totp.find((f) => f.status === "verified");
+      if (verifiedFactor) {
+        setMfaFactorId(verifiedFactor.id);
+        setMfaRequired(true);
+      }
+    };
+    resumePendingMfa();
+  }, [supabase]);
 
   const {
     register,
@@ -207,6 +227,44 @@ export default function LoginPage() {
     }
   };
 
+  const handleRecoveryVerify = async () => {
+    if (recoveryCode.trim().length < 6) return;
+    setMfaVerifying(true);
+    try {
+      const res = await fetch("/api/auth/mfa-recovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: recoveryCode }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || "Invalid recovery code");
+      }
+
+      // The TOTP factor was unenrolled server-side; refresh so the session
+      // stops demanding aal2 before we navigate into the app.
+      await supabase.auth.refreshSession();
+      clearLockoutData();
+      toast.success(
+        "Recovery code accepted. Two-factor was removed, re-enable it in Settings.",
+      );
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) await createLoginEvent(user.id, "success");
+      } catch {}
+      try {
+        await supabase.rpc("touch_last_seen");
+      } catch {}
+      router.push(nextPath);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Invalid recovery code");
+      setRecoveryCode("");
+    } finally {
+      setMfaVerifying(false);
+    }
+  };
+
   // MFA screen
   if (mfaRequired) {
     return (
@@ -218,44 +276,108 @@ export default function LoginPage() {
           eyebrow="Two-factor"
           title="Verify it's"
           accent="you"
-          sub="Enter the 6-digit code from your authenticator app."
+          sub={
+            useRecoveryCode
+              ? "Enter one of the recovery codes you saved when enabling two-factor."
+              : "Enter the 6-digit code from your authenticator app."
+          }
         />
 
-        <div className="mt-6">
-          <AuthField label="Code">
-            <AuthInput
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={mfaCode}
-              onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="000000"
-              className="text-center font-mono text-[22px] tracking-[0.3em]"
-              autoFocus
-            />
-          </AuthField>
-        </div>
+        {useRecoveryCode ? (
+          <>
+            <div className="mt-6">
+              <AuthField label="Recovery code">
+                <AuthInput
+                  type="text"
+                  maxLength={20}
+                  value={recoveryCode}
+                  onChange={(e) =>
+                    setRecoveryCode(
+                      e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase(),
+                    )
+                  }
+                  placeholder="XXXXXXXXXXXXXXXX"
+                  className="text-center font-mono text-[16px] tracking-[0.14em]"
+                  autoFocus
+                />
+              </AuthField>
+            </div>
 
-        <Button
-          className="mt-3 h-11 w-full text-sm"
-          onClick={handleMfaVerify}
-          disabled={mfaCode.length !== 6 || mfaVerifying}
-        >
-          {mfaVerifying ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            "Verify"
-          )}
-        </Button>
+            <Button
+              className="mt-3 h-11 w-full text-sm"
+              onClick={handleRecoveryVerify}
+              disabled={recoveryCode.length < 6 || mfaVerifying}
+            >
+              {mfaVerifying ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Use recovery code"
+              )}
+            </Button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setUseRecoveryCode(false);
+                setRecoveryCode("");
+              }}
+              className="mt-3.5 w-full cursor-pointer border-none bg-transparent py-2.5 text-[13px] font-medium text-primary hover:underline"
+            >
+              Use your authenticator app instead
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="mt-6">
+              <AuthField label="Code">
+                <AuthInput
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
+                  className="text-center font-mono text-[22px] tracking-[0.3em]"
+                  autoFocus
+                />
+              </AuthField>
+            </div>
+
+            <Button
+              className="mt-3 h-11 w-full text-sm"
+              onClick={handleMfaVerify}
+              disabled={mfaCode.length !== 6 || mfaVerifying}
+            >
+              {mfaVerifying ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Verify"
+              )}
+            </Button>
+
+            <button
+              type="button"
+              onClick={() => setUseRecoveryCode(true)}
+              className="mt-3.5 w-full cursor-pointer border-none bg-transparent py-2.5 text-[13px] font-medium text-primary hover:underline"
+            >
+              Lost your authenticator? Use a recovery code
+            </button>
+          </>
+        )}
 
         <button
           type="button"
-          onClick={() => {
+          onClick={async () => {
+            // Drop the half-authenticated aal1 session, otherwise the
+            // middleware keeps routing every page back to this screen.
+            await supabase.auth.signOut();
             setMfaRequired(false);
             setMfaCode("");
             setMfaFactorId(null);
+            setUseRecoveryCode(false);
+            setRecoveryCode("");
           }}
-          className="mt-3.5 w-full cursor-pointer border-none bg-transparent py-2.5 font-mono text-[12.5px] tracking-wide text-muted-foreground hover:text-foreground"
+          className="mt-1 w-full cursor-pointer border-none bg-transparent py-2.5 font-mono text-[12.5px] tracking-wide text-muted-foreground hover:text-foreground"
         >
           BACK TO SIGN IN
         </button>

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-const ALLOWED_REDIRECTS = ["/onboarding", "/feed", "/profile", "/settings"];
+// Profiles live at /[username], so a literal /profile target would 404.
+const ALLOWED_REDIRECTS = ["/onboarding", "/feed", "/settings"];
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);

@@ -119,7 +119,7 @@ Copy `.env.example` to `.env.local` and fill in the values below. Never commit `
 | `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon (public) key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key (server-only, never sent to the browser) |
-| `NEXT_PUBLIC_APP_URL` | Full URL of your deployment, e.g. `https://yourdomain.com` (used in emails and auth links) |
+| `NEXT_PUBLIC_SITE_URL` | Full URL of your deployment, e.g. `https://yourdomain.com` (used in emails and auth links) |
 
 ### Transactional email (Resend)
 

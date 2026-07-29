@@ -65,9 +65,13 @@ export default function SecurityPage() {
         setTotpSecret(data.totp.secret);
         setFactorId(data.id);
         setSetupStep("verifying");
-        const codes = Array.from({ length: 8 }, () =>
-          Math.random().toString(36).substring(2, 8).toUpperCase()
-        );
+        // 16 chars over a 31-symbol alphabet is ~79 bits: long enough that
+        // the stored SHA-256 hashes cannot be brute-forced offline.
+        const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+        const codes = Array.from({ length: 8 }, () => {
+          const bytes = crypto.getRandomValues(new Uint8Array(16));
+          return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+        });
         setRecoveryCodes(codes);
       }
     } catch (err) {

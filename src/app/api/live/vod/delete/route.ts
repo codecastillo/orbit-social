@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getMfaVerifiedUser } from "@/lib/supabase/verified-user";
 import { deleteMuxAsset } from "@/lib/services/mux";
 
 const noStore = { "Cache-Control": "no-store, max-age=0" };
@@ -10,9 +11,9 @@ const noStore = { "Cache-Control": "no-store, max-age=0" };
 // to clean up storage on Mux's side.
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Destructive and irreversible (removes the Mux asset), so an
+  // MFA-enrolled account must have completed its second factor.
+  const user = await getMfaVerifiedUser();
   if (!user) {
     return NextResponse.json(
       { error: "unauthorized" },

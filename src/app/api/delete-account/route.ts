@@ -1,26 +1,15 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getMfaVerifiedUser } from "@/lib/supabase/verified-user";
 
 export async function POST() {
-  const supabase = await createClient();
-
-  // Get the authenticated user
-  let userId: string | null = null;
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    userId = user.id;
-  } else {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      userId = session.user.id;
-    }
-  }
-
-  if (!userId) {
+  // Server-verified user, and full aal2 for MFA-enrolled accounts: a
+  // password-only session must not be able to destroy the account.
+  const user = await getMfaVerifiedUser();
+  if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+  const userId = user.id;
 
   const admin = createAdminClient();
 
