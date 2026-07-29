@@ -99,8 +99,37 @@ export async function getActiveStories(
   if (error) throw error;
   if (!stories || stories.length === 0) return [];
 
+  // Through unknown: the literal-type query parser infers the to-one
+  // profiles join as an array without generated DB types.
+  let visibleStories = stories as unknown as StoryWithAuthor[];
+
+  // Filter close_friends stories: only show if the viewer is in the
+  // poster's close_friends list (same approach as getFeedPosts).
+  const closeFriendsStories = visibleStories.filter(
+    (s) => s.visibility === "close_friends" && s.user_id !== userId
+  );
+
+  if (closeFriendsStories.length > 0) {
+    const posterIds = [...new Set(closeFriendsStories.map((s) => s.user_id))];
+    const { data: cfData } = await supabase
+      .from("close_friends")
+      .select("user_id")
+      .in("user_id", posterIds)
+      .eq("friend_id", userId);
+
+    const allowedPosterIds = new Set((cfData ?? []).map((cf) => cf.user_id));
+
+    visibleStories = visibleStories.filter((s) => {
+      if (s.visibility !== "close_friends") return true;
+      if (s.user_id === userId) return true;
+      return allowedPosterIds.has(s.user_id);
+    });
+
+    if (visibleStories.length === 0) return [];
+  }
+
   // Get which stories the current user has already viewed
-  const storyIds = stories.map((s) => s.id);
+  const storyIds = visibleStories.map((s) => s.id);
   const { data: views } = await supabase
     .from("story_views")
     .select("story_id")
@@ -112,9 +141,7 @@ export async function getActiveStories(
   // Group by user
   const groupMap = new Map<string, StoryGroup>();
 
-  // Through unknown: the literal-type query parser infers the to-one
-  // profiles join as an array without generated DB types.
-  for (const story of stories as unknown as StoryWithAuthor[]) {
+  for (const story of visibleStories) {
     const uid = story.user_id;
     if (!groupMap.has(uid)) {
       groupMap.set(uid, {
@@ -167,6 +194,12 @@ export async function markStoryViewed(storyId: string, viewerId: string) {
   if (error) throw error;
 }
 
+export interface StoryViewerRecord {
+  viewer_id: string;
+  viewed_at: string;
+  profiles: StoryWithAuthor["profiles"];
+}
+
 export async function getStoryViewers(storyId: string) {
   const { data, error } = await supabase
     .from("story_views")
@@ -177,7 +210,8 @@ export async function getStoryViewers(storyId: string) {
     .order("viewed_at", { ascending: false });
 
   if (error) throw error;
-  return data;
+  // Through unknown: same to-one join inference issue as above.
+  return data as unknown as StoryViewerRecord[];
 }
 
 export async function deleteStory(storyId: string) {

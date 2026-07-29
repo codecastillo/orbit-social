@@ -25,9 +25,16 @@ interface ShareDialogProps {
   postId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Overrides the default /post/<id> link, e.g. /clips/<id> for reels. */
+  path?: string;
 }
 
-export function ShareDialog({ postId, open, onOpenChange }: ShareDialogProps) {
+export function ShareDialog({
+  postId,
+  open,
+  onOpenChange,
+  path,
+}: ShareDialogProps) {
   const { user } = useAuth();
   const requireAuth = useRequireAuth();
   const queryClient = useQueryClient();
@@ -46,10 +53,11 @@ export function ShareDialog({ postId, open, onOpenChange }: ShareDialogProps) {
     staleTime: 1000 * 60 * 2,
   });
 
+  const postPath = path ?? `/post/${postId}`;
   const postUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/post/${postId}`
-      : `/post/${postId}`;
+      ? `${window.location.origin}${postPath}`
+      : postPath;
 
   const handleCopyLink = async () => {
     try {

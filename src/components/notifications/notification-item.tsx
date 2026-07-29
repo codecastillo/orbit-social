@@ -86,8 +86,9 @@ function getNotificationHref(notification: NotificationWithActor): string {
       if (entity === "community" && notification.entity_id) {
         return `/communities/${notification.entity_id}`;
       }
-      // Clips have no per-clip page yet, route to the global clips feed.
-      if (post?.type === "reel") return "/clips";
+      if (post?.type === "reel" && notification.entity_id) {
+        return `/clips/${notification.entity_id}`;
+      }
       return notification.entity_id ? `/post/${notification.entity_id}` : "/notifications";
     case "message":
       return notification.entity_id

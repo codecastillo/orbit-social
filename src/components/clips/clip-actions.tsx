@@ -172,7 +172,12 @@ export function ClipActions({
         ariaLabel="Share"
         onClick={handleShare}
       />
-      <ShareDialog postId={postId} open={shareOpen} onOpenChange={setShareOpen} />
+      <ShareDialog
+        postId={postId}
+        path={`/clips/${postId}`}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+      />
     </div>
   );
 }

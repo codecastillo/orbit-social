@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ImagePlus, Loader2 } from "lucide-react";
+import { Globe, ImagePlus, Loader2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createStory, uploadStoryMedia } from "@/lib/queries/stories";
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 interface StoryCreatorProps {
   open: boolean;
@@ -26,18 +28,24 @@ export function StoryCreator({ open, onOpenChange }: StoryCreatorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [visibility, setVisibility] = useState<"public" | "close_friends">(
+    "public"
+  );
 
   const mutation = useMutation({
     mutationFn: async () => {
       if (!user?.id || !selectedFile) throw new Error("Missing data");
 
       const { url, type } = await uploadStoryMedia(user.id, selectedFile);
-      return createStory(user.id, url, type);
+      return createStory(user.id, url, type, { visibility });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["stories"] });
       handleClose();
       toast.success("Moment posted");
+    },
+    onError: () => {
+      toast.error("Couldn't post your moment. Please try again.");
     },
   });
 
@@ -46,7 +54,15 @@ export function StoryCreator({ open, onOpenChange }: StoryCreatorProps) {
     if (!file) return;
 
     // Only accept images for now
-    if (!file.type.startsWith("image/")) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Moments only support photos right now.");
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("Photo must be under 10MB.");
+      return;
+    }
 
     setSelectedFile(file);
     const objectUrl = URL.createObjectURL(file);
@@ -56,6 +72,7 @@ export function StoryCreator({ open, onOpenChange }: StoryCreatorProps) {
   function handleClose() {
     setPreview(null);
     setSelectedFile(null);
+    setVisibility("public");
     if (fileInputRef.current) fileInputRef.current.value = "";
     onOpenChange(false);
   }
@@ -102,6 +119,32 @@ export function StoryCreator({ open, onOpenChange }: StoryCreatorProps) {
             className="hidden"
           />
 
+          {/* Visibility toggle */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setVisibility("public")}
+              className={cn(
+                "flex-1",
+                visibility === "public" && "border-primary text-primary"
+              )}
+            >
+              <Globe className="h-4 w-4" />
+              Public
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setVisibility("close_friends")}
+              className={cn(
+                "flex-1",
+                visibility === "close_friends" && "border-primary text-primary"
+              )}
+            >
+              <Users className="h-4 w-4" />
+              Close friends
+            </Button>
+          </div>
+
           <div className="flex gap-2">
             {preview && (
               <Button
@@ -131,12 +174,6 @@ export function StoryCreator({ open, onOpenChange }: StoryCreatorProps) {
               )}
             </Button>
           </div>
-
-          {mutation.isError && (
-            <p className="text-sm text-destructive text-center">
-              Failed to create moment. Please try again.
-            </p>
-          )}
         </div>
       </DialogContent>
     </Dialog>

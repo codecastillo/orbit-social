@@ -3,12 +3,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { X, ChevronLeft, ChevronRight, Eye, Loader2, Trash2 } from "lucide-react";
 import { formatTimeAgo } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { markStoryViewed, type StoryGroup } from "@/lib/queries/stories";
+import { ConfirmDialog } from "@/components/orbit/confirm-dialog";
+import {
+  deleteStory,
+  getStoryViewers,
+  markStoryViewed,
+  type StoryGroup,
+} from "@/lib/queries/stories";
 
 interface StoryViewerProps {
   storyGroups: StoryGroup[];
@@ -22,10 +29,16 @@ export function StoryViewer({
   onClose,
 }: StoryViewerProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [groupIndex, setGroupIndex] = useState(initialGroupIndex);
   const [storyIndex, setStoryIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  // Keyed to the story id so navigating away naturally dismisses the panel.
+  const [viewersForStoryId, setViewersForStoryId] = useState<string | null>(
+    null
+  );
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef(0);
   const elapsedRef = useRef(0);
@@ -33,6 +46,16 @@ export function StoryViewer({
   const currentGroup = storyGroups[groupIndex];
   const currentStory = currentGroup?.stories[storyIndex];
   const duration = (currentStory?.duration_seconds || 5) * 1000;
+  const isOwnStory = !!user?.id && currentStory?.user_id === user.id;
+  const viewersOpen =
+    !!currentStory && viewersForStoryId === currentStory.id;
+  const overlayOpen = confirmDeleteOpen || viewersOpen;
+
+  const { data: viewers, isLoading: viewersLoading } = useQuery({
+    queryKey: ["story-viewers", currentStory?.id],
+    queryFn: () => getStoryViewers(currentStory!.id),
+    enabled: viewersOpen && isOwnStory,
+  });
 
   // Mark story as viewed
   useEffect(() => {
@@ -97,9 +120,22 @@ export function StoryViewer({
     }
   }, [groupIndex]);
 
-  // Progress timer
+  const handleDelete = useCallback(async () => {
+    if (!currentStory) return;
+    try {
+      await deleteStory(currentStory.id);
+      queryClient.invalidateQueries({ queryKey: ["stories"] });
+      toast.success("Moment deleted");
+      // Close the viewer: the refetched groups can reindex under us.
+      onClose();
+    } catch {
+      toast.error("Couldn't delete moment");
+    }
+  }, [currentStory, queryClient, onClose]);
+
+  // Progress timer, held while a dialog or the viewers list is open
   useEffect(() => {
-    if (paused || !currentStory) return;
+    if (paused || overlayOpen || !currentStory) return;
 
     const intervalMs = 50;
     startTimeRef.current = Date.now();
@@ -122,7 +158,7 @@ export function StoryViewer({
         clearInterval(timerRef.current);
       }
     };
-  }, [paused, currentStory?.id, duration, goToNextStory]);
+  }, [paused, overlayOpen, currentStory?.id, duration, goToNextStory]);
 
   // Reset elapsed when story changes
   useEffect(() => {
@@ -131,6 +167,8 @@ export function StoryViewer({
 
   // Keyboard navigation
   useEffect(() => {
+    if (overlayOpen) return;
+
     function handleKeyDown(e: KeyboardEvent) {
       switch (e.key) {
         case "ArrowLeft":
@@ -157,7 +195,7 @@ export function StoryViewer({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [goToNextStory, goToPrevStory, goToNextGroup, goToPrevGroup, onClose]);
+  }, [overlayOpen, goToNextStory, goToPrevStory, goToNextGroup, goToPrevGroup, onClose]);
 
   // Prevent body scroll when viewer is open
   useEffect(() => {
@@ -175,6 +213,7 @@ export function StoryViewer({
       {groupIndex > 0 && (
         <button
           onClick={goToPrevGroup}
+          aria-label="Previous user's stories"
           className="absolute left-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition hidden md:flex"
         >
           <ChevronLeft className="h-6 w-6" />
@@ -185,6 +224,7 @@ export function StoryViewer({
       {groupIndex < storyGroups.length - 1 && (
         <button
           onClick={goToNextGroup}
+          aria-label="Next user's stories"
           className="absolute right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition hidden md:flex"
         >
           <ChevronRight className="h-6 w-6" />
@@ -240,12 +280,24 @@ export function StoryViewer({
                 </span>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-full hover:bg-white/10 text-white transition"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              {isOwnStory && (
+                <button
+                  onClick={() => setConfirmDeleteOpen(true)}
+                  aria-label="Delete moment"
+                  className="p-1.5 rounded-full hover:bg-white/10 text-white transition"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                aria-label="Close stories"
+                className="p-1.5 rounded-full hover:bg-white/10 text-white transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
           </div>
 
           {/* Story content */}
@@ -299,8 +351,79 @@ export function StoryViewer({
               aria-label="Next story"
             />
           </div>
+
+          {/* Viewer count, own stories only. Tap to see who watched. */}
+          {isOwnStory && (
+            <button
+              onClick={() => setViewersForStoryId(currentStory.id)}
+              aria-label="See who viewed this moment"
+              className="absolute bottom-4 left-4 z-20 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 text-white text-sm hover:bg-black/70 transition"
+            >
+              <Eye className="h-4 w-4" />
+              {currentStory.view_count}
+            </button>
+          )}
+
+          {/* Viewers list */}
+          {viewersOpen && (
+            <div className="absolute inset-x-0 bottom-0 z-30 max-h-[55%] flex flex-col rounded-t-2xl bg-black/95 border-t border-white/10">
+              <div className="flex items-center justify-between px-4 pt-3 pb-2">
+                <span className="text-white text-sm font-semibold">
+                  Viewers
+                </span>
+                <button
+                  onClick={() => setViewersForStoryId(null)}
+                  aria-label="Close viewers list"
+                  className="p-1.5 rounded-full hover:bg-white/10 text-white transition"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-4 pb-4">
+                {viewersLoading ? (
+                  <div className="flex justify-center py-6">
+                    <Loader2 className="h-5 w-5 animate-spin text-white/60" />
+                  </div>
+                ) : viewers && viewers.length > 0 ? (
+                  <ul className="space-y-3">
+                    {viewers.map((v) => (
+                      <li key={v.viewer_id} className="flex items-center gap-2.5">
+                        <UserAvatar
+                          src={v.profiles.avatar_url}
+                          fallback={v.profiles.display_name || v.profiles.username}
+                          size="sm"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-white text-sm font-medium truncate">
+                            {v.profiles.display_name || v.profiles.username}
+                          </p>
+                          <p className="text-white/60 text-xs truncate">
+                            @{v.profiles.username}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-white/60 text-sm text-center py-6">
+                    No views yet
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </motion.div>
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Delete this moment?"
+        description="It disappears for everyone right away."
+        confirmLabel="Delete"
+        danger
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
