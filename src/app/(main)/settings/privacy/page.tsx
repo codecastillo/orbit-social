@@ -9,6 +9,49 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { FormSection, Toggle } from "@/components/orbit/forms";
 import { SettingsHeader } from "@/components/settings/settings-header";
+import { UserAvatar } from "@/components/shared/user-avatar";
+import {
+  getBlockedUsers,
+  getMutedUsers,
+  unblockUser,
+  unmuteUser,
+  type ProfileSummary,
+} from "@/lib/queries/social";
+
+function AccountRow({
+  profile,
+  divider,
+  actionLabel,
+  onAction,
+}: {
+  profile: ProfileSummary;
+  divider: boolean;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-3 py-3 ${divider ? "border-t border-border" : ""}`}
+    >
+      <UserAvatar
+        src={profile.avatar_url}
+        fallback={profile.display_name || profile.username}
+        size="sm"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="m-0 truncate text-sm font-semibold text-foreground">
+          {profile.display_name || profile.username}
+        </p>
+        <p className="m-0 truncate font-mono text-[11.5px] text-muted-foreground">
+          @{profile.username}
+        </p>
+      </div>
+      <Button variant="outline" size="sm" onClick={onAction}>
+        {actionLabel}
+      </Button>
+    </div>
+  );
+}
 
 export default function PrivacySettingsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -20,6 +63,9 @@ export default function PrivacySettingsPage() {
   const [privateLikes, setPrivateLikes] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [blocked, setBlocked] = useState<ProfileSummary[]>([]);
+  const [muted, setMuted] = useState<ProfileSummary[]>([]);
+  const [listsLoading, setListsLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -38,6 +84,41 @@ export default function PrivacySettingsPage() {
         setProfileLoading(false);
       });
   }, [user, supabase]);
+
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([getBlockedUsers(user.id), getMutedUsers(user.id)])
+      .then(([blockedUsers, mutedUsers]) => {
+        setBlocked(blockedUsers);
+        setMuted(mutedUsers);
+      })
+      .catch(() => toast.error("Failed to load blocked and muted accounts"))
+      .finally(() => setListsLoading(false));
+  }, [user]);
+
+  const handleUnblock = async (profile: ProfileSummary) => {
+    if (!user) return;
+    setBlocked((prev) => prev.filter((p) => p.id !== profile.id));
+    try {
+      await unblockUser(user.id, profile.id);
+      toast.success(`Unblocked @${profile.username}`);
+    } catch {
+      setBlocked((prev) => [profile, ...prev]);
+      toast.error(`Failed to unblock @${profile.username}`);
+    }
+  };
+
+  const handleUnmute = async (profile: ProfileSummary) => {
+    if (!user) return;
+    setMuted((prev) => prev.filter((p) => p.id !== profile.id));
+    try {
+      await unmuteUser(user.id, profile.id);
+      toast.success(`Unmuted @${profile.username}`);
+    } catch {
+      setMuted((prev) => [profile, ...prev]);
+      toast.error(`Failed to unmute @${profile.username}`);
+    }
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -131,6 +212,50 @@ export default function PrivacySettingsPage() {
             onChange={setPrivateLikes}
           />
         </div>
+      </FormSection>
+
+      <FormSection title="Blocked accounts">
+        {listsLoading ? (
+          <Skeleton className="h-14 w-full rounded-xl" />
+        ) : blocked.length === 0 ? (
+          <p className="m-0 py-2 text-[12.5px] text-muted-foreground">
+            You haven&apos;t blocked anyone.
+          </p>
+        ) : (
+          <div>
+            {blocked.map((profile, index) => (
+              <AccountRow
+                key={profile.id}
+                profile={profile}
+                divider={index > 0}
+                actionLabel="Unblock"
+                onAction={() => handleUnblock(profile)}
+              />
+            ))}
+          </div>
+        )}
+      </FormSection>
+
+      <FormSection title="Muted accounts">
+        {listsLoading ? (
+          <Skeleton className="h-14 w-full rounded-xl" />
+        ) : muted.length === 0 ? (
+          <p className="m-0 py-2 text-[12.5px] text-muted-foreground">
+            You haven&apos;t muted anyone.
+          </p>
+        ) : (
+          <div>
+            {muted.map((profile, index) => (
+              <AccountRow
+                key={profile.id}
+                profile={profile}
+                divider={index > 0}
+                actionLabel="Unmute"
+                onAction={() => handleUnmute(profile)}
+              />
+            ))}
+          </div>
+        )}
       </FormSection>
 
       <div className="mt-2 flex justify-end gap-2.5">

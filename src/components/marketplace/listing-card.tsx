@@ -33,6 +33,11 @@ export function ListingCard({ listing, className }: ListingCardProps) {
       )}
     >
       <div className="aspect-square relative bg-muted/30 overflow-hidden">
+        {listing.status === "sold" && (
+          <span className="absolute left-2 top-2 z-10 rounded-full bg-black/70 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur-sm">
+            Sold
+          </span>
+        )}
         {firstImage ? (
           <Image
             src={firstImage.url}

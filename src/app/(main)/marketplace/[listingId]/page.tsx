@@ -11,7 +11,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ImageOff,
+  Tag,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -21,9 +24,12 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { getOrCreateDMConversation } from "@/lib/queries/messages";
 import {
   getListingById,
+  updateListingStatus,
+  deleteListing,
   type ListingWithSeller,
 } from "@/lib/queries/marketplace";
 import { VerifiedStar } from "@/components/orbit/verified-star";
+import { ConfirmDialog } from "@/components/orbit/confirm-dialog";
 
 function formatPrice(price: number, currency = "USD") {
   return new Intl.NumberFormat("en-US", {
@@ -45,6 +51,8 @@ export default function ListingDetailPage({
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [messagingSeller, setMessagingSeller] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -73,6 +81,32 @@ export default function ListingDetailPage({
       console.error("Failed to start conversation");
     } finally {
       setMessagingSeller(false);
+    }
+  };
+
+  const handleToggleSold = async () => {
+    if (!listing || statusUpdating) return;
+    const next = listing.status === "sold" ? "active" : "sold";
+    setStatusUpdating(true);
+    try {
+      await updateListingStatus(listing.id, next);
+      setListing({ ...listing, status: next });
+      toast.success(next === "sold" ? "Marked as sold" : "Marked as available");
+    } catch {
+      toast.error("Failed to update listing");
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!listing) return;
+    try {
+      await deleteListing(listing.id);
+      toast.success("Listing deleted");
+      router.push("/marketplace");
+    } catch {
+      toast.error("Failed to delete listing");
     }
   };
 
@@ -183,6 +217,11 @@ export default function ListingDetailPage({
               <span className="rounded-full border border-border bg-surface px-[11px] py-[5px] font-mono text-[11px] uppercase tracking-[0.08em] text-text-secondary">
                 {listing.condition}
               </span>
+              {listing.status === "sold" && (
+                <span className="rounded-full border border-destructive/40 bg-destructive/15 px-[11px] py-[5px] font-mono text-[11px] uppercase tracking-[0.08em] text-destructive">
+                  Sold
+                </span>
+              )}
             </div>
 
             <div className="mt-3.5 flex gap-3.5 font-mono text-xs tracking-[0.04em] text-muted-foreground">
@@ -227,17 +266,41 @@ export default function ListingDetailPage({
                 </p>
               </div>
             </div>
-            <Button
-              size="lg"
-              className="mt-[18px] w-full"
-              onClick={handleMessageSeller}
-              disabled={
-                messagingSeller || !user || user.id === listing.seller_id
-              }
-            >
-              <MessageCircle />
-              {messagingSeller ? "Opening…" : "Message seller"}
-            </Button>
+            {user?.id === listing.seller_id ? (
+              <div className="mt-[18px] flex flex-col gap-2.5">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleToggleSold}
+                  disabled={statusUpdating}
+                >
+                  <Tag />
+                  {listing.status === "sold"
+                    ? "Mark as available"
+                    : "Mark as sold"}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 />
+                  Delete listing
+                </Button>
+              </div>
+            ) : (
+              <Button
+                size="lg"
+                className="mt-[18px] w-full"
+                onClick={handleMessageSeller}
+                disabled={messagingSeller || !user}
+              >
+                <MessageCircle />
+                {messagingSeller ? "Opening…" : "Message seller"}
+              </Button>
+            )}
           </div>
 
           <div className="rounded-xl border border-border bg-surface p-[18px]">
@@ -266,6 +329,16 @@ export default function ListingDetailPage({
           </div>
         </aside>
       </div>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete this listing?"
+        description="The listing and its photos will be removed for everyone. This can't be undone."
+        confirmLabel="Delete"
+        danger
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

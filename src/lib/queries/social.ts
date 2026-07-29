@@ -77,6 +77,18 @@ export async function unblockUser(blockerId: string, blockedId: string) {
   if (error) throw error;
 }
 
+export async function getBlockedUsers(userId: string) {
+  const { data, error } = await supabase
+    .from("blocks")
+    .select(`created_at, profiles!blocks_blocked_id_fkey (${PROFILE_SELECT})`)
+    .eq("blocker_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as unknown as { profiles: ProfileSummary | null }[])
+    .map((row) => row.profiles)
+    .filter((p): p is ProfileSummary => p !== null);
+}
+
 // ── Mutes ────────────────────────────────────────────────────────────
 
 export async function muteUser(userId: string, mutedId: string, expiresAt?: string) {
@@ -97,6 +109,18 @@ export async function unmuteUser(userId: string, mutedId: string) {
     .eq("user_id", userId)
     .eq("muted_id", mutedId);
   if (error) throw error;
+}
+
+export async function getMutedUsers(userId: string) {
+  const { data, error } = await supabase
+    .from("mutes")
+    .select(`created_at, profiles!mutes_muted_id_fkey (${PROFILE_SELECT})`)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as unknown as { profiles: ProfileSummary | null }[])
+    .map((row) => row.profiles)
+    .filter((p): p is ProfileSummary => p !== null);
 }
 
 

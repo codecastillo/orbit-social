@@ -12,12 +12,21 @@ import { formatNumber, formatTimeAgo } from "@/lib/utils/format";
 import {
   getCreatorStats,
   getPostPerformance,
+  getFollowerGrowth,
   type CreatorStats,
   type PostPerformance,
+  type FollowerGrowthDay,
 } from "@/lib/queries/analytics";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCluster } from "@/components/orbit/stat-cluster";
 import { SettingsHeader } from "@/components/settings/settings-header";
+
+function formatGrowthDate(date: string) {
+  return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export default function CreatorAnalyticsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -25,6 +34,9 @@ export default function CreatorAnalyticsPage() {
   const [stats, setStats] = useState<CreatorStats | null>(null);
   const [topPosts, setTopPosts] = useState<PostPerformance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [growth, setGrowth] = useState<FollowerGrowthDay[] | null>(null);
+  const [growthError, setGrowthError] = useState(false);
+  const [growthAttempt, setGrowthAttempt] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -41,6 +53,25 @@ export default function CreatorAnalyticsPage() {
     };
     loadData();
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    getFollowerGrowth(user.id)
+      .then((growthData) => {
+        if (cancelled) return;
+        setGrowth(growthData);
+        setGrowthError(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setGrowth(null);
+        setGrowthError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, growthAttempt]);
 
   if (authLoading || loading) {
     return (
@@ -81,6 +112,62 @@ export default function CreatorAnalyticsPage() {
               ]}
             />
           </div>
+        </div>
+      </div>
+
+      <div>
+        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-primary">
+          ◈&nbsp;&nbsp;FOLLOWER GROWTH · LAST 30 DAYS
+        </p>
+        <div className="mt-3.5 rounded-xl border border-border bg-surface p-5">
+          {growthError ? (
+            <div className="flex items-center justify-between gap-3 text-[13px] text-muted-foreground">
+              <span>Couldn&apos;t load follower growth.</span>
+              <button
+                onClick={() => {
+                  setGrowthError(false);
+                  setGrowthAttempt((attempt) => attempt + 1);
+                }}
+                className="font-medium text-primary hover:underline"
+              >
+                Retry
+              </button>
+            </div>
+          ) : growth === null ? (
+            <Skeleton className="h-24 w-full rounded-lg" />
+          ) : growth.every((day) => day.count === 0) ? (
+            <div className="py-4 text-center text-[13px] text-muted-foreground">
+              No new followers in the last 30 days.
+            </div>
+          ) : (
+            <>
+              <div className="flex h-24 items-end gap-[3px]">
+                {(() => {
+                  const max = Math.max(...growth.map((day) => day.count));
+                  return growth.map((day) => (
+                    <div
+                      key={day.date}
+                      title={`${formatGrowthDate(day.date)}: ${day.count}`}
+                      className="flex-1 rounded-t-sm bg-primary/60"
+                      style={{
+                        height:
+                          day.count > 0
+                            ? `${Math.max((day.count / max) * 100, 4)}%`
+                            : "2px",
+                      }}
+                    />
+                  ));
+                })()}
+              </div>
+              <div className="mt-2 flex justify-between font-mono text-[10.5px] tracking-[0.08em] text-text-faint">
+                <span>{formatGrowthDate(growth[0].date)}</span>
+                <span>
+                  +{growth.reduce((sum, day) => sum + day.count, 0)} followers
+                </span>
+                <span>{formatGrowthDate(growth[growth.length - 1].date)}</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

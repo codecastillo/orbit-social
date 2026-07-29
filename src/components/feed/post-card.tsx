@@ -68,7 +68,7 @@ import {
   type ReactionType,
   type ReactionCount,
 } from "@/lib/queries/reactions";
-import { boostPost } from "@/lib/queries/boost";
+import { boostPost, removeBoost } from "@/lib/queries/boost";
 import { ShareDialog } from "@/components/shared/share-dialog";
 import { BlockMuteDialog } from "@/components/shared/block-mute-dialog";
 import { ReportDialog } from "@/components/shared/report-dialog";
@@ -425,6 +425,17 @@ export const PostCard = memo(function PostCard({
     }
   };
 
+  const handleRemoveBoost = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await removeBoost(post.id);
+      toast.success("Boost removed");
+      onUpdate?.();
+    } catch {
+      toast.error("Failed to remove boost");
+    }
+  };
+
   const isBoosted = !!(post as PostWithAuthor & { boosted_until?: string | null }).boosted_until &&
     new Date((post as PostWithAuthor & { boosted_until?: string | null }).boosted_until!) > new Date();
 
@@ -561,9 +572,15 @@ export const PostCard = memo(function PostCard({
                               <><Pin className="mr-2 h-4 w-4" /> Pin to Profile</>
                             )}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleBoost}>
-                            <Rocket className="mr-2 h-4 w-4" /> Boost Post
-                          </DropdownMenuItem>
+                          {isBoosted ? (
+                            <DropdownMenuItem onClick={handleRemoveBoost}>
+                              <Rocket className="mr-2 h-4 w-4" /> Remove Boost
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={handleBoost}>
+                              <Rocket className="mr-2 h-4 w-4" /> Boost Post
+                            </DropdownMenuItem>
+                          )}
                         </>
                       )}
                       <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="text-destructive">
