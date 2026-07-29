@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -63,10 +63,6 @@ function resolveLucideIcon(name: string) {
 const MuxPlayer = dynamic(() => import("@mux/mux-player-react").then((m) => m.default), {
   ssr: false,
 });
-
-interface Props {
-  params: Promise<{ streamId: string }>;
-}
 
 interface ChatMessage {
   id: string;
@@ -166,8 +162,7 @@ const MUX_PLAYER_STYLE = {
   height: "100%",
 } as React.CSSProperties & Record<string, string>;
 
-export default function LiveViewerPage({ params }: Props) {
-  const { streamId } = use(params);
+export function StreamContent({ streamId }: { streamId: string }) {
   const { user } = useAuth();
   const requireAuth = useRequireAuth();
   const router = useRouter();

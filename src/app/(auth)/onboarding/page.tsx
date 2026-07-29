@@ -91,7 +91,7 @@ export default function OnboardingPage() {
       .from("avatars")
       .upload(path, file, { upsert: true });
     if (error) {
-      toast.error("Failed to upload avatar");
+      toast.error("Couldn't upload avatar");
       setUploading(false);
       return;
     }
@@ -128,7 +128,7 @@ export default function OnboardingPage() {
       })
       .eq("id", user.id);
     if (error) {
-      toast.error("Failed to save profile");
+      toast.error("Couldn't save profile");
       setSavingStep1(false);
       return;
     }

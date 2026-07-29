@@ -177,7 +177,7 @@ function FollowerItem({
       }
     } catch {
       setIsFollowing(wasFollowing);
-      toast.error("Something went wrong");
+      toast.error("Couldn't update follow");
     }
   }, [currentUserId, isFollowing, profile.id]);
 

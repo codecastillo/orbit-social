@@ -410,7 +410,7 @@ export function ProfileContent({
         .eq("following_id", profile.id);
       if (error) {
         setIsFollowing(true);
-        toast.error("Failed to unfollow");
+        toast.error("Couldn't unfollow");
       }
     } else {
       const { error } = await supabase.from("follows").insert({
@@ -419,7 +419,7 @@ export function ProfileContent({
       });
       if (error) {
         setIsFollowing(false);
-        toast.error("Failed to follow");
+        toast.error("Couldn't follow");
       }
     }
   };

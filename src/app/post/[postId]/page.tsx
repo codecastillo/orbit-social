@@ -20,10 +20,14 @@ export async function generateMetadata({ params }: Props) {
 
   const profile = post.profiles as unknown as { display_name: string; username: string };
   const preview = post.content?.slice(0, 100) || "Post";
+  const title = `${profile.display_name}: "${preview}"`;
+  const description = `@${profile.username}: ${post.content || ""}`;
 
   return {
-    title: `${profile.display_name}: "${preview}"`,
-    description: `@${profile.username}: ${post.content || ""}`,
+    title,
+    description,
+    alternates: { canonical: `/post/${postId}` },
+    openGraph: { title, description },
   };
 }
 

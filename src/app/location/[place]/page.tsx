@@ -7,10 +7,13 @@ interface Props {
 export async function generateMetadata({ params }: Props) {
   const { place } = await params;
   const decodedPlace = decodeURIComponent(place);
+  const description = `Posts from ${decodedPlace} on Orbit.`;
 
   return {
     title: decodedPlace,
-    description: `Posts from ${decodedPlace} on Orbit.`,
+    description,
+    alternates: { canonical: `/location/${encodeURIComponent(decodedPlace)}` },
+    openGraph: { title: decodedPlace, description },
   };
 }
 

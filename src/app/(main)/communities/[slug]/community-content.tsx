@@ -1,6 +1,5 @@
 "use client";
 
-import { use } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageSquare } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,12 +18,7 @@ import {
 } from "@/lib/queries/communities";
 import { checkUserInteractions, type PostWithAuthor } from "@/lib/queries/posts";
 
-export default function CommunityDetailPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = use(params);
+export function CommunityContent({ slug }: { slug: string }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 

@@ -1,13 +1,16 @@
 import type { MetadataRoute } from "next";
 
-// Static public routes only. Dynamic entries (posts, profiles, rooms) are a
-// follow-up once content volume justifies them.
+// Static public routes only. Dynamic entities (posts, profiles, communities,
+// events, listings, clips) stay out: enumerating them would put a heavy query
+// on every sitemap request, and crawlers reach them through internal links
+// from the index pages listed here.
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const routes = [
     "",
     "/feed",
     "/explore",
+    "/explore/trending",
     "/clips",
     "/live",
     "/communities",

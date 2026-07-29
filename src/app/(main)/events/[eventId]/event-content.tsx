@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -58,12 +58,7 @@ import { MoreHorizontal } from "lucide-react";
 
 type RsvpStatus = "going" | "interested" | "not_going" | null;
 
-export default function EventDetailPage({
-  params,
-}: {
-  params: Promise<{ eventId: string }>;
-}) {
-  const { eventId } = use(params);
+export function EventContent({ eventId }: { eventId: string }) {
   const router = useRouter();
   const { user } = useAuth();
   const requireAuth = useRequireAuth();

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -25,10 +25,6 @@ const MuxPlayer = dynamic(
   () => import("@mux/mux-player-react").then((m) => m.default),
   { ssr: false },
 );
-
-interface Props {
-  params: Promise<{ vodId: string }>;
-}
 
 interface StreamerProfile {
   id: string;
@@ -60,8 +56,7 @@ function postedAt(iso: string): string {
   });
 }
 
-export default function VodPage({ params }: Props) {
-  const { vodId } = use(params);
+export function VodContent({ vodId }: { vodId: string }) {
   const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();

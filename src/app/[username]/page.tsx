@@ -18,9 +18,13 @@ export async function generateMetadata({ params }: Props) {
 
   if (!profile) return { title: "User not found" };
 
+  const description = profile.bio || `@${username} on Orbit`;
+
   return {
     title: profile.display_name,
-    description: profile.bio || `@${username} on Orbit`,
+    description,
+    alternates: { canonical: `/${username}` },
+    openGraph: { title: profile.display_name, description },
   };
 }
 

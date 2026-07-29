@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -40,12 +40,7 @@ function formatPrice(price: number, currency = "USD") {
   }).format(price);
 }
 
-export default function ListingDetailPage({
-  params,
-}: {
-  params: Promise<{ listingId: string }>;
-}) {
-  const { listingId } = use(params);
+export function ListingContent({ listingId }: { listingId: string }) {
   const router = useRouter();
   const { user } = useAuth();
   const [listing, setListing] = useState<ListingWithSeller | null>(null);

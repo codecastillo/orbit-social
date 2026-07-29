@@ -63,7 +63,7 @@ function CommentWithReplies({
       toast.success("Reply posted");
       onUpdate();
     } catch {
-      toast.error("Failed to post reply");
+      toast.error("Couldn't post reply");
     } finally {
       setIsSubmitting(false);
     }
@@ -296,7 +296,7 @@ function ReplyComposer({ postId, onSuccess }: { postId: string; onSuccess: () =>
       toast.success("Reply posted");
       onSuccess();
     } catch {
-      toast.error("Failed to post reply");
+      toast.error("Couldn't post reply");
     } finally {
       setIsSubmitting(false);
     }

@@ -25,7 +25,7 @@ export default function VerifyEmailPage() {
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        toast.error(data.error || "Failed to resend. Try again later.");
+        toast.error(data.error || "Couldn't resend. Try again later.");
       } else {
         setResent(true);
         toast.success("Verification email sent");
