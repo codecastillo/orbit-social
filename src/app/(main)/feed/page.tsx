@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, TrendingUp } from "lucide-react";
@@ -28,25 +28,12 @@ export default function FeedPage() {
   const [tab, setTab] = useState<TabValue>("foryou");
   const { user, loading: authLoading } = useAuth();
 
-  // On mount (and on hard refresh), the browser restores the prior scroll
-  // position even though feed content takes a beat to hydrate, leaving the
-  // user staring at a half-loaded post mid-page. Force the top so the tab
-  // strip and composer are always visible on first paint.
-  useEffect(() => {
-    if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
-      window.history.scrollRestoration = "manual";
-    }
-    window.scrollTo(0, 0);
-  }, []);
-
-  // Auth resolves after first paint and adds the tabs + composer above the
-  // feed, pushing the user down again. Re-anchor to the top once auth has
-  // finished loading so the layout shift doesn't strand them mid-page.
-  useEffect(() => {
-    if (!authLoading) {
-      window.scrollTo(0, 0);
-    }
-  }, [authLoading]);
+  // No scroll juggling here: the shared AuthProvider resolves auth from the
+  // local session before first paint and the placeholders below reserve the
+  // tab/composer heights, so native scroll restoration can do its job and
+  // back-navigation returns to where the user left off. The old
+  // scrollRestoration="manual" + scrollTo(0,0) pair wiped feed position on
+  // every back-press, app-wide.
 
   return (
     <>

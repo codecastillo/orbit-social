@@ -607,6 +607,19 @@ export async function getOriginalPost(postId: string) {
   return data as PostWithAuthor;
 }
 
+export async function getPostsByIds(postIds: string[]) {
+  if (postIds.length === 0) return new Map<string, PostWithAuthor>();
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .in("id", postIds);
+
+  if (error) throw error;
+  return new Map<string, PostWithAuthor>(
+    ((data ?? []) as PostWithAuthor[]).map((p) => [p.id, p]),
+  );
+}
+
 export async function getCommentReplies(commentId: string, cursor?: string, limit = 20) {
   let query = supabase
     .from("posts")
@@ -719,6 +732,20 @@ export async function getUserPollVote(userId: string, postId: string) {
 
   if (error) throw error;
   return data?.option_index ?? null;
+}
+
+export async function getUserPollVotes(userId: string, postIds: string[]) {
+  if (postIds.length === 0) return new Map<string, number>();
+  const { data, error } = await supabase
+    .from("poll_votes")
+    .select("post_id, option_index")
+    .eq("user_id", userId)
+    .in("post_id", postIds);
+
+  if (error) throw error;
+  return new Map<string, number>(
+    (data ?? []).map((v) => [v.post_id, v.option_index]),
+  );
 }
 
 export async function pinPost(postId: string): Promise<void> {

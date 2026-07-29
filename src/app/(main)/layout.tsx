@@ -6,7 +6,7 @@ import { BottomNav } from "@/components/layout/bottom-nav";
 import { TopBar } from "@/components/layout/top-bar";
 import { RealtimeBridge } from "@/components/layout/realtime-bridge";
 import { EmailVerificationBanner } from "@/components/shared/email-verification-banner";
-import { PostComposer } from "@/components/feed/post-composer";
+import { LazyPostComposer } from "@/components/feed/post-composer-lazy";
 
 export default async function MainLayout({
   children,
@@ -42,7 +42,7 @@ export default async function MainLayout({
         {children}
       </main>
 
-      {user && <PostComposer />}
+      {user && <LazyPostComposer />}
       <BottomNav initialHasUser={!!user} />
     </div>
   );

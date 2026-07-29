@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { memo, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -48,19 +48,21 @@ import {
   undoRepost,
   updatePost,
   votePoll,
-  getUserPollVote,
-  getOriginalPost,
-  checkUserInteractions,
   pinPost,
   unpinPost,
   type PostWithAuthor,
   type PollData,
 } from "@/lib/queries/posts";
 import {
+  loadPostReactions,
+  loadUserReaction,
+  loadUserPollVote,
+  loadPostById,
+  loadUserInteractions,
+} from "@/lib/queries/batched";
+import {
   addReaction,
   removeReaction,
-  getUserReaction,
-  getPostReactions,
   REACTION_EMOJI,
   type ReactionType,
   type ReactionCount,
@@ -87,7 +89,10 @@ interface PostCardProps {
   allUserPosts?: PostWithAuthor[];
 }
 
-export function PostCard({
+// Memoized: a feed renders dozens of these, each with its own state and
+// effects, and any parent re-render (new page appended, sibling update)
+// used to re-render every card.
+export const PostCard = memo(function PostCard({
   post,
   isLiked: isLikedProp,
   isBookmarked: isBookmarkedProp,
@@ -157,7 +162,7 @@ export function PostCard({
 
   useEffect(() => {
     if (isRepostType && post.parent_post_id) {
-      getOriginalPost(post.parent_post_id).then(setOriginalPost).catch(() => {});
+      loadPostById(post.parent_post_id).then(setOriginalPost).catch(() => {});
     }
   }, [isRepostType, post.parent_post_id]);
 
@@ -176,27 +181,28 @@ export function PostCard({
       setIsBookmarked(false);
       return;
     }
-    checkUserInteractions(user.id, [originalPost.id])
-      .then(({ likedPostIds, bookmarkedPostIds, repostedPostIds }) => {
-        setIsLiked(likedPostIds.has(originalPost.id));
-        setIsBookmarked(bookmarkedPostIds.has(originalPost.id));
-        setIsReposted(repostedPostIds.has(originalPost.id));
+    loadUserInteractions(user.id, originalPost.id)
+      .then(({ liked, bookmarked, reposted }) => {
+        setIsLiked(liked);
+        setIsBookmarked(bookmarked);
+        setIsReposted(reposted);
       })
       .catch(() => {});
   }, [isRepostType, originalPost, user]);
 
-  // Load reactions
+  // Load reactions (batched: every card mounting in the same tick shares
+  // one query instead of two requests apiece)
   useEffect(() => {
-    getPostReactions(post.id).then(setReactionCounts).catch(() => {});
+    loadPostReactions(post.id).then(setReactionCounts).catch(() => {});
     if (user) {
-      getUserReaction(user.id, post.id).then(setUserReaction).catch(() => {});
+      loadUserReaction(user.id, post.id).then(setUserReaction).catch(() => {});
     }
   }, [user, post.id]);
 
   // Load user's poll vote
   useEffect(() => {
     if (user && post.poll_data && post.type === "poll") {
-      getUserPollVote(user.id, post.id).then((vote) => {
+      loadUserPollVote(user.id, post.id).then((vote) => {
         setUserVote(vote);
       }).catch(() => {});
     }
@@ -386,7 +392,7 @@ export function PostCard({
       try { await addReaction(user.id, post.id, type); }
       catch {
         setUserReaction(prevReaction);
-        getPostReactions(post.id).then(setReactionCounts).catch(() => {});
+        loadPostReactions(post.id).then(setReactionCounts).catch(() => {});
       }
     }
   };
@@ -868,7 +874,7 @@ export function PostCard({
       )}
     </article>
   );
-}
+});
 
 function PollDisplay({
   pollData,

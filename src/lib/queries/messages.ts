@@ -60,72 +60,79 @@ export async function getConversations(
   if (!memberships || memberships.length === 0) return [];
 
   const conversationIds = memberships.map((m) => m.conversation_id);
+  const membershipByConv = new Map(
+    memberships.map((m) => [m.conversation_id, m]),
+  );
 
-  // Get conversation details
+  // One query for conversations with their latest message embedded (the
+  // per-referenced-table limit applies per parent row), replacing the old
+  // serial per-conversation loop that cost up to 3 round trips each.
   const { data: conversations, error: convError } = await supabase
     .from("conversations")
-    .select("*")
+    .select(
+      "*, last_messages:messages(content, sender_id, is_deleted, created_at)",
+    )
     .in("id", conversationIds)
-    .order("last_message_at", { ascending: false });
+    .order("last_message_at", { ascending: false })
+    .order("created_at", { referencedTable: "messages", ascending: false })
+    .limit(1, { referencedTable: "messages" });
 
   if (convError) throw convError;
   if (!conversations) return [];
 
-  // Get last message for each conversation
-  const results: ConversationWithPreview[] = [];
+  // Batch the DM counterpart lookups: all other members in one query, their
+  // profiles in a second.
+  const dmIds = conversations.filter((c) => !c.is_group).map((c) => c.id);
+  const otherMemberByConv = new Map<string, string>();
+  const profileById = new Map<
+    string,
+    { id: string; username: string; display_name: string; avatar_url: string | null }
+  >();
 
-  for (const conv of conversations) {
-    const membership = memberships.find(
-      (m) => m.conversation_id === conv.id
-    );
+  if (dmIds.length > 0) {
+    const { data: otherMembers } = await supabase
+      .from("conversation_members")
+      .select("conversation_id, user_id")
+      .in("conversation_id", dmIds)
+      .neq("user_id", userId);
 
-    // Get last message
-    const { data: lastMessages } = await supabase
-      .from("messages")
-      .select("content, sender_id, is_deleted, created_at")
-      .eq("conversation_id", conv.id)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    const lastMessage = lastMessages?.[0] || null;
-
-    // Get other member info for DMs
-    let otherMember = null;
-    if (!conv.is_group) {
-      const { data: otherMembers } = await supabase
-        .from("conversation_members")
-        .select("user_id")
-        .eq("conversation_id", conv.id)
-        .neq("user_id", userId)
-        .limit(1);
-
-      if (otherMembers?.[0]) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("id, username, display_name, avatar_url")
-          .eq("id", otherMembers[0].user_id)
-          .single();
-
-        otherMember = profile;
+    for (const m of otherMembers ?? []) {
+      if (!otherMemberByConv.has(m.conversation_id)) {
+        otherMemberByConv.set(m.conversation_id, m.user_id);
       }
     }
+
+    const otherIds = Array.from(new Set(otherMemberByConv.values()));
+    if (otherIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar_url")
+        .in("id", otherIds);
+      for (const p of profiles ?? []) profileById.set(p.id, p);
+    }
+  }
+
+  return conversations.map((conv) => {
+    const { last_messages, ...rest } = conv;
+    const membership = membershipByConv.get(conv.id);
+    const lastMessage = last_messages?.[0] ?? null;
+    const otherId = otherMemberByConv.get(conv.id);
+    const otherMember = otherId ? (profileById.get(otherId) ?? null) : null;
 
     const unread = lastMessage
       ? !membership?.last_read_at ||
         new Date(lastMessage.created_at) > new Date(membership.last_read_at)
       : false;
 
-    results.push({
-      ...conv,
+    return {
+      ...rest,
       last_message: lastMessage,
       other_member: otherMember,
       last_read_at: membership?.last_read_at || null,
       unread,
       is_pinned: membership?.is_pinned ?? false,
-    });
-  }
-
-  return results;
+    };
+  });
 }
 
 export async function getOrCreateDMConversation(

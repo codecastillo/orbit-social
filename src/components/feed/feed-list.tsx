@@ -41,6 +41,11 @@ export function FeedList({ tab }: FeedListProps) {
     refetch,
   } = useFeed(tab);
 
+  // Stable identity so memoized PostCards don't re-render on every list pass.
+  const handlePostUpdate = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -119,7 +124,7 @@ export function FeedList({ tab }: FeedListProps) {
             isLiked={post.user_has_liked}
             isBookmarked={post.user_has_bookmarked}
             isReposted={post.user_has_reposted}
-            onUpdate={() => refetch()}
+            onUpdate={handlePostUpdate}
             allUserPosts={allPosts}
           />
           {index < allPosts.length - 1 && (
