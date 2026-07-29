@@ -123,7 +123,7 @@ export default function EventDetailPage({
     if (!eventId) return;
 
     const channel = supabase
-      .channel(`event-${eventId}-${Math.random().toString(36).slice(2)}`)
+      .channel(`event-${eventId}`)
       .on(
         "postgres_changes",
         {

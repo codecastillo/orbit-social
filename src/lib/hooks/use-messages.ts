@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   useQuery,
   useInfiniteQuery,
@@ -30,29 +30,43 @@ export function useConversations() {
     staleTime: 10_000,
   });
 
-  // Realtime subscription for conversation updates
+  // Realtime subscription for conversation updates. Postgres changes can't
+  // filter this down to conversations the user belongs to, so we listen to
+  // message INSERTs table-wide and coalesce bursts: at most one refetch per
+  // 2s window instead of one per message platform-wide.
+  const invalidateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!user) return;
+
+    const scheduleInvalidate = () => {
+      if (invalidateTimer.current) return;
+      invalidateTimer.current = setTimeout(() => {
+        invalidateTimer.current = null;
+        queryClient.invalidateQueries({
+          queryKey: ["conversations", user.id],
+        });
+      }, 2000);
+    };
 
     const channel = supabase
       .channel("conversations-realtime")
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "messages",
         },
-        () => {
-          // Refetch conversations when any message changes
-          queryClient.invalidateQueries({
-            queryKey: ["conversations", user.id],
-          });
-        }
+        scheduleInvalidate
       )
       .subscribe();
 
     return () => {
+      if (invalidateTimer.current) {
+        clearTimeout(invalidateTimer.current);
+        invalidateTimer.current = null;
+      }
       supabase.removeChannel(channel);
     };
   }, [user, queryClient, supabase]);

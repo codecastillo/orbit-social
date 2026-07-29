@@ -70,11 +70,14 @@ export async function createStory(
 export async function getActiveStories(
   userId: string
 ): Promise<StoryGroup[]> {
-  // Get following list
+  // Get following list. Bounded so a huge follow graph can't blow up
+  // every load; past this the ring needs a server-side join instead of
+  // an IN list.
   const { data: following } = await supabase
     .from("follows")
     .select("following_id")
-    .eq("follower_id", userId);
+    .eq("follower_id", userId)
+    .limit(1000);
 
   const followingIds = following?.map((f) => f.following_id) || [];
   followingIds.push(userId); // Include own stories
@@ -83,11 +86,15 @@ export async function getActiveStories(
   const { data: stories, error } = await supabase
     .from("stories")
     .select(
-      `*, profiles!stories_user_id_fkey (id, username, display_name, avatar_url, is_verified)`
+      `id, user_id, media_url, media_type, thumbnail_url, duration_seconds,
+       interactive_data, text_overlay, visibility, view_count, expires_at,
+       created_at,
+       profiles!stories_user_id_fkey (id, username, display_name, avatar_url, is_verified)`
     )
     .in("user_id", followingIds)
     .gt("expires_at", new Date().toISOString())
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(100);
 
   if (error) throw error;
   if (!stories || stories.length === 0) return [];
@@ -105,7 +112,9 @@ export async function getActiveStories(
   // Group by user
   const groupMap = new Map<string, StoryGroup>();
 
-  for (const story of stories as StoryWithAuthor[]) {
+  // Through unknown: the literal-type query parser infers the to-one
+  // profiles join as an array without generated DB types.
+  for (const story of stories as unknown as StoryWithAuthor[]) {
     const uid = story.user_id;
     if (!groupMap.has(uid)) {
       groupMap.set(uid, {

@@ -55,26 +55,32 @@ export default function CommunitiesPage() {
 
   // Realtime: any communities row update or community_members change refreshes
   // both lists so member counts + new memberships show without refresh.
+  // Table-wide subscription, so bursts are coalesced to one refetch per 2s.
   useEffect(() => {
     const supabase = createClient();
+    let invalidateTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleInvalidate = () => {
+      if (invalidateTimer) return;
+      invalidateTimer = setTimeout(() => {
+        invalidateTimer = null;
+        queryClient.invalidateQueries({ queryKey: ["communities"] });
+      }, 2000);
+    };
     const channel = supabase
-      .channel(`communities-feed-${Math.random().toString(36).slice(2)}`)
+      .channel("communities-list")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "communities" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["communities"] });
-        },
+        scheduleInvalidate,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "community_members" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["communities"] });
-        },
+        scheduleInvalidate,
       )
       .subscribe();
     return () => {
+      if (invalidateTimer) clearTimeout(invalidateTimer);
       channel.unsubscribe();
       supabase.removeChannel(channel);
     };

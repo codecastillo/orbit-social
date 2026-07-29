@@ -57,8 +57,13 @@ export interface PollData {
   multi_select: boolean;
 }
 
+// Casts below go through unknown because the literal-type query parser
+// infers the to-one profiles join as an array without generated DB types.
 const POST_SELECT = `
-  *,
+  id, user_id, content, type, parent_post_id, reply_to_id, community_id,
+  like_count, comment_count, repost_count, share_count, view_count,
+  bookmark_count, poll_data, is_pinned, is_hidden, location, scheduled_at,
+  visibility, content_warning, boosted_until, created_at, updated_at,
   profiles!posts_user_id_fkey (
     id, username, display_name, avatar_url, is_verified
   ),
@@ -179,11 +184,14 @@ export async function getFeedPosts(
   }
 
   if (tab === "following") {
-    // Get user's following list first
+    // Get user's following list first. Bounded so a huge follow graph
+    // can't blow up every page load; past this the tab needs a
+    // server-side join instead of an IN list.
     const { data: following } = await supabase
       .from("follows")
       .select("following_id")
-      .eq("follower_id", userId);
+      .eq("follower_id", userId)
+      .limit(1000);
 
     const followingIds = following?.map((f) => f.following_id) || [];
     followingIds.push(userId); // Include own posts
@@ -197,7 +205,7 @@ export async function getFeedPosts(
   if (error) throw error;
 
   // Filter close_friends posts: only show if the viewer is in the poster's close_friends list
-  const posts = data as PostWithAuthor[];
+  const posts = data as unknown as PostWithAuthor[];
   const closeFriendsPosts = posts.filter(
     (p: any) => p.visibility === "close_friends" && p.user_id !== userId
   );
@@ -247,7 +255,7 @@ export async function getPublicTimeline(cursor?: string, limit = 20) {
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as PostWithAuthor[];
+  return data as unknown as PostWithAuthor[];
 }
 
 export async function getPostById(postId: string) {
@@ -258,7 +266,7 @@ export async function getPostById(postId: string) {
     .single();
 
   if (error) throw error;
-  return data as PostWithAuthor;
+  return data as unknown as PostWithAuthor;
 }
 
 export async function getPostComments(postId: string, cursor?: string, limit = 20) {
@@ -276,7 +284,7 @@ export async function getPostComments(postId: string, cursor?: string, limit = 2
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as PostWithAuthor[];
+  return data as unknown as PostWithAuthor[];
 }
 
 export async function getUserPosts(userId: string, cursor?: string, limit = 20) {
@@ -297,7 +305,7 @@ export async function getUserPosts(userId: string, cursor?: string, limit = 20) 
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as PostWithAuthor[];
+  return data as unknown as PostWithAuthor[];
 }
 
 export async function getUserClips(userId: string, limit = 60) {
@@ -312,7 +320,7 @@ export async function getUserClips(userId: string, limit = 60) {
     .limit(limit);
 
   if (error) throw error;
-  return data as PostWithAuthor[];
+  return data as unknown as PostWithAuthor[];
 }
 
 export async function getUserLikedPosts(userId: string, limit = 50) {
@@ -337,7 +345,7 @@ export async function getUserLikedPosts(userId: string, limit = 50) {
   if (error) throw error;
   // Maintain the liked order
   const postMap = new Map((data || []).map((p) => [p.id, p]));
-  return postIds.map((id) => postMap.get(id)).filter(Boolean) as PostWithAuthor[];
+  return postIds.map((id) => postMap.get(id)).filter(Boolean) as unknown as PostWithAuthor[];
 }
 
 export async function getUserBookmarkedPosts(userId: string, limit = 50) {
@@ -361,7 +369,7 @@ export async function getUserBookmarkedPosts(userId: string, limit = 50) {
 
   if (error) throw error;
   const postMap = new Map((data || []).map((p) => [p.id, p]));
-  return postIds.map((id) => postMap.get(id)).filter(Boolean) as PostWithAuthor[];
+  return postIds.map((id) => postMap.get(id)).filter(Boolean) as unknown as PostWithAuthor[];
 }
 
 export async function getUserTaggedPosts(userId: string, limit = 30) {
@@ -391,7 +399,7 @@ export async function getUserTaggedPosts(userId: string, limit = 30) {
   const map = new Map((data ?? []).map((p) => [p.id, p]));
   return postIds
     .map((id) => map.get(id))
-    .filter(Boolean) as PostWithAuthor[];
+    .filter(Boolean) as unknown as PostWithAuthor[];
 }
 
 export interface ProfileTabCounts {
@@ -480,7 +488,7 @@ export async function getUserRepostedPosts(userId: string, limit = 50) {
     .limit(limit);
 
   if (error) throw error;
-  return data as PostWithAuthor[];
+  return data as unknown as PostWithAuthor[];
 }
 
 export async function toggleLike(userId: string, postId: string, isLiked: boolean) {
@@ -529,7 +537,7 @@ export async function updatePost(postId: string, content: string) {
     .single();
 
   if (error) throw error;
-  return data as PostWithAuthor;
+  return data as unknown as PostWithAuthor;
 }
 
 export async function createRepost(userId: string, postId: string) {
@@ -565,7 +573,7 @@ export async function createRepost(userId: string, postId: string) {
   });
   if (rpcError) console.error("increment_post_reposts failed", rpcError);
 
-  return post as PostWithAuthor;
+  return post as unknown as PostWithAuthor;
 }
 
 export async function undoRepost(userId: string, postId: string) {
@@ -604,7 +612,7 @@ export async function getOriginalPost(postId: string) {
     .single();
 
   if (error) throw error;
-  return data as PostWithAuthor;
+  return data as unknown as PostWithAuthor;
 }
 
 export async function getPostsByIds(postIds: string[]) {
@@ -616,7 +624,7 @@ export async function getPostsByIds(postIds: string[]) {
 
   if (error) throw error;
   return new Map<string, PostWithAuthor>(
-    ((data ?? []) as PostWithAuthor[]).map((p) => [p.id, p]),
+    ((data ?? []) as unknown as PostWithAuthor[]).map((p) => [p.id, p]),
   );
 }
 
@@ -635,7 +643,7 @@ export async function getCommentReplies(commentId: string, cursor?: string, limi
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as PostWithAuthor[];
+  return data as unknown as PostWithAuthor[];
 }
 
 export async function getPostsByHashtag(tag: string, cursor?: string, limit = 20) {
@@ -648,7 +656,7 @@ export async function getPostsByHashtag(tag: string, cursor?: string, limit = 20
     .eq("name", normalizedTag)
     .single();
 
-  if (!hashtag) return { posts: [] as PostWithAuthor[], postCount: 0 };
+  if (!hashtag) return { posts: [] as unknown as PostWithAuthor[], postCount: 0 };
 
   // Get post IDs with this hashtag, then fetch the full posts
   const { data: postHashtags, error: phError } = await supabase
@@ -661,7 +669,7 @@ export async function getPostsByHashtag(tag: string, cursor?: string, limit = 20
   if (phError) throw phError;
 
   const postIds = postHashtags?.map((ph) => ph.post_id) ?? [];
-  if (postIds.length === 0) return { posts: [] as PostWithAuthor[], postCount: hashtag.post_count || 0 };
+  if (postIds.length === 0) return { posts: [] as unknown as PostWithAuthor[], postCount: hashtag.post_count || 0 };
 
   let postsQuery = supabase
     .from("posts")
@@ -677,7 +685,7 @@ export async function getPostsByHashtag(tag: string, cursor?: string, limit = 20
   const { data, error } = await postsQuery;
   if (error) throw error;
 
-  return { posts: (data ?? []) as PostWithAuthor[], postCount: hashtag.post_count || 0 };
+  return { posts: (data ?? []) as unknown as PostWithAuthor[], postCount: hashtag.post_count || 0 };
 }
 
 export async function votePoll(userId: string, postId: string, optionIndex: number) {
@@ -778,7 +786,7 @@ export async function getUserPinnedPosts(userId: string): Promise<PostWithAuthor
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return data as PostWithAuthor[];
+  return data as unknown as PostWithAuthor[];
 }
 
 export async function checkUserInteractions(userId: string, postIds: string[]) {
@@ -854,7 +862,7 @@ export async function getScheduledPosts(userId: string): Promise<PostWithAuthor[
     .order("scheduled_at", { ascending: true });
 
   if (error) throw error;
-  return data as PostWithAuthor[];
+  return data as unknown as PostWithAuthor[];
 }
 
 export async function publishScheduledPost(postId: string): Promise<PostWithAuthor> {
@@ -870,7 +878,7 @@ export async function publishScheduledPost(postId: string): Promise<PostWithAuth
     .single();
 
   if (error) throw error;
-  return data as PostWithAuthor;
+  return data as unknown as PostWithAuthor;
 }
 
 export async function updateScheduledTime(postId: string, scheduledAt: string): Promise<PostWithAuthor> {
@@ -885,7 +893,7 @@ export async function updateScheduledTime(postId: string, scheduledAt: string): 
     .single();
 
   if (error) throw error;
-  return data as PostWithAuthor;
+  return data as unknown as PostWithAuthor;
 }
 
 /**
