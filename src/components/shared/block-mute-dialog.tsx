@@ -74,7 +74,7 @@ export function BlockMuteDialog({
       onOpenChange(false);
       onSuccess?.();
     } catch {
-      toast.error(`Failed to ${actionLabel.toLowerCase()} user`);
+      toast.error(`Couldn't ${actionLabel.toLowerCase()} user`);
     } finally {
       setIsSubmitting(false);
     }
@@ -96,8 +96,8 @@ export function BlockMuteDialog({
         </DialogHeader>
 
         <div className="space-y-3 py-2">
-          <label className="text-sm font-medium text-zinc-300 flex items-center gap-2">
-            <Clock className="h-4 w-4 text-zinc-500" />
+          <label className="text-sm font-medium text-text-secondary flex items-center gap-2">
+            <Clock className="h-4 w-4 text-muted-foreground" />
             Duration
           </label>
           <div className="grid grid-cols-1 gap-2">
@@ -109,7 +109,7 @@ export function BlockMuteDialog({
                 className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-medium transition-colors ring-1 ${
                   selectedDuration === option.value
                     ? "bg-primary/10 text-primary ring-primary/50"
-                    : "bg-white/[0.03] text-zinc-400 ring-white/[0.08] hover:bg-white/[0.06] hover:text-zinc-200"
+                    : "bg-surface text-muted-foreground ring-border hover:bg-muted hover:text-foreground"
                 }`}
               >
                 <span>{option.label}</span>

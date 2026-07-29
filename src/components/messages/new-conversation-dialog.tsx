@@ -39,7 +39,7 @@ export function NewConversationDialog({
         const results = await searchUsers(query, 10);
         setSearchResults(results.filter((r) => r.id !== user?.id));
       } catch {
-        toast.error("Failed to search users");
+        toast.error("Couldn't search users");
       } finally {
         setSearching(false);
       }
@@ -58,7 +58,7 @@ export function NewConversationDialog({
     } catch (e) {
       const msg = (e as { message?: string } | undefined)?.message;
       console.error("getOrCreateDMConversation failed", e);
-      toast.error(msg ? `Failed: ${msg}` : "Failed to start conversation");
+      toast.error(msg ? `Couldn't start conversation: ${msg}` : "Couldn't start conversation");
     } finally {
       setNavigating(null);
     }

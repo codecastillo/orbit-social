@@ -571,7 +571,7 @@ function ComposerForm({
       );
       onSuccess?.();
     } catch {
-      toast.error("Failed to create post");
+      toast.error("Couldn't create post");
     } finally {
       setPosting(false);
       submittingRef.current = false;

@@ -208,7 +208,7 @@ export function CommunityHeader({
     | { title: string; description: string }[]
     | null;
   const createdDate = new Date(community.created_at).toLocaleDateString(
-    "en-US",
+    undefined,
     {
       month: "short",
       year: "numeric",
@@ -240,7 +240,7 @@ export function CommunityHeader({
       }
       onMembershipChange();
     } catch {
-      toast.error("Something went wrong");
+      toast.error("Couldn't update membership");
     } finally {
       setJoining(false);
     }
@@ -584,7 +584,7 @@ export function CommunityHeader({
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
               maxLength={60}
-              className="rounded-xl bg-white/[0.04] border border-white/[0.06] focus:border-white/20 focus:outline-none px-3 py-2 text-sm"
+              className="rounded-xl bg-surface border border-input focus:border-ring focus:outline-none px-3 py-2 text-sm"
             />
             <label className="text-xs text-muted-foreground mt-2">
               Description
@@ -594,7 +594,7 @@ export function CommunityHeader({
               onChange={(e) => setEditDescription(e.target.value)}
               maxLength={300}
               rows={3}
-              className="rounded-xl bg-white/[0.04] border border-white/[0.06] focus:border-white/20 focus:outline-none px-3 py-2 text-sm resize-none"
+              className="rounded-xl bg-surface border border-input focus:border-ring focus:outline-none px-3 py-2 text-sm resize-none"
             />
           </div>
           <DialogFooter>

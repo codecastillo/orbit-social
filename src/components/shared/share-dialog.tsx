@@ -66,7 +66,7 @@ export function ShareDialog({
       toast.success("Link copied");
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Failed to copy");
+      toast.error("Couldn't copy");
     }
   };
 
@@ -83,12 +83,12 @@ export function ShareDialog({
       queryClient.invalidateQueries({ queryKey: ["feed"] });
       queryClient.invalidateQueries({ queryKey: ["post", postId] });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to repost";
+      const msg = e instanceof Error ? e.message : "Couldn't repost";
       if (msg === "Already reposted") {
         setReposted(true);
         toast.message("You already reposted this");
       } else {
-        toast.error("Failed to repost");
+        toast.error("Couldn't repost");
       }
     } finally {
       setReposting(false);
@@ -108,7 +108,7 @@ export function ShareDialog({
       setSentTo((prev) => new Set(prev).add(conversation.id));
       toast.success("Sent to chat");
     } catch {
-      toast.error("Failed to send");
+      toast.error("Couldn't send");
     } finally {
       setSendingTo(null);
     }
@@ -147,7 +147,7 @@ export function ShareDialog({
             <button
               onClick={handleRepost}
               disabled={reposting || reposted}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.04] transition-colors text-left disabled:opacity-60"
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted transition-colors text-left disabled:opacity-60"
             >
               <div className="h-10 w-10 rounded-full bg-muted/50 flex items-center justify-center shrink-0">
                 {reposting ? (
@@ -170,7 +170,7 @@ export function ShareDialog({
 
             <button
               onClick={handleCopyLink}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.04] transition-colors text-left"
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted transition-colors text-left"
             >
               <div className="h-10 w-10 rounded-full bg-muted/50 flex items-center justify-center shrink-0">
                 {copied ? (
@@ -191,7 +191,7 @@ export function ShareDialog({
 
             <button
               onClick={() => setShowConversations(true)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.04] transition-colors text-left"
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted transition-colors text-left"
             >
               <div className="h-10 w-10 rounded-full bg-muted/50 flex items-center justify-center shrink-0">
                 <Send className="h-4 w-4 text-muted-foreground" />
@@ -213,7 +213,7 @@ export function ShareDialog({
               placeholder="Add a message…"
               maxLength={500}
               rows={2}
-              className="w-full resize-none rounded-xl bg-white/[0.04] border border-white/[0.06] focus:border-white/20 focus:outline-none px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70"
+              className="w-full resize-none rounded-xl bg-surface border border-input focus:border-ring focus:outline-none px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70"
             />
 
             <div className="flex flex-col gap-1 max-h-[280px] overflow-y-auto">
@@ -229,7 +229,7 @@ export function ShareDialog({
                   return (
                     <div
                       key={conv.id}
-                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/[0.04] transition-colors"
+                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted transition-colors"
                     >
                       <UserAvatar
                         src={getConversationAvatar(conv)}

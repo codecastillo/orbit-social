@@ -36,7 +36,7 @@ export function HeroPost({ post, isLiked: initialLiked = false }: HeroPostProps)
     } catch {
       setIsLiked(was);
       setLikeCount((c) => (was ? c + 1 : c - 1));
-      toast.error("Failed");
+      toast.error("Couldn't update like");
     }
   };
 

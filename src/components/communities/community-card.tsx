@@ -57,7 +57,7 @@ export function CommunityCard({
       }
       onMembershipChange?.();
     } catch {
-      toast.error("Something went wrong");
+      toast.error("Couldn't update membership");
     } finally {
       setJoining(false);
     }

@@ -39,12 +39,12 @@ function SuggestionCard({ profile }: SuggestionCardProps) {
       }
     } catch {
       setIsFollowing(was);
-      toast.error("Something went wrong");
+      toast.error("Couldn't update follow");
     }
   };
 
   return (
-    <div className="flex flex-col items-center gap-2 min-w-[140px] max-w-[140px] p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] shrink-0">
+    <div className="flex flex-col items-center gap-2 min-w-[140px] max-w-[140px] p-4 rounded-xl bg-surface border border-border shrink-0">
       <Link href={`/${profile.username}`}>
         <UserAvatar
           src={profile.avatar_url}
@@ -93,7 +93,7 @@ export function PeopleYouMayKnow() {
   return (
     <div className="py-4">
       <div className="flex items-center justify-between px-4 mb-3">
-        <h3 className="text-sm font-semibold text-zinc-300">
+        <h3 className="text-sm font-semibold text-text-secondary">
           People you may know
         </h3>
         <Link
@@ -110,7 +110,7 @@ export function PeopleYouMayKnow() {
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="flex flex-col items-center gap-2 min-w-[140px] p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]"
+              className="flex flex-col items-center gap-2 min-w-[140px] p-4 rounded-xl bg-surface border border-border"
             >
               <Skeleton className="h-14 w-14 rounded-full" />
               <Skeleton className="h-3.5 w-20" />

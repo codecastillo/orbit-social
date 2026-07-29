@@ -18,7 +18,7 @@ export function EmailVerificationBanner() {
     setResending(false);
 
     if (result?.error) {
-      toast.error("Failed to resend. Try again later.");
+      toast.error("Couldn't resend. Try again later.");
     } else {
       toast.success("Verification email sent!");
     }

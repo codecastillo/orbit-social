@@ -19,6 +19,7 @@ import {
   type LoginEvent,
 } from "@/lib/queries/security";
 import { SettingsHeader } from "@/components/settings/settings-header";
+import { formatDateTime } from "@/lib/utils/format";
 
 export default function LoginActivityPage() {
   const { user } = useAuth();
@@ -29,7 +30,7 @@ export default function LoginActivityPage() {
     if (!user) return;
     getLoginHistory(user.id)
       .then(setEvents)
-      .catch(() => toast.error("Failed to load login history"))
+      .catch(() => toast.error("Couldn't load login history"))
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -41,7 +42,7 @@ export default function LoginActivityPage() {
       );
       toast.success(flagged ? "Flagged" : "Marked safe");
     } catch {
-      toast.error("Failed to update event");
+      toast.error("Couldn't update event");
     }
   };
 
@@ -50,18 +51,6 @@ export default function LoginActivityPage() {
     if (ua.includes("Mobile") || ua.includes("Android") || ua.includes("iPhone"))
       return Smartphone;
     return Monitor;
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }).format(date);
   };
 
   if (loading) {
@@ -141,7 +130,7 @@ export default function LoginActivityPage() {
                     )}
                   </div>
                   <div className="mt-1.5 flex items-center gap-2.5 font-mono text-[11px] tracking-[0.04em] text-text-faint">
-                    <span>{formatDate(event.created_at)}</span>
+                    <span>{formatDateTime(event.created_at)}</span>
                     {event.ip_address && (
                       <span className="inline-flex items-center gap-1">
                         <Globe className="h-[11px] w-[11px]" />

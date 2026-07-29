@@ -89,7 +89,7 @@ export default function NotificationSettingsPage() {
         ...prefs,
         updated_at: new Date().toISOString(),
       });
-    if (error) toast.error("Failed to save");
+    if (error) toast.error("Couldn't save");
     else toast.success("Saved");
     setSaving(false);
   };

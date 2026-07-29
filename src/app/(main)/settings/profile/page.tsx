@@ -171,7 +171,7 @@ export default function EditProfilePage() {
         });
       if (error) {
         console.error("Storage upload failed:", error);
-        toast.error(`Failed to upload ${kind}: ${error.message}`);
+        toast.error(`Couldn't upload ${kind}: ${error.message}`);
         return;
       }
       const { data } = supabase.storage.from(bucket).getPublicUrl(path);
@@ -213,7 +213,7 @@ export default function EditProfilePage() {
       })
       .eq("id", user.id);
     if (error) {
-      toast.error("Failed to save profile");
+      toast.error("Couldn't save profile");
       return;
     }
     toast.success("Profile updated");

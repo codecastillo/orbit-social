@@ -6,6 +6,32 @@ export function formatNumber(num: number): string {
   return num.toString();
 }
 
+/** "Jul 29, 2026" in the viewer's locale. */
+export function formatDate(date: string | Date): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/** "3:45 PM" in the viewer's locale, always 12-hour. */
+export function formatTime(date: string | Date): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+/** "Jul 29, 2026 at 3:45 PM". */
+export function formatDateTime(date: string | Date): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return `${formatDate(d)} at ${formatTime(d)}`;
+}
+
 export function formatTimeAgo(date: string | Date): string {
   const d = typeof date === "string" ? new Date(date) : date;
   const str = formatDistanceToNowStrict(d, { addSuffix: false });

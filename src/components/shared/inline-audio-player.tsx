@@ -161,7 +161,7 @@ export function InlineAudioPlayer({
   return (
     <div
       className={cn(
-        "rounded-xl bg-zinc-800/60 border border-white/[0.06] p-4",
+        "rounded-xl bg-surface border border-border p-4",
         className
       )}
       onClick={(e) => e.stopPropagation()}
@@ -200,7 +200,7 @@ export function InlineAudioPlayer({
                   key={i}
                   className={cn(
                     "flex-1 min-w-[2px] max-w-[4px] rounded-full transition-colors duration-100",
-                    isActive ? "bg-primary" : "bg-zinc-600"
+                    isActive ? "bg-primary" : "bg-muted"
                   )}
                   style={{ height: `${height * 100}%` }}
                 />
@@ -210,10 +210,10 @@ export function InlineAudioPlayer({
 
           {/* Time display */}
           <div className="flex justify-between">
-            <span className="text-xs font-mono text-zinc-400 tabular-nums">
+            <span className="text-xs font-mono text-text-secondary tabular-nums">
               {formatDuration(currentTime)}
             </span>
-            <span className="text-xs font-mono text-zinc-500 tabular-nums">
+            <span className="text-xs font-mono text-muted-foreground tabular-nums">
               {totalDuration > 0 ? formatDuration(totalDuration) : "--:--"}
             </span>
           </div>

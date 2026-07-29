@@ -83,7 +83,7 @@ export default function TrendingPage() {
               <Link
                 key={tag.id}
                 href={`/explore?q=${encodeURIComponent(`#${tag.name}`)}`}
-                className="flex items-center justify-between p-3 rounded-xl hover:bg-white/[0.04] transition-colors group"
+                className="flex items-center justify-between p-3 rounded-xl hover:bg-muted transition-colors group"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-bold text-muted-foreground/50 w-5 text-right">

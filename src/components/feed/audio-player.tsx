@@ -121,7 +121,7 @@ export function AudioPlayer({ src, className }: AudioPlayerProps) {
   return (
     <div
       className={cn(
-        "rounded-xl bg-zinc-900/80 border border-white/[0.06] overflow-hidden",
+        "rounded-xl bg-surface border border-border overflow-hidden",
         className
       )}
       onClick={(e) => e.stopPropagation()}
@@ -166,7 +166,7 @@ export function AudioPlayer({ src, className }: AudioPlayerProps) {
                       key={i}
                       className={cn(
                         "flex-1 min-w-[1.5px] max-w-[4px] rounded-full transition-colors duration-150",
-                        isActive ? "bg-blue-500" : "bg-zinc-700"
+                        isActive ? "bg-primary" : "bg-muted"
                       )}
                       style={{ height: `${height * 100}%` }}
                     />
@@ -181,7 +181,7 @@ export function AudioPlayer({ src, className }: AudioPlayerProps) {
       {/* Progress bar */}
       <div
         ref={progressBarRef}
-        className="relative h-1 bg-zinc-800 cursor-pointer group"
+        className="relative h-1 bg-muted cursor-pointer group"
         onClick={handleSeek}
       >
         <div
@@ -196,16 +196,16 @@ export function AudioPlayer({ src, className }: AudioPlayerProps) {
 
       {/* Time display */}
       <div className="flex justify-between px-4 py-2">
-        <span className="text-xs font-mono text-zinc-400 tabular-nums">
+        <span className="text-xs font-mono text-text-secondary tabular-nums">
           {formatDuration(currentTime)}
         </span>
-        <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-3.5">
             <path d="M3 3.732a1.5 1.5 0 012.305-1.265l6.706 4.267a1.5 1.5 0 010 2.531l-6.706 4.268A1.5 1.5 0 013 12.267V3.732z" />
           </svg>
           <span>Audio</span>
         </div>
-        <span className="text-xs font-mono text-zinc-500 tabular-nums">
+        <span className="text-xs font-mono text-muted-foreground tabular-nums">
           {totalDuration > 0 ? formatDuration(totalDuration) : "--:--"}
         </span>
       </div>

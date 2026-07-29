@@ -82,7 +82,7 @@ export function ReactionPicker({
                   className={`group relative flex items-center justify-center h-9 w-9 rounded-full transition-colors ${
                     currentReaction === type
                       ? "bg-white/[0.12]"
-                      : "hover:bg-white/[0.08]"
+                      : "hover:bg-muted"
                   }`}
                   title={REACTION_LABELS[type]}
                 >
@@ -139,7 +139,7 @@ export function ReactionCountsDisplay({
           className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] transition-colors ${
             userReaction === reaction_type
               ? "bg-primary/15 border border-primary/30 text-primary"
-              : "bg-white/[0.05] border border-white/[0.08] text-muted-foreground hover:bg-white/[0.08]"
+              : "bg-muted border border-border text-muted-foreground hover:bg-accent"
           }`}
         >
           <span>{REACTION_EMOJI[reaction_type]}</span>

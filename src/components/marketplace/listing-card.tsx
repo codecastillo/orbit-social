@@ -28,7 +28,7 @@ export function ListingCard({ listing, className }: ListingCardProps) {
     <Link
       href={`/marketplace/${listing.id}`}
       className={cn(
-        "group block rounded-xl overflow-hidden border border-white/5 bg-white/[0.03] backdrop-blur-sm transition-all hover:bg-white/[0.06] hover:border-white/10 hover:shadow-lg hover:shadow-primary/5",
+        "group block rounded-xl overflow-hidden border border-border bg-surface transition-all hover:bg-surface-elevated",
         className
       )}
     >

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Heart, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PostWithAuthor } from "@/lib/queries/posts";
@@ -12,8 +12,6 @@ interface ProfileGridProps {
 }
 
 export function ProfileGrid({ posts }: ProfileGridProps) {
-  const router = useRouter();
-
   if (posts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center px-5">
@@ -25,27 +23,24 @@ export function ProfileGrid({ posts }: ProfileGridProps) {
   return (
     <div className="grid grid-cols-3 gap-[2px]">
       {posts.map((post) => (
-        <GridItem key={post.id} post={post} onClick={() => router.push(`/post/${post.id}`)} />
+        <GridItem key={post.id} post={post} />
       ))}
     </div>
   );
 }
 
-function GridItem({
-  post,
-  onClick,
-}: {
-  post: PostWithAuthor;
-  onClick: () => void;
-}) {
+function GridItem({ post }: { post: PostWithAuthor }) {
   const [hovering, setHovering] = useState(false);
   const firstMedia = post.post_media?.[0];
   const hasImage = firstMedia && (firstMedia.type === "image" || firstMedia.type === "gif");
   const hasVideo = firstMedia?.type === "video";
+  // Real anchors so clip and post permalinks are crawlable; reels open the
+  // clip player, everything else the post detail.
+  const href = post.type === "reel" ? `/clips/${post.id}` : `/post/${post.id}`;
 
   return (
-    <button
-      onClick={onClick}
+    <Link
+      href={href}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       className="relative aspect-square overflow-hidden bg-muted/30 focus:outline-none"
@@ -105,6 +100,6 @@ function GridItem({
           </svg>
         </div>
       )}
-    </button>
+    </Link>
   );
 }

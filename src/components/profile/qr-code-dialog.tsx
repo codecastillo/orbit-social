@@ -196,7 +196,7 @@ function ProfileShareDialog({
       toast.success("Link copied");
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Failed to copy");
+      toast.error("Couldn't copy");
     }
   };
 
@@ -211,7 +211,7 @@ function ProfileShareDialog({
       setSentTo((prev) => new Set(prev).add(c.id));
       toast.success(`Sent to ${c.other_member?.display_name ?? "chat"}`);
     } catch {
-      toast.error("Failed to send");
+      toast.error("Couldn't send");
     } finally {
       setSendingTo(null);
     }

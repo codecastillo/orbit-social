@@ -75,7 +75,7 @@ export default function SecurityPage() {
         setRecoveryCodes(codes);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to start 2FA setup");
+      toast.error(err instanceof Error ? err.message : "Couldn't start 2FA setup");
       setSetupStep("idle");
     }
   };
@@ -142,7 +142,7 @@ export default function SecurityPage() {
       setRecoveryCodes([]);
       toast.success("Two-factor disabled");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to disable");
+      toast.error(err instanceof Error ? err.message : "Couldn't disable 2FA");
     } finally {
       setIsDisabling(false);
     }

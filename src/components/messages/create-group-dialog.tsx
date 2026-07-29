@@ -44,7 +44,7 @@ export function CreateGroupDialog({
         );
         setSearchResults(filtered);
       } catch {
-        toast.error("Failed to search users");
+        toast.error("Couldn't search users");
       }
     },
     [user?.id, selectedUsers],
@@ -81,7 +81,7 @@ export function CreateGroupDialog({
       reset();
       router.push(`/messages/${conversationId}`);
     } catch {
-      toast.error("Failed to create group");
+      toast.error("Couldn't create group");
     } finally {
       setCreating(false);
     }

@@ -53,7 +53,7 @@ interface ProfileHeaderProps {
 
 function formatJoinDate(dateStr: string): string {
   const date = new Date(dateStr);
-  return `Joined ${date.toLocaleDateString("en-US", { month: "long", year: "numeric" })}`;
+  return `Joined ${date.toLocaleDateString(undefined, { month: "long", year: "numeric" })}`;
 }
 
 export function ProfileHeader({

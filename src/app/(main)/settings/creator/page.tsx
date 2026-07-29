@@ -22,7 +22,7 @@ import { StatCluster } from "@/components/orbit/stat-cluster";
 import { SettingsHeader } from "@/components/settings/settings-header";
 
 function formatGrowthDate(date: string) {
-  return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
+  return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
   });

@@ -92,7 +92,7 @@ export default function PrivacySettingsPage() {
         setBlocked(blockedUsers);
         setMuted(mutedUsers);
       })
-      .catch(() => toast.error("Failed to load blocked and muted accounts"))
+      .catch(() => toast.error("Couldn't load blocked and muted accounts"))
       .finally(() => setListsLoading(false));
   }, [user]);
 
@@ -104,7 +104,7 @@ export default function PrivacySettingsPage() {
       toast.success(`Unblocked @${profile.username}`);
     } catch {
       setBlocked((prev) => [profile, ...prev]);
-      toast.error(`Failed to unblock @${profile.username}`);
+      toast.error(`Couldn't unblock @${profile.username}`);
     }
   };
 
@@ -116,7 +116,7 @@ export default function PrivacySettingsPage() {
       toast.success(`Unmuted @${profile.username}`);
     } catch {
       setMuted((prev) => [profile, ...prev]);
-      toast.error(`Failed to unmute @${profile.username}`);
+      toast.error(`Couldn't unmute @${profile.username}`);
     }
   };
 
@@ -133,7 +133,7 @@ export default function PrivacySettingsPage() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", user.id);
-    if (error) toast.error("Failed to update privacy settings");
+    if (error) toast.error("Couldn't update privacy settings");
     else toast.success("Saved");
     setSaving(false);
   };

@@ -22,6 +22,7 @@ import {
   getUserRsvpStatuses,
   type EventWithCreator,
 } from "@/lib/queries/events";
+import { formatTime } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { createClient } from "@/lib/supabase/client";
@@ -38,7 +39,7 @@ function formatDay(iso: string): { day: string; mo: string; weekday: string; tim
     weekday: d
       .toLocaleDateString(undefined, { weekday: "short" })
       .toUpperCase(),
-    time: d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }),
+    time: formatTime(d),
   };
 }
 

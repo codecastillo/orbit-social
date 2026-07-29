@@ -273,7 +273,7 @@ export const PostCard = memo(function PostCard({
 
   const handleDelete = async () => {
     try { await deletePost(post.id); toast.success("Post deleted"); onUpdate?.(); }
-    catch { toast.error("Failed to delete post"); }
+    catch { toast.error("Couldn't delete post"); }
   };
 
   const handleShare = (e: React.MouseEvent) => {
@@ -319,7 +319,7 @@ export const PostCard = memo(function PostCard({
       if (err?.message === "Already reposted") {
         toast.error("You already reposted this");
       } else {
-        toast.error("Failed to repost");
+        toast.error("Couldn't repost");
       }
     }
   };
@@ -341,7 +341,7 @@ export const PostCard = memo(function PostCard({
       toast.success("Post updated");
       onUpdate?.();
     } catch {
-      toast.error("Failed to update post");
+      toast.error("Couldn't update post");
     } finally {
       setIsSavingEdit(false);
     }
@@ -410,7 +410,7 @@ export const PostCard = memo(function PostCard({
       }
       onUpdate?.();
     } catch {
-      toast.error("Failed to update pin");
+      toast.error("Couldn't update pin");
     }
   };
 
@@ -421,7 +421,7 @@ export const PostCard = memo(function PostCard({
       toast.success("Post boosted for 24 hours!");
       onUpdate?.();
     } catch {
-      toast.error("Failed to boost post");
+      toast.error("Couldn't boost post");
     }
   };
 
@@ -432,7 +432,7 @@ export const PostCard = memo(function PostCard({
       toast.success("Boost removed");
       onUpdate?.();
     } catch {
-      toast.error("Failed to remove boost");
+      toast.error("Couldn't remove boost");
     }
   };
 
@@ -460,7 +460,7 @@ export const PostCard = memo(function PostCard({
       if (err?.message === "Already voted") {
         toast.error("You already voted on this poll");
       } else {
-        toast.error("Failed to vote");
+        toast.error("Couldn't vote");
       }
     } finally {
       setIsVoting(false);
@@ -567,7 +567,7 @@ export const PostCard = memo(function PostCard({
                   onClick={(e) => e.stopPropagation()}
                   aria-label="Post options"
                 >
-                  <div className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors">
+                  <div className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors">
                     <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </DropdownMenuTrigger>
@@ -650,7 +650,7 @@ export const PostCard = memo(function PostCard({
                 </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); setSpoilerRevealed(true); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium bg-white/[0.06] hover:bg-white/[0.1] text-zinc-300 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium bg-muted hover:bg-accent text-text-secondary transition-colors"
                 >
                   <Eye className="h-3.5 w-3.5" />
                   Show Content
@@ -668,7 +668,7 @@ export const PostCard = memo(function PostCard({
                   <Textarea
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    className="min-h-[60px] text-[15px] leading-relaxed bg-white/[0.04] border-white/[0.1] rounded-lg resize-none"
+                    className="min-h-[60px] text-[15px] leading-relaxed bg-surface border-input rounded-lg resize-none"
                     autoFocus
                   />
                   <div className="flex items-center gap-2 mt-2">
@@ -682,7 +682,7 @@ export const PostCard = memo(function PostCard({
                     </button>
                     <button
                       onClick={handleCancelEdit}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium text-muted-foreground hover:text-white hover:bg-white/[0.06] transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                     >
                       <X className="h-3.5 w-3.5" />
                       Cancel
@@ -729,7 +729,7 @@ export const PostCard = memo(function PostCard({
             return (
               <div
                 className={cn(
-                  "mt-3 rounded-2xl overflow-hidden border border-white/[0.06] shadow-md shadow-black/20",
+                  "mt-3 rounded-2xl overflow-hidden border border-border shadow-md shadow-black/20",
                   isMulti && "grid gap-0.5",
                   !isMulti && "bg-black/40",
                   visualMedia.length === 2 && "grid-cols-2",
@@ -952,7 +952,7 @@ function PollDisplay({
             className={cn(
               "relative w-full text-left rounded-lg border transition-all overflow-hidden",
               showResults
-                ? "border-white/[0.08] cursor-default"
+                ? "border-border cursor-default"
                 : "border-white/[0.12] hover:border-blue-500/50 cursor-pointer",
               isSelected && "border-blue-500/40"
             )}
@@ -964,7 +964,7 @@ function PollDisplay({
                 transition={{ duration: 0.6, ease: "easeOut" }}
                 className={cn(
                   "absolute inset-y-0 left-0 rounded-lg",
-                  isSelected ? "bg-blue-500/20" : "bg-white/[0.06]"
+                  isSelected ? "bg-primary/20" : "bg-muted"
                 )}
               />
             )}
@@ -972,7 +972,7 @@ function PollDisplay({
             <div className="relative flex items-center justify-between px-3 py-2.5">
               <span className={cn(
                 "text-[14px]",
-                isSelected ? "font-semibold text-blue-400" : "text-zinc-200"
+                isSelected ? "font-semibold text-primary" : "text-foreground"
               )}>
                 {option.text}
               </span>

@@ -66,7 +66,7 @@ export default function AccountSettingsPage() {
     }
     const { error } = await supabase.auth.updateUser({ password: data.newPassword });
     if (error) {
-      toast.error("Failed to update password");
+      toast.error("Couldn't update password");
       return;
     }
     toast.success("Password updated");
@@ -81,7 +81,7 @@ export default function AccountSettingsPage() {
       const res = await fetch("/api/delete-account", { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || "Failed to delete account.");
+        toast.error(data.error || "Couldn't delete account.");
         setDeleting(false);
         return;
       }
@@ -89,7 +89,7 @@ export default function AccountSettingsPage() {
       toast.success("Account deleted.");
       router.push("/login");
     } catch {
-      toast.error("Failed to delete account. Please try again.");
+      toast.error("Couldn't delete account. Please try again.");
       setDeleting(false);
     }
   };

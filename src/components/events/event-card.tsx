@@ -20,7 +20,7 @@ export function EventCard({ event, className }: EventCardProps) {
     <Link
       href={`/events/${event.id}`}
       className={cn(
-        "group flex gap-4 rounded-xl p-3 border border-white/5 bg-white/[0.03] backdrop-blur-sm transition-all hover:bg-white/[0.06] hover:border-white/10",
+        "group flex gap-4 rounded-xl p-3 border border-border bg-surface transition-all hover:bg-surface-elevated",
         className
       )}
     >

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Pin, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isAudioMessage } from "@/lib/utils/audio";
+import { formatTime } from "@/lib/utils/format";
 import { InlineAudioPlayer } from "@/components/shared/inline-audio-player";
 import {
   MessageReactionPicker,
@@ -34,10 +35,7 @@ export function MessageBubble({
   onPinMessage,
   onDeleteMessage,
 }: MessageBubbleProps) {
-  const time = new Date(message.created_at).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const time = formatTime(message.created_at);
 
   const [reactions, setReactions] = useState<
     { emoji: string; count: number; hasReacted: boolean }[]
@@ -211,7 +209,7 @@ export function MessageBubble({
               {onDeleteMessage && (
                 <button
                   onClick={() => onDeleteMessage(message.id)}
-                  className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors text-muted-foreground hover:text-destructive"
+                  className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-destructive"
                   title="Delete message"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -221,7 +219,7 @@ export function MessageBubble({
                 <button
                   onClick={() => onPinMessage(message.id, !!message.is_pinned)}
                   className={cn(
-                    "h-7 w-7 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors",
+                    "h-7 w-7 flex items-center justify-center rounded-full hover:bg-muted transition-colors",
                     message.is_pinned ? "text-amber-400" : "text-muted-foreground"
                   )}
                   title={message.is_pinned ? "Unpin message" : "Pin message"}
@@ -300,7 +298,7 @@ export function MessageBubble({
                 <button
                   onClick={() => onPinMessage(message.id, !!message.is_pinned)}
                   className={cn(
-                    "h-7 w-7 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors",
+                    "h-7 w-7 flex items-center justify-center rounded-full hover:bg-muted transition-colors",
                     message.is_pinned ? "text-amber-400" : "text-muted-foreground"
                   )}
                   title={message.is_pinned ? "Unpin message" : "Pin message"}

@@ -28,7 +28,7 @@ export default function CloseFriendsPage() {
     if (!user) return;
     getCloseFriends(user.id)
       .then(setCloseFriends)
-      .catch(() => toast.error("Failed to load close friends"))
+      .catch(() => toast.error("Couldn't load close friends"))
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -47,7 +47,7 @@ export default function CloseFriendsPage() {
           results.filter((r) => r.id !== user?.id && !closeFriendIds.has(r.id))
         );
       } catch {
-        toast.error("Search failed");
+        toast.error("Couldn't search people");
       } finally {
         setSearching(false);
       }
@@ -63,7 +63,7 @@ export default function CloseFriendsPage() {
       setSearchResults((prev) => prev.filter((r) => r.id !== profile.id));
       toast.success(`Added ${profile.display_name}`);
     } catch {
-      toast.error("Failed to add");
+      toast.error("Couldn't add close friend");
     }
   };
 
@@ -74,7 +74,7 @@ export default function CloseFriendsPage() {
       setCloseFriends((prev) => prev.filter((f) => f.id !== friendId));
       toast.success("Removed");
     } catch {
-      toast.error("Failed to remove");
+      toast.error("Couldn't remove close friend");
     }
   };
 

@@ -7,6 +7,7 @@ import { useDraftsStore, type Draft } from "@/lib/stores/drafts-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { formatTimeAgo } from "@/lib/utils/format";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
 
 export default function DraftsPage() {
@@ -29,10 +30,10 @@ export default function DraftsPage() {
   if (!hydrated) {
     return (
       <div className="flex flex-col gap-[18px]">
-        <div className="h-[68px] animate-pulse rounded-xl bg-surface" />
+        <Skeleton className="h-[68px] rounded-xl" />
         <div className="flex flex-col gap-2.5">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-[100px] animate-pulse rounded-xl bg-surface" />
+            <Skeleton key={i} className="h-[100px] rounded-xl" />
           ))}
         </div>
       </div>

@@ -16,7 +16,7 @@ export function CallButton({ onVoiceCall, onVideoCall }: CallButtonProps) {
         size="icon"
         onClick={onVoiceCall}
         aria-label="Voice call"
-        className="h-9 w-9 rounded-full hover:bg-white/[0.06] transition-colors"
+        className="h-9 w-9 rounded-full hover:bg-muted transition-colors"
         title="Voice call"
       >
         <Phone className="h-4 w-4 text-muted-foreground" />
@@ -26,7 +26,7 @@ export function CallButton({ onVoiceCall, onVideoCall }: CallButtonProps) {
         size="icon"
         onClick={onVideoCall}
         aria-label="Video call"
-        className="h-9 w-9 rounded-full hover:bg-white/[0.06] transition-colors"
+        className="h-9 w-9 rounded-full hover:bg-muted transition-colors"
         title="Video call"
       >
         <Video className="h-4 w-4 text-muted-foreground" />

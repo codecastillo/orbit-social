@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
 import { OrbitErrorState } from "@/components/orbit/error-state";
 import { cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils/format";
 
 function formatScheduledDate(dateStr: string): { abs: string; relative: string; overdue: boolean } {
   const date = new Date(dateStr);
@@ -33,11 +34,7 @@ function formatScheduledDate(dateStr: string): { abs: string; relative: string; 
   else if (diffHours < 24) relative = `in ${diffHours}h`;
   else relative = `in ${diffDays}d`;
 
-  const abs = `${date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-  })} at ${date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+  const abs = formatDateTime(date);
 
   return { abs, relative, overdue };
 }
@@ -113,7 +110,7 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
       queryClient.invalidateQueries({ queryKey: ["feed"] });
       toast.success("Published");
     },
-    onError: () => toast.error("Failed to publish"),
+    onError: () => toast.error("Couldn't publish"),
   });
 
   const deleteMutation = useMutation({
@@ -122,7 +119,7 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
       queryClient.invalidateQueries({ queryKey: ["scheduled-posts"] });
       toast.success("Deleted");
     },
-    onError: () => toast.error("Failed to delete"),
+    onError: () => toast.error("Couldn't delete"),
   });
 
   const reschedMutation = useMutation({
@@ -132,7 +129,7 @@ function ScheduledPostCard({ post }: { post: PostWithAuthor }) {
       setEditingTime(false);
       toast.success("Rescheduled");
     },
-    onError: () => toast.error("Failed to update schedule"),
+    onError: () => toast.error("Couldn't update schedule"),
   });
 
   const handleReschedule = () => {

@@ -72,7 +72,7 @@ export function GroupSettingsDialog({
           ),
         );
       } catch {
-        toast.error("Failed to search users");
+        toast.error("Couldn't search users");
       }
     },
     [currentUserId, members],

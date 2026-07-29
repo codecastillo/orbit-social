@@ -90,7 +90,7 @@ export function CreateEventDialog({
       toast.success("Event created");
     } catch (err) {
       console.error("Failed to create event:", err);
-      toast.error("Failed to create event");
+      toast.error("Couldn't create event");
     } finally {
       setLoading(false);
     }

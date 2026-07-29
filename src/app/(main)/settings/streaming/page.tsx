@@ -583,7 +583,7 @@ function CredField({ label, value, secret = false }: { label: string; value: str
       await navigator.clipboard.writeText(value);
       toast.success("Copied");
     } catch {
-      toast.error("Copy failed");
+      toast.error("Couldn't copy");
     }
   };
   const display = revealed ? value : "•".repeat(Math.min(value.length, 40));

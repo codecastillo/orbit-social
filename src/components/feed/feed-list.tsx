@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { PostCard } from "./post-card";
 import { EmptyState } from "@/components/shared/empty-state";
+import { FeedSkeleton } from "@/components/shared/loading-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { FollowButton } from "@/components/shared/follow-button";
@@ -100,8 +101,8 @@ export function FeedList({ tab }: FeedListProps) {
   if (isError) {
     return (
       <EmptyState
-        title="Something went wrong"
-        description="Failed to load posts. Try again."
+        title="Couldn't load posts"
+        description="Something went wrong. Try again."
         action={
           <button onClick={() => refetch()} className="text-primary text-sm font-medium hover:underline">
             Retry
@@ -128,7 +129,7 @@ export function FeedList({ tab }: FeedListProps) {
             allUserPosts={allPosts}
           />
           {index < allPosts.length - 1 && (
-            <div className="mx-5 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+            <div className="mx-5 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
           )}
         </div>
       ))}
@@ -144,32 +145,6 @@ export function FeedList({ tab }: FeedListProps) {
   );
 }
 
-function FeedSkeleton() {
-  return (
-    <div className="space-y-0">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="p-5 space-y-3">
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <div className="space-y-1.5">
-              <Skeleton className="h-3.5 w-28" />
-              <Skeleton className="h-3 w-20" />
-            </div>
-          </div>
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-56 w-full rounded-xl" />
-          <div className="flex gap-6">
-            <Skeleton className="h-4 w-12" />
-            <Skeleton className="h-4 w-12" />
-            <Skeleton className="h-4 w-12" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function EmptyFeedWithSuggestions({ tab, userId }: { tab: string; userId?: string }) {
   const { data: suggestions = [], isLoading } = useQuery({
     queryKey: ["feed-suggestions", userId],
@@ -181,7 +156,7 @@ function EmptyFeedWithSuggestions({ tab, userId }: { tab: string; userId?: strin
   return (
     <div className="py-8 px-4">
       <div className="text-center mb-8">
-        <div className="h-16 w-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mx-auto mb-4">
+        <div className="h-16 w-16 rounded-2xl bg-surface border border-border flex items-center justify-center mx-auto mb-4">
           <UserPlus className="h-7 w-7 text-muted-foreground/40" />
         </div>
         <h3 className="text-lg font-bold">
@@ -197,7 +172,7 @@ function EmptyFeedWithSuggestions({ tab, userId }: { tab: string; userId?: strin
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02]">
+            <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-surface">
               <Skeleton className="h-12 w-12 rounded-full" />
               <div className="flex-1 space-y-1.5">
                 <Skeleton className="h-4 w-28" />
@@ -257,7 +232,7 @@ function SuggestionCard({ profile }: { profile: any }) {
   };
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors">
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-surface border border-border hover:bg-surface-elevated transition-colors">
       <Link href={`/${profile.username}`}>
         <UserAvatar src={profile.avatar_url} fallback={profile.display_name || "U"} size="md" />
       </Link>

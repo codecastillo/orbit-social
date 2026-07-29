@@ -50,7 +50,7 @@ export function MessageReactionPicker({
           e.stopPropagation();
           setIsOpen((prev) => !prev);
         }}
-        className="h-7 w-7 flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition-colors opacity-0 group-hover:opacity-100"
+        className="h-7 w-7 flex items-center justify-center rounded-full bg-muted hover:bg-accent transition-colors opacity-0 group-hover:opacity-100"
         title="React"
       >
         <svg
@@ -97,7 +97,7 @@ export function MessageReactionPicker({
                     className={`flex items-center justify-center h-7 w-7 rounded-full transition-colors ${
                       isActive
                         ? "bg-white/[0.12]"
-                        : "hover:bg-white/[0.08]"
+                        : "hover:bg-muted"
                     }`}
                     title={label}
                   >
@@ -146,7 +146,7 @@ export function MessageReactionsDisplay({
           className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] transition-colors ${
             hasReacted
               ? "bg-primary/15 border border-primary/30"
-              : "bg-white/[0.06] border border-white/[0.06] hover:bg-white/[0.1]"
+              : "bg-muted border border-border hover:bg-accent"
           }`}
         >
           <span>{emoji}</span>

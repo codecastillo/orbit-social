@@ -85,8 +85,9 @@ export function CallOverlay({
             ? "Call ended"
             : "";
 
+  // The call surface stays dark in both themes to match the video underneath.
   return (
-    <div className="fixed inset-0 z-50 bg-zinc-950/95 backdrop-blur-xl flex flex-col items-center justify-center">
+    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center">
       {/* Video streams */}
       {isVideo && callState === "connected" ? (
         <div className="absolute inset-0">
@@ -125,8 +126,8 @@ export function CallOverlay({
           </div>
 
           <div className="text-center">
-            <h2 className="text-xl font-semibold text-zinc-100">{peerName}</h2>
-            <p className="text-sm text-zinc-400 mt-1">{statusText}</p>
+            <h2 className="text-xl font-semibold text-white">{peerName}</h2>
+            <p className="text-sm text-white/70 mt-1">{statusText}</p>
           </div>
         </div>
       )}

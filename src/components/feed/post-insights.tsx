@@ -48,7 +48,7 @@ export function PostInsights({ post, userAverages }: PostInsightsProps) {
         onClick={() => setExpanded((v) => !v)}
         className={cn(
           "flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded-md transition-colors",
-          "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]"
+          "text-muted-foreground hover:text-foreground hover:bg-muted"
         )}
       >
         <TrendingUp className="h-3 w-3" />
@@ -70,7 +70,7 @@ export function PostInsights({ post, userAverages }: PostInsightsProps) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-1.5 px-2 py-2.5 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+            <div className="mt-1.5 px-2 py-2.5 bg-surface rounded-lg border border-border">
               {/* Stats row */}
               <div className="flex items-center gap-4">
                 <StatItem
@@ -100,7 +100,7 @@ export function PostInsights({ post, userAverages }: PostInsightsProps) {
                     stats.performance === "below" &&
                       "bg-rose-500/10 text-rose-400",
                     stats.performance === "average" &&
-                      "bg-zinc-500/10 text-zinc-400"
+                      "bg-muted text-muted-foreground"
                   )}
                 >
                   {stats.performance === "above" ? (
@@ -140,9 +140,9 @@ function StatItem({
 }) {
   return (
     <div className="flex flex-col items-center gap-0.5 min-w-[60px]">
-      <div className="flex items-center gap-1 text-zinc-400">{icon}</div>
-      <span className="text-[13px] font-semibold text-zinc-200">{value}</span>
-      <span className="text-[10px] text-zinc-500">{label}</span>
+      <div className="flex items-center gap-1 text-muted-foreground">{icon}</div>
+      <span className="text-[13px] font-semibold text-foreground">{value}</span>
+      <span className="text-[10px] text-muted-foreground">{label}</span>
     </div>
   );
 }
