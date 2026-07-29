@@ -36,9 +36,6 @@ export function GiftAnimation({ gifts, onComplete }: GiftAnimationProps) {
               <span className="mt-1 text-xs font-bold text-white drop-shadow-md">
                 {sentGift.gift.name}
               </span>
-              <span className="text-[10px] font-medium text-white/70 drop-shadow-md">
-                +{sentGift.gift.points} pts
-              </span>
             </motion.div>
           );
         })}

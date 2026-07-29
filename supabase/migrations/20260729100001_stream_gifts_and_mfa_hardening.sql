@@ -23,6 +23,10 @@ CREATE POLICY "Anyone can read stream gifts"
   ON public.stream_gifts FOR SELECT
   USING (true);
 
+-- Viewers animate other people's gifts via a postgres_changes subscription,
+-- which requires the table in the realtime publication.
+ALTER PUBLICATION supabase_realtime ADD TABLE public.stream_gifts;
+
 -- MFA hardening (from the security review of the recovery-code flow):
 -- recovery-code hashes must not be readable or deletable by the very
 -- aal1 session they defend against. Redemption runs through the

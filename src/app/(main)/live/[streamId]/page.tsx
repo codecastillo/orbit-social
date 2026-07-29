@@ -14,7 +14,7 @@ import { useStreamPresence } from "@/lib/hooks/use-stream-presence";
 import { useStreamHearts } from "@/lib/hooks/use-stream-hearts";
 import { createClient } from "@/lib/supabase/client";
 import { getStreamById, type LiveStreamWithProfile } from "@/lib/queries/live";
-import { sendGift, type SentGift } from "@/lib/queries/gifts";
+import { sendGift, giftByType, type SentGift } from "@/lib/queries/gifts";
 import {
   followUser,
   unfollowUser,
@@ -236,6 +236,48 @@ export default function LiveViewerPage({ params }: Props) {
   const [uiHidden, setUiHidden] = useState(false);
   const [activeGifts, setActiveGifts] = useState<SentGift[]>([]);
 
+  // Gifts persist to stream_gifts; this subscription animates everyone
+  // else's gifts (the sender animates locally from the insert response).
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`stream-gifts-${streamId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "stream_gifts",
+          filter: `stream_id=eq.${streamId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            id: string;
+            sender_id: string;
+            gift_type: string;
+          };
+          if (row.sender_id === user?.id) return;
+          const gift = giftByType(row.gift_type);
+          if (!gift) return;
+          setActiveGifts((g) => [
+            ...g,
+            {
+              id: row.id,
+              streamId,
+              userId: row.sender_id,
+              gift,
+              timestamp: Date.now(),
+            },
+          ]);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [streamId, user?.id]);
+
   const { hearts, totalCount: likeCount, sendHeart } = useStreamHearts(streamId);
 
   const handleHeartZoneTap = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -256,13 +298,13 @@ export default function LiveViewerPage({ params }: Props) {
     if (result.ok) setComment("");
   };
 
-  const handleTip = () => {
+  const handleGift = async () => {
     if (!requireAuth() || !user) return;
     try {
-      const sent = sendGift(streamId, user.id, "star");
+      const sent = await sendGift(streamId, user.id, "star");
       setActiveGifts((g) => [...g, sent]);
     } catch {
-      toast.error("Failed to send");
+      toast.error("Couldn't send gift");
     }
   };
 
@@ -480,14 +522,14 @@ export default function LiveViewerPage({ params }: Props) {
               </span>
             </div>
 
-            {/* Footer: Tip / input / heart / share */}
+            {/* Footer: gift / input / heart / share */}
             <div className="absolute bottom-0 inset-x-0 p-4 pb-[max(env(safe-area-inset-bottom),16px)] z-10 flex items-center gap-2">
               <button
-                onClick={handleTip}
+                onClick={handleGift}
                 className="flex-shrink-0 h-11 px-3.5 rounded-2xl bg-gradient-to-br from-amber-400 to-rose-500 text-white text-[13px] font-extrabold inline-flex items-center gap-1.5 shadow-[0_4px_16px_rgba(244,63,94,0.4)] active:scale-95 transition-transform"
               >
                 <Gift className="h-4 w-4" />
-                Tip
+                Gift
               </button>
 
               <div className="flex-1 relative">
@@ -624,11 +666,11 @@ export default function LiveViewerPage({ params }: Props) {
         <div className="border-t border-white/[0.08] p-3 bg-gradient-to-t from-white/[0.03] to-transparent">
           <div className="flex items-center gap-2">
             <button
-              onClick={handleTip}
+              onClick={handleGift}
               className="flex-shrink-0 h-10 px-3 rounded-xl bg-gradient-to-br from-amber-400 to-rose-500 text-white text-[12px] font-extrabold inline-flex items-center gap-1.5 shadow-[0_4px_16px_rgba(244,63,94,0.35)] hover:brightness-110 active:scale-95 transition-all"
             >
               <Gift className="h-4 w-4" />
-              Tip
+              Gift
             </button>
             <div className="flex-1 relative">
               <input
