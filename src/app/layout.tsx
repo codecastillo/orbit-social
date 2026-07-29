@@ -27,7 +27,13 @@ export const metadata: Metadata = {
   },
   description:
     "A social platform built for people who are tired of shouting into the void. Feed, clips, rooms, live, and messages in one place.",
-  icons: { icon: "/favicon.ico" },
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/icons/apple-icon.png",
+  },
   openGraph: {
     siteName: "Orbit",
     type: "website",

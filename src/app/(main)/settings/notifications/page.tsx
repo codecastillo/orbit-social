@@ -8,10 +8,13 @@ import {
   AtSign,
   Mail,
   Loader2,
+  BellRing,
+  BellOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { usePushSubscribe } from "@/lib/hooks/use-push-subscribe";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { FormSection, Toggle } from "@/components/orbit/forms";
@@ -114,6 +117,7 @@ export default function NotificationSettingsPage() {
       </div>
 
       <FormSection title="Push notifications">
+        <PushDeviceRow />
         <div>
           {PREF_DEFS.map((pref, i) => {
             const Icon = pref.icon;
@@ -144,6 +148,62 @@ export default function NotificationSettingsPage() {
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save changes"}
         </Button>
       </div>
+    </div>
+  );
+}
+
+// Device-level opt-in. The toggles above choose WHICH pushes arrive; this row
+// is what actually registers the browser with the push service.
+function PushDeviceRow() {
+  const { status, subscribe, unsubscribe } = usePushSubscribe();
+  const [busy, setBusy] = useState(false);
+
+  const handleEnable = async () => {
+    setBusy(true);
+    const ok = await subscribe();
+    setBusy(false);
+    if (ok) toast.success("Push enabled on this device");
+    else toast.error("Couldn't enable push. Check browser permissions.");
+  };
+
+  const handleDisable = async () => {
+    setBusy(true);
+    const ok = await unsubscribe();
+    setBusy(false);
+    if (ok) toast.success("Push disabled on this device");
+    else toast.error("Couldn't disable push");
+  };
+
+  return (
+    <div className="mb-4 flex items-center gap-3.5 rounded-xl border border-border bg-surface p-4">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+        {status === "subscribed" ? (
+          <BellRing className="h-4 w-4" />
+        ) : (
+          <BellOff className="h-4 w-4" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold text-foreground">This device</div>
+        <div className="mt-0.5 text-[12.5px] text-muted-foreground">
+          {status === "subscribed"
+            ? "Push notifications are on for this browser."
+            : status === "denied"
+              ? "Blocked in your browser settings. Allow notifications for this site to turn them on."
+              : status === "unsupported"
+                ? "This browser doesn't support push notifications. On iPhone, add Orbit to your home screen first."
+                : "Turn on push notifications for this browser."}
+        </div>
+      </div>
+      {status === "subscribed" ? (
+        <Button variant="outline" size="sm" onClick={handleDisable} disabled={busy}>
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Turn off"}
+        </Button>
+      ) : status === "default" || status === "loading" ? (
+        <Button size="sm" onClick={handleEnable} disabled={busy || status === "loading"}>
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Turn on"}
+        </Button>
+      ) : null}
     </div>
   );
 }
