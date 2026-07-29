@@ -38,7 +38,7 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
   const { user } = useAuth();
   const myId = user?.id;
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["follow-list", userId, kind],
     queryFn: () =>
       kind === "followers"
@@ -115,6 +115,16 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
                   </div>
                 </div>
               ))}
+            </div>
+          ) : isError ? (
+            <div className="px-5 py-8 text-center text-[13px] text-muted-foreground">
+              Couldn&apos;t load this list.{" "}
+              <button
+                onClick={() => refetch()}
+                className="cursor-pointer font-semibold text-primary hover:underline"
+              >
+                Try again
+              </button>
             </div>
           ) : !data || data.length === 0 ? (
             <div className="px-5 py-8 text-center text-[13px] text-muted-foreground">

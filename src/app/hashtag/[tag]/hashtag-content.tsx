@@ -15,6 +15,7 @@ import {
 } from "@/lib/queries/posts";
 import { formatNumber } from "@/lib/utils/format";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 
 export function HashtagContent({ tag }: { tag: string }) {
   const { user } = useAuth();
@@ -26,7 +27,7 @@ export function HashtagContent({ tag }: { tag: string }) {
     setComposeOpen(true, { initialContent: `#${tag} ` });
   };
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["hashtag", tag],
     queryFn: () => getPostsByHashtag(tag),
   });
@@ -74,6 +75,13 @@ export function HashtagContent({ tag }: { tag: string }) {
           <PostSkeleton />
           <PostSkeleton />
         </div>
+      ) : isError ? (
+        <OrbitErrorState
+          headline="Couldn't load this"
+          accentWord="tag"
+          sub={`Something went wrong fetching posts for #${tag}.`}
+          onRetry={() => refetch()}
+        />
       ) : posts.length > 0 ? (
         <div className="flex flex-col gap-3.5">
           {posts.map((post) => (

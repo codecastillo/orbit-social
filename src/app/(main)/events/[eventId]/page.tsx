@@ -53,6 +53,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/orbit/confirm-dialog";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 import { MoreHorizontal } from "lucide-react";
 
 type RsvpStatus = "going" | "interested" | "not_going" | null;
@@ -73,6 +74,7 @@ export default function EventDetailPage({
   const [attendees, setAttendees] = useState<EventAttendee[]>([]);
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [rsvpLoading, setRsvpLoading] = useState(false);
 
   const [comments, setComments] = useState<EventComment[]>([]);
@@ -93,6 +95,8 @@ export default function EventDetailPage({
     }
   }, [eventId]);
 
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
   useEffect(() => {
     async function load() {
       try {
@@ -104,6 +108,7 @@ export default function EventDetailPage({
         setEvent(eventData);
         setAttendees(attendeeData);
         setComments(commentData);
+        setLoadError(false);
 
         if (user) {
           const status = await getUserRsvpStatus(eventId, user.id);
@@ -111,12 +116,13 @@ export default function EventDetailPage({
         }
       } catch (err) {
         console.error("Failed to load event:", err);
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, [eventId, user]);
+  }, [eventId, user, loadAttempt]);
 
   // Realtime: events row updates (attendee_count) + rsvps + comments
   useEffect(() => {
@@ -324,6 +330,23 @@ export default function EventDetailPage({
           <Skeleton className="h-4 w-40" />
           <Skeleton className="h-20 w-full" />
         </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="border-x border-border min-h-screen">
+        <OrbitErrorState
+          headline="Couldn't load this"
+          accentWord="event"
+          sub="Something went wrong fetching this event."
+          onRetry={() => {
+            setLoading(true);
+            setLoadError(false);
+            setLoadAttempt((n) => n + 1);
+          }}
+        />
       </div>
     );
   }

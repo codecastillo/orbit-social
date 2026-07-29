@@ -90,10 +90,9 @@ export default function NotificationsPage() {
 
       {isError ? (
         <OrbitErrorState
-          headline="Couldn't"
-          accentWord="reach"
-          sub="Notifications didn't load. Probably a flaky connection, try again."
-          errorCode="ERR · CONN_TIMEOUT"
+          headline="Couldn't load your"
+          accentWord="notifications"
+          sub="Something went wrong fetching your notifications."
           onRetry={() => refetch()}
         />
       ) : isLoading ? (

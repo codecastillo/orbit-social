@@ -69,7 +69,7 @@ export default function VodPage({ params }: Props) {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const { data: vod, isLoading } = useQuery({
+  const { data: vod, isLoading, isError, refetch } = useQuery({
     queryKey: ["vod", vodId],
     queryFn: () => getVodById(vodId),
   });
@@ -156,6 +156,20 @@ export default function VodPage({ params }: Props) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
         <div className="h-8 w-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-3 text-white/70">
+        <p className="text-lg font-semibold">Couldn&apos;t load this VOD</p>
+        <button
+          onClick={() => refetch()}
+          className="text-sm underline underline-offset-4"
+        >
+          Try again
+        </button>
       </div>
     );
   }

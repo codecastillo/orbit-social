@@ -12,14 +12,12 @@ export function OrbitErrorState({
   headline,
   accentWord,
   sub,
-  errorCode,
   ctaLabel = "Try again",
   onRetry,
 }: {
   headline: string;
   accentWord: string;
   sub?: ReactNode;
-  errorCode?: string;
   ctaLabel?: string;
   onRetry?: () => void;
 }) {
@@ -69,19 +67,6 @@ export function OrbitErrorState({
           >
             {sub}
           </p>
-        )}
-        {errorCode && (
-          <div
-            style={{
-              fontSize: 10.5,
-              color: "var(--muted-foreground)",
-              marginTop: 12,
-              fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
-              letterSpacing: "0.08em",
-            }}
-          >
-            {errorCode}
-          </div>
         )}
         {onRetry && (
           <button

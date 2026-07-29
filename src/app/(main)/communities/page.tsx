@@ -17,6 +17,7 @@ import {
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 
 function useDebounce(v: string, d: number) {
   const [val, setVal] = useState(v);
@@ -39,7 +40,7 @@ export default function CommunitiesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const debouncedQuery = useDebounce(searchQuery, 300);
 
-  const { data: communities, isLoading } = useQuery({
+  const { data: communities, isLoading, isError, refetch } = useQuery({
     queryKey: ["communities", debouncedQuery],
     queryFn: () =>
       debouncedQuery.trim()
@@ -133,7 +134,14 @@ export default function CommunitiesPage() {
       </div>
 
       {/* Featured trio */}
-      {isLoading || !myCommunitiesLoaded ? (
+      {isError ? (
+        <OrbitErrorState
+          headline="Couldn't load"
+          accentWord="rooms"
+          sub="Something went wrong fetching communities."
+          onRetry={() => refetch()}
+        />
+      ) : isLoading || !myCommunitiesLoaded ? (
         <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-3.5">
           <Skeleton className="h-[340px] rounded-2xl" />
           <Skeleton className="h-[200px] rounded-2xl" />

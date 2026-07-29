@@ -53,7 +53,7 @@ export function CommunityMembersDialog({
   isOwner = false,
   currentUserId,
 }: Props) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["community-members-full", communityId],
     queryFn: () => getCommunityMembers(communityId, 200),
     enabled: open,
@@ -85,6 +85,16 @@ export function CommunityMembersDialog({
                   </div>
                 </div>
               ))}
+            </div>
+          ) : isError ? (
+            <div className="px-5 py-8 text-center text-[13px] text-muted-foreground">
+              Couldn&apos;t load members.{" "}
+              <button
+                onClick={() => refetch()}
+                className="cursor-pointer font-semibold text-primary hover:underline"
+              >
+                Try again
+              </button>
             </div>
           ) : !data || data.length === 0 ? (
             <div className="px-5 py-8 text-center text-[13px] text-muted-foreground">

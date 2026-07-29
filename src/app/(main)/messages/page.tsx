@@ -77,10 +77,9 @@ export default function MessagesPage() {
 
         {isError ? (
           <OrbitErrorState
-            headline="Couldn't"
-            accentWord="reach"
-            sub="Your connection to the server stuttered. It's probably fine, try again."
-            errorCode="ERR · CONN_TIMEOUT"
+            headline="Couldn't load your"
+            accentWord="messages"
+            sub="Something went wrong fetching your conversations."
             onRetry={() => refetch()}
           />
         ) : (

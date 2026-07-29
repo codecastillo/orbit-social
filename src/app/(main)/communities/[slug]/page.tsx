@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageSquare } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 import { PostCard } from "@/components/feed/post-card";
 import { InlineComposer } from "@/components/feed/post-composer";
 import { CommunityHeader } from "@/components/communities/community-header";
@@ -30,6 +31,8 @@ export default function CommunityDetailPage({
   const {
     data: community,
     isLoading: loadingCommunity,
+    isError: communityError,
+    refetch: refetchCommunity,
   } = useQuery({
     queryKey: ["community", slug],
     queryFn: () => getCommunityBySlug(slug),
@@ -54,6 +57,7 @@ export default function CommunityDetailPage({
   const {
     data: posts,
     isLoading: loadingPosts,
+    isError: postsError,
     refetch: refetchPosts,
   } = useQuery({
     queryKey: ["community-posts", community?.id],
@@ -87,6 +91,19 @@ export default function CommunityDetailPage({
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-32" />
         </div>
+      </div>
+    );
+  }
+
+  if (communityError) {
+    return (
+      <div className="border-x border-border min-h-screen">
+        <OrbitErrorState
+          headline="Couldn't load this"
+          accentWord="room"
+          sub="Something went wrong fetching this community."
+          onRetry={() => refetchCommunity()}
+        />
       </div>
     );
   }
@@ -164,6 +181,13 @@ export default function CommunityDetailPage({
               </div>
             ))}
           </div>
+        ) : postsError ? (
+          <OrbitErrorState
+            headline="Couldn't load"
+            accentWord="posts"
+            sub="Something went wrong fetching this room's posts."
+            onRetry={() => refetchPosts()}
+          />
         ) : posts && posts.length > 0 ? (
           posts.map((post: PostWithAuthor) => (
             <PostCard

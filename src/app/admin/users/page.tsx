@@ -36,7 +36,7 @@ export default function AdminUsersPage() {
     setSearchQuery(e.target.value);
   };
 
-  const { data: users, isLoading } = useQuery({
+  const { data: users, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-users", debouncedQuery],
     queryFn: () => getUsers(debouncedQuery || undefined),
   });
@@ -104,6 +104,16 @@ export default function AdminUsersPage() {
               <Skeleton className="h-7 w-20" />
             </div>
           ))}
+        </div>
+      ) : isError ? (
+        <div className="rounded-xl border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
+          Couldn&apos;t load users.{" "}
+          <button
+            onClick={() => refetch()}
+            className="cursor-pointer font-semibold text-primary hover:underline"
+          >
+            Try again
+          </button>
         </div>
       ) : users && users.length > 0 ? (
         <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">

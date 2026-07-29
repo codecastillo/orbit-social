@@ -173,7 +173,7 @@ export default function LiveViewerPage({ params }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { data: stream } = useQuery({
+  const { data: stream, isError: streamError, refetch: refetchStream } = useQuery({
     queryKey: ["live-stream", streamId],
     queryFn: () => getStreamById(streamId),
     // 30s instead of 10s: chat + hearts already arrive via realtime, the
@@ -309,6 +309,19 @@ export default function LiveViewerPage({ params }: Props) {
   };
 
   if (!stream) {
+    if (streamError) {
+      return (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center gap-3 text-white/70">
+          <p className="text-lg font-semibold">Couldn&apos;t load this stream</p>
+          <button
+            onClick={() => refetchStream()}
+            className="text-sm underline underline-offset-4"
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
         <div className="h-8 w-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />

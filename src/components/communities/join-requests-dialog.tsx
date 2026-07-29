@@ -38,7 +38,7 @@ export function JoinRequestsDialog({
   const queryClient = useQueryClient();
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["community-join-requests", communityId],
     queryFn: () => getCommunityJoinRequests(communityId),
     enabled: open,
@@ -96,6 +96,16 @@ export function JoinRequestsDialog({
                   </div>
                 </div>
               ))}
+            </div>
+          ) : isError ? (
+            <div className="px-5 py-8 text-center text-[13px] text-muted-foreground">
+              Couldn&apos;t load requests.{" "}
+              <button
+                onClick={() => refetch()}
+                className="cursor-pointer font-semibold text-primary hover:underline"
+              >
+                Try again
+              </button>
             </div>
           ) : requests.length === 0 ? (
             <div className="px-5 py-8 text-center text-[13px] text-muted-foreground">

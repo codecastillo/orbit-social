@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { toast } from "sonner";
 import { ImagePlusIcon, XIcon, Loader2Icon } from "lucide-react";
 import {
   Dialog,
@@ -106,6 +107,7 @@ export function CreateListingDialog({
       onCreated?.();
     } catch (err) {
       console.error("Failed to create listing:", err);
+      toast.error("Couldn't create listing");
     } finally {
       setLoading(false);
     }

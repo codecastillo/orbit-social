@@ -62,6 +62,7 @@ export function QRCodeDialog({
       })
       .catch((err) => {
         console.error("QR render failed:", err);
+        if (!cancelled) toast.error("Couldn't generate QR code");
       });
     return () => {
       cancelled = true;

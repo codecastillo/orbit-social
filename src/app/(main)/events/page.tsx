@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { CreateEventDialog } from "@/components/events/create-event-dialog";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 import {
   getEvents,
   rsvpEvent,
@@ -47,11 +48,13 @@ export default function EventsPage() {
   const supabase = useMemo(() => createClient(), []);
   const [events, setEvents] = useState<EventWithCreator[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [rsvpMap, setRsvpMap] = useState<Record<string, RsvpStatus>>({});
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const data = await getEvents();
       setEvents(data);
@@ -65,6 +68,7 @@ export default function EventsPage() {
       }
     } catch (err) {
       console.error("Failed to load events:", err);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -173,6 +177,13 @@ export default function EventsPage() {
 
       {loading ? (
         <Skeleton className="h-[420px] w-full rounded-2xl" />
+      ) : loadError ? (
+        <OrbitErrorState
+          headline="Couldn't load"
+          accentWord="events"
+          sub="Something went wrong fetching events."
+          onRetry={fetchEvents}
+        />
       ) : events.length === 0 ? (
         <OrbitEmptyState
           icon={CalIcon}

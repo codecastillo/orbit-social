@@ -5,11 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getUserBookmarkedPosts } from "@/lib/queries/posts";
 import { PostCard } from "@/components/feed/post-card";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 
 export default function BookmarksPage() {
   const { user, loading: authLoading } = useAuth();
 
-  const { data: posts = [], isLoading } = useQuery({
+  const { data: posts = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["user-saved-posts", user?.id],
     queryFn: () => getUserBookmarkedPosts(user!.id),
     enabled: !!user?.id,
@@ -45,6 +46,13 @@ export default function BookmarksPage() {
               />
             ))}
           </div>
+        ) : isError ? (
+          <OrbitErrorState
+            headline="Couldn't load your"
+            accentWord="saved posts"
+            sub="Something went wrong fetching your bookmarks."
+            onRetry={() => refetch()}
+          />
         ) : posts.length === 0 ? (
           <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-xl p-10 text-center">
             <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center">

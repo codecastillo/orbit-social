@@ -15,6 +15,7 @@ import {
 } from "@/lib/queries/posts";
 import { Button } from "@/components/ui/button";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 import { cn } from "@/lib/utils";
 
 function formatScheduledDate(dateStr: string): { abs: string; relative: string; overdue: boolean } {
@@ -44,7 +45,7 @@ function formatScheduledDate(dateStr: string): { abs: string; relative: string; 
 export default function ScheduledPostsPage() {
   const { user } = useAuth();
 
-  const { data: posts, isLoading } = useQuery({
+  const { data: posts, isLoading, isError, refetch } = useQuery({
     queryKey: ["scheduled-posts", user?.id],
     queryFn: () => getScheduledPosts(user!.id),
     enabled: !!user?.id,
@@ -70,6 +71,13 @@ export default function ScheduledPostsPage() {
             <div key={i} className="h-[120px] animate-pulse rounded-xl bg-surface" />
           ))}
         </div>
+      ) : isError ? (
+        <OrbitErrorState
+          headline="Couldn't load your"
+          accentWord="queue"
+          sub="Something went wrong fetching your scheduled posts."
+          onRetry={() => refetch()}
+        />
       ) : !posts || posts.length === 0 ? (
         <OrbitEmptyState
           icon={CalendarClock}

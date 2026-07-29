@@ -250,7 +250,7 @@ function SuggestionCard({ profile }: { profile: any }) {
         toast.success(`Following @${profile.username}`);
       }
     } catch {
-      toast.error("Failed");
+      toast.error("Couldn't update follow");
     } finally {
       setLoading(false);
     }

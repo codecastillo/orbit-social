@@ -7,7 +7,7 @@ import { StatsCard } from "@/components/admin/stats-card";
 import { getAdminStats } from "@/lib/queries/admin";
 
 export default function AdminDashboardPage() {
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-stats"],
     queryFn: getAdminStats,
     refetchInterval: 30000,
@@ -27,6 +27,16 @@ export default function AdminDashboardPage() {
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-[100px] rounded-xl" />
           ))}
+        </div>
+      ) : isError ? (
+        <div className="rounded-xl border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
+          Couldn&apos;t load platform stats.{" "}
+          <button
+            onClick={() => refetch()}
+            className="cursor-pointer font-semibold text-primary hover:underline"
+          >
+            Try again
+          </button>
         </div>
       ) : stats ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

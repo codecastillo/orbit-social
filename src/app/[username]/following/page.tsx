@@ -17,6 +17,7 @@ import {
   type ProfileSummary,
 } from "@/lib/queries/social";
 import { toast } from "sonner";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -32,7 +33,12 @@ export default function FollowingPage({ params }: Props) {
   const { username } = use(params);
   const { user } = useAuth();
 
-  const { data: profileMeta, isLoading: profileLoading } = useQuery({
+  const {
+    data: profileMeta,
+    isLoading: profileLoading,
+    isError: profileError,
+    refetch: refetchProfile,
+  } = useQuery({
     queryKey: ["profile-meta", username],
     queryFn: async () => {
       const { createClient } = await import("@/lib/supabase/client");
@@ -65,7 +71,7 @@ export default function FollowingPage({ params }: Props) {
     (profileMeta.private_followers === true ||
       (profileMeta.is_private === true && viewerFollows !== true));
 
-  const { data: following, isLoading } = useQuery({
+  const { data: following, isLoading, isError, refetch } = useQuery({
     queryKey: ["following", username],
     queryFn: () => getFollowing(profileMeta!.id),
     enabled: !!profileMeta?.id && !isLocked,
@@ -97,6 +103,13 @@ export default function FollowingPage({ params }: Props) {
 
       {profileLoading ? (
         <FollowingListSkeleton />
+      ) : profileError || isError ? (
+        <OrbitErrorState
+          headline="Couldn't load"
+          accentWord="following"
+          sub="Something went wrong fetching this list."
+          onRetry={() => (profileError ? refetchProfile() : refetch())}
+        />
       ) : isLocked ? (
         <PrivateLock username={username} />
       ) : isLoading ? (

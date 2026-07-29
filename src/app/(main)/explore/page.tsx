@@ -19,6 +19,7 @@ import { getLiveStreams } from "@/lib/queries/live";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { FollowButton } from "@/components/shared/follow-button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 /* ─── helpers ────────────────────────────────────────────────────── */
 
@@ -99,7 +100,12 @@ function DiscoverBody() {
 /* ─── featured #trend hero ───────────────────────────────────────── */
 
 function FeaturedTrend() {
-  const { data: tags, isLoading: tagsLoading } = useQuery({
+  const {
+    data: tags,
+    isLoading: tagsLoading,
+    isError: tagsError,
+    refetch: refetchTags,
+  } = useQuery({
     queryKey: ["trending-hashtags", 5],
     queryFn: () => getTrendingHashtags(5),
     staleTime: 1000 * 60 * 5,
@@ -127,6 +133,27 @@ function FeaturedTrend() {
     return (
       <div className="rounded-xl border border-border bg-surface p-9">
         <Skeleton className="h-32 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  if (tagsError) {
+    return (
+      <div className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-xl border border-border bg-surface p-9 text-center">
+        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          ◇&nbsp;&nbsp;SIGNAL LOST
+        </p>
+        <h1 className="mt-2 text-[32px] font-bold leading-none tracking-[-0.035em] text-foreground">
+          Couldn&apos;t load <span className="text-primary">trends</span>.
+        </h1>
+        <p className="mt-1.5 max-w-[460px] text-sm leading-normal text-text-secondary">
+          Something went wrong fetching what&apos;s trending.
+        </p>
+        <div className="mt-3.5">
+          <Button size="lg" onClick={() => refetchTags()}>
+            Try again
+          </Button>
+        </div>
       </div>
     );
   }
@@ -234,14 +261,51 @@ function FeaturedTrend() {
   );
 }
 
+/* ─── Rail error card (shared by the three rails) ────────────────── */
+
+function RailError({
+  eyebrow,
+  message,
+  onRetry,
+}: {
+  eyebrow: React.ReactNode;
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-surface p-[22px]">
+      <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        {eyebrow}
+      </p>
+      <p className="mt-3.5 text-xs text-muted-foreground">{message}</p>
+      <button
+        onClick={onRetry}
+        className="mt-2 text-xs font-semibold text-primary hover:underline"
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+
 /* ─── Trending rail ──────────────────────────────────────────────── */
 
 function TrendingRail() {
-  const { data: tags, isLoading } = useQuery({
+  const { data: tags, isLoading, isError, refetch } = useQuery({
     queryKey: ["trending-hashtags", 5],
     queryFn: () => getTrendingHashtags(5),
     staleTime: 1000 * 60 * 5,
   });
+
+  if (isError) {
+    return (
+      <RailError
+        eyebrow={<>◈&nbsp;&nbsp;TRENDING NOW</>}
+        message="Couldn't load trends."
+        onRetry={() => refetch()}
+      />
+    );
+  }
 
   return (
     <div className="rounded-xl border border-border bg-surface p-[22px]">
@@ -299,12 +363,22 @@ function TrendingRail() {
 function PeopleRail() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { data: people, isLoading } = useQuery({
+  const { data: people, isLoading, isError, refetch } = useQuery({
     queryKey: ["suggested-users", user?.id, 5],
     queryFn: () => getSuggestedUsers(user!.id, 5),
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5,
   });
+
+  if (isError) {
+    return (
+      <RailError
+        eyebrow={<>◇&nbsp;&nbsp;PEOPLE TO ORBIT</>}
+        message="Couldn't load suggestions."
+        onRetry={() => refetch()}
+      />
+    );
+  }
 
   return (
     <div className="rounded-xl border border-border bg-surface p-[22px]">
@@ -358,7 +432,7 @@ function PeopleRail() {
                         queryKey: ["suggested-users", user.id],
                       });
                     } catch {
-                      /* noop */
+                      toast.error("Couldn't follow");
                     }
                   }}
                 />
@@ -372,11 +446,21 @@ function PeopleRail() {
 /* ─── Live rail ──────────────────────────────────────────────────── */
 
 function LiveRail() {
-  const { data: streams } = useQuery({
+  const { data: streams, isError, refetch } = useQuery({
     queryKey: ["live-streams"],
     queryFn: getLiveStreams,
     refetchInterval: 15000,
   });
+
+  if (isError) {
+    return (
+      <RailError
+        eyebrow={<>◆&nbsp;&nbsp;LIVE NOW</>}
+        message="Couldn't load live streams."
+        onRetry={() => refetch()}
+      />
+    );
+  }
 
   return (
     <div className="rounded-xl border border-border bg-surface p-[22px]">

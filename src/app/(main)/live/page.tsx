@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import {
   getLiveStreams,
@@ -74,7 +75,7 @@ function useLiveClock(): number {
 export default function LivePage() {
   const router = useRouter();
   const [filter, setFilter] = useState<StreamFilter>({ kind: "all" });
-  const { data: streams, isLoading } = useQuery({
+  const { data: streams, isLoading, isError, refetch } = useQuery({
     queryKey: ["live-streams"],
     queryFn: getLiveStreams,
     refetchInterval: 15000,
@@ -87,6 +88,17 @@ export default function LivePage() {
       <div className="flex flex-col gap-[18px] text-foreground">
         <Skeleton className="h-[480px] w-full rounded-2xl" />
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <OrbitErrorState
+        headline="Couldn't load"
+        accentWord="streams"
+        sub="Something went wrong fetching who's live."
+        onRetry={() => refetch()}
+      />
     );
   }
 

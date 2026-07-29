@@ -216,6 +216,9 @@ export default function ChatPage({ params }: ChatPageProps) {
           };
         }
       );
+      toast.error("Couldn't send message");
+      // Rethrow so MessageInput keeps the text in the box for a retry.
+      throw e;
     }
   };
 

@@ -5,6 +5,7 @@ import { Users, FileText } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 import { PostCard } from "@/components/feed/post-card";
 import { UserSuggestionCard } from "@/components/explore/user-suggestion-card";
 import { searchUsers, searchPosts } from "@/lib/queries/social";
@@ -17,6 +18,8 @@ export function SearchResults({ query }: SearchResultsProps) {
   const {
     data: users,
     isLoading: usersLoading,
+    isError: usersError,
+    refetch: refetchUsers,
   } = useQuery({
     queryKey: ["search-users", query],
     queryFn: () => searchUsers(query, 20),
@@ -26,6 +29,8 @@ export function SearchResults({ query }: SearchResultsProps) {
   const {
     data: posts,
     isLoading: postsLoading,
+    isError: postsError,
+    refetch: refetchPosts,
   } = useQuery({
     queryKey: ["search-posts", query],
     queryFn: () => searchPosts(query),
@@ -51,6 +56,13 @@ export function SearchResults({ query }: SearchResultsProps) {
       <TabsContent value="people">
         {usersLoading ? (
           <UserListSkeleton />
+        ) : usersError ? (
+          <OrbitErrorState
+            headline="Search couldn't"
+            accentWord="finish"
+            sub="Something went wrong searching for people."
+            onRetry={() => refetchUsers()}
+          />
         ) : !users || users.length === 0 ? (
           <EmptyState
             icon={Users}
@@ -69,6 +81,13 @@ export function SearchResults({ query }: SearchResultsProps) {
       <TabsContent value="posts">
         {postsLoading ? (
           <PostListSkeleton />
+        ) : postsError ? (
+          <OrbitErrorState
+            headline="Search couldn't"
+            accentWord="finish"
+            sub="Something went wrong searching posts."
+            onRetry={() => refetchPosts()}
+          />
         ) : !posts || posts.length === 0 ? (
           <EmptyState
             icon={FileText}

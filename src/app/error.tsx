@@ -26,7 +26,7 @@ export default function RootError({
           Something went <span className="text-primary">sideways</span>.
         </h1>
         <p className="text-sm text-text-secondary">
-          {error.message || "An unexpected error occurred."}
+          Something broke on our side. Try again, or head back home.
         </p>
         <div className="flex justify-center gap-2">
           <Button onClick={() => reset()}>Try again</Button>

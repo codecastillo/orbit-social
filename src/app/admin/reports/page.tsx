@@ -22,7 +22,7 @@ export default function AdminReportsPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("pending");
 
-  const { data: reports, isLoading } = useQuery({
+  const { data: reports, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-reports", activeTab],
     queryFn: () => getReports(activeTab),
   });
@@ -82,6 +82,16 @@ export default function AdminReportsPage() {
                 {Array.from({ length: 3 }).map((_, i) => (
                   <Skeleton key={i} className="h-[72px] rounded-xl" />
                 ))}
+              </div>
+            ) : isError ? (
+              <div className="rounded-xl border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
+                Couldn&apos;t load reports.{" "}
+                <button
+                  onClick={() => refetch()}
+                  className="cursor-pointer font-semibold text-primary hover:underline"
+                >
+                  Try again
+                </button>
               </div>
             ) : reports && reports.length > 0 ? (
               <div className="space-y-3">

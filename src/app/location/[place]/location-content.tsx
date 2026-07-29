@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PostCard } from "@/components/feed/post-card";
 import type { PostWithAuthor } from "@/lib/queries/posts";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 
 const POST_SELECT = `
   *,
@@ -40,6 +41,8 @@ export function LocationContent({ place }: { place: string }) {
     hasNextPage,
     isFetchingNextPage,
     isLoading,
+    isError,
+    refetch,
   } = useInfiniteQuery({
     queryKey: ["location-posts", place],
     queryFn: ({ pageParam }) => getPostsByLocation(place, pageParam),
@@ -81,6 +84,13 @@ export function LocationContent({ place }: { place: string }) {
         <div className="flex justify-center p-10">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
+      ) : isError ? (
+        <OrbitErrorState
+          headline="Couldn't load"
+          accentWord="posts"
+          sub={`Something went wrong fetching posts from ${place}.`}
+          onRetry={() => refetch()}
+        />
       ) : allPosts.length === 0 ? (
         <OrbitEmptyState
           icon={MapPin}

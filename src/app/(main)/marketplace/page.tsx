@@ -14,18 +14,21 @@ import {
 } from "@/lib/queries/marketplace";
 import { Input } from "@/components/orbit/forms";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 
 const CATEGORIES = ["All", "Electronics", "Clothing", "Home", "Sports", "Other"];
 
 export default function MarketplacePage() {
   const [listings, setListings] = useState<ListingWithSeller[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
 
   const fetchListings = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const category = activeCategory === "All" ? undefined : activeCategory;
       if (searchQuery.trim()) {
@@ -37,6 +40,7 @@ export default function MarketplacePage() {
       }
     } catch (err) {
       console.error("Failed to load listings:", err);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -111,6 +115,13 @@ export default function MarketplacePage() {
             </div>
           ))}
         </div>
+      ) : loadError ? (
+        <OrbitErrorState
+          headline="Couldn't load"
+          accentWord="listings"
+          sub="Something went wrong fetching the market."
+          onRetry={fetchListings}
+        />
       ) : listings.length === 0 ? (
         <OrbitEmptyState
           icon={ShoppingBagIcon}

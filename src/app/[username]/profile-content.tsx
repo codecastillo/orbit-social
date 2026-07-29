@@ -334,14 +334,14 @@ export function ProfileContent({
     staleTime: 1000 * 60 * 2,
   });
 
-  const { data: posts = [] } = useQuery({
+  const { data: posts = [], isError: postsError, refetch: refetchPosts } = useQuery({
     queryKey: ["user-posts", profile.id, user?.id],
     queryFn: async () =>
       enrichWithViewerInteractions(await getUserPosts(profile.id)),
     staleTime: 1000 * 60 * 2,
   });
 
-  const { data: clips = [], isLoading: loadingClips } = useQuery({
+  const { data: clips = [], isLoading: loadingClips, isError: clipsError, refetch: refetchClips } = useQuery({
     queryKey: ["user-clips", profile.id, user?.id],
     queryFn: async () =>
       enrichWithViewerInteractions(await getUserClips(profile.id)),
@@ -349,7 +349,7 @@ export function ProfileContent({
     staleTime: 1000 * 60 * 2,
   });
 
-  const { data: likedPosts = [], isLoading: loadingLikes } = useQuery({
+  const { data: likedPosts = [], isLoading: loadingLikes, isError: likesError, refetch: refetchLikes } = useQuery({
     queryKey: ["user-liked-posts", profile.id, user?.id],
     queryFn: async () =>
       enrichWithViewerInteractions(await getUserLikedPosts(profile.id)),
@@ -357,7 +357,7 @@ export function ProfileContent({
     staleTime: 1000 * 60,
   });
 
-  const { data: repostedPosts = [], isLoading: loadingReposts } = useQuery({
+  const { data: repostedPosts = [], isLoading: loadingReposts, isError: repostsError, refetch: refetchReposts } = useQuery({
     queryKey: ["user-reposted-posts", profile.id, user?.id],
     queryFn: async () =>
       enrichWithViewerInteractions(await getUserRepostedPosts(profile.id)),
@@ -365,7 +365,7 @@ export function ProfileContent({
     staleTime: 1000 * 60,
   });
 
-  const { data: savedPosts = [], isLoading: loadingSaved } = useQuery({
+  const { data: savedPosts = [], isLoading: loadingSaved, isError: savedError, refetch: refetchSaved } = useQuery({
     queryKey: ["user-saved-posts", profile.id, user?.id],
     queryFn: async () =>
       enrichWithViewerInteractions(await getUserBookmarkedPosts(profile.id)),
@@ -379,7 +379,7 @@ export function ProfileContent({
     staleTime: 1000 * 60 * 2,
   });
 
-  const { data: taggedPosts = [], isLoading: loadingTagged } = useQuery({
+  const { data: taggedPosts = [], isLoading: loadingTagged, isError: taggedError, refetch: refetchTagged } = useQuery({
     queryKey: ["user-tagged-posts", profile.id, user?.id],
     queryFn: async () =>
       enrichWithViewerInteractions(await getUserTaggedPosts(profile.id)),
@@ -755,7 +755,9 @@ export function ProfileContent({
                 ))}
               </div>
             )}
-            {posts.length === 0 && pinnedPosts.length === 0 ? (
+            {postsError ? (
+              <TabError onRetry={() => refetchPosts()} />
+            ) : posts.length === 0 && pinnedPosts.length === 0 ? (
               <EmptyTab />
             ) : (
               <div className="flex flex-col gap-2">
@@ -770,6 +772,8 @@ export function ProfileContent({
         {activeTab === "clips" &&
           (loadingClips ? (
             <ListSkeleton />
+          ) : clipsError ? (
+            <TabError onRetry={() => refetchClips()} />
           ) : clips.length === 0 ? (
             <EmptyTab />
           ) : (
@@ -779,6 +783,8 @@ export function ProfileContent({
         {activeTab === "likes" &&
           (loadingLikes ? (
             <ListSkeleton />
+          ) : likesError ? (
+            <TabError onRetry={() => refetchLikes()} />
           ) : likedPosts.length === 0 ? (
             <EmptyTab />
           ) : (
@@ -792,6 +798,8 @@ export function ProfileContent({
         {activeTab === "reposts" &&
           (loadingReposts ? (
             <ListSkeleton />
+          ) : repostsError ? (
+            <TabError onRetry={() => refetchReposts()} />
           ) : repostedPosts.length === 0 ? (
             <EmptyTab />
           ) : (
@@ -805,6 +813,8 @@ export function ProfileContent({
         {activeTab === "tagged" &&
           (loadingTagged ? (
             <ListSkeleton />
+          ) : taggedError ? (
+            <TabError onRetry={() => refetchTagged()} />
           ) : taggedPosts.length === 0 ? (
             <EmptyTab />
           ) : (
@@ -819,6 +829,8 @@ export function ProfileContent({
           isOwnProfile &&
           (loadingSaved ? (
             <ListSkeleton />
+          ) : savedError ? (
+            <TabError onRetry={() => refetchSaved()} />
           ) : savedPosts.length === 0 ? (
             <EmptyTab />
           ) : (
@@ -1160,6 +1172,22 @@ function ClipsGrid({
           </Link>
         );
       })}
+    </div>
+  );
+}
+
+function TabError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="px-5 py-[60px] text-center">
+      <div className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        ◇&nbsp;&nbsp;COULDN&apos;T LOAD THIS TAB
+      </div>
+      <button
+        onClick={onRetry}
+        className="mt-3 cursor-pointer text-[12.5px] font-semibold text-primary hover:underline"
+      >
+        Try again
+      </button>
     </div>
   );
 }

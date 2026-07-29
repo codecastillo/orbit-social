@@ -30,6 +30,7 @@ import {
 } from "@/lib/queries/marketplace";
 import { VerifiedStar } from "@/components/orbit/verified-star";
 import { ConfirmDialog } from "@/components/orbit/confirm-dialog";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 
 function formatPrice(price: number, currency = "USD") {
   return new Intl.NumberFormat("en-US", {
@@ -49,24 +50,30 @@ export default function ListingDetailPage({
   const { user } = useAuth();
   const [listing, setListing] = useState<ListingWithSeller | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [messagingSeller, setMessagingSeller] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
   useEffect(() => {
     async function load() {
+      setLoading(true);
+      setLoadError(false);
       try {
         const data = await getListingById(listingId);
         setListing(data);
       } catch (err) {
         console.error("Failed to load listing:", err);
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, [listingId]);
+  }, [listingId, loadAttempt]);
 
   const handleMessageSeller = async () => {
     if (!user || !listing) return;
@@ -78,7 +85,7 @@ export default function ListingDetailPage({
       );
       router.push(`/messages/${conversationId}`);
     } catch {
-      console.error("Failed to start conversation");
+      toast.error("Couldn't message the seller");
     } finally {
       setMessagingSeller(false);
     }
@@ -118,6 +125,17 @@ export default function ListingDetailPage({
         <Skeleton className="h-10 w-64 rounded-xl" />
         <Skeleton className="h-32 w-full rounded-2xl" />
       </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <OrbitErrorState
+        headline="Couldn't load this"
+        accentWord="listing"
+        sub="Something went wrong fetching this listing."
+        onRetry={() => setLoadAttempt((n) => n + 1)}
+      />
     );
   }
 

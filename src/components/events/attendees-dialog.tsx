@@ -20,7 +20,7 @@ interface Props {
 }
 
 export function AttendeesDialog({ open, onOpenChange, eventId }: Props) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["event-attendees-full", eventId],
     queryFn: () => getEventAttendees(eventId, 200),
     enabled: open,
@@ -49,6 +49,16 @@ export function AttendeesDialog({ open, onOpenChange, eventId }: Props) {
                   </div>
                 </div>
               ))}
+            </div>
+          ) : isError ? (
+            <div className="px-5 py-8 text-center text-[13px] text-muted-foreground">
+              Couldn&apos;t load attendees.{" "}
+              <button
+                onClick={() => refetch()}
+                className="cursor-pointer font-semibold text-primary hover:underline"
+              >
+                Try again
+              </button>
             </div>
           ) : going.length === 0 && interested.length === 0 ? (
             <div className="px-5 py-8 text-center text-[13px] text-muted-foreground">

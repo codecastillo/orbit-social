@@ -12,13 +12,23 @@ import { useAuth } from "@/lib/hooks/use-auth";
 export default function TrendingPage() {
   const { user } = useAuth();
 
-  const { data: hashtags, isLoading: hashtagsLoading } = useQuery({
+  const {
+    data: hashtags,
+    isLoading: hashtagsLoading,
+    isError: hashtagsError,
+    refetch: refetchHashtags,
+  } = useQuery({
     queryKey: ["trending-hashtags"],
     queryFn: () => getTrendingHashtags(10),
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: posts, isLoading: postsLoading } = useQuery({
+  const {
+    data: posts,
+    isLoading: postsLoading,
+    isError: postsError,
+    refetch: refetchPosts,
+  } = useQuery({
     queryKey: ["trending-posts"],
     queryFn: () => getTrendingPosts(20),
     staleTime: 1000 * 60 * 5,
@@ -54,6 +64,18 @@ export default function TrendingPage() {
                 <Skeleton className="h-8 w-8 rounded-md" />
               </div>
             ))}
+          </div>
+        ) : hashtagsError ? (
+          <div className="py-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              Couldn&apos;t load trending topics.
+            </p>
+            <button
+              onClick={() => refetchHashtags()}
+              className="mt-2 text-sm font-semibold text-primary hover:underline"
+            >
+              Try again
+            </button>
           </div>
         ) : hashtags && hashtags.length > 0 ? (
           <div className="space-y-1">
@@ -111,6 +133,18 @@ export default function TrendingPage() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : postsError ? (
+          <div className="py-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              Couldn&apos;t load top posts.
+            </p>
+            <button
+              onClick={() => refetchPosts()}
+              className="mt-2 text-sm font-semibold text-primary hover:underline"
+            >
+              Try again
+            </button>
           </div>
         ) : posts && posts.length > 0 ? (
           <div className="divide-y divide-border/30">

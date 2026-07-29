@@ -32,7 +32,7 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
 
-  const { data: comments, isLoading } = useQuery({
+  const { data: comments, isLoading, isError, refetch } = useQuery({
     queryKey: ["clip-comments", postId],
     queryFn: () => getPostComments(postId),
   });
@@ -131,6 +131,16 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
         {isLoading ? (
           <div className="mt-[30px] text-center text-xs text-muted-foreground">
             Loading…
+          </div>
+        ) : isError ? (
+          <div className="mt-[60px] text-center text-[12.5px] leading-normal text-muted-foreground">
+            Couldn&apos;t load comments.{" "}
+            <button
+              onClick={() => refetch()}
+              className="cursor-pointer font-semibold text-primary hover:underline"
+            >
+              Try again
+            </button>
           </div>
         ) : !comments || comments.length === 0 ? (
           <div className="mt-[60px] text-center text-[12.5px] leading-normal text-muted-foreground">
