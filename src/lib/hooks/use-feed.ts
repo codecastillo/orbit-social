@@ -15,52 +15,51 @@ export function useFeed(tab: "foryou" | "following") {
 
   return useInfiniteQuery({
     queryKey: ["feed", user ? tab : "public", user?.id ?? "anon"],
+    // A failed page must reject so React Query exposes isError and the feed
+    // can offer a retry. The old catch-all here turned every outage into a
+    // convincing "no posts yet" empty state.
     queryFn: async ({ pageParam }) => {
-      try {
-        // Anon viewers see the public timeline (no follow graph available).
-        if (!user) {
-          const posts = await getPublicTimeline(pageParam);
-          const nextCursor =
-            posts.length > 0 ? posts[posts.length - 1].created_at : null;
-          return { posts, nextCursor };
-        }
-
-        const posts = await getFeedPosts(user.id, tab, pageParam);
-
-        let enrichedPosts = posts;
-        if (posts.length > 0) {
-          try {
-            const postIds = posts.map((p) => p.id);
-            const [{ likedPostIds, bookmarkedPostIds }, repostedPostIds] =
-              await Promise.all([
-                checkUserInteractions(user.id, postIds),
-                checkUserReposted(user.id, postIds),
-              ]);
-
-            enrichedPosts = posts.map((p) => ({
-              ...p,
-              user_has_liked: likedPostIds.has(p.id),
-              user_has_bookmarked: bookmarkedPostIds.has(p.id),
-              user_has_reposted: repostedPostIds.has(p.id),
-            }));
-          } catch {
-            enrichedPosts = posts.map((p) => ({
-              ...p,
-              user_has_liked: false,
-              user_has_bookmarked: false,
-              user_has_reposted: false,
-            }));
-          }
-        }
-
+      // Anon viewers see the public timeline (no follow graph available).
+      if (!user) {
+        const posts = await getPublicTimeline(pageParam);
         const nextCursor =
           posts.length > 0 ? posts[posts.length - 1].created_at : null;
-
-        return { posts: enrichedPosts, nextCursor };
-      } catch (error) {
-        console.error("Feed fetch error:", error);
-        return { posts: [] as PostWithAuthor[], nextCursor: null };
+        return { posts, nextCursor };
       }
+
+      const posts = await getFeedPosts(user.id, tab, pageParam);
+
+      let enrichedPosts: PostWithAuthor[] = posts;
+      if (posts.length > 0) {
+        try {
+          const postIds = posts.map((p) => p.id);
+          const [{ likedPostIds, bookmarkedPostIds }, repostedPostIds] =
+            await Promise.all([
+              checkUserInteractions(user.id, postIds),
+              checkUserReposted(user.id, postIds),
+            ]);
+
+          enrichedPosts = posts.map((p) => ({
+            ...p,
+            user_has_liked: likedPostIds.has(p.id),
+            user_has_bookmarked: bookmarkedPostIds.has(p.id),
+            user_has_reposted: repostedPostIds.has(p.id),
+          }));
+        } catch {
+          // Interaction flags are decoration; the feed itself still renders.
+          enrichedPosts = posts.map((p) => ({
+            ...p,
+            user_has_liked: false,
+            user_has_bookmarked: false,
+            user_has_reposted: false,
+          }));
+        }
+      }
+
+      const nextCursor =
+        posts.length > 0 ? posts[posts.length - 1].created_at : null;
+
+      return { posts: enrichedPosts, nextCursor };
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,

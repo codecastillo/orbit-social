@@ -107,8 +107,10 @@ function getNotificationHref(notification: NotificationWithActor): string {
         ? `/events/${notification.entity_id}`
         : "/events";
     case "story_reaction":
-      return notification.entity_id
-        ? `/stories/${notification.entity_id}`
+      // There is no per-story route; the reactor's profile carries their
+      // active stories, so send the owner there instead of a 404.
+      return notification.profiles?.username
+        ? `/${notification.profiles.username}`
         : "/notifications";
     default:
       return "/notifications";

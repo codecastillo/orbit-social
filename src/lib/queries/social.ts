@@ -461,7 +461,7 @@ export async function getEngagementBasedSuggestions(
 
   // Strategy 1: Users who liked the same posts as you (shared interests)
   const { data: myLikes } = await supabase
-    .from("likes")
+    .from("post_likes")
     .select("post_id")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
@@ -473,7 +473,7 @@ export async function getEngagementBasedSuggestions(
 
   if (likedPostIds.length > 0) {
     const { data: coLikers } = await supabase
-      .from("likes")
+      .from("post_likes")
       .select("user_id")
       .in("post_id", likedPostIds)
       .not("user_id", "in", `(${excludeIds.join(",")})`)

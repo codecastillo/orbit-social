@@ -18,15 +18,7 @@ export default function DraftsPage() {
   }, [hydrate]);
 
   const handleEdit = (draft: Draft) => {
-    sessionStorage.setItem(
-      "orbit_editing_draft",
-      JSON.stringify({
-        id: draft.id,
-        content: draft.content,
-        location: draft.location || "",
-      })
-    );
-    setComposeOpen(true);
+    setComposeOpen(true, { draftId: draft.id });
   };
 
   const handleDelete = (id: string) => {
@@ -106,18 +98,6 @@ export default function DraftsPage() {
                   </div>
                 )}
 
-                {draft.media.length > 0 && (
-                  <div className="mt-2.5 flex gap-1.5">
-                    {draft.media.map((m, i) => (
-                      <div
-                        key={i}
-                        className="h-12 w-12 overflow-hidden rounded-lg border border-border"
-                      >
-                        <img src={m.preview} alt="" className="h-full w-full object-cover" />
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <div className="flex shrink-0 flex-col gap-2">

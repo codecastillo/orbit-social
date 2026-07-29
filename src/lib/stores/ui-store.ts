@@ -9,12 +9,16 @@ interface UIStore {
   // Optional seed text for the composer textarea, used by surfaces like the
   // hashtag page to prefill `#tag ` when the user clicks "Post with #tag".
   composeInitialContent: string | undefined;
+  // Draft being edited: the composer seeds itself from this draft and, on
+  // post, removes it so "Keep writing" round-trips instead of dead-ending.
+  composeDraftId: string | undefined;
   setComposeOpen: (
     open: boolean,
     options?: {
       communityId?: string;
       action?: ComposeAction;
       initialContent?: string;
+      draftId?: string;
     }
   ) => void;
   consumeComposeAction: () => ComposeAction;
@@ -34,12 +38,14 @@ export const useUIStore = create<UIStore>((set, get) => ({
   composeCommunityId: undefined,
   composeAction: null,
   composeInitialContent: undefined,
+  composeDraftId: undefined,
   setComposeOpen: (open, options) =>
     set({
       composeOpen: open,
       composeCommunityId: open ? options?.communityId : undefined,
       composeAction: open ? (options?.action ?? null) : null,
       composeInitialContent: open ? options?.initialContent : undefined,
+      composeDraftId: open ? options?.draftId : undefined,
     }),
   consumeComposeAction: () => {
     const current = get().composeAction;

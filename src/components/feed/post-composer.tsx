@@ -47,7 +47,11 @@ export function PostComposer() {
   const composeOpen = useUIStore((s) => s.composeOpen);
   const composeCommunityId = useUIStore((s) => s.composeCommunityId);
   const composeInitialContent = useUIStore((s) => s.composeInitialContent);
+  const composeDraftId = useUIStore((s) => s.composeDraftId);
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
+  const editingDraft = useDraftsStore((s) =>
+    composeDraftId ? s.drafts.find((d) => d.id === composeDraftId) : undefined
+  );
 
   return (
     <Dialog open={composeOpen} onOpenChange={(open) => setComposeOpen(open)}>
@@ -67,7 +71,9 @@ export function PostComposer() {
               <ComposerForm
                 user={user}
                 communityId={composeCommunityId}
-                initialContent={composeInitialContent}
+                initialContent={editingDraft?.content ?? composeInitialContent}
+                initialLocation={editingDraft?.location}
+                draftId={composeDraftId}
                 onSuccess={() => {
                   setComposeOpen(false);
                   queryClient.invalidateQueries({ queryKey: ["feed"] });
@@ -168,6 +174,8 @@ function ComposerForm({
   replyToId,
   communityId,
   initialContent,
+  initialLocation,
+  draftId,
   onSuccess,
   inline = false,
 }: {
@@ -175,14 +183,16 @@ function ComposerForm({
   replyToId?: string;
   communityId?: string;
   initialContent?: string;
+  initialLocation?: string;
+  draftId?: string;
   onSuccess?: () => void;
   inline?: boolean;
 }) {
   const [content, setContent] = useState(initialContent ?? "");
   const [media, setMedia] = useState<MediaPreview[]>([]);
   const [posting, setPosting] = useState(false);
-  const [location, setLocation] = useState("");
-  const [showLocation, setShowLocation] = useState(false);
+  const [location, setLocation] = useState(initialLocation ?? "");
+  const [showLocation, setShowLocation] = useState(!!initialLocation);
   // When a video is the only attachment, the user picks where it goes:
   // Feed (regular video, plays inline) or Clip (vertical 9:16, lives in
   // the Clips tab). Default is set when the video is added based on its
@@ -190,7 +200,7 @@ function ComposerForm({
   const [videoDestination, setVideoDestination] = useState<"feed" | "clip">("feed");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
-  const { saveDraft } = useDraftsStore();
+  const { saveDraft, updateDraft, deleteDraft } = useDraftsStore();
 
   // Audio recording
   const {
@@ -549,6 +559,8 @@ function ComposerForm({
       setVisibility("public");
       setContentWarning("");
       setShowContentWarning(false);
+      // The draft became a real post; keeping it would show a stale copy.
+      if (draftId) deleteDraft(draftId);
       toast.success(
         isScheduling
           ? "Post scheduled"
@@ -1191,16 +1203,22 @@ function ComposerForm({
           <button
             className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
             onClick={() => {
-              if (!content.trim() && media.length === 0) {
+              if (!content.trim()) {
                 toast.error("Nothing to save as draft");
                 return;
               }
-              saveDraft(
-                content,
-                media.map((m) => ({ preview: m.preview, type: m.type })),
-                location || undefined
+              // Media is deliberately not persisted: drafts live in
+              // localStorage and blob preview URLs die on reload.
+              if (draftId) {
+                updateDraft(draftId, content, [], location || undefined);
+              } else {
+                saveDraft(content, [], location || undefined);
+              }
+              toast.success(
+                media.length > 0
+                  ? "Draft saved. Attachments aren't kept in drafts."
+                  : "Draft saved"
               );
-              toast.success("Draft saved");
             }}
             title="Save as draft"
             aria-label="Save as draft"
