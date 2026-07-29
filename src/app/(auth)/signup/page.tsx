@@ -310,7 +310,12 @@ export default function SignUpPage() {
               </AuthField>
 
               <AuthField label="Email address" error={errors.email?.message}>
-                <AuthInput type="email" placeholder="you@example.com" {...register("email")} />
+                <AuthInput
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  {...register("email")}
+                />
               </AuthField>
 
               <AuthField label="Date of birth" error={errors.dateOfBirth?.message} hint="Must be at least 13">
@@ -374,6 +379,7 @@ export default function SignUpPage() {
               <AuthField label="Password" error={errors.password?.message}>
                 <AuthInput
                   type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
                   placeholder="Create a strong password"
                   {...register("password")}
                   suffix={
@@ -398,6 +404,7 @@ export default function SignUpPage() {
                 <AuthField label="Confirm password" error={errors.confirmPassword?.message}>
                   <AuthInput
                     type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="Repeat your password"
                     {...register("confirmPassword")}
                     suffix={

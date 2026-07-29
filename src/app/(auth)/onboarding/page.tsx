@@ -307,6 +307,7 @@ function Step1Welcome(props: any) {
         <AuthField label="Username" error={errors.username?.message}>
           <AuthInput
             {...register("username")}
+            autoComplete="username"
             placeholder="yourname"
             prefix="@"
           />

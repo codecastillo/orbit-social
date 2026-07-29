@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Globe, Camera, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ModalShell, Field, Input, TextArea, RadioRow } from "@/components/orbit/forms";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createCommunity, uploadCommunityImage } from "@/lib/queries/communities";
@@ -204,6 +204,7 @@ export function CreateCommunityDialog({
         showCloseButton={false}
         className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto ring-0"
       >
+        <DialogTitle className="sr-only">Start a room</DialogTitle>
         <ModalShell
           title="Start a room"
           subtitle="Small community. Invite the people who actually care."

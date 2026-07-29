@@ -10,6 +10,7 @@ import { PostSkeleton } from "@/components/shared/loading-skeleton";
 import { Button } from "@/components/ui/button";
 import { Loader2 as Loader2Icon } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
+import { OrbitErrorState } from "@/components/orbit/error-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -154,7 +155,12 @@ export function PostDetail({ postId }: { postId: string }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: post, isLoading: postLoading } = useQuery({
+  const {
+    data: post,
+    isLoading: postLoading,
+    isError: postError,
+    refetch: refetchPost,
+  } = useQuery({
     queryKey: ["post", postId],
     queryFn: () => getPostById(postId),
   });
@@ -186,13 +192,27 @@ export function PostDetail({ postId }: { postId: string }) {
         <div className="flex items-center gap-4 h-12 px-4 border-b border-border">
           <button
             onClick={() => router.back()}
+            aria-label="Back"
             className="p-1.5 rounded-full hover:bg-accent transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h2 className="font-semibold">Post</h2>
+          <h1 className="font-semibold">Post</h1>
         </div>
         <PostSkeleton />
+      </div>
+    );
+  }
+
+  if (postError) {
+    return (
+      <div className="border-x border-border min-h-screen">
+        <OrbitErrorState
+          headline="Couldn't load this"
+          accentWord="post"
+          sub="Something went wrong fetching this post."
+          onRetry={() => refetchPost()}
+        />
       </div>
     );
   }
@@ -211,11 +231,12 @@ export function PostDetail({ postId }: { postId: string }) {
       <div className="sticky top-0 z-20 flex items-center gap-4 h-12 px-4 bg-background/80 backdrop-blur-xl border-b border-border">
         <button
           onClick={() => router.back()}
+          aria-label="Back"
           className="p-1.5 rounded-full hover:bg-accent transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h2 className="font-semibold">Post</h2>
+        <h1 className="font-semibold">Post</h1>
       </div>
 
       {/* Main Post */}

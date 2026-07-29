@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { X, Users, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ModalShell, Field, Input } from "@/components/orbit/forms";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -102,6 +102,7 @@ export function CreateGroupDialog({
         showCloseButton={false}
         className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto ring-0"
       >
+        <DialogTitle className="sr-only">New group</DialogTitle>
         <ModalShell
           title="New group"
           subtitle="A conversation between more than two."

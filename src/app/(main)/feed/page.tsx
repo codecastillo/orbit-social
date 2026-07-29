@@ -40,7 +40,8 @@ export default function FeedPage() {
       <div className="grid gap-[18px] w-full grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px] text-foreground">
         {/* MIDDLE, main feed column. Capped width so wide desktop viewports
             don't stretch posts (and images inside) edge-to-edge. */}
-        <main className="flex flex-col gap-4 min-w-0 w-full max-w-[640px] mx-auto">
+        <div className="flex flex-col gap-4 min-w-0 w-full max-w-[640px] mx-auto">
+        <h1 className="sr-only">Home feed</h1>
         {/* Tabs panel, only signed-in users have a follow graph; anon viewers
             see a single public timeline so the For You/Following switcher is
             meaningless and the panel is hidden. While auth is still loading,
@@ -89,7 +90,7 @@ export default function FeedPage() {
 
         {/* Feed */}
         <FeedList tab={tab === "following" ? "following" : "foryou"} />
-      </main>
+      </div>
 
         {/* RIGHT RAIL */}
         <aside className="hidden md:flex flex-col gap-[14px] sticky top-6 h-fit">
@@ -173,7 +174,7 @@ function LivePinned() {
 }
 
 function TrendingCard() {
-  const { data: tags, isLoading } = useQuery({
+  const { data: tags, isLoading, isError, refetch } = useQuery({
     queryKey: ["trending-hashtags", 5],
     queryFn: () => getTrendingHashtags(5),
     staleTime: 1000 * 60 * 5,
@@ -201,6 +202,16 @@ function TrendingCard() {
               </div>
             </div>
           ))}
+        </div>
+      ) : isError ? (
+        <div className="mt-3.5 text-xs leading-normal text-muted-foreground">
+          Couldn&apos;t load trends.{" "}
+          <button
+            onClick={() => refetch()}
+            className="cursor-pointer font-semibold text-primary hover:underline"
+          >
+            Try again
+          </button>
         </div>
       ) : !tags || tags.length === 0 ? (
         <div className="mt-3.5 text-xs leading-normal text-muted-foreground">
@@ -243,7 +254,7 @@ function PeopleToOrbitCard() {
   const queryClient = useQueryClient();
   const [justFollowed, setJustFollowed] = useState<Set<string>>(new Set());
 
-  const { data: people, isLoading } = useQuery({
+  const { data: people, isLoading, isError, refetch } = useQuery({
     queryKey: ["suggested-users", user?.id, 3],
     queryFn: () => getSuggestedUsers(user!.id, 3),
     enabled: !!user?.id,
@@ -267,6 +278,16 @@ function PeopleToOrbitCard() {
               <div className="h-6 w-16 rounded-full bg-surface-elevated" />
             </div>
           ))}
+        </div>
+      ) : isError ? (
+        <div className="mt-3 text-xs leading-normal text-muted-foreground">
+          Couldn&apos;t load suggestions.{" "}
+          <button
+            onClick={() => refetch()}
+            className="cursor-pointer font-semibold text-primary hover:underline"
+          >
+            Try again
+          </button>
         </div>
       ) : !people || people.length === 0 ? (
         <div className="mt-3 text-xs leading-normal text-muted-foreground">

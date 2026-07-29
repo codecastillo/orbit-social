@@ -1,7 +1,7 @@
 "use client";
 
-import { forwardRef, useState } from "react";
-import type { InputHTMLAttributes, ReactNode } from "react";
+import { cloneElement, forwardRef, isValidElement, useId, useState } from "react";
+import type { InputHTMLAttributes, ReactElement, ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -73,12 +73,34 @@ export function AuthField({
   error?: ReactNode;
   children: ReactNode;
 }) {
+  const fieldId = useId();
+  const errorId = `${fieldId}-error`;
+  // Wire the label and error text to the wrapped control. Only a lone
+  // input-like child can be associated; grids of inputs keep their own ids.
+  const labelable =
+    isValidElement<{ id?: string }>(children) &&
+    (typeof children.type !== "string" ||
+      children.type === "input" ||
+      children.type === "textarea" ||
+      children.type === "select");
+  const inputId = labelable ? (children.props.id ?? fieldId) : undefined;
+  const control = labelable
+    ? cloneElement(children as ReactElement<Record<string, unknown>>, {
+        id: inputId,
+        ...(error
+          ? { "aria-invalid": true, "aria-describedby": errorId }
+          : {}),
+      })
+    : children;
   return (
     <div className="mb-4">
       {(label || hint) && (
         <div className="mb-2 flex items-baseline justify-between">
           {label && (
-            <label className="text-xs font-semibold text-foreground">
+            <label
+              htmlFor={inputId}
+              className="text-xs font-semibold text-foreground"
+            >
               {label}
             </label>
           )}
@@ -87,9 +109,13 @@ export function AuthField({
           )}
         </div>
       )}
-      {children}
+      {control}
       {error && (
-        <p className="mt-1.5 font-mono text-[11.5px] tracking-wide text-destructive">
+        <p
+          id={errorId}
+          role="alert"
+          className="mt-1.5 font-mono text-[11.5px] tracking-wide text-destructive"
+        >
           {error}
         </p>
       )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ModalShell } from "@/components/orbit/forms";
 
 interface ConfirmDialogProps {
@@ -47,6 +47,7 @@ export function ConfirmDialog({
         className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto ring-0"
         style={{ boxShadow: "none" }}
       >
+        <DialogTitle className="sr-only">{title}</DialogTitle>
         <ModalShell
           title={title}
           subtitle={description}

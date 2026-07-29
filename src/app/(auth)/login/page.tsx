@@ -425,6 +425,7 @@ export default function LoginPage() {
         <AuthField label="Email" error={errors.email?.message}>
           <AuthInput
             type="email"
+            autoComplete="email"
             placeholder="you@example.com"
             {...register("email")}
             disabled={isLocked}
@@ -445,6 +446,7 @@ export default function LoginPage() {
         >
           <AuthInput
             type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
             placeholder="Enter your password"
             {...register("password")}
             disabled={isLocked}

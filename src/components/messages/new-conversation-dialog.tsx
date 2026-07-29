@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Edit3, AlertCircle, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ModalShell, Field, Input } from "@/components/orbit/forms";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -81,6 +81,7 @@ export function NewConversationDialog({
         showCloseButton={false}
         className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto ring-0"
       >
+        <DialogTitle className="sr-only">New conversation</DialogTitle>
         <ModalShell
           title="New conversation"
           subtitle="Search someone to start talking to."

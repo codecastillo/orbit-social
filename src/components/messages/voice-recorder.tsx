@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAudioRecorder } from "@/lib/hooks/use-audio-recorder";
 import { formatDuration, generateWaveformBars, getAudioExtension } from "@/lib/utils/audio";
@@ -87,9 +88,9 @@ export function VoiceRecorder({
 
       await onSend(publicUrl);
       discardRecording();
-    } catch {
-      // Error handling - toast could be added here
-      console.error("Failed to upload voice message");
+    } catch (err) {
+      console.error("Failed to upload voice message", err);
+      toast.error("Couldn't send voice message");
     } finally {
       setUploading(false);
     }
@@ -130,6 +131,7 @@ export function VoiceRecorder({
         {/* Cancel button */}
         <button
           onClick={cancelRecording}
+          aria-label="Cancel recording"
           className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
@@ -169,6 +171,7 @@ export function VoiceRecorder({
         {/* Stop/Send button */}
         <button
           onClick={stopRecording}
+          aria-label="Stop recording"
           className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4">
@@ -203,6 +206,7 @@ export function VoiceRecorder({
         {/* Delete button */}
         <button
           onClick={discardRecording}
+          aria-label="Delete recording"
           className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
@@ -215,6 +219,7 @@ export function VoiceRecorder({
           {/* Play/Pause */}
           <button
             onClick={togglePlayback}
+            aria-label={isPlaying ? "Pause playback" : "Play recording"}
             className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             {isPlaying ? (
@@ -255,6 +260,7 @@ export function VoiceRecorder({
         {/* Send button */}
         <button
           onClick={handleUploadAndSend}
+          aria-label="Send voice message"
           disabled={uploading}
           className={cn(
             "h-10 w-10 shrink-0 flex items-center justify-center rounded-xl transition-colors",
@@ -282,6 +288,7 @@ export function VoiceRecorder({
   return (
     <button
       onClick={handleMicClick}
+      aria-label="Record voice message"
       disabled={disabled}
       className={cn(
         "h-10 w-10 shrink-0 flex items-center justify-center rounded-xl transition-colors",

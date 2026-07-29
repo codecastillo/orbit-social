@@ -473,6 +473,11 @@ export const PostCard = memo(function PostCard({
         "relative rounded-xl border border-border bg-surface text-foreground",
         compact ? "p-4" : "cursor-pointer p-[22px]"
       )}
+      role={compact ? undefined : "link"}
+      tabIndex={compact ? undefined : 0}
+      aria-label={
+        compact ? undefined : `Open post by ${displayProfile.display_name}`
+      }
       onClick={
         compact
           ? undefined
@@ -484,6 +489,19 @@ export const PostCard = memo(function PostCard({
               const target = e.target as Node;
               if (!e.currentTarget.contains(target)) return;
               router.push(`/post/${displayPost.id}`);
+            }
+      }
+      onKeyDown={
+        compact
+          ? undefined
+          : (e) => {
+              // Only the card itself, keys pressed inside inner buttons and
+              // links bubble here and must keep their own behavior.
+              if (e.target !== e.currentTarget) return;
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                router.push(`/post/${displayPost.id}`);
+              }
             }
       }
     >

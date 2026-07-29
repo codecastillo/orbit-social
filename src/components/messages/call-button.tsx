@@ -15,6 +15,7 @@ export function CallButton({ onVoiceCall, onVideoCall }: CallButtonProps) {
         variant="ghost"
         size="icon"
         onClick={onVoiceCall}
+        aria-label="Voice call"
         className="h-9 w-9 rounded-full hover:bg-white/[0.06] transition-colors"
         title="Voice call"
       >
@@ -24,6 +25,7 @@ export function CallButton({ onVoiceCall, onVideoCall }: CallButtonProps) {
         variant="ghost"
         size="icon"
         onClick={onVideoCall}
+        aria-label="Video call"
         className="h-9 w-9 rounded-full hover:bg-white/[0.06] transition-colors"
         title="Video call"
       >

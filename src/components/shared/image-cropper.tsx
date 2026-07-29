@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 interface ImageCropperProps {
@@ -119,6 +120,7 @@ export function ImageCropper({
       onClose();
     } catch (err) {
       console.error("Crop failed:", err);
+      toast.error("Couldn't crop the image");
     } finally {
       setBusy(false);
     }
@@ -130,6 +132,7 @@ export function ImageCropper({
         className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto"
         showCloseButton={false}
       >
+        <DialogTitle className="sr-only">{title}</DialogTitle>
         <div className="flex w-[min(92vw,540px)] flex-col gap-3.5 rounded-2xl border border-border bg-surface-elevated p-5">
           <div className="text-sm font-semibold text-foreground">{title}</div>
 

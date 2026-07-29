@@ -37,7 +37,10 @@ export default async function MainLayout({
       <TopBar />
       {user && <RealtimeBridge userId={user.id} />}
 
-      <main className="lg:pl-[260px] min-h-screen pb-24 lg:pb-6 lg:pt-6 relative">
+      <main
+        id="main-content"
+        className="lg:pl-[260px] min-h-screen pb-24 lg:pb-6 lg:pt-6 relative"
+      >
         <EmailVerificationBanner />
         {/* One shared gutter for every page; without it cards sit flush
             against the viewport edge on phones. Full-bleed surfaces (clips)

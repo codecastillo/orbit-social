@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Field, Input, FormSection, ModalShell } from "@/components/orbit/forms";
 import { SettingsHeader } from "@/components/settings/settings-header";
@@ -169,6 +169,7 @@ export default function AccountSettingsPage() {
           showCloseButton={false}
           className="p-0 gap-0 border-0 bg-transparent shadow-none !max-w-[520px]"
         >
+          <DialogTitle className="sr-only">Delete your account</DialogTitle>
           <ModalShell
             title="Delete your account"
             subtitle="This action cannot be undone."

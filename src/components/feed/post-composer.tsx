@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useCurrentProfile as useCurrentProfileHook } from "@/lib/hooks/use-profile";
 import { useUIStore } from "@/lib/stores/ui-store";
@@ -60,6 +60,7 @@ export function PostComposer() {
         className="p-0 gap-0 border-0 bg-transparent shadow-none !max-w-[680px] sm:!max-w-[680px] w-[94vw] ring-0"
         style={{ boxShadow: "none" }}
       >
+        <DialogTitle className="sr-only">New post</DialogTitle>
         <div className="flex flex-col max-h-[85vh] overflow-hidden rounded-2xl border border-border bg-surface-elevated text-foreground shadow-[0_24px_48px_-12px_rgba(0,0,0,0.35)]">
           <div className="px-6 pt-[18px] pb-3.5 border-b border-border">
             <div className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">

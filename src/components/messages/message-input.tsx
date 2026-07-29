@@ -49,6 +49,8 @@ export function MessageInput({ onSend, onSendAudio, disabled, lastReceivedMessag
       await onSend(trimmed);
       setContent("");
       setDismissed(false);
+    } catch {
+      // The page surfaces the failure; keep the text so the user can retry.
     } finally {
       setSending(false);
     }
@@ -61,6 +63,8 @@ export function MessageInput({ onSend, onSendAudio, disabled, lastReceivedMessag
       try {
         await onSend(suggestion);
         setDismissed(false);
+      } catch {
+        // The page surfaces the failure.
       } finally {
         setSending(false);
       }

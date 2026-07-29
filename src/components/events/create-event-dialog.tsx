@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { Calendar, MapPin } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   ModalShell,
   Field,
@@ -102,6 +102,7 @@ export function CreateEventDialog({
         showCloseButton={false}
         className="p-0 gap-0 border-0 bg-transparent shadow-none max-w-none w-auto ring-0"
       >
+        <DialogTitle className="sr-only">Create an event</DialogTitle>
         <ModalShell
           title="Create an event"
           subtitle="Meetups, launches, listening sessions."

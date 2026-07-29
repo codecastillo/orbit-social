@@ -5,10 +5,11 @@ import type {
   ChangeEvent,
   InputHTMLAttributes,
   KeyboardEvent,
+  ReactElement,
   ReactNode,
   TextareaHTMLAttributes,
 } from "react";
-import { useState } from "react";
+import { cloneElement, isValidElement, useId, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 /**
@@ -31,6 +32,25 @@ export function Field({
   children: ReactNode;
   style?: CSSProperties;
 }) {
+  const fieldId = useId();
+  const errorId = `${fieldId}-error`;
+  // Wire the label and error text to the wrapped control. Only a lone
+  // input-like child can be associated; grids of inputs keep their own ids.
+  const labelable =
+    isValidElement<{ id?: string }>(children) &&
+    (typeof children.type !== "string" ||
+      children.type === "input" ||
+      children.type === "textarea" ||
+      children.type === "select");
+  const inputId = labelable ? (children.props.id ?? fieldId) : undefined;
+  const control = labelable
+    ? cloneElement(children as ReactElement<Record<string, unknown>>, {
+        id: inputId,
+        ...(error
+          ? { "aria-invalid": true, "aria-describedby": errorId }
+          : {}),
+      })
+    : children;
   return (
     <div style={{ marginBottom: 18, ...style }}>
       {(label || hint) && (
@@ -44,6 +64,7 @@ export function Field({
         >
           {label && (
             <label
+              htmlFor={inputId}
               style={{
                 fontSize: 12,
                 fontWeight: 600,
@@ -68,9 +89,11 @@ export function Field({
           )}
         </div>
       )}
-      {children}
+      {control}
       {error && (
         <div
+          id={errorId}
+          role="alert"
           style={{
             fontSize: 11.5,
             color: "var(--destructive)",
@@ -248,12 +271,14 @@ export function Toggle({
   onChange?: (v: boolean) => void;
   label?: ReactNode;
 }) {
+  const labelId = useId();
   return (
     <div
       style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
       onClick={() => onChange?.(!on)}
       role="switch"
       aria-checked={on}
+      aria-labelledby={label ? labelId : undefined}
       tabIndex={0}
       onKeyDown={(e: KeyboardEvent) => {
         if (e.key === " " || e.key === "Enter") {
@@ -285,7 +310,10 @@ export function Toggle({
         />
       </div>
       {label && (
-        <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 500 }}>
+        <span
+          id={labelId}
+          style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 500 }}
+        >
           {label}
         </span>
       )}
@@ -311,22 +339,50 @@ export function RadioRow<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  // Roving tabindex: only the selected option (or the first, before any
+  // selection) is tabbable; arrows move selection and focus together.
+  const activeIndex = Math.max(
+    0,
+    options.findIndex((o) => o.value === value)
+  );
+  const moveTo = (index: number) => {
+    const next = (index + options.length) % options.length;
+    onChange(options[next].value);
+    itemRefs.current[next]?.focus();
+  };
   return (
     <div
+      role="radiogroup"
       style={{
         display: "grid",
         gridTemplateColumns: `repeat(${options.length}, 1fr)`,
         gap: 8,
       }}
     >
-      {options.map((o) => {
+      {options.map((o, i) => {
         const active = o.value === value;
         const accent = o.accent || "var(--primary)";
         return (
           <button
             key={o.value}
             type="button"
+            role="radio"
+            aria-checked={active}
+            tabIndex={i === activeIndex ? 0 : -1}
+            ref={(el) => {
+              itemRefs.current[i] = el;
+            }}
             onClick={() => onChange(o.value)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+                e.preventDefault();
+                moveTo(i + 1);
+              } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+                e.preventDefault();
+                moveTo(i - 1);
+              }
+            }}
             style={{
               padding: "12px 14px",
               borderRadius: 8,
@@ -541,6 +597,7 @@ export function ModalShell({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             style={{
               width: 30,
               height: 30,

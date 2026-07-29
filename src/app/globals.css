@@ -170,7 +170,12 @@
   [role="button"]:focus-visible,
   [role="link"]:focus-visible,
   [role="menuitem"]:focus-visible,
-  [role="tab"]:focus-visible {
+  [role="tab"]:focus-visible,
+  [role="switch"]:focus-visible,
+  [role="radio"]:focus-visible,
+  [role="checkbox"]:focus-visible,
+  [role="option"]:focus-visible,
+  [tabindex="0"]:focus-visible {
     @apply outline-ring/50;
     outline-offset: 2px;
   }
