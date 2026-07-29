@@ -1,6 +1,8 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState } from "react";
+import Image from "next/image";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 export type AvatarBorderStyle =
@@ -27,6 +29,15 @@ const sizeClasses = {
   xl: "h-[126px] w-[126px]",
 };
 
+// next/image needs a rendered-size hint to pick the smallest source; these
+// mirror sizeClasses (device-pixel scaling is handled by the loader).
+const sizesAttr = {
+  sm: "32px",
+  md: "40px",
+  lg: "56px",
+  xl: "126px",
+};
+
 const borderClasses: Record<AvatarBorderStyle, string> = {
   none: "",
   "gradient-rainbow":
@@ -50,6 +61,10 @@ export function UserAvatar({
   avatarBorder = "none",
 }: UserAvatarProps) {
   const hasBorderStyle = avatarBorder !== "none";
+  // Track load/error per URL so a src change (recycled list rows) retries.
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const showImage = !!src && failedSrc !== src;
 
   return (
     <div
@@ -61,16 +76,28 @@ export function UserAvatar({
       )}
     >
       <Avatar className={cn(sizeClasses[size], className)}>
-        <AvatarImage src={src || undefined} className="object-cover" />
-        <AvatarFallback
-          className="text-white font-semibold"
-          style={{
-            background:
-              "linear-gradient(135deg, #a78bfa 0%, #f472b6 50%, #67e8f9 100%)",
-          }}
-        >
-          {fallback.slice(0, 2).toUpperCase()}
-        </AvatarFallback>
+        {(!showImage || loadedSrc !== src) && (
+          <AvatarFallback
+            className="text-white font-semibold"
+            style={{
+              background:
+                "linear-gradient(135deg, #a78bfa 0%, #f472b6 50%, #67e8f9 100%)",
+            }}
+          >
+            {fallback.slice(0, 2).toUpperCase()}
+          </AvatarFallback>
+        )}
+        {showImage && (
+          <Image
+            src={src}
+            alt=""
+            fill
+            sizes={sizesAttr[size]}
+            className="rounded-full object-cover"
+            onLoad={() => setLoadedSrc(src)}
+            onError={() => setFailedSrc(src)}
+          />
+        )}
       </Avatar>
     </div>
   );

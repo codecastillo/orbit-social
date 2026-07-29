@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -250,10 +251,12 @@ export function StoryViewer({
           {/* Story content */}
           <div className="absolute inset-0 flex items-center justify-center">
             {currentStory.media_type === "image" ? (
-              <img
+              <Image
                 src={currentStory.media_url}
                 alt="Story"
-                className="w-full h-full object-contain"
+                fill
+                sizes="100vw"
+                className="object-contain"
                 draggable={false}
               />
             ) : (

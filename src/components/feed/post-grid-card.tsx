@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Heart, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
@@ -34,11 +35,12 @@ export function PostGridCard({ post, index = 0 }: PostGridCardProps) {
     >
       {/* Background */}
       {media ? (
-        <img
+        <Image
           src={media.url}
           alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-          loading="lazy"
+          fill
+          sizes="(max-width: 640px) 50vw, 300px"
+          className="object-cover"
         />
       ) : (
         <div className={`absolute inset-0 bg-gradient-to-br ${gradient} p-4 flex items-end`}>

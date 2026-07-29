@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isAudioMessage } from "@/lib/utils/audio";
@@ -249,11 +250,15 @@ export function MessageBubble({
                 </p>
               )}
               {message.media_url && !isAudioMessage(null, message.media_url) && (
-                <img
-                  src={message.media_url}
-                  alt="Media"
-                  className="rounded-lg max-w-full mb-1"
-                />
+                <div className="relative mb-1 aspect-[4/3] w-64 max-w-full overflow-hidden rounded-lg">
+                  <Image
+                    src={message.media_url}
+                    alt="Media"
+                    fill
+                    sizes="256px"
+                    className="object-cover"
+                  />
+                </div>
               )}
               {message.content && (
                 <p className="text-sm whitespace-pre-wrap break-words">

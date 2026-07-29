@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useState, useEffect, useMemo } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -703,14 +704,24 @@ export const PostCard = memo(function PostCard({
               >
                 {visualMedia.map((m, i) => {
                   const isVideo = m.type === "video" || m.type === "gif";
+                  const spansRows = visualMedia.length === 3 && i === 0;
+                  const hasDims = !isVideo && !!m.width && !!m.height;
                   return (
                     <div
                       key={m.id}
                       className={cn(
                         "overflow-hidden flex items-center justify-center",
                         !isMulti && "max-h-[520px] w-full",
-                        visualMedia.length === 3 && i === 0 && "row-span-2",
+                        !isVideo && "relative",
+                        !isVideo && isMulti && (spansRows ? "h-full" : "aspect-square"),
+                        !isVideo && !isMulti && !hasDims && "aspect-[4/3]",
+                        spansRows && "row-span-2",
                       )}
+                      style={
+                        !isVideo && !isMulti && hasDims
+                          ? { aspectRatio: `${m.width} / ${m.height}` }
+                          : undefined
+                      }
                     >
                       {isVideo ? (
                         <video
@@ -726,16 +737,16 @@ export const PostCard = memo(function PostCard({
                           }
                         />
                       ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        <Image
                           src={m.url}
                           alt=""
-                          loading="lazy"
-                          className={
+                          fill
+                          sizes={
                             isMulti
-                              ? "w-full h-full object-cover"
-                              : "h-auto w-auto max-h-[520px] max-w-full"
+                              ? "(max-width: 640px) 50vw, 300px"
+                              : "(max-width: 640px) 100vw, 600px"
                           }
+                          className="object-cover"
                         />
                       )}
                     </div>

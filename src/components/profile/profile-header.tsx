@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   Link as LinkIcon,
@@ -102,7 +103,7 @@ export function ProfileHeader({
       {/* Cover photo or gradient */}
       <div className="h-44 sm:h-52 relative overflow-hidden">
         {profile.cover_url ? (
-          <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
+          <Image src={profile.cover_url} alt="Cover" fill sizes="100vw" className="object-cover" />
         ) : (
           <div
             className="w-full h-full"

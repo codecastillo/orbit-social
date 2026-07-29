@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   Users,
@@ -289,11 +290,12 @@ export function CommunityHeader({
         style={{ aspectRatio: "4 / 1", maxHeight: 280 }}
       >
         {community.cover_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={community.cover_url}
             alt=""
-            className="w-full h-full object-cover"
+            fill
+            sizes="100vw"
+            className="object-cover"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/40 via-purple-500/30 to-pink-500/20" />

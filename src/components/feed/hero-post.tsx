@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
@@ -49,10 +50,12 @@ export function HeroPost({ post, isLiked: initialLiked = false }: HeroPostProps)
     >
       {/* Background */}
       {media ? (
-        <img
+        <Image
           src={media.url}
           alt=""
-          className="absolute inset-0 w-full h-full object-cover"
+          fill
+          sizes="(max-width: 640px) 100vw, 600px"
+          className="object-cover"
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-violet-600/80 via-indigo-600/70 to-cyan-500/60" />

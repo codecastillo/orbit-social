@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Heart, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -50,19 +51,21 @@ function GridItem({
       className="relative aspect-square overflow-hidden bg-muted/30 focus:outline-none"
     >
       {hasImage && (
-        <img
+        <Image
           src={firstMedia.url}
           alt=""
-          loading="lazy"
-          className="h-full w-full object-cover"
+          fill
+          sizes="(max-width: 768px) 33vw, 200px"
+          className="object-cover"
         />
       )}
       {hasVideo && (
-        <img
+        <Image
           src={firstMedia.thumbnail_url || firstMedia.url}
           alt=""
-          loading="lazy"
-          className="h-full w-full object-cover"
+          fill
+          sizes="(max-width: 768px) 33vw, 200px"
+          className="object-cover"
         />
       )}
       {!hasImage && !hasVideo && (
