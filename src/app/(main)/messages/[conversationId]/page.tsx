@@ -10,6 +10,7 @@ import {
   PinOff,
   Ban,
   ArrowLeft,
+  Settings2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -20,12 +21,15 @@ import {
   getPinnedMessages,
   pinMessage,
   unpinMessage,
+  deleteMessage,
   type Message,
 } from "@/lib/queries/messages";
 import { blockUser } from "@/lib/queries/social";
 import { createClient } from "@/lib/supabase/client";
 import { ChatWindow } from "@/components/messages/chat-window";
 import { MessageInput } from "@/components/messages/message-input";
+import { GroupSettingsDialog } from "@/components/messages/group-settings-dialog";
+import { ConfirmDialog } from "@/components/orbit/confirm-dialog";
 import { CallButton } from "@/components/messages/call-button";
 import { CallOverlay } from "@/components/messages/call-overlay";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -73,8 +77,14 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [isPinned, setIsPinned] = useState(false);
   const [pinSaving, setPinSaving] = useState(false);
   const [blockSaving, setBlockSaving] = useState(false);
+  const [blockConfirmOpen, setBlockConfirmOpen] = useState(false);
+  const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
 
   const webrtc = useWebRTC(conversationId, user?.id ?? "");
+
+  // Bumped by the group settings dialog after a mutation to refetch the
+  // conversation info and member list.
+  const [convVersion, setConvVersion] = useState(0);
 
   useEffect(() => {
     if (!user || !conversationId) return;
@@ -129,7 +139,7 @@ export default function ChatPage({ params }: ChatPageProps) {
       }
       setLoadingOther(false);
     })();
-  }, [user, conversationId]);
+  }, [user, conversationId, convVersion]);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -232,8 +242,6 @@ export default function ChatPage({ params }: ChatPageProps) {
 
   const handleBlock = async () => {
     if (!user || !otherUser || blockSaving) return;
-    const ok = window.confirm(`Block @${otherUser.username}? They won't be able to message you.`);
-    if (!ok) return;
     setBlockSaving(true);
     try {
       await blockUser(user.id, otherUser.id);
@@ -244,6 +252,33 @@ export default function ChatPage({ params }: ChatPageProps) {
       toast.error("Couldn't block user");
     } finally {
       setBlockSaving(false);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    const setDeleted = (deleted: boolean) =>
+      queryClient.setQueryData(
+        ["messages", conversationId],
+        (old: { pages: { messages: Message[]; nextCursor: string | null }[] } | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((p) => ({
+              ...p,
+              messages: p.messages.map((m) =>
+                m.id === messageId ? { ...m, is_deleted: deleted } : m
+              ),
+            })),
+          };
+        }
+      );
+    setDeleted(true);
+    try {
+      await deleteMessage(messageId);
+    } catch (e) {
+      console.error("deleteMessage failed", e);
+      setDeleted(false);
+      toast.error("Couldn't delete message");
     }
   };
 
@@ -281,14 +316,10 @@ export default function ChatPage({ params }: ChatPageProps) {
       ? `@${otherUser.username}`
       : "";
 
-  const callPeer = otherUser
-    ? { id: otherUser.id, display_name: otherUser.display_name, avatar_url: otherUser.avatar_url }
-    : groupMembers.length > 0
-      ? {
-          id: groupMembers[0].id,
-          display_name: headerName,
-          avatar_url: conversationInfo?.avatar_url ?? null,
-        }
+  // Calls are DM-only: never derive a call peer for group conversations.
+  const callPeer =
+    !isGroup && otherUser
+      ? { id: otherUser.id, display_name: otherUser.display_name, avatar_url: otherUser.avatar_url }
       : null;
 
   return (
@@ -347,6 +378,17 @@ export default function ChatPage({ params }: ChatPageProps) {
             </div>
           )}
 
+          {isGroup && !loadingOther && (
+            <button
+              onClick={() => setGroupSettingsOpen(true)}
+              aria-label="Group settings"
+              className="h-10 w-10 rounded-lg bg-surface-elevated hover:bg-muted border border-border flex items-center justify-center text-muted-foreground transition-colors shrink-0"
+              title="Group settings"
+            >
+              <Settings2 className="h-4 w-4" />
+            </button>
+          )}
+
           {!isGroup && (
             <button
               onClick={togglePin}
@@ -396,6 +438,7 @@ export default function ChatPage({ params }: ChatPageProps) {
           hasMore={!!hasNextPage}
           isLoadingMore={isFetchingNextPage}
           onPinMessage={handlePinMessage}
+          onDeleteMessage={handleDeleteMessage}
           isGroup={isGroup}
         />
       )}
@@ -460,6 +503,16 @@ export default function ChatPage({ params }: ChatPageProps) {
               ◈&nbsp;&nbsp;ACTIONS
             </p>
             <div className="mt-2.5">
+              {isGroup && (
+                <button
+                  type="button"
+                  onClick={() => setGroupSettingsOpen(true)}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] text-text-secondary transition-colors hover:bg-surface-elevated"
+                >
+                  <Settings2 className="h-3.5 w-3.5" strokeWidth={1.8} />
+                  Group settings
+                </button>
+              )}
               {!isGroup && (
                 <button
                   type="button"
@@ -481,7 +534,7 @@ export default function ChatPage({ params }: ChatPageProps) {
               {!isGroup && otherUser && (
                 <button
                   type="button"
-                  onClick={handleBlock}
+                  onClick={() => setBlockConfirmOpen(true)}
                   disabled={blockSaving}
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] text-destructive transition-colors hover:bg-surface-elevated disabled:opacity-60"
                 >
@@ -509,6 +562,30 @@ export default function ChatPage({ params }: ChatPageProps) {
           onAcceptCall={webrtc.acceptCall}
           onDeclineCall={webrtc.declineCall}
           onEndCall={webrtc.endCall}
+        />
+      )}
+
+      {isGroup && (
+        <GroupSettingsDialog
+          open={groupSettingsOpen}
+          onOpenChange={setGroupSettingsOpen}
+          conversationId={conversationId}
+          groupName={conversationInfo?.name ?? ""}
+          members={groupMembers}
+          currentUserId={user.id}
+          onChanged={() => setConvVersion((v) => v + 1)}
+        />
+      )}
+
+      {otherUser && (
+        <ConfirmDialog
+          open={blockConfirmOpen}
+          onOpenChange={setBlockConfirmOpen}
+          title={`Block @${otherUser.username}?`}
+          description="They won't be able to message you."
+          confirmLabel="Block"
+          danger
+          onConfirm={handleBlock}
         />
       )}
     </div>

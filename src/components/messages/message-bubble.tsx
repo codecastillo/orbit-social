@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Pin } from "lucide-react";
+import { Pin, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isAudioMessage } from "@/lib/utils/audio";
 import { InlineAudioPlayer } from "@/components/shared/inline-audio-player";
@@ -23,6 +23,7 @@ interface MessageBubbleProps {
   showSender: boolean;
   currentUserId?: string;
   onPinMessage?: (messageId: string, isPinned: boolean) => void;
+  onDeleteMessage?: (messageId: string) => void;
 }
 
 export function MessageBubble({
@@ -31,6 +32,7 @@ export function MessageBubble({
   showSender,
   currentUserId,
   onPinMessage,
+  onDeleteMessage,
 }: MessageBubbleProps) {
   const time = new Date(message.created_at).toLocaleTimeString([], {
     hour: "2-digit",
@@ -206,6 +208,15 @@ export function MessageBubble({
         <div className="flex items-center gap-1.5 min-w-0">
           {isOwn && (
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              {onDeleteMessage && (
+                <button
+                  onClick={() => onDeleteMessage(message.id)}
+                  className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors text-muted-foreground hover:text-destructive"
+                  title="Delete message"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
               {onPinMessage && (
                 <button
                   onClick={() => onPinMessage(message.id, !!message.is_pinned)}

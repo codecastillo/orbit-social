@@ -11,6 +11,7 @@ interface ChatWindowProps {
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onPinMessage?: (messageId: string, isPinned: boolean) => void;
+  onDeleteMessage?: (messageId: string) => void;
   isGroup?: boolean;
 }
 
@@ -52,6 +53,7 @@ export function ChatWindow({
   hasMore,
   isLoadingMore,
   onPinMessage,
+  onDeleteMessage,
   isGroup,
 }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -137,6 +139,7 @@ export function ChatWindow({
                 showSender={showSender}
                 currentUserId={currentUserId}
                 onPinMessage={onPinMessage}
+                onDeleteMessage={onDeleteMessage}
               />
             </div>
           );

@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/orbit/confirm-dialog";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VerifiedStar } from "@/components/orbit/verified-star";
@@ -189,6 +190,7 @@ function MemberRow({
 }) {
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
 
   // Show the management menu when the caller is the room owner AND the
   // target row is not the owner themselves and not another owner.
@@ -211,8 +213,6 @@ function MemberRow({
 
   const handleRemove = async () => {
     if (busy) return;
-    if (!window.confirm(`Remove @${member.profiles.username} from this room?`))
-      return;
     setBusy(true);
     try {
       await removeCommunityMember(communityId, member.user_id);
@@ -317,7 +317,7 @@ function MemberRow({
             <DropdownMenuItem
               variant="destructive"
               className="cursor-pointer rounded-lg"
-              onClick={handleRemove}
+              onClick={() => setConfirmRemoveOpen(true)}
             >
               <UserMinus className="mr-2 h-4 w-4" />
               Remove from room
@@ -325,6 +325,16 @@ function MemberRow({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
+
+      <ConfirmDialog
+        open={confirmRemoveOpen}
+        onOpenChange={setConfirmRemoveOpen}
+        title={`Remove @${member.profiles.username}?`}
+        description="They'll be removed from this room."
+        confirmLabel="Remove"
+        danger
+        onConfirm={handleRemove}
+      />
     </div>
   );
 }
