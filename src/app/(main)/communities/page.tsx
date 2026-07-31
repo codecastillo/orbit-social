@@ -17,6 +17,7 @@ import {
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
+import { FadeInImage } from "@/components/shared/fade-in-image";
 import { OrbitErrorState } from "@/components/orbit/error-state";
 
 function useDebounce(v: string, d: number) {
@@ -212,13 +213,12 @@ function MyRoomsSection({
           >
             <div className="relative aspect-[4/1] w-full overflow-hidden bg-primary/10">
               {c.cover_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <FadeInImage
                   src={c.cover_url}
                   alt=""
-                  loading="lazy"
-                  decoding="async"
-                  className="absolute inset-0 h-full w-full object-cover"
+                  fill
+                  sizes="320px"
+                  className="object-cover"
                 />
               )}
               <div className="absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.1em] text-white">
@@ -228,12 +228,9 @@ function MyRoomsSection({
             <div className="relative flex-1 p-[18px]">
               <div className="absolute -top-6 left-[18px] flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-[2.5px] border-background bg-primary">
                 {c.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <FadeInImage
                     src={c.avatar_url}
                     alt=""
-                    loading="lazy"
-                    decoding="async"
                     width={48}
                     height={48}
                     className="h-full w-full object-cover"

@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useEffect, useMemo } from "react";
-import Image from "next/image";
+import { FadeInImage as Image } from "@/components/shared/fade-in-image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import { FadeInImage as Image } from "@/components/shared/fade-in-image";
 import Link from "next/link";
 import { Heart, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
