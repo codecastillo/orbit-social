@@ -90,6 +90,7 @@ export function Avatar({
     return (
       <Image
         source={{ uri: url }}
+        alt={name}
         style={{ width: size, height: size, borderRadius: size / 2 }}
         contentFit="cover"
         transition={150}
