@@ -7,11 +7,15 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  MentionButton,
+  MentionInput,
+  type MentionInputHandle,
+} from "@/components/mention-input";
 import { PostCard } from "@/components/post-card";
 import { PostListSkeleton } from "@/components/post-skeleton";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
@@ -37,7 +41,7 @@ export default function PostDetailScreen() {
   const queryClient = useQueryClient();
   const userId = user?.id ?? "";
   const [replyText, setReplyText] = useState("");
-  const replyInputRef = useRef<TextInput>(null);
+  const replyInputRef = useRef<MentionInputHandle>(null);
 
   // Own avatar for the pinned reply composer; shares the profile cache key
   // used by the profile and edit screens.
@@ -209,15 +213,21 @@ export default function PostDetailScreen() {
           name={ownProfile?.display_name || ownProfile?.username || "You"}
           size={32}
         />
-        <TextInput
+        <MentionInput
           ref={replyInputRef}
           value={replyText}
           onChangeText={setReplyText}
           placeholder={`Reply to @${post.profiles.username}`}
           placeholderTextColor={colors.textFaint}
+          containerStyle={styles.replyInputWrap}
           style={styles.replyInput}
+          panelPlacement="above"
           multiline
           maxLength={REPLY_MAX_LENGTH}
+        />
+        <MentionButton
+          onPress={() => replyInputRef.current?.insertMentionTrigger()}
+          disabled={replyMutation.isPending}
         />
         <Pressable
           accessibilityRole="button"
@@ -282,8 +292,10 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     backgroundColor: colors.background,
   },
-  replyInput: {
+  replyInputWrap: {
     flex: 1,
+  },
+  replyInput: {
     minHeight: 36,
     maxHeight: 120,
     borderRadius: 18,

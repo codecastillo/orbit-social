@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +30,12 @@ import {
   type InfiniteData,
 } from "@tanstack/react-query";
 import { Avatar, Button, EmptyState } from "@/components/ui";
+import {
+  MessageReactionBar,
+  MessageReactionPills,
+  type ReactionBarAnchor,
+  type ReactionPill,
+} from "@/components/message-reactions";
 import { VoiceBubble } from "@/components/voice-bubble";
 import {
   VOICE_MIN_MS,
@@ -39,13 +45,17 @@ import { prefetchVoice } from "@/lib/audio-cache";
 import { safeBack } from "@/lib/nav";
 import {
   MESSAGE_PAGE_SIZE,
+  addMessageReaction,
   getConversations,
   getMessages,
+  getMessagesReactions,
   markConversationRead,
+  removeMessageReaction,
   sendMessage,
   sendVoiceMessage,
   voiceMessageUrl,
   type Message,
+  type MessageReactionGroup,
 } from "@/lib/queries/messages";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
@@ -85,6 +95,9 @@ function MessageBubble({
   showTimeChip,
   avatarUrl,
   senderName,
+  reactions,
+  onLongPress,
+  onToggleReaction,
 }: {
   message: Message;
   isMine: boolean;
@@ -93,7 +106,17 @@ function MessageBubble({
   showTimeChip: boolean;
   avatarUrl: string | null;
   senderName: string;
+  reactions: ReactionPill[];
+  onLongPress: (message: Message, anchor: ReactionBarAnchor) => void;
+  onToggleReaction: (messageId: string, emoji: string) => void;
 }) {
+  const bubbleRef = useRef<View>(null);
+  const handleLongPress = () => {
+    if (message.is_deleted) return;
+    bubbleRef.current?.measureInWindow((x, y, width) => {
+      onLongPress(message, { x, y, width });
+    });
+  };
   const voiceUrl = message.is_deleted ? null : voiceMessageUrl(message);
   // Square the corner nearest the sender; the run's oldest message keeps the
   // full radius on top so runs read as one grouped block.
@@ -127,7 +150,9 @@ function MessageBubble({
           </View>
         ) : null}
         {voiceUrl ? (
-          <View
+          <Pressable
+            ref={bubbleRef}
+            onLongPress={handleLongPress}
             style={[
               styles.voiceWrap,
               cornerStyle,
@@ -135,9 +160,11 @@ function MessageBubble({
             ]}
           >
             <VoiceBubble url={voiceUrl} isMine={isMine} />
-          </View>
+          </Pressable>
         ) : (
-          <View
+          <Pressable
+            ref={bubbleRef}
+            onLongPress={handleLongPress}
             style={[
               styles.bubble,
               isMine ? styles.bubbleMine : styles.bubbleTheirs,
@@ -153,9 +180,18 @@ function MessageBubble({
                 {message.content}
               </Text>
             )}
-          </View>
+          </Pressable>
         )}
       </View>
+      {reactions.length > 0 ? (
+        <View style={!isMine ? styles.pillGutter : null}>
+          <MessageReactionPills
+            reactions={reactions}
+            isMine={isMine}
+            onToggle={(emoji) => onToggleReaction(message.id, emoji)}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -229,6 +265,91 @@ export default function ConversationScreen() {
     enabled: !!user && !!conversationId,
   });
 
+  const messageIds = (data?.pages.flat() ?? []).map((m) => m.id);
+
+  // One batched query for every loaded message's reactions. The ids live in
+  // the key, so realtime inserts and new pages refetch it automatically; the
+  // web fetches per message on mount and has no reaction broadcast to mirror.
+  const reactionsQuery = useQuery({
+    queryKey: ["message-reactions", conversationId, messageIds],
+    queryFn: () => getMessagesReactions(messageIds),
+    enabled: !!user && messageIds.length > 0,
+  });
+
+  const [picker, setPicker] = useState<{
+    messageId: string;
+    anchor: ReactionBarAnchor;
+  } | null>(null);
+
+  // Same toggle semantics as the web message-bubble: insert to add, delete
+  // by (message, user, emoji) to remove, optimistic patch, and a refetch as
+  // the rollback when the write fails.
+  const reactionMutation = useMutation({
+    mutationFn: ({
+      messageId,
+      emoji,
+      hasReacted,
+    }: {
+      messageId: string;
+      emoji: string;
+      hasReacted: boolean;
+    }) =>
+      hasReacted
+        ? removeMessageReaction(messageId, user!.id, emoji)
+        : addMessageReaction(messageId, user!.id, emoji),
+    onMutate: async ({ messageId, emoji, hasReacted }) => {
+      const key = ["message-reactions", conversationId, messageIds];
+      await queryClient.cancelQueries({ queryKey: key });
+      queryClient.setQueryData<Map<string, MessageReactionGroup[]>>(
+        key,
+        (old) => {
+          const next = new Map(old);
+          const groups = next.get(messageId) ?? [];
+          const updated = hasReacted
+            ? groups
+                .map((g) =>
+                  g.emoji === emoji
+                    ? {
+                        ...g,
+                        count: g.count - 1,
+                        userIds: g.userIds.filter((id) => id !== user!.id),
+                      }
+                    : g,
+                )
+                .filter((g) => g.count > 0)
+            : groups.some((g) => g.emoji === emoji)
+              ? groups.map((g) =>
+                  g.emoji === emoji
+                    ? { ...g, count: g.count + 1, userIds: [...g.userIds, user!.id] }
+                    : g,
+                )
+              : [...groups, { emoji, count: 1, userIds: [user!.id] }];
+          if (updated.length > 0) next.set(messageId, updated);
+          else next.delete(messageId);
+          return next;
+        },
+      );
+    },
+    onError: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["message-reactions", conversationId],
+      });
+    },
+  });
+
+  const toggleReaction = useCallback(
+    (messageId: string, emoji: string) => {
+      if (!user) return;
+      const hasReacted =
+        reactionsQuery.data
+          ?.get(messageId)
+          ?.some((g) => g.emoji === emoji && g.userIds.includes(user.id)) ??
+        false;
+      reactionMutation.mutate({ messageId, emoji, hasReacted });
+    },
+    [user, reactionsQuery.data, reactionMutation],
+  );
+
   const appendMessage = useCallback(
     (incoming: Message) => {
       queryClient.setQueryData<InfiniteData<Message[]>>(
@@ -288,13 +409,19 @@ export default function ConversationScreen() {
   }, [user, conversationId, appendMessage]);
 
   // Realtime drops silently while backgrounded and never replays, so catch
-  // up whenever the app returns to the foreground.
+  // up whenever the app returns to the foreground. Reactions have no
+  // realtime channel at all (matching the web), so they ride along here.
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (status) => {
-      if (status === "active") void refetch();
+      if (status === "active") {
+        void refetch();
+        queryClient.invalidateQueries({
+          queryKey: ["message-reactions", conversationId],
+        });
+      }
     });
     return () => subscription.remove();
-  }, [refetch]);
+  }, [refetch, queryClient, conversationId]);
 
   // Warm the local voice cache so the first tap on a clip plays instantly
   // instead of streaming.
@@ -431,6 +558,13 @@ export default function ConversationScreen() {
       newer.sender_id !== item.sender_id ||
       new Date(newer.created_at).getTime() - new Date(item.created_at).getTime() >
         TIME_GAP_MS;
+    const reactions: ReactionPill[] = (
+      reactionsQuery.data?.get(item.id) ?? []
+    ).map((g) => ({
+      emoji: g.emoji,
+      count: g.count,
+      hasReacted: g.userIds.includes(user.id),
+    }));
     return (
       <MessageBubble
         message={item}
@@ -444,6 +578,11 @@ export default function ConversationScreen() {
           null
         }
         senderName={item.sender?.display_name ?? title}
+        reactions={reactions}
+        onLongPress={(message, anchor) =>
+          setPicker({ messageId: message.id, anchor })
+        }
+        onToggleReaction={toggleReaction}
       />
     );
   };
@@ -494,6 +633,7 @@ export default function ConversationScreen() {
             inverted
             keyExtractor={(m) => m.id}
             renderItem={renderMessage}
+            extraData={reactionsQuery.data}
             contentContainerStyle={styles.messageList}
             onEndReached={() => {
               if (hasNextPage && !isFetchingNextPage) fetchNextPage();
@@ -571,6 +711,23 @@ export default function ConversationScreen() {
         </View>
         <Animated.View style={{ height: kbSpace }} />
       </View>
+
+      <MessageReactionBar
+        visible={picker !== null}
+        anchor={picker?.anchor ?? null}
+        existingEmojis={
+          picker
+            ? (reactionsQuery.data?.get(picker.messageId) ?? [])
+                .filter((g) => g.userIds.includes(user.id))
+                .map((g) => g.emoji)
+            : []
+        }
+        onSelect={(emoji) => {
+          if (picker) toggleReaction(picker.messageId, emoji);
+          setPicker(null);
+        }}
+        onClose={() => setPicker(null)}
+      />
     </View>
   );
 }
@@ -620,6 +777,10 @@ const styles = StyleSheet.create({
   runAvatar: {
     width: RUN_AVATAR_SIZE,
     marginRight: spacing(1.5),
+  },
+  // Keeps their pills aligned with the bubble, past the avatar column.
+  pillGutter: {
+    paddingLeft: RUN_AVATAR_SIZE + spacing(1.5),
   },
   bubble: {
     maxWidth: "75%",

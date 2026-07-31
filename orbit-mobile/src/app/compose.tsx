@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { Image } from "expo-image";
@@ -15,6 +14,11 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/ui";
+import {
+  MentionButton,
+  MentionInput,
+  type MentionInputHandle,
+} from "@/components/mention-input";
 import { useAuth } from "@/providers/auth-provider";
 import { createPost, uploadPostMedia, type NewPostMedia } from "@/lib/queries/posts";
 import { getOwnProfile } from "@/lib/queries/profiles";
@@ -37,6 +41,7 @@ export default function ComposeScreen() {
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
   const [images, setImages] = useState<PickedImage[]>([]);
+  const captionRef = useRef<MentionInputHandle>(null);
 
   // Own avatar beside the caption input; shares the profile cache key used
   // by the profile and edit screens.
@@ -143,12 +148,15 @@ export default function ComposeScreen() {
             name={ownProfile?.display_name || ownProfile?.username || "You"}
             size={36}
           />
-          <TextInput
+          <MentionInput
+            ref={captionRef}
             value={content}
             onChangeText={setContent}
             placeholder="What is happening in your orbit?"
             placeholderTextColor={colors.textFaint}
+            containerStyle={styles.inputWrap}
             style={styles.input}
+            panelPlacement="below"
             multiline
             autoFocus
             maxLength={POST_MAX_LENGTH}
@@ -202,6 +210,10 @@ export default function ComposeScreen() {
         >
           <Ionicons name="image-outline" size={24} color={colors.primary} />
         </Pressable>
+        <MentionButton
+          onPress={() => captionRef.current?.insertMentionTrigger()}
+          disabled={publishMutation.isPending}
+        />
         {images.length > 0 ? (
           <Text style={styles.imageCount}>
             {images.length}/{MAX_IMAGES}
@@ -246,8 +258,10 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: spacing(3),
   },
-  input: {
+  inputWrap: {
     flex: 1,
+  },
+  input: {
     color: colors.foreground,
     fontSize: 16,
     lineHeight: 22,

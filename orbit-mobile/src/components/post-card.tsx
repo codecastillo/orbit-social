@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Avatar } from "@/components/ui";
 import { ReactionCounts } from "@/components/reaction-counts";
+import { RichText } from "@/components/rich-text";
 import { ReactionPicker, type ReactionAnchor } from "@/components/reaction-picker";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
 import {
@@ -80,9 +81,9 @@ function QuotedPostPreview({ post }: { post: Post }) {
         <Text style={styles.quoteTime}>· {formatTimeAgo(post.created_at)}</Text>
       </View>
       {post.content ? (
-        <Text style={styles.quoteContent} numberOfLines={4}>
+        <RichText style={styles.quoteContent} numberOfLines={4}>
           {post.content}
-        </Text>
+        </RichText>
       ) : null}
       {media && media.type !== "video" ? (
         <Image
@@ -386,7 +387,9 @@ export function PostCard({
       </Pressable>
 
       {display.content ? (
-        <Text style={[styles.content, detail && styles.contentDetail]}>{display.content}</Text>
+        <RichText style={[styles.content, detail && styles.contentDetail]}>
+          {display.content}
+        </RichText>
       ) : null}
 
       {media && media.type !== "video" ? (

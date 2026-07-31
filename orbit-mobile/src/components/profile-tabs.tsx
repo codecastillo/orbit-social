@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import * as VideoThumbnails from "expo-video-thumbnails";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui";
 import { ProfilePostRow } from "@/components/profile-header";
@@ -20,6 +19,7 @@ import {
   type MentionPost,
   type ProfilePost,
 } from "@/lib/queries/profiles";
+import { useVideoFrame } from "@/lib/video-frame";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const GRID_GAP = 1;
@@ -67,32 +67,6 @@ function ProfileTabBar({
       })}
     </View>
   );
-}
-
-// Storage-hosted videos often have no stored thumbnail; grabbing a frame
-// on-device fills the tile. Cached per URL so scrolling never regenerates.
-const frameCache = new Map<string, string>();
-
-function useVideoFrame(url: string | null): string | null {
-  const [frame, setFrame] = useState<string | null>(
-    url ? (frameCache.get(url) ?? null) : null,
-  );
-  useEffect(() => {
-    if (!url || frameCache.has(url)) return;
-    let cancelled = false;
-    VideoThumbnails.getThumbnailAsync(url, { time: 500 })
-      .then(({ uri }) => {
-        frameCache.set(url, uri);
-        if (!cancelled) setFrame(uri);
-      })
-      .catch(() => {
-        // Tile keeps its dark placeholder; nothing actionable.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [url]);
-  return frame;
 }
 
 function MediaTile({

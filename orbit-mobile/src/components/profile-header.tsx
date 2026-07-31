@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Avatar } from "@/components/ui";
+import { RichText } from "@/components/rich-text";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
 import type { Profile } from "@/lib/queries/profiles";
 import { colors, spacing } from "@/lib/theme";
@@ -123,7 +124,7 @@ export function ProfileHeader({
         ) : null}
       </View>
       <Text style={styles.username}>@{profile.username}</Text>
-      {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
+      {profile.bio ? <RichText style={styles.bio}>{profile.bio}</RichText> : null}
       {profile.location ? (
         <View style={styles.locationRow}>
           <Ionicons

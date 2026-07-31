@@ -70,12 +70,63 @@ export async function searchPosts(
   return (data ?? []) as unknown as SearchPost[];
 }
 
+export interface SearchClip {
+  id: string;
+  content: string | null;
+  created_at: string;
+  like_count: number;
+  post_media: {
+    id: string;
+    type: "image" | "video" | "gif";
+    url: string;
+    thumbnail_url: string | null;
+    sort_order: number;
+  }[];
+}
+
+// Reel-only variant of searchPosts, with media included so results can
+// render as a thumbnail grid. Limit fills seven 3-column rows.
+export async function searchClips(
+  query: string,
+  limit = 21,
+): Promise<SearchClip[]> {
+  const { data, error } = await supabase
+    .from("posts")
+    .select(
+      `id, content, created_at, like_count,
+       post_media (id, type, url, thumbnail_url, sort_order)`,
+    )
+    .ilike("content", `%${query}%`)
+    .eq("type", "reel")
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as unknown as SearchClip[];
+}
+
 // Trending only counts hashtag uses from the last 24h, so tags that stopped
 // moving drop out instead of lingering (same rule as the web).
 export async function getTrendingHashtags(
   limit = 10,
 ): Promise<TrendingHashtag[]> {
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  // 24h first; a small network starves that window, so widen to 30 days
+  // before giving up (mirrors the web fallback).
+  const day = 24 * 60 * 60 * 1000;
+  for (const windowMs of [day, 30 * day]) {
+    const tags = await getTrendingHashtagsSince(
+      new Date(Date.now() - windowMs).toISOString(),
+      limit,
+    );
+    if (tags.length > 0) return tags;
+  }
+  return [];
+}
+
+async function getTrendingHashtagsSince(
+  cutoff: string,
+  limit: number,
+): Promise<TrendingHashtag[]> {
   const { data, error } = await supabase
     .from("post_hashtags")
     .select(

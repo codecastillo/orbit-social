@@ -60,6 +60,11 @@ export default function SettingsScreen() {
           onPress={() => router.push("/edit-profile" as Href)}
         />
         <SettingsRow
+          icon="key-outline"
+          label="Account"
+          onPress={() => router.push("/settings/account" as Href)}
+        />
+        <SettingsRow
           icon="bookmark-outline"
           label="Saved"
           onPress={() => router.push("/bookmarks" as Href)}
@@ -77,6 +82,11 @@ export default function SettingsScreen() {
           icon="lock-closed-outline"
           label="Privacy"
           onPress={() => router.push("/settings/privacy" as Href)}
+        />
+        <SettingsRow
+          icon="people-circle-outline"
+          label="Close friends"
+          onPress={() => router.push("/settings/close-friends" as Href)}
         />
       </View>
 

@@ -285,7 +285,20 @@ export async function searchPosts(
 // rank by recent count. Hashtags that haven't been used today drop out
 // entirely so the hero card shows the empty-state instead of stale tags.
 export async function getTrendingHashtags(limit = 10) {
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  // 24h first; a small network starves that window, so widen to 30 days
+  // before giving up. An active platform naturally stays on the tight one.
+  const day = 24 * 60 * 60 * 1000;
+  for (const windowMs of [day, 30 * day]) {
+    const tags = await getTrendingHashtagsSince(
+      new Date(Date.now() - windowMs).toISOString(),
+      limit,
+    );
+    if (tags.length > 0) return tags;
+  }
+  return [];
+}
+
+async function getTrendingHashtagsSince(cutoff: string, limit: number) {
   const { data, error } = await supabase
     .from("post_hashtags")
     .select(

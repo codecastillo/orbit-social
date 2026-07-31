@@ -89,6 +89,43 @@ export async function getMutedUsers(
     .filter((p): p is BlockedProfile => p !== null);
 }
 
+// Mirrors the web getCloseFriends in src/lib/queries/social.ts: rows where
+// user_id is you, joined to the friend's profile, newest first.
+export async function getCloseFriends(
+  userId: string,
+): Promise<BlockedProfile[]> {
+  const { data, error } = await supabase
+    .from("close_friends")
+    .select(
+      `created_at, profiles!close_friends_friend_id_fkey (${PROFILE_SELECT})`,
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return ((data ?? []) as unknown as { profiles: BlockedProfile | null }[])
+    .map((row) => row.profiles)
+    .filter((p): p is BlockedProfile => p !== null);
+}
+
+export async function addCloseFriend(userId: string, friendId: string) {
+  const { error } = await supabase
+    .from("close_friends")
+    .insert({ user_id: userId, friend_id: friendId });
+
+  if (error) throw error;
+}
+
+export async function removeCloseFriend(userId: string, friendId: string) {
+  const { error } = await supabase
+    .from("close_friends")
+    .delete()
+    .eq("user_id", userId)
+    .eq("friend_id", friendId);
+
+  if (error) throw error;
+}
+
 export async function unblockUser(blockerId: string, blockedId: string) {
   const { error } = await supabase
     .from("blocks")

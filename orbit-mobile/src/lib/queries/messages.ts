@@ -235,6 +235,91 @@ export async function sendVoiceMessage(
   return sendMessage(conversationId, senderId, `[audio] ${publicUrl}`);
 }
 
+// The web's MESSAGE_REACTIONS set (message-reaction-picker.tsx), copied
+// verbatim so reaction rows are interchangeable across clients.
+export const MESSAGE_REACTION_GLYPHS = [
+  { emoji: "\u2764\uFE0F", label: "Love" },
+  { emoji: "\uD83D\uDC4D", label: "Thumbs Up" },
+  { emoji: "\uD83D\uDE02", label: "Laugh" },
+  { emoji: "\uD83D\uDE2E", label: "Wow" },
+  { emoji: "\uD83D\uDE22", label: "Sad" },
+  { emoji: "\uD83D\uDD25", label: "Fire" },
+] as const;
+
+export interface MessageReactionGroup {
+  emoji: string;
+  count: number;
+  userIds: string[];
+}
+
+export async function addMessageReaction(
+  messageId: string,
+  userId: string,
+  emoji: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("message_reactions")
+    .insert({ message_id: messageId, user_id: userId, emoji });
+
+  if (error) throw error;
+}
+
+export async function removeMessageReaction(
+  messageId: string,
+  userId: string,
+  emoji: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("message_reactions")
+    .delete()
+    .eq("message_id", messageId)
+    .eq("user_id", userId)
+    .eq("emoji", emoji);
+
+  if (error) throw error;
+}
+
+// Batched mirror of the web's getMessagesReactions: one query for a page of
+// messages, grouped per message and emoji.
+export async function getMessagesReactions(
+  messageIds: string[],
+): Promise<Map<string, MessageReactionGroup[]>> {
+  if (messageIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from("message_reactions")
+    .select("message_id, emoji, user_id")
+    .in("message_id", messageIds);
+
+  if (error) throw error;
+
+  const byMessage = new Map<string, Map<string, string[]>>();
+  for (const row of data ?? []) {
+    let emojiMap = byMessage.get(row.message_id);
+    if (!emojiMap) {
+      emojiMap = new Map();
+      byMessage.set(row.message_id, emojiMap);
+    }
+    const userIds = emojiMap.get(row.emoji);
+    if (userIds) userIds.push(row.user_id);
+    else emojiMap.set(row.emoji, [row.user_id]);
+  }
+
+  const grouped = new Map<string, MessageReactionGroup[]>();
+  for (const [messageId, emojiMap] of byMessage) {
+    grouped.set(
+      messageId,
+      Array.from(emojiMap.entries()).map(([emoji, userIds]) => ({
+        emoji,
+        count: userIds.length,
+        userIds,
+      })),
+    );
+  }
+
+  return grouped;
+}
+
 export async function markConversationRead(
   conversationId: string,
   userId: string,

@@ -17,6 +17,7 @@ import { VideoView, useVideoPlayer } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
+import { ClipCommentsSheet } from "@/components/clip-comments-sheet";
 import {
   CLIP_PAGE_SIZE,
   getClips,
@@ -68,6 +69,8 @@ function ClipItem({
   const [bookmarked, setBookmarked] = useState(clip.user_has_bookmarked);
   const [bookmarkCount, setBookmarkCount] = useState(clip.bookmark_count);
   const [shareCount, setShareCount] = useState(clip.share_count ?? 0);
+  const [commentCount, setCommentCount] = useState(clip.comment_count);
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   useEffect(() => {
     if (isActive) {
@@ -190,11 +193,11 @@ function ClipItem({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="View comments"
-            onPress={() => router.push(`/post/${clip.id}` as never)}
+            onPress={() => setCommentsOpen(true)}
             style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]}
           >
             <Ionicons name="chatbubble-outline" size={28} color={OVERLAY_TEXT} />
-            <Text style={styles.actionCount}>{formatNumber(clip.comment_count)}</Text>
+            <Text style={styles.actionCount}>{formatNumber(commentCount)}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -224,12 +227,24 @@ function ClipItem({
       <View style={styles.progressTrack} pointerEvents="none">
         <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
       </View>
+
+      {/* Overlay sheet, so the clip keeps playing while comments are open. */}
+      <ClipCommentsSheet
+        visible={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+        clipId={clip.id}
+        commentCount={commentCount}
+        userId={userId}
+        onCountChange={(delta) => setCommentCount((n) => n + delta)}
+      />
     </View>
   );
 }
 
 export default function ClipsScreen() {
   const { user } = useAuth();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [pageHeight, setPageHeight] = useState(0);
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
   // Pause playback whenever the tab blurs; without this the active clip's
@@ -327,6 +342,20 @@ export default function ClipsScreen() {
           windowSize={3}
         />
       )}
+
+      {/* Top-left so it never collides with the mute badge on the right. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Search clips"
+        onPress={() => router.push("/(tabs)/discover" as never)}
+        style={({ pressed }) => [
+          styles.searchButton,
+          { top: insets.top + spacing(3) },
+          pressed && { opacity: 0.7 },
+        ]}
+      >
+        <Ionicons name="search" size={18} color={OVERLAY_TEXT} />
+      </Pressable>
     </View>
   );
 }
@@ -343,6 +372,13 @@ const styles = StyleSheet.create({
   muteBadge: {
     position: "absolute",
     right: spacing(4),
+    backgroundColor: OVERLAY_SCRIM,
+    borderRadius: 999,
+    padding: spacing(2),
+  },
+  searchButton: {
+    position: "absolute",
+    left: spacing(4),
     backgroundColor: OVERLAY_SCRIM,
     borderRadius: 999,
     padding: spacing(2),

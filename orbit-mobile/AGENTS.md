@@ -1,3 +1,3 @@
-# Expo HAS CHANGED
+# Expo notes
 
-Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing any code.
+This app is pinned to Expo SDK 54 (the test device's Expo Go build). Verify uncertain APIs against https://docs.expo.dev/versions/v54.0.0/ before writing code.

@@ -8,8 +8,10 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
-import { useRouter, type Href } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
@@ -21,18 +23,29 @@ import {
 import {
   getSuggestedUsers,
   getTrendingHashtags,
+  searchClips,
   searchPosts,
   searchUsers,
   type ProfileSummary,
+  type SearchClip,
   type SearchPost,
 } from "@/lib/queries/search";
+import { useVideoFrame } from "@/lib/video-frame";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const EXCERPT_LENGTH = 120;
+const CLIP_GRID_GAP = 1;
+const CLIP_GRID_COLUMNS = 3;
 
-type Segment = "people" | "posts";
+type Segment = "people" | "posts" | "clips";
+
+const SEGMENT_LABELS: Record<Segment, string> = {
+  people: "People",
+  posts: "Posts",
+  clips: "Clips",
+};
 
 function useDebounce(value: string, delay: number) {
   const [debounced, setDebounced] = useState(value);
@@ -55,6 +68,20 @@ export default function DiscoverScreen() {
   const [segment, setSegment] = useState<Segment>("people");
   const debouncedQuery = useDebounce(query.trim(), SEARCH_DEBOUNCE_MS);
   const isSearching = debouncedQuery.length > 0;
+
+  // Other tabs deep-link here with ?q= (hashtag taps in post bodies, the
+  // clips search button); seed the box so results show immediately. State is
+  // adjusted during render (React's documented prop-change pattern) instead
+  // of in an effect, so there is no extra empty-query render in between.
+  const { q } = useLocalSearchParams<{ q?: string }>();
+  const [seededQ, setSeededQ] = useState<string | undefined>(undefined);
+  if (q !== seededQ) {
+    setSeededQ(q);
+    if (typeof q === "string" && q.length > 0) {
+      setQuery(q);
+      if (q.startsWith("#")) setSegment("posts");
+    }
+  }
 
   return (
     <View style={styles.flex}>
@@ -111,7 +138,7 @@ function SegmentedControl({
 }) {
   return (
     <View style={styles.tabs}>
-      {(["people", "posts"] as const).map((value) => {
+      {(["people", "posts", "clips"] as const).map((value) => {
         const active = segment === value;
         return (
           <Pressable
@@ -126,7 +153,7 @@ function SegmentedControl({
             ]}
           >
             <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
-              {value === "people" ? "People" : "Posts"}
+              {SEGMENT_LABELS[value]}
             </Text>
           </Pressable>
         );
@@ -158,7 +185,18 @@ function SearchResults({
     enabled: segment === "posts",
   });
 
-  const active = segment === "people" ? peopleQuery : postsQuery;
+  const clipsQuery = useQuery({
+    queryKey: ["search-clips", query],
+    queryFn: () => searchClips(query),
+    enabled: segment === "clips",
+  });
+
+  const active =
+    segment === "people"
+      ? peopleQuery
+      : segment === "posts"
+        ? postsQuery
+        : clipsQuery;
   const header = <SegmentedControl segment={segment} onChange={onSegmentChange} />;
 
   if (active.isPending) {
@@ -208,6 +246,35 @@ function SearchResults({
             />
           }
           contentContainerStyle={styles.resultsContent}
+        />
+      </View>
+    );
+  }
+
+  if (segment === "clips") {
+    return (
+      <View style={styles.flex}>
+        {header}
+        <FlatList
+          data={clipsQuery.data ?? []}
+          keyExtractor={(clip) => clip.id}
+          keyboardShouldPersistTaps="handled"
+          numColumns={CLIP_GRID_COLUMNS}
+          columnWrapperStyle={styles.clipGridRow}
+          renderItem={({ item }) => (
+            <ClipResultTile
+              clip={item}
+              // No per-clip route on mobile yet, so results open post detail.
+              onPress={() => router.push(`/post/${item.id}`)}
+            />
+          )}
+          ListEmptyComponent={
+            <EmptyState
+              title="No clips found"
+              description={`No clips match "${query}".`}
+            />
+          }
+          contentContainerStyle={styles.clipGridContent}
         />
       </View>
     );
@@ -296,6 +363,51 @@ function PostResultRow({
         <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
       </View>
       <Text style={styles.postContent}>{excerpt(post.content)}</Text>
+    </Pressable>
+  );
+}
+
+function ClipResultTile({
+  clip,
+  onPress,
+}: {
+  clip: SearchClip;
+  onPress: () => void;
+}) {
+  const { width } = useWindowDimensions();
+  const size = (width - CLIP_GRID_GAP * (CLIP_GRID_COLUMNS - 1)) / CLIP_GRID_COLUMNS;
+  const media = [...clip.post_media].sort((a, b) => a.sort_order - b.sort_order)[0];
+  // Same on-device fallback as the profile grid: reels without a stored
+  // thumbnail get a frame extracted locally.
+  const needsFrame = !!media && !media.thumbnail_url;
+  const frame = useVideoFrame(needsFrame ? media.url : null);
+  const source = media ? (media.thumbnail_url ?? frame) : null;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={clip.content ?? "Open clip"}
+      onPress={onPress}
+      style={({ pressed }) => [
+        { width: size, height: size * (4 / 3) },
+        pressed && { opacity: 0.8 },
+      ]}
+    >
+      {source ? (
+        <Image
+          source={{ uri: source }}
+          alt={clip.content ?? "Clip"}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={0}
+        />
+      ) : (
+        <View style={[StyleSheet.absoluteFill, styles.clipTilePlaceholder]} />
+      )}
+      <View style={styles.clipTileScrim}>
+        <Ionicons name="play" size={11} color="#fff" />
+        <Text style={styles.clipTileLikes}>{formatNumber(clip.like_count)}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -637,6 +749,35 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     lineHeight: 19,
     marginTop: 4,
+  },
+  clipGridRow: {
+    gap: CLIP_GRID_GAP,
+    marginBottom: CLIP_GRID_GAP,
+  },
+  clipGridContent: {
+    flexGrow: 1,
+    paddingTop: CLIP_GRID_GAP,
+    paddingBottom: spacing(8),
+  },
+  clipTilePlaceholder: {
+    backgroundColor: colors.surfaceElevated,
+  },
+  clipTileScrim: {
+    position: "absolute",
+    left: 6,
+    bottom: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    borderRadius: radii.full,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  clipTileLikes: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
   },
   homeContent: {
     paddingTop: spacing(1),
