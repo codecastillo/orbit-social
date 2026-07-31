@@ -94,8 +94,9 @@ export async function getFeedPosts(userId: string, tab: FeedTab, cursor?: string
       .limit(FOLLOWING_IDS_LIMIT);
     if (followsError) throw followsError;
 
+    // Only people you follow; your own posts stay on For you.
     const followingIds = following?.map((f) => f.following_id) ?? [];
-    followingIds.push(userId); // Include own posts
+    if (followingIds.length === 0) return [];
     query = query.in("user_id", followingIds);
   }
 

@@ -18,6 +18,8 @@ export interface ClipWithAuthor {
   type: string;
   like_count: number;
   comment_count: number;
+  bookmark_count: number;
+  share_count: number | null;
   view_count: number;
   created_at: string;
   profiles: {
@@ -29,6 +31,7 @@ export interface ClipWithAuthor {
   };
   post_media: ClipMedia[];
   user_has_liked: boolean;
+  user_has_bookmarked: boolean;
 }
 
 export const CLIP_PAGE_SIZE = 10;
@@ -68,21 +71,35 @@ export async function getClips(
   const clips = (data ?? []) as unknown as ClipWithAuthor[];
   if (clips.length === 0) return [];
 
-  const { data: likes } = await supabase
-    .from("post_likes")
-    .select("post_id")
-    .eq("user_id", userId)
-    .in(
-      "post_id",
-      clips.map((c) => c.id),
-    );
+  const ids = clips.map((c) => c.id);
+  const [{ data: likes }, { data: bookmarks }] = await Promise.all([
+    supabase
+      .from("post_likes")
+      .select("post_id")
+      .eq("user_id", userId)
+      .in("post_id", ids),
+    supabase
+      .from("bookmarks")
+      .select("post_id")
+      .eq("user_id", userId)
+      .in("post_id", ids),
+  ]);
 
   const likedIds = new Set((likes ?? []).map((l) => l.post_id));
+  const bookmarkedIds = new Set((bookmarks ?? []).map((b) => b.post_id));
   for (const clip of clips) {
     clip.user_has_liked = likedIds.has(clip.id);
+    clip.user_has_bookmarked = bookmarkedIds.has(clip.id);
   }
 
   return clips;
+}
+
+export async function recordClipShare(postId: string) {
+  const { error } = await supabase.rpc("increment_post_shares", {
+    p_post_id: postId,
+  });
+  if (error) throw error;
 }
 
 export async function toggleClipLike(

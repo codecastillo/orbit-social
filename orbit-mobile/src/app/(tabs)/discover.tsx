@@ -60,7 +60,7 @@ export default function DiscoverScreen() {
     <View style={styles.flex}>
       <View style={styles.searchWrap}>
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={16} color={colors.mutedForeground} />
+          <Ionicons name="search" size={15} color={colors.mutedForeground} />
           <TextInput
             value={query}
             onChangeText={setQuery}
@@ -79,7 +79,7 @@ export default function DiscoverScreen() {
               hitSlop={8}
               style={({ pressed }) => [pressed && { opacity: 0.6 }]}
             >
-              <Ionicons name="close-circle" size={16} color={colors.mutedForeground} />
+              <Ionicons name="close-circle" size={15} color={colors.mutedForeground} />
             </Pressable>
           ) : null}
         </View>
@@ -110,7 +110,7 @@ function SegmentedControl({
   onChange: (segment: Segment) => void;
 }) {
   return (
-    <View style={styles.segments}>
+    <View style={styles.tabs}>
       {(["people", "posts"] as const).map((value) => {
         const active = segment === value;
         return (
@@ -120,12 +120,12 @@ function SegmentedControl({
             accessibilityState={{ selected: active }}
             onPress={() => onChange(value)}
             style={({ pressed }) => [
-              styles.segment,
-              active && styles.segmentActive,
+              styles.tab,
+              active && styles.tabActive,
               pressed && { opacity: 0.8 },
             ]}
           >
-            <Text style={[styles.segmentLabel, active && styles.segmentLabelActive]}>
+            <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
               {value === "people" ? "People" : "Posts"}
             </Text>
           </Pressable>
@@ -307,14 +307,14 @@ function DiscoverHome({ onTagPress }: { onTagPress: (name: string) => void }) {
       contentContainerStyle={styles.homeContent}
       keyboardShouldPersistTaps="handled"
     >
-      <TrendingCard onTagPress={onTagPress} />
+      <TrendingChips onTagPress={onTagPress} />
       <SuggestedPeople />
-      <ExploreLinks />
+      <SurfaceTiles />
     </ScrollView>
   );
 }
 
-function TrendingCard({ onTagPress }: { onTagPress: (name: string) => void }) {
+function TrendingChips({ onTagPress }: { onTagPress: (name: string) => void }) {
   const trendingQuery = useQuery({
     queryKey: ["trending-hashtags"],
     queryFn: () => getTrendingHashtags(5),
@@ -322,15 +322,17 @@ function TrendingCard({ onTagPress }: { onTagPress: (name: string) => void }) {
   });
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Trending now</Text>
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Trending</Text>
       {trendingQuery.isPending ? (
-        <View style={styles.cardState}>
-          <ActivityIndicator color={colors.primary} />
+        <View style={styles.chipsRow}>
+          {Array.from({ length: 3 }, (_, i) => (
+            <View key={i} style={styles.skeletonChip} />
+          ))}
         </View>
       ) : trendingQuery.isError ? (
-        <View style={styles.cardState}>
-          <Text style={styles.cardStateText}>Could not load trends.</Text>
+        <View style={styles.sectionState}>
+          <Text style={styles.sectionStateText}>Could not load trends.</Text>
           <Button
             label="Retry"
             variant="outline"
@@ -338,35 +340,26 @@ function TrendingCard({ onTagPress }: { onTagPress: (name: string) => void }) {
           />
         </View>
       ) : (trendingQuery.data?.length ?? 0) === 0 ? (
-        <Text style={styles.cardEmptyText}>
+        <Text style={styles.sectionEmptyText}>
           Nothing trending in the last day. Post with a #tag to get one moving.
         </Text>
       ) : (
-        trendingQuery.data?.map((tag, index) => (
-          <Pressable
-            key={tag.id}
-            accessibilityRole="button"
-            onPress={() => onTagPress(tag.name)}
-            style={({ pressed }) => [
-              styles.trendRow,
-              index > 0 && styles.trendRowBorder,
-              pressed && { opacity: 0.7 },
-            ]}
-          >
-            <Text
-              style={[styles.trendRank, index === 0 && { color: colors.primary }]}
+        <View style={styles.chipsRow}>
+          {trendingQuery.data?.map((tag) => (
+            <Pressable
+              key={tag.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Search #${tag.name}`}
+              onPress={() => onTagPress(tag.name)}
+              style={({ pressed }) => [styles.tagChip, pressed && { opacity: 0.7 }]}
             >
-              {index + 1}
-            </Text>
-            <View style={styles.trendInfo}>
-              <Text style={styles.trendName}>#{tag.name}</Text>
-              <Text style={styles.trendCount}>
-                {formatNumber(tag.post_count)} posts today
+              <Text style={styles.tagChipName}>#{tag.name}</Text>
+              <Text style={styles.tagChipCount}>
+                {formatNumber(tag.post_count)}
               </Text>
-            </View>
-            <Ionicons name="trending-up" size={13} color={colors.success} />
-          </Pressable>
-        ))
+            </Pressable>
+          ))}
+        </View>
       )}
     </View>
   );
@@ -407,15 +400,20 @@ function SuggestedPeople() {
   }
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>People to orbit</Text>
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>People to orbit</Text>
       {suggestedQuery.isPending ? (
-        <View style={styles.cardState}>
-          <ActivityIndicator color={colors.primary} />
+        <View style={styles.peopleRow}>
+          {Array.from({ length: 3 }, (_, i) => (
+            <View key={i} style={[styles.personCard, styles.skeletonPersonCard]}>
+              <View style={styles.skeletonAvatar} />
+              <View style={styles.skeletonBar} />
+            </View>
+          ))}
         </View>
       ) : suggestedQuery.isError ? (
-        <View style={styles.cardState}>
-          <Text style={styles.cardStateText}>Could not load suggestions.</Text>
+        <View style={styles.sectionState}>
+          <Text style={styles.sectionStateText}>Could not load suggestions.</Text>
           <Button
             label="Retry"
             variant="outline"
@@ -423,7 +421,7 @@ function SuggestedPeople() {
           />
         </View>
       ) : (suggestedQuery.data?.length ?? 0) === 0 ? (
-        <Text style={styles.cardEmptyText}>
+        <Text style={styles.sectionEmptyText}>
           No suggestions yet. Follow a few people to seed your orbit.
         </Text>
       ) : (
@@ -445,7 +443,7 @@ function SuggestedPeople() {
                     pressed && { opacity: 0.7 },
                   ]}
                 >
-                  <Avatar url={item.avatar_url} name={item.display_name} size={56} />
+                  <Avatar url={item.avatar_url} name={item.display_name} size={72} />
                   <Text style={styles.personCardName} numberOfLines={1}>
                     {item.display_name}
                   </Text>
@@ -458,14 +456,14 @@ function SuggestedPeople() {
                   onPress={() => toggleFollow(item.id)}
                   style={({ pressed }) => [
                     styles.followButton,
-                    following && styles.followButtonOutline,
+                    following && styles.followButtonSecondary,
                     pressed && { opacity: 0.8 },
                   ]}
                 >
                   <Text
                     style={[
                       styles.followLabel,
-                      following && styles.followLabelOutline,
+                      following && styles.followLabelSecondary,
                     ]}
                   >
                     {following ? "Following" : "Follow"}
@@ -480,48 +478,45 @@ function SuggestedPeople() {
   );
 }
 
-const EXPLORE_LINKS = [
+const SURFACE_TILES = [
   {
-    // These routes ship in a parallel change; typed routes pick them up on
+    // These routes ship in parallel changes; typed routes pick them up on
     // the next expo start, hence the Href casts below.
     path: "/communities" as Href,
     icon: "people-outline" as const,
-    title: "Communities",
-    subtitle: "Find your corners of Orbit",
+    title: "Rooms",
   },
   {
     path: "/events" as Href,
     icon: "calendar-outline" as const,
     title: "Events",
-    subtitle: "What is happening near you",
   },
   {
     path: "/marketplace" as Href,
     icon: "storefront-outline" as const,
-    title: "Marketplace",
-    subtitle: "Buy and sell in your orbit",
+    title: "Market",
+  },
+  {
+    path: "/live" as Href,
+    icon: "radio-outline" as const,
+    title: "Live",
   },
 ];
 
-function ExploreLinks() {
+function SurfaceTiles() {
   const router = useRouter();
   return (
-    <View style={styles.exploreLinks}>
-      {EXPLORE_LINKS.map((link) => (
+    <View style={styles.tilesRow}>
+      {SURFACE_TILES.map((tile) => (
         <Pressable
-          key={link.title}
+          key={tile.title}
           accessibilityRole="button"
-          onPress={() => router.push(link.path)}
-          style={({ pressed }) => [styles.exploreCard, pressed && { opacity: 0.7 }]}
+          accessibilityLabel={tile.title}
+          onPress={() => router.push(tile.path)}
+          style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]}
         >
-          <View style={styles.exploreIcon}>
-            <Ionicons name={link.icon} size={18} color={colors.primary} />
-          </View>
-          <View style={styles.exploreInfo}>
-            <Text style={styles.exploreTitle}>{link.title}</Text>
-            <Text style={styles.exploreSubtitle}>{link.subtitle}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+          <Ionicons name={tile.icon} size={22} color={colors.primary} />
+          <Text style={styles.tileTitle}>{tile.title}</Text>
         </Pressable>
       ))}
     </View>
@@ -535,50 +530,46 @@ const styles = StyleSheet.create({
   },
   searchWrap: {
     paddingHorizontal: spacing(4),
-    paddingTop: spacing(3),
+    paddingTop: spacing(2.5),
     paddingBottom: spacing(2),
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing(2),
-    minHeight: 44,
+    minHeight: 38,
     paddingHorizontal: spacing(3),
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceElevated,
   },
   searchInput: {
     flex: 1,
     color: colors.foreground,
     fontSize: 14,
-    paddingVertical: spacing(2.5),
-  },
-  segments: {
-    flexDirection: "row",
-    gap: spacing(2),
-    paddingHorizontal: spacing(4),
     paddingVertical: spacing(2),
   },
-  segment: {
-    paddingHorizontal: spacing(3.5),
-    paddingVertical: spacing(1.5),
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.border,
+  tabs: {
+    flexDirection: "row",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  segmentActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  tab: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: spacing(2.5),
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
   },
-  segmentLabel: {
-    color: colors.textSecondary,
+  tabActive: {
+    borderBottomColor: colors.primary,
+  },
+  tabLabel: {
+    color: colors.mutedForeground,
     fontSize: 13,
     fontWeight: "600",
   },
-  segmentLabelActive: {
-    color: colors.primaryForeground,
+  tabLabelActive: {
+    color: colors.foreground,
   },
   resultsState: {
     padding: spacing(8),
@@ -648,80 +639,66 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   homeContent: {
-    padding: spacing(4),
-    paddingTop: spacing(2),
-    gap: spacing(3),
+    paddingTop: spacing(1),
     paddingBottom: spacing(8),
+    gap: spacing(5),
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    padding: spacing(4),
+  section: {
+    paddingHorizontal: spacing(4),
   },
-  cardTitle: {
+  sectionTitle: {
     color: colors.foreground,
     fontSize: 15,
-    fontWeight: "700",
-    letterSpacing: -0.3,
-    marginBottom: spacing(2),
+    fontWeight: "600",
+    letterSpacing: -0.2,
+    marginBottom: spacing(2.5),
   },
-  cardState: {
-    paddingVertical: spacing(4),
-    alignItems: "center",
+  sectionState: {
+    paddingVertical: spacing(3),
+    alignItems: "flex-start",
     gap: spacing(3),
   },
-  cardStateText: {
+  sectionStateText: {
     color: colors.mutedForeground,
     fontSize: 13,
   },
-  cardEmptyText: {
+  sectionEmptyText: {
     color: colors.mutedForeground,
     fontSize: 13,
     lineHeight: 19,
+  },
+  chipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing(2),
+  },
+  tagChip: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: spacing(1.5),
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radii.full,
+    paddingHorizontal: spacing(3),
     paddingVertical: spacing(2),
   },
-  trendRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing(3),
-    paddingVertical: spacing(2.5),
-  },
-  trendRowBorder: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  trendRank: {
-    color: colors.mutedForeground,
-    fontSize: 18,
-    fontWeight: "700",
-    fontStyle: "italic",
-    minWidth: 20,
-  },
-  trendInfo: {
-    flex: 1,
-  },
-  trendName: {
+  tagChipName: {
     color: colors.foreground,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
   },
-  trendCount: {
+  tagChipCount: {
     color: colors.mutedForeground,
     fontSize: 12,
-    marginTop: 1,
   },
   peopleRow: {
     gap: spacing(2.5),
-    paddingTop: spacing(1),
   },
   personCard: {
-    width: 132,
-    borderWidth: 1,
+    width: 128,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceElevated,
     padding: spacing(3),
   },
   personCardTop: {
@@ -742,58 +719,63 @@ const styles = StyleSheet.create({
   },
   followButton: {
     marginTop: spacing(2.5),
-    minHeight: 32,
-    borderRadius: radii.full,
+    minHeight: 30,
+    borderRadius: 10,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
-  followButtonOutline: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: colors.border,
+  followButtonSecondary: {
+    backgroundColor: colors.surfaceElevated,
   },
   followLabel: {
     color: colors.primaryForeground,
     fontSize: 12.5,
     fontWeight: "600",
   },
-  followLabelOutline: {
+  followLabelSecondary: {
     color: colors.foreground,
   },
-  exploreLinks: {
-    gap: spacing(3),
-  },
-  exploreCard: {
+  tilesRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: spacing(3),
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    padding: spacing(4),
+    gap: spacing(2),
+    paddingHorizontal: spacing(4),
   },
-  exploreIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.sm,
+  tile: {
+    flex: 1,
+    height: 72,
+    borderRadius: 10,
     backgroundColor: colors.surfaceElevated,
     alignItems: "center",
     justifyContent: "center",
+    gap: spacing(1.5),
   },
-  exploreInfo: {
-    flex: 1,
-  },
-  exploreTitle: {
+  tileTitle: {
     color: colors.foreground,
-    fontSize: 14.5,
-    fontWeight: "700",
-    letterSpacing: -0.2,
+    fontSize: 12,
+    fontWeight: "600",
   },
-  exploreSubtitle: {
-    color: colors.mutedForeground,
-    fontSize: 12.5,
-    marginTop: 1,
+  skeletonChip: {
+    width: 96,
+    height: 34,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceElevated,
+  },
+  skeletonPersonCard: {
+    alignItems: "center",
+    gap: spacing(2.5),
+    paddingVertical: spacing(4),
+  },
+  skeletonAvatar: {
+    width: 72,
+    height: 72,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceElevated,
+  },
+  skeletonBar: {
+    width: 72,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.surfaceElevated,
   },
 });

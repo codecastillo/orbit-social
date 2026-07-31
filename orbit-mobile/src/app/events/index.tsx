@@ -1,5 +1,4 @@
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -8,63 +7,74 @@ import {
   View,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
-import { Image } from "expo-image";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Centered, EmptyState } from "@/components/ui";
+import { Button, EmptyState } from "@/components/ui";
 import { getEvents, type EventWithCreator } from "@/lib/queries/events";
 import { formatNumber } from "@/lib/format";
-import { colors, radii, spacing } from "@/lib/theme";
+import { colors, spacing } from "@/lib/theme";
 
-function formatEventTime(startAt: string): string {
-  const date = new Date(startAt);
-  const day = date.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-  const time = date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  return `${day} at ${time}`;
-}
+const SKELETON_ROWS = 6;
 
-function EventCard({
+function EventRow({
   event,
   onPress,
 }: {
   event: EventWithCreator;
   onPress: () => void;
 }) {
+  const start = new Date(event.start_at);
+  const weekday = start.toLocaleDateString(undefined, { weekday: "short" });
+  const day = start.toLocaleDateString(undefined, { day: "numeric" });
+  const month = start.toLocaleDateString(undefined, { month: "short" });
+  const time = start.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
+      style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
     >
-      {event.cover_url ? (
-        <Image
-          source={{ uri: event.cover_url }}
-          alt=""
-          style={styles.cardCover}
-          contentFit="cover"
-          transition={150}
-        />
-      ) : (
-        <View style={[styles.cardCover, styles.cardCoverFallback]} />
-      )}
-      <View style={styles.cardBody}>
-        <Text style={styles.cardTime}>{formatEventTime(event.start_at)}</Text>
-        <Text style={styles.cardTitle} numberOfLines={2}>
+      <View style={styles.dateBlock}>
+        <Text style={styles.dateWeekday}>{weekday}</Text>
+        <Text style={styles.dateDay}>{day}</Text>
+        <Text style={styles.dateMonth}>{month}</Text>
+      </View>
+      <View style={styles.rowBody}>
+        <Text style={styles.rowTitle} numberOfLines={2}>
           {event.title}
         </Text>
-        <Text style={styles.cardMeta} numberOfLines={1}>
-          {event.is_online ? "Online" : (event.location ?? "Location TBA")}
+        <Text style={styles.rowMeta} numberOfLines={1}>
+          {time}
           {"  ·  "}
-          {formatNumber(event.attendee_count)} going
+          {event.is_online ? "Online" : (event.location ?? "Location TBA")}
+        </Text>
+        <Text style={styles.rowGoing}>
+          <Text style={styles.rowGoingCount}>
+            {formatNumber(event.attendee_count)}
+          </Text>{" "}
+          going
         </Text>
       </View>
     </Pressable>
+  );
+}
+
+function EventsSkeleton() {
+  return (
+    <View>
+      {Array.from({ length: SKELETON_ROWS }, (_, i) => (
+        <View key={i} style={[styles.row, i > 0 && styles.separatorTop]}>
+          <View style={styles.skeletonDate} />
+          <View style={styles.rowBody}>
+            <View style={[styles.skeletonBar, { width: "65%" }]} />
+            <View style={[styles.skeletonBar, styles.skeletonBarThin]} />
+          </View>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -78,12 +88,10 @@ export default function EventsScreen() {
 
   if (eventsQuery.isPending) {
     return (
-      <>
+      <View style={styles.flex}>
         <Stack.Screen options={{ title: "Events" }} />
-        <Centered>
-          <ActivityIndicator color={colors.primary} />
-        </Centered>
-      </>
+        <EventsSkeleton />
+      </View>
     );
   }
 
@@ -120,8 +128,9 @@ export default function EventsScreen() {
           />
         }
         renderItem={({ item }) => (
-          <EventCard event={item} onPress={() => router.push(`/events/${item.id}`)} />
+          <EventRow event={item} onPress={() => router.push(`/events/${item.id}`)} />
         )}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           <EmptyState
             title="No upcoming events"
@@ -140,45 +149,83 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   listContent: {
-    padding: spacing(4),
+    paddingVertical: spacing(1),
     paddingBottom: spacing(10),
     flexGrow: 1,
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    overflow: "hidden",
-    marginBottom: spacing(3),
+  row: {
+    flexDirection: "row",
+    gap: spacing(3.5),
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(3),
   },
-  cardCover: {
-    width: "100%",
-    aspectRatio: 16 / 9,
+  dateBlock: {
+    width: 48,
+    alignItems: "center",
   },
-  cardCoverFallback: {
-    backgroundColor: colors.surfaceElevated,
-  },
-  cardBody: {
-    padding: spacing(3.5),
-  },
-  cardTime: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: "700",
+  dateWeekday: {
+    color: colors.mutedForeground,
+    fontSize: 10.5,
+    fontWeight: "600",
     textTransform: "uppercase",
-    letterSpacing: 0.4,
+    letterSpacing: 0.6,
   },
-  cardTitle: {
+  dateDay: {
     color: colors.foreground,
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: "700",
-    letterSpacing: -0.3,
-    marginTop: 4,
+    marginTop: 1,
   },
-  cardMeta: {
+  dateMonth: {
+    color: colors.mutedForeground,
+    fontSize: 12,
+  },
+  rowBody: {
+    flex: 1,
+  },
+  rowTitle: {
+    color: colors.foreground,
+    fontSize: 15,
+    fontWeight: "600",
+    letterSpacing: -0.2,
+  },
+  rowMeta: {
+    color: colors.mutedForeground,
+    fontSize: 13,
+    marginTop: 3,
+  },
+  rowGoing: {
     color: colors.mutedForeground,
     fontSize: 12.5,
-    marginTop: 6,
+    marginTop: 4,
+  },
+  rowGoingCount: {
+    color: colors.foreground,
+    fontWeight: "700",
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginLeft: spacing(4) + 48 + spacing(3.5),
+  },
+  separatorTop: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  skeletonDate: {
+    width: 48,
+    height: 52,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceElevated,
+  },
+  skeletonBar: {
+    height: 13,
+    borderRadius: 6,
+    backgroundColor: colors.surfaceElevated,
+  },
+  skeletonBarThin: {
+    width: "45%",
+    height: 10,
+    marginTop: 8,
   },
 });

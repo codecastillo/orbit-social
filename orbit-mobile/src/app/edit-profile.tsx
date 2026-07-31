@@ -7,13 +7,15 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
+  type TextInputProps,
 } from "react-native";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
-import { Avatar, Button, Centered, EmptyState, Field } from "@/components/ui";
+import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import {
   getOwnProfile,
   updateOwnProfile,
@@ -65,15 +67,29 @@ export default function EditProfileScreen() {
     );
   }
 
+  return <EditProfileForm profile={profile} />;
+}
+
+function FormRow({
+  label,
+  multiline,
+  ...rest
+}: TextInputProps & { label: string }) {
   return (
-    <>
-      <Stack.Screen options={{ title: "Edit profile" }} />
-      <EditProfileForm profile={profile} />
-    </>
+    <View style={[styles.row, multiline && styles.rowMultiline]}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <TextInput
+        placeholderTextColor={colors.textFaint}
+        multiline={multiline}
+        style={[styles.rowInput, multiline && styles.rowInputMultiline]}
+        {...rest}
+      />
+    </View>
   );
 }
 
 function EditProfileForm({ profile }: { profile: Profile }) {
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const [displayName, setDisplayName] = useState(profile.display_name);
@@ -175,6 +191,36 @@ function EditProfileForm({ profile }: { profile: Profile }) {
       style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <Stack.Screen
+        options={{
+          title: "Edit profile",
+          headerTitleStyle: { fontSize: 17, fontWeight: "700" },
+          headerLeft: () => (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.back()}
+              hitSlop={8}
+            >
+              <Text style={styles.barCancel}>Cancel</Text>
+            </Pressable>
+          ),
+          headerRight: () =>
+            save.isPending ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                disabled={!isDirty}
+                onPress={handleSave}
+                hitSlop={8}
+              >
+                <Text style={[styles.barSave, !isDirty && styles.barSaveDisabled]}>
+                  Save
+                </Text>
+              </Pressable>
+            ),
+        }}
+      />
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -201,49 +247,46 @@ function EditProfileForm({ profile }: { profile: Profile }) {
           </Pressable>
         </View>
 
-        <Field
-          label="Display name"
-          value={displayName}
-          onChangeText={edit(setDisplayName)}
-          placeholder="How your name appears"
-          maxLength={50}
-        />
-        <Field
-          label="Username"
-          value={username}
-          onChangeText={edit(setUsername)}
-          placeholder="yourhandle"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <Field
-          label={`Bio (${bio.length}/${BIO_MAX_LENGTH})`}
-          value={bio}
-          onChangeText={edit(setBio)}
-          placeholder="A line or two about you"
-          maxLength={BIO_MAX_LENGTH}
-          multiline
-          numberOfLines={3}
-        />
-        <Field
-          label="Location"
-          value={location}
-          onChangeText={edit(setLocation)}
-          placeholder="Where you are based"
-          maxLength={60}
-        />
+        <View style={styles.form}>
+          <FormRow
+            label="Name"
+            value={displayName}
+            onChangeText={edit(setDisplayName)}
+            placeholder="How your name appears"
+            maxLength={50}
+          />
+          <FormRow
+            label="Username"
+            value={username}
+            onChangeText={edit(setUsername)}
+            placeholder="yourhandle"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <FormRow
+            label="Bio"
+            value={bio}
+            onChangeText={edit(setBio)}
+            placeholder="A line or two about you"
+            maxLength={BIO_MAX_LENGTH}
+            multiline
+          />
+          <Text style={styles.bioCounter}>
+            {bio.length}/{BIO_MAX_LENGTH}
+          </Text>
+          <FormRow
+            label="Location"
+            value={location}
+            onChangeText={edit(setLocation)}
+            placeholder="Where you are based"
+            maxLength={60}
+          />
+        </View>
 
         {formError ? <Text style={styles.error}>{formError}</Text> : null}
         {saved && !isDirty ? (
           <Text style={styles.success}>Profile saved.</Text>
         ) : null}
-
-        <Button
-          label="Save changes"
-          loading={save.isPending}
-          disabled={!isDirty}
-          onPress={handleSave}
-        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -255,27 +298,78 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: spacing(4),
     paddingBottom: spacing(10),
+  },
+  barCancel: {
+    color: colors.foreground,
+    fontSize: 15,
+  },
+  barSave: {
+    color: colors.primary,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  barSaveDisabled: {
+    color: colors.textFaint,
   },
   avatarSection: {
     alignItems: "center",
-    gap: spacing(2),
-    marginBottom: spacing(6),
+    gap: spacing(2.5),
+    paddingVertical: spacing(5),
   },
   changePhoto: {
     color: colors.primary,
     fontSize: 13.5,
     fontWeight: "600",
   },
+  form: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 48,
+    paddingHorizontal: spacing(4),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  rowMultiline: {
+    alignItems: "flex-start",
+  },
+  rowLabel: {
+    width: 88,
+    color: colors.foreground,
+    fontSize: 14,
+    paddingVertical: spacing(3.5),
+  },
+  rowInput: {
+    flex: 1,
+    color: colors.foreground,
+    fontSize: 14,
+    paddingVertical: spacing(3.5),
+  },
+  rowInputMultiline: {
+    minHeight: 72,
+    textAlignVertical: "top",
+  },
+  bioCounter: {
+    color: colors.textFaint,
+    fontSize: 11.5,
+    textAlign: "right",
+    paddingHorizontal: spacing(4),
+    paddingTop: spacing(1.5),
+  },
   error: {
     color: colors.destructive,
     fontSize: 13,
-    marginBottom: spacing(3),
+    paddingHorizontal: spacing(4),
+    marginTop: spacing(3),
   },
   success: {
     color: colors.success,
     fontSize: 13,
-    marginBottom: spacing(3),
+    paddingHorizontal: spacing(4),
+    marginTop: spacing(3),
   },
 });

@@ -1,5 +1,4 @@
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -11,7 +10,7 @@ import { Stack, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
-import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
+import { Avatar, Button, EmptyState } from "@/components/ui";
 import {
   getCommunities,
   getMyCommunities,
@@ -20,11 +19,15 @@ import {
 import { formatNumber } from "@/lib/format";
 import { colors, radii, spacing } from "@/lib/theme";
 
+const SKELETON_CARDS = 4;
+
 function CommunityCard({
   community,
+  joined,
   onPress,
 }: {
   community: Community;
+  joined: boolean;
   onPress: () => void;
 }) {
   return (
@@ -54,9 +57,7 @@ function CommunityCard({
               {community.name}
             </Text>
             {community.is_private ? (
-              <View style={styles.privateBadge}>
-                <Text style={styles.privateBadgeLabel}>Private</Text>
-              </View>
+              <Text style={styles.privateLabel}>Private</Text>
             ) : null}
           </View>
           <Text style={styles.cardMembers}>
@@ -64,8 +65,32 @@ function CommunityCard({
             {community.member_count === 1 ? "member" : "members"}
           </Text>
         </View>
+        <View style={[styles.stateChip, joined && styles.stateChipJoined]}>
+          <Text style={[styles.stateChipLabel, joined && styles.stateChipLabelJoined]}>
+            {joined ? "Joined" : "Join"}
+          </Text>
+        </View>
       </View>
     </Pressable>
+  );
+}
+
+function RoomsSkeleton() {
+  return (
+    <View style={styles.listContent}>
+      {Array.from({ length: SKELETON_CARDS }, (_, i) => (
+        <View key={i} style={styles.card}>
+          <View style={[styles.cardCover, styles.cardCoverFallback]} />
+          <View style={styles.cardBody}>
+            <View style={[styles.cardAvatar, styles.skeletonAvatar]} />
+            <View style={styles.cardInfo}>
+              <View style={[styles.skeletonBar, { width: "55%" }]} />
+              <View style={[styles.skeletonBar, styles.skeletonBarThin]} />
+            </View>
+          </View>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -92,12 +117,10 @@ export default function CommunitiesScreen() {
 
   if (allQuery.isPending) {
     return (
-      <>
+      <View style={styles.flex}>
         <Stack.Screen options={{ title: "Rooms" }} />
-        <Centered>
-          <ActivityIndicator color={colors.primary} />
-        </Centered>
-      </>
+        <RoomsSkeleton />
+      </View>
     );
   }
 
@@ -144,6 +167,7 @@ export default function CommunitiesScreen() {
                 <CommunityCard
                   key={community.id}
                   community={community}
+                  joined
                   onPress={() => openRoom(community)}
                 />
               ))}
@@ -154,7 +178,11 @@ export default function CommunitiesScreen() {
           ) : null
         }
         renderItem={({ item }) => (
-          <CommunityCard community={item} onPress={() => openRoom(item)} />
+          <CommunityCard
+            community={item}
+            joined={false}
+            onPress={() => openRoom(item)}
+          />
         )}
         ListEmptyComponent={
           myRooms.length === 0 ? (
@@ -183,40 +211,41 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: colors.foreground,
     fontSize: 15,
-    fontWeight: "700",
-    letterSpacing: -0.3,
-    marginBottom: spacing(3),
+    fontWeight: "600",
+    letterSpacing: -0.2,
+    marginBottom: spacing(2.5),
     marginTop: spacing(1),
   },
   card: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    borderRadius: radii.md,
+    borderRadius: 10,
     overflow: "hidden",
     marginBottom: spacing(3),
   },
   cardCover: {
     width: "100%",
-    aspectRatio: 4,
+    aspectRatio: 16 / 6,
   },
   cardCoverFallback: {
     backgroundColor: colors.surfaceElevated,
   },
   cardBody: {
     flexDirection: "row",
-    paddingHorizontal: spacing(3.5),
-    paddingBottom: spacing(3.5),
+    alignItems: "center",
+    paddingHorizontal: spacing(3),
+    paddingBottom: spacing(3),
   },
   cardAvatar: {
-    marginTop: -spacing(5),
+    marginTop: -spacing(4),
     borderRadius: radii.full,
     borderWidth: 3,
     borderColor: colors.surface,
   },
   cardInfo: {
     flex: 1,
-    marginLeft: spacing(3),
+    marginLeft: spacing(2.5),
     marginTop: spacing(2),
   },
   cardTitleRow: {
@@ -226,26 +255,54 @@ const styles = StyleSheet.create({
   },
   cardName: {
     color: colors.foreground,
-    fontSize: 15.5,
-    fontWeight: "700",
-    letterSpacing: -0.3,
+    fontSize: 15,
+    fontWeight: "600",
+    letterSpacing: -0.2,
     flexShrink: 1,
   },
-  privateBadge: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.full,
-    paddingHorizontal: spacing(2),
-    paddingVertical: 2,
-  },
-  privateBadgeLabel: {
-    color: colors.textSecondary,
-    fontSize: 10.5,
+  privateLabel: {
+    color: colors.mutedForeground,
+    fontSize: 11,
     fontWeight: "600",
   },
   cardMembers: {
     color: colors.mutedForeground,
+    fontSize: 12,
+    marginTop: 1,
+  },
+  stateChip: {
+    marginTop: spacing(2),
+    minHeight: 30,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing(3.5),
+  },
+  stateChipJoined: {
+    backgroundColor: colors.surfaceElevated,
+  },
+  stateChipLabel: {
+    color: colors.primaryForeground,
     fontSize: 12.5,
-    marginTop: 2,
+    fontWeight: "600",
+  },
+  stateChipLabelJoined: {
+    color: colors.foreground,
+  },
+  skeletonAvatar: {
+    width: 48,
+    height: 48,
+    backgroundColor: colors.surfaceElevated,
+  },
+  skeletonBar: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.surfaceElevated,
+  },
+  skeletonBarThin: {
+    width: "35%",
+    height: 10,
+    marginTop: 7,
   },
 });

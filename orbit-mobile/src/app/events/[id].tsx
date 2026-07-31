@@ -173,6 +173,10 @@ export default function EventDetailScreen() {
                   variant={rsvpStatus === "going" ? "primary" : "outline"}
                   disabled={rsvp.isPending || rsvpQuery.isPending}
                   onPress={() => rsvp.mutate("going")}
+                  style={[
+                    styles.pairButton,
+                    rsvpStatus !== "going" && styles.pairButtonSecondary,
+                  ]}
                 />
               </View>
               <View style={styles.rsvpButton}>
@@ -181,6 +185,10 @@ export default function EventDetailScreen() {
                   variant={rsvpStatus === "not_going" ? "primary" : "outline"}
                   disabled={rsvp.isPending || rsvpQuery.isPending}
                   onPress={() => rsvp.mutate("not_going")}
+                  style={[
+                    styles.pairButton,
+                    rsvpStatus !== "not_going" && styles.pairButtonSecondary,
+                  ]}
                 />
               </View>
             </View>
@@ -286,6 +294,14 @@ const styles = StyleSheet.create({
   },
   rsvpButton: {
     flex: 1,
+  },
+  pairButton: {
+    minHeight: 36,
+    borderRadius: 10,
+  },
+  pairButtonSecondary: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 0,
   },
   attendeesCard: {
     backgroundColor: colors.surface,

@@ -11,7 +11,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
-import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
+import { Avatar, Button, EmptyState } from "@/components/ui";
 import {
   checkMembership,
   getCommunityBySlug,
@@ -77,7 +77,9 @@ function RoomHeader({
           <View style={styles.headerTitleInfo}>
             <Text style={styles.headerName}>{community.name}</Text>
             <Text style={styles.headerMembers}>
-              {formatNumber(community.member_count)}{" "}
+              <Text style={styles.headerMemberCount}>
+                {formatNumber(community.member_count)}
+              </Text>{" "}
               {community.member_count === 1 ? "member" : "members"}
               {community.is_private ? "  ·  Private" : ""}
             </Text>
@@ -146,12 +148,15 @@ export default function CommunityDetailScreen() {
 
   if (communityQuery.isPending) {
     return (
-      <>
+      <View style={styles.flex}>
         <Stack.Screen options={{ title: "Room" }} />
-        <Centered>
-          <ActivityIndicator color={colors.primary} />
-        </Centered>
-      </>
+        <View style={[styles.cover, styles.coverFallback]} />
+        <View style={styles.headerBody}>
+          <View style={[styles.headerAvatar, styles.skeletonAvatar]} />
+          <View style={[styles.skeletonBar, { width: "50%", marginTop: spacing(3) }]} />
+          <View style={[styles.skeletonBar, styles.skeletonBarThin]} />
+        </View>
+      </View>
     );
   }
 
@@ -191,6 +196,10 @@ export default function CommunityDetailScreen() {
       loading={join.isPending}
       disabled={joinDisabled}
       onPress={() => join.mutate()}
+      style={[
+        styles.joinButton,
+        joinLabel !== "Join" && styles.joinButtonSecondary,
+      ]}
     />
   ) : null;
 
@@ -284,14 +293,27 @@ const styles = StyleSheet.create({
   },
   headerName: {
     color: colors.foreground,
-    fontSize: 19,
-    fontWeight: "800",
-    letterSpacing: -0.4,
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: -0.3,
   },
   headerMembers: {
     color: colors.mutedForeground,
     fontSize: 12.5,
     marginTop: 2,
+  },
+  headerMemberCount: {
+    color: colors.foreground,
+    fontWeight: "700",
+  },
+  joinButton: {
+    minHeight: 36,
+    borderRadius: 10,
+    paddingHorizontal: spacing(4),
+  },
+  joinButtonSecondary: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 0,
   },
   headerDescription: {
     color: colors.textSecondary,
@@ -349,5 +371,20 @@ const styles = StyleSheet.create({
   postsEmptyText: {
     color: colors.mutedForeground,
     fontSize: 13.5,
+  },
+  skeletonAvatar: {
+    width: 64,
+    height: 64,
+    backgroundColor: colors.surfaceElevated,
+  },
+  skeletonBar: {
+    height: 13,
+    borderRadius: 6,
+    backgroundColor: colors.surfaceElevated,
+  },
+  skeletonBarThin: {
+    width: "30%",
+    height: 10,
+    marginTop: 8,
   },
 });

@@ -1,17 +1,24 @@
+import { useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
+  Modal,
   Pressable,
+  Share,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { useRouter, type Href } from "expo-router";
+import { Tabs, useRouter, type Href } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
-import { Button, Centered, EmptyState } from "@/components/ui";
-import { ProfileHeader, ProfilePostRow } from "@/components/profile-header";
+import { Button, EmptyState } from "@/components/ui";
+import {
+  ProfileActionButton,
+  ProfileHeader,
+  ProfileHeaderSkeleton,
+} from "@/components/profile-header";
+import { ProfileContent } from "@/components/profile-tabs";
 import { ProfileOnboarding } from "@/components/profile-onboarding";
 import {
   getOwnProfile,
@@ -20,10 +27,44 @@ import {
 } from "@/lib/queries/profiles";
 import { colors, radii, spacing } from "@/lib/theme";
 
+const PROFILE_URL_BASE = "https://orbitsocial.net";
+
+function SheetRow({
+  icon,
+  label,
+  destructive = false,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  destructive?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.sheetRow, pressed && { opacity: 0.7 }]}
+    >
+      <Ionicons
+        name={icon}
+        size={20}
+        color={destructive ? colors.destructive : colors.foreground}
+      />
+      <Text
+        style={[styles.sheetRowLabel, destructive && styles.sheetRowDestructive]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 export default function OwnProfileScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const {
     data: profile,
@@ -42,6 +83,47 @@ export default function OwnProfileScreen() {
     enabled: !!user && !!profile,
   });
 
+  const screenOptions = (
+    <Tabs.Screen
+      options={{
+        headerTitle: () => (
+          <Text style={styles.barTitle}>
+            {profile ? `@${profile.username}` : "Profile"}
+          </Text>
+        ),
+        headerTitleAlign: "left",
+        headerRight: () => (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Profile options"
+            onPress={() => setMenuOpen(true)}
+            style={styles.barAction}
+            hitSlop={8}
+          >
+            <Ionicons
+              name="settings-outline"
+              size={22}
+              color={colors.foreground}
+            />
+          </Pressable>
+        ),
+      }}
+    />
+  );
+
+  function openEditProfile() {
+    // Route file exists but typed routes only regenerate on the next
+    // `expo start`, hence the cast.
+    router.push("/edit-profile" as Href);
+  }
+
+  async function handleShare() {
+    if (!profile) return;
+    await Share.share({
+      message: `${PROFILE_URL_BASE}/${profile.username}`,
+    });
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     // Drop every cached query so the next account starts clean.
@@ -51,19 +133,25 @@ export default function OwnProfileScreen() {
 
   if (!user || isPending) {
     return (
-      <Centered>
-        <ActivityIndicator color={colors.primary} />
-      </Centered>
+      <View style={styles.flex}>
+        {screenOptions}
+        <ProfileHeaderSkeleton />
+      </View>
     );
   }
 
   if (isError || !profile) {
     return (
-      <EmptyState
-        title="Could not load your profile"
-        description="Check your connection and try again."
-        action={<Button label="Retry" variant="outline" onPress={() => refetch()} />}
-      />
+      <View style={styles.flex}>
+        {screenOptions}
+        <EmptyState
+          title="Could not load your profile"
+          description="Check your connection and try again."
+          action={
+            <Button label="Retry" variant="outline" onPress={() => refetch()} />
+          }
+        />
+      </View>
     );
   }
 
@@ -73,70 +161,77 @@ export default function OwnProfileScreen() {
 
   return (
     <View style={styles.flex}>
-      <FlatList
-        data={postsQuery.data ?? []}
-        keyExtractor={(post) => post.id}
-        ListHeaderComponent={
+      {screenOptions}
+      <ProfileContent
+        header={
           <ProfileHeader
             profile={profile}
-            action={
-              <Button
-                label="Edit profile"
-                variant="outline"
-                // Route file exists but typed routes only regenerate on the
-                // next `expo start`, hence the cast.
-                onPress={() => router.push("/edit-profile" as Href)}
-              />
+            actions={
+              <>
+                <ProfileActionButton
+                  label="Edit profile"
+                  onPress={openEditProfile}
+                />
+                <ProfileActionButton
+                  label="Share profile"
+                  onPress={handleShare}
+                />
+              </>
             }
           />
         }
-        renderItem={({ item }) => (
-          <ProfilePostRow
-            authorName={profile.display_name}
-            content={item.content}
-            createdAt={item.created_at}
-            onPress={() => router.push(`/post/${item.id}`)}
-          />
-        )}
-        ListEmptyComponent={
-          postsQuery.isPending ? (
-            <View style={styles.postsState}>
-              <ActivityIndicator color={colors.primary} />
-            </View>
-          ) : postsQuery.isError ? (
-            <View style={styles.postsError}>
-              <Text style={styles.postsStateText}>Could not load your posts.</Text>
-              <Button
-                label="Retry"
-                variant="outline"
-                onPress={() => postsQuery.refetch()}
-              />
-            </View>
-          ) : (
-            <View style={styles.postsState}>
-              <Text style={styles.postsStateText}>
-                Nothing posted yet. Your posts land here.
-              </Text>
-            </View>
-          )
-        }
-        ListFooterComponent={
-          <View style={styles.footer}>
-            <Text style={styles.email}>{user.email}</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={handleSignOut}
-              style={({ pressed }) => [
-                styles.signOut,
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <Text style={styles.signOutLabel}>Sign out</Text>
-            </Pressable>
-          </View>
-        }
-        contentContainerStyle={styles.listContent}
+        posts={postsQuery.data}
+        isPending={postsQuery.isPending}
+        isError={postsQuery.isError}
+        onRetry={() => postsQuery.refetch()}
+        userId={profile.id}
+        username={profile.username}
+        onPressPost={(postId) => router.push(`/post/${postId}`)}
       />
+
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMenuOpen(false)}
+      >
+        <View style={styles.sheetContainer}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close menu"
+            style={styles.sheetBackdrop}
+            onPress={() => setMenuOpen(false)}
+          />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <SheetRow
+              icon="person-outline"
+              label="Edit profile"
+              onPress={() => {
+                setMenuOpen(false);
+                openEditProfile();
+              }}
+            />
+            <SheetRow
+              icon="share-outline"
+              label="Share profile"
+              onPress={() => {
+                setMenuOpen(false);
+                handleShare();
+              }}
+            />
+            <SheetRow
+              icon="log-out-outline"
+              label="Sign out"
+              destructive
+              onPress={() => {
+                setMenuOpen(false);
+                handleSignOut();
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -146,43 +241,52 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  listContent: {
-    paddingBottom: spacing(8),
+  barTitle: {
+    color: colors.foreground,
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: -0.2,
   },
-  postsState: {
-    padding: spacing(8),
-    alignItems: "center",
+  barAction: {
+    paddingHorizontal: spacing(4),
   },
-  postsError: {
-    padding: spacing(8),
+  sheetContainer: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+  },
+  sheet: {
+    backgroundColor: colors.surfaceElevated,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+    paddingTop: spacing(2),
+    paddingBottom: spacing(9),
+    paddingHorizontal: spacing(2),
+  },
+  sheetHandle: {
+    alignSelf: "center",
+    width: 36,
+    height: 4,
+    borderRadius: radii.full,
+    backgroundColor: colors.border,
+    marginBottom: spacing(2),
+  },
+  sheetRow: {
+    flexDirection: "row",
     alignItems: "center",
     gap: spacing(3),
+    paddingHorizontal: spacing(3),
+    height: 52,
   },
-  postsStateText: {
-    color: colors.mutedForeground,
-    fontSize: 13.5,
-    textAlign: "center",
+  sheetRowLabel: {
+    color: colors.foreground,
+    fontSize: 15,
+    fontWeight: "500",
   },
-  footer: {
-    padding: spacing(4),
-    marginTop: spacing(4),
-  },
-  email: {
-    color: colors.textFaint,
-    fontSize: 12.5,
-    marginBottom: spacing(3),
-  },
-  signOut: {
-    minHeight: 44,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  signOutLabel: {
+  sheetRowDestructive: {
     color: colors.destructive,
-    fontSize: 14,
-    fontWeight: "600",
   },
 });

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -18,45 +18,78 @@ import {
 } from "@/lib/queries/notifications";
 import { formatTimeAgo } from "@/lib/format";
 import { useAuth } from "@/providers/auth-provider";
-import { colors, radii, spacing } from "@/lib/theme";
+import { colors, spacing } from "@/lib/theme";
+
+const DAYS_IN_WEEK_SECTION = 7;
 
 // Simplified from the web notification-item mapping: no post hydration on
-// mobile yet, so post-shaped notifications all read as "post".
-function notificationText(notification: NotificationWithActor): string {
-  const name =
-    notification.profiles.display_name || notification.profiles.username;
+// mobile yet, so post-shaped notifications all read as "post". The actor
+// name renders separately in bold, so phrases start at the verb.
+// event_reminder is the one type with no meaningful actor.
+function notificationPhrase(notification: NotificationWithActor): string {
   const entity = notification.entity_type;
 
   switch (notification.type) {
     case "like":
-      if (entity === "comment") return `${name} liked your comment`;
-      return `${name} liked your post`;
+      if (entity === "comment") return "liked your comment";
+      return "liked your post";
     case "comment":
-      if (entity === "comment") return `${name} replied to your comment`;
-      return `${name} replied to your post`;
+      if (entity === "comment") return "replied to your comment";
+      return "replied to your post";
     case "quote":
-      return `${name} quoted your post`;
+      return "quoted your post";
     case "follow":
-      return `${name} followed you`;
+      return "followed you";
     case "mention":
-      return `${name} mentioned you`;
+      return "mentioned you";
     case "repost":
-      return `${name} reposted your post`;
+      return "reposted your post";
     case "message":
-      return `${name} sent you a message`;
+      return "sent you a message";
     case "story_reaction":
-      return `${name} reacted to your story`;
+      return "reacted to your story";
     case "live_started":
-      return `${name} just went live`;
+      return "just went live";
     case "community_invite":
-      return `${name} invited you to a room`;
+      return "invited you to a room";
     case "event_invite":
-      return `${name} invited you to an event`;
-    case "event_reminder":
-      return "Heads up, your event starts soon";
+      return "invited you to an event";
     default:
-      return `${name} interacted with you`;
+      return "interacted with you";
   }
+}
+
+type SectionLabel = "Today" | "This week" | "Earlier";
+
+function sectionLabel(iso: string): SectionLabel {
+  const created = new Date(iso);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (created >= startOfToday) return "Today";
+  const weekStart = new Date(startOfToday);
+  weekStart.setDate(weekStart.getDate() - (DAYS_IN_WEEK_SECTION - 1));
+  if (created >= weekStart) return "This week";
+  return "Earlier";
+}
+
+// Flattened list keeps FlatList's cursor pagination intact while still
+// rendering IG-style time section headers.
+type ActivityItem =
+  | { kind: "header"; label: SectionLabel }
+  | { kind: "notification"; notification: NotificationWithActor };
+
+function buildActivityItems(notifications: NotificationWithActor[]): ActivityItem[] {
+  const items: ActivityItem[] = [];
+  let currentLabel: SectionLabel | null = null;
+  for (const notification of notifications) {
+    const label = sectionLabel(notification.created_at);
+    if (label !== currentLabel) {
+      items.push({ kind: "header", label });
+      currentLabel = label;
+    }
+    items.push({ kind: "notification", notification });
+  }
+  return items;
 }
 
 function NotificationRow({
@@ -68,6 +101,7 @@ function NotificationRow({
 }) {
   const actorName =
     notification.profiles.display_name || notification.profiles.username;
+  const isReminder = notification.type === "event_reminder";
 
   return (
     <Pressable
@@ -79,12 +113,20 @@ function NotificationRow({
         pressed && { opacity: 0.75 },
       ]}
     >
-      <Avatar url={notification.profiles.avatar_url} name={actorName} size={40} />
+      <Avatar url={notification.profiles.avatar_url} name={actorName} size={44} />
       <View style={styles.rowBody}>
-        <Text style={styles.rowText}>{notificationText(notification)}</Text>
-        <Text style={styles.rowTime}>{formatTimeAgo(notification.created_at)}</Text>
+        <Text style={styles.rowText}>
+          {isReminder ? (
+            "Heads up, your event starts soon"
+          ) : (
+            <>
+              <Text style={styles.rowActor}>{actorName}</Text>{" "}
+              {notificationPhrase(notification)}
+            </>
+          )}
+          <Text style={styles.rowTime}> {formatTimeAgo(notification.created_at)}</Text>
+        </Text>
       </View>
-      {!notification.is_read ? <View style={styles.unreadDot} /> : null}
     </Pressable>
   );
 }
@@ -129,6 +171,11 @@ export default function NotificationsScreen() {
     [readMutation],
   );
 
+  const items = useMemo(
+    () => buildActivityItems(data?.pages.flat() ?? []),
+    [data],
+  );
+
   if (!user) return null;
 
   if (isPending) {
@@ -149,17 +196,20 @@ export default function NotificationsScreen() {
     );
   }
 
-  const notifications = data.pages.flat();
-
   return (
     <FlatList
       style={styles.list}
-      data={notifications}
-      keyExtractor={(n) => n.id}
-      renderItem={({ item }) => (
-        <NotificationRow notification={item} onPress={handlePress} />
-      )}
-      ItemSeparatorComponent={() => <View style={styles.separator} />}
+      data={items}
+      keyExtractor={(item) =>
+        item.kind === "header" ? `header-${item.label}` : item.notification.id
+      }
+      renderItem={({ item }) =>
+        item.kind === "header" ? (
+          <Text style={styles.sectionHeader}>{item.label}</Text>
+        ) : (
+          <NotificationRow notification={item.notification} onPress={handlePress} />
+        )
+      }
       refreshControl={
         <RefreshControl
           refreshing={isRefetching}
@@ -185,7 +235,7 @@ export default function NotificationsScreen() {
           />
         ) : null
       }
-      contentContainerStyle={notifications.length === 0 ? { flex: 1 } : undefined}
+      contentContainerStyle={items.length === 0 ? { flex: 1 } : undefined}
     />
   );
 }
@@ -195,12 +245,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  sectionHeader: {
+    color: colors.foreground,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+    paddingHorizontal: spacing(4),
+    paddingTop: spacing(4),
+    paddingBottom: spacing(2),
+  },
   row: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: spacing(3),
     paddingHorizontal: spacing(4),
-    paddingVertical: spacing(3),
+    paddingVertical: spacing(2.5),
   },
   rowUnread: {
     backgroundColor: colors.surface,
@@ -210,24 +269,13 @@ const styles = StyleSheet.create({
   },
   rowText: {
     color: colors.foreground,
-    fontSize: 13.5,
-    lineHeight: 19,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  rowActor: {
+    fontWeight: "700",
   },
   rowTime: {
     color: colors.mutedForeground,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: radii.full,
-    backgroundColor: colors.primary,
-    marginTop: spacing(2),
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginLeft: spacing(4),
   },
 });

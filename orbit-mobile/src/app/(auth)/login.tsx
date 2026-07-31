@@ -1,18 +1,18 @@
 import { useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { Link } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
+import { useRouter, Link } from "expo-router";
 import { supabase } from "@/lib/supabase";
-import { Button, Field } from "@/components/ui";
+import { Button } from "@/components/ui";
+import {
+  AuthInput,
+  AuthShell,
+  OrbitMark,
+  authStyles,
+} from "@/components/auth-shell";
 import { colors, spacing } from "@/lib/theme";
 
 export default function LoginScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -44,94 +44,67 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    <AuthShell
+      footer={
+        <>
+          <View style={authStyles.divider}>
+            <View style={authStyles.dividerLine} />
+            <Text style={authStyles.dividerText}>OR</Text>
+            <View style={authStyles.dividerLine} />
+          </View>
+          <Button
+            label="Create new account"
+            variant="outline"
+            onPress={() => router.push("/(auth)/signup")}
+          />
+          <Text style={[authStyles.wordmarkFooter, { marginTop: spacing(5) }]}>
+            Orbit
+          </Text>
+        </>
+      }
     >
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={styles.wordmark}>Orbit</Text>
-        <Text style={styles.tagline}>Sign in to your account</Text>
+      <OrbitMark size={72} />
+      <View style={{ height: spacing(9) }} />
 
-        <Field
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="you@example.com"
-          autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          textContentType="emailAddress"
-        />
-        <Field
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Your password"
-          secureTextEntry
-          autoComplete="password"
-          textContentType="password"
-          onSubmitEditing={handleSignIn}
-        />
+      <AuthInput
+        value={email}
+        onChangeText={setEmail}
+        placeholder="Email"
+        autoCapitalize="none"
+        autoComplete="email"
+        keyboardType="email-address"
+        textContentType="emailAddress"
+      />
+      <AuthInput
+        value={password}
+        onChangeText={setPassword}
+        placeholder="Password"
+        secure
+        autoComplete="password"
+        textContentType="password"
+        onSubmitEditing={handleSignIn}
+      />
 
-        {formError ? <Text style={styles.error}>{formError}</Text> : null}
+      <Link href="/(auth)/forgot-password" style={authStyles.linkRight}>
+        Forgot password?
+      </Link>
 
-        <Button label="Sign in" loading={submitting} onPress={handleSignIn} />
+      {formError ? <Text style={authStyles.error}>{formError}</Text> : null}
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>New to Orbit? </Text>
-          <Link href="/(auth)/signup" style={styles.footerLink}>
-            Create an account
-          </Link>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <Button label="Log in" loading={submitting} onPress={handleSignIn} />
+
+      <Text style={styles.hint}>
+        Use the account you created on orbitsocial.net.
+      </Text>
+    </AuthShell>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: spacing(6),
-  },
-  wordmark: {
-    color: colors.foreground,
-    fontSize: 34,
-    fontWeight: "800",
-    letterSpacing: -1,
+  hint: {
+    color: colors.textFaint,
+    fontSize: 12.5,
     textAlign: "center",
-  },
-  tagline: {
-    color: colors.mutedForeground,
-    fontSize: 14,
-    textAlign: "center",
-    marginTop: spacing(1),
-    marginBottom: spacing(8),
-  },
-  error: {
-    color: colors.destructive,
-    fontSize: 13,
-    marginBottom: spacing(3),
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: spacing(6),
-  },
-  footerText: {
-    color: colors.mutedForeground,
-    fontSize: 13.5,
-  },
-  footerLink: {
-    color: colors.primary,
-    fontSize: 13.5,
-    fontWeight: "600",
+    marginTop: spacing(4),
   },
 });

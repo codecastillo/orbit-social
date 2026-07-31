@@ -1,10 +1,4 @@
-import {
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
   useMutation,
@@ -12,8 +6,14 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
-import { Button, Centered, EmptyState } from "@/components/ui";
-import { ProfileHeader, ProfilePostRow } from "@/components/profile-header";
+import { Button, EmptyState } from "@/components/ui";
+import {
+  ProfileActionButton,
+  ProfileHeader,
+  ProfileHeaderSkeleton,
+} from "@/components/profile-header";
+import { ProfileContent } from "@/components/profile-tabs";
+import { startDmConversation } from "@/lib/queries/marketplace";
 import {
   checkFollowing,
   followUser,
@@ -22,7 +22,9 @@ import {
   unfollowUser,
   type Profile,
 } from "@/lib/queries/profiles";
-import { colors, spacing } from "@/lib/theme";
+import { colors } from "@/lib/theme";
+
+const TITLE_STYLE = { fontSize: 17, fontWeight: "700" } as const;
 
 export default function PublicProfileScreen() {
   const { username } = useLocalSearchParams<{ username: string }>();
@@ -89,21 +91,33 @@ export default function PublicProfileScreen() {
     },
   });
 
+  const openDm = useMutation({
+    mutationFn: () => startDmConversation(profile!.id),
+    onSuccess: (conversationId) => {
+      router.push(`/conversation/${conversationId}`);
+    },
+  });
+
   if (profileQuery.isPending) {
     return (
-      <>
-        <Stack.Screen options={{ title: username ? `@${username}` : "Profile" }} />
-        <Centered>
-          <ActivityIndicator color={colors.primary} />
-        </Centered>
-      </>
+      <View style={styles.flex}>
+        <Stack.Screen
+          options={{
+            title: username ? `@${username}` : "Profile",
+            headerTitleStyle: TITLE_STYLE,
+          }}
+        />
+        <ProfileHeaderSkeleton />
+      </View>
     );
   }
 
   if (profileQuery.isError) {
     return (
       <>
-        <Stack.Screen options={{ title: "Profile" }} />
+        <Stack.Screen
+          options={{ title: "Profile", headerTitleStyle: TITLE_STYLE }}
+        />
         <EmptyState
           title="Could not load this profile"
           description="Check your connection and try again."
@@ -122,7 +136,9 @@ export default function PublicProfileScreen() {
   if (!profile) {
     return (
       <>
-        <Stack.Screen options={{ title: "Profile" }} />
+        <Stack.Screen
+          options={{ title: "Profile", headerTitleStyle: TITLE_STYLE }}
+        />
         <EmptyState
           title="Profile not found"
           description={`No one goes by @${username} on Orbit.`}
@@ -132,52 +148,40 @@ export default function PublicProfileScreen() {
   }
 
   const isFollowing = followingQuery.data ?? false;
-  const followAction =
+  const actions =
     !isOwnProfile && user ? (
-      <Button
-        label={isFollowing ? "Following" : "Follow"}
-        variant={isFollowing ? "outline" : "primary"}
-        disabled={followingQuery.isPending}
-        onPress={() => toggleFollow.mutate(!isFollowing)}
-      />
+      <>
+        <ProfileActionButton
+          label={isFollowing ? "Following" : "Follow"}
+          variant={isFollowing ? "secondary" : "primary"}
+          disabled={followingQuery.isPending}
+          onPress={() => toggleFollow.mutate(!isFollowing)}
+        />
+        <ProfileActionButton
+          label="Message"
+          loading={openDm.isPending}
+          onPress={() => openDm.mutate()}
+        />
+      </>
     ) : undefined;
 
   return (
     <View style={styles.flex}>
-      <Stack.Screen options={{ title: `@${profile.username}` }} />
-      <FlatList
-        data={postsQuery.data ?? []}
-        keyExtractor={(post) => post.id}
-        ListHeaderComponent={<ProfileHeader profile={profile} action={followAction} />}
-        renderItem={({ item }) => (
-          <ProfilePostRow
-            authorName={profile.display_name}
-            content={item.content}
-            createdAt={item.created_at}
-            onPress={() => router.push(`/post/${item.id}`)}
-          />
-        )}
-        ListEmptyComponent={
-          postsQuery.isPending ? (
-            <View style={styles.postsLoading}>
-              <ActivityIndicator color={colors.primary} />
-            </View>
-          ) : postsQuery.isError ? (
-            <View style={styles.postsError}>
-              <Text style={styles.postsErrorText}>Could not load posts.</Text>
-              <Button
-                label="Retry"
-                variant="outline"
-                onPress={() => postsQuery.refetch()}
-              />
-            </View>
-          ) : (
-            <View style={styles.postsLoading}>
-              <Text style={styles.postsEmptyText}>No posts yet.</Text>
-            </View>
-          )
-        }
-        contentContainerStyle={styles.listContent}
+      <Stack.Screen
+        options={{
+          title: `@${profile.username}`,
+          headerTitleStyle: TITLE_STYLE,
+        }}
+      />
+      <ProfileContent
+        header={<ProfileHeader profile={profile} actions={actions} />}
+        posts={postsQuery.data}
+        isPending={postsQuery.isPending}
+        isError={postsQuery.isError}
+        onRetry={() => postsQuery.refetch()}
+        userId={profile.id}
+        username={profile.username}
+        onPressPost={(postId) => router.push(`/post/${postId}`)}
       />
     </View>
   );
@@ -187,25 +191,5 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  listContent: {
-    paddingBottom: spacing(8),
-  },
-  postsLoading: {
-    padding: spacing(8),
-    alignItems: "center",
-  },
-  postsError: {
-    padding: spacing(8),
-    alignItems: "center",
-    gap: spacing(3),
-  },
-  postsErrorText: {
-    color: colors.mutedForeground,
-    fontSize: 13.5,
-  },
-  postsEmptyText: {
-    color: colors.mutedForeground,
-    fontSize: 13.5,
   },
 });

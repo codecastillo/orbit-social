@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,6 +24,7 @@ import { colors, radii, spacing } from "@/lib/theme";
 
 const DEFAULT_MEDIA_ASPECT = 4 / 3;
 const WEB_POST_URL = "https://orbitsocial.net/post";
+const ACTION_ERROR_TTL_MS = 2500;
 
 interface PostCardProps {
   post: Post;
@@ -41,6 +42,13 @@ interface PostCardProps {
   disableNavigation?: boolean;
   // Threaded reply cell: smaller avatar, left rule, tighter chrome.
   reply?: boolean;
+  // Detail hero cell: larger body type plus a stats line instead of the
+  // inline action counts, like IG's post detail.
+  detail?: boolean;
+  // Overrides the reply icon's default push to /post/[id]; the detail
+  // screen uses it to focus the composer instead of stacking a duplicate
+  // of its own route.
+  onReplyPress?: () => void;
 }
 
 // Compact bordered preview of the post a quote embeds.
@@ -93,6 +101,8 @@ export function PostCard({
   original = null,
   disableNavigation = false,
   reply = false,
+  detail = false,
+  onReplyPress,
 }: PostCardProps) {
   const router = useRouter();
   const likeButtonRef = useRef<View>(null);
@@ -114,6 +124,8 @@ export function PostCard({
   const [userReaction, setUserReaction] = useState(userReactionProp);
   const [reactionCounts, setReactionCounts] = useState(reactionCountsProp);
   const [pickerAnchor, setPickerAnchor] = useState<ReactionAnchor | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const actionErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [seed, setSeed] = useState({
     isLiked,
     isBookmarked,
@@ -124,32 +136,52 @@ export function PostCard({
     reactionCounts: reactionCountsProp,
   });
 
-  if (
-    seed.isLiked !== isLiked ||
-    seed.isBookmarked !== isBookmarked ||
-    seed.isReposted !== isReposted ||
-    seed.likeCount !== display.like_count ||
-    seed.repostCount !== display.repost_count ||
-    seed.userReaction !== userReactionProp ||
-    seed.reactionCounts !== reactionCountsProp
-  ) {
-    setSeed({
-      isLiked,
-      isBookmarked,
-      isReposted,
-      likeCount: display.like_count,
-      repostCount: display.repost_count,
-      userReaction: userReactionProp,
-      reactionCounts: reactionCountsProp,
-    });
+  // Re-seed each piece of optimistic state independently, only when its own
+  // server truth changes. A single all-or-nothing reseed let any prop change
+  // (including a referentially new but equal reactionCounts array from a
+  // parent re-render) stomp unrelated optimistic state, which is why an
+  // optimistic repost used to snap back to stale props.
+  if (seed.isLiked !== isLiked) {
+    setSeed((s) => ({ ...s, isLiked }));
     setLiked(isLiked);
+  }
+  if (seed.likeCount !== display.like_count) {
+    setSeed((s) => ({ ...s, likeCount: display.like_count }));
     setLikeCount(display.like_count);
+  }
+  if (seed.isBookmarked !== isBookmarked) {
+    setSeed((s) => ({ ...s, isBookmarked }));
     setBookmarked(isBookmarked);
+  }
+  if (seed.isReposted !== isReposted) {
+    setSeed((s) => ({ ...s, isReposted }));
     setReposted(isReposted);
+  }
+  if (seed.repostCount !== display.repost_count) {
+    setSeed((s) => ({ ...s, repostCount: display.repost_count }));
     setRepostCount(display.repost_count);
+  }
+  if (seed.userReaction !== userReactionProp) {
+    setSeed((s) => ({ ...s, userReaction: userReactionProp }));
     setUserReaction(userReactionProp);
+  }
+  if (!sameReactionCounts(seed.reactionCounts, reactionCountsProp)) {
+    setSeed((s) => ({ ...s, reactionCounts: reactionCountsProp }));
     setReactionCounts(reactionCountsProp);
   }
+
+  useEffect(
+    () => () => {
+      if (actionErrorTimer.current) clearTimeout(actionErrorTimer.current);
+    },
+    [],
+  );
+
+  const flashActionError = (message: string) => {
+    setActionError(message);
+    if (actionErrorTimer.current) clearTimeout(actionErrorTimer.current);
+    actionErrorTimer.current = setTimeout(() => setActionError(null), ACTION_ERROR_TTL_MS);
+  };
 
   const handleLike = () => {
     const wasLiked = liked;
@@ -178,9 +210,16 @@ export function PostCard({
     const request = wasReposted
       ? undoRepost(currentUserId, display.id)
       : createRepost(currentUserId, display.id);
-    request.catch(() => {
+    request.catch((err: unknown) => {
+      if (!wasReposted && err instanceof Error && err.message === "Already reposted") {
+        // The server already holds this repost (stale interactions data);
+        // keep the active state but drop the double-counted bump.
+        setRepostCount((n) => Math.max(0, n - 1));
+        return;
+      }
       setReposted(wasReposted);
       setRepostCount((n) => Math.max(0, n + (wasReposted ? 1 : -1)));
+      flashActionError(wasReposted ? "Could not undo the repost." : "Repost failed. Try again.");
     });
   };
 
@@ -298,10 +337,14 @@ export function PostCard({
         </View>
       </Pressable>
 
-      {display.content ? <Text style={styles.content}>{display.content}</Text> : null}
+      {display.content ? (
+        <Text style={[styles.content, detail && styles.contentDetail]}>{display.content}</Text>
+      ) : null}
 
       {media && media.type !== "video" ? (
-        <View style={[styles.mediaBox, { aspectRatio }]}>
+        <View
+          style={[reply ? styles.mediaInset : styles.mediaFullBleed, { aspectRatio }]}
+        >
           <Image
             source={{ uri: media.url }}
             alt="Post image"
@@ -315,25 +358,29 @@ export function PostCard({
 
       {quoted ? <QuotedPostPreview post={quoted} /> : null}
 
-      <View style={styles.actions}>
-        <Pressable onPress={openDetail} style={styles.action} hitSlop={8}>
-          <Ionicons name="chatbubble-outline" size={19} color={colors.mutedForeground} />
-          {display.comment_count > 0 ? (
-            <Text style={styles.actionCount}>{formatNumber(display.comment_count)}</Text>
-          ) : null}
-        </Pressable>
-        <Pressable onPress={handleRepost} style={styles.action} hitSlop={8}>
-          <Ionicons
-            name="repeat"
-            size={20}
-            color={reposted ? colors.success : colors.mutedForeground}
-          />
-          {repostCount > 0 ? (
-            <Text style={[styles.actionCount, reposted && { color: colors.success }]}>
-              {formatNumber(repostCount)}
+      {detail ? (
+        <View style={styles.statsRow}>
+          <Text style={styles.statsTime}>{formatTimeAgo(display.created_at)}</Text>
+          {likeCount > 0 ? (
+            <Text style={styles.statsTime}>
+              {"· "}
+              <Text style={styles.statsCount}>
+                {formatNumber(likeCount)} {likeCount === 1 ? "like" : "likes"}
+              </Text>
             </Text>
           ) : null}
-        </Pressable>
+          {repostCount > 0 ? (
+            <Text style={styles.statsTime}>
+              {"· "}
+              <Text style={styles.statsCount}>
+                {formatNumber(repostCount)} {repostCount === 1 ? "repost" : "reposts"}
+              </Text>
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      <View style={[styles.actions, detail && styles.actionsDetail]}>
         <Pressable
           ref={likeButtonRef}
           onPress={handleLike}
@@ -344,22 +391,46 @@ export function PostCard({
         >
           <Ionicons
             name={liked ? "heart" : "heart-outline"}
-            size={20}
-            color={liked ? colors.destructive : colors.mutedForeground}
+            size={22}
+            color={liked ? colors.destructive : colors.foreground}
           />
-          {likeCount > 0 ? <Text style={styles.actionCount}>{formatNumber(likeCount)}</Text> : null}
+          {!detail && likeCount > 0 ? (
+            <Text style={[styles.actionCount, liked && { color: colors.destructive }]}>
+              {formatNumber(likeCount)}
+            </Text>
+          ) : null}
+        </Pressable>
+        <Pressable onPress={onReplyPress ?? openDetail} style={styles.action} hitSlop={8}>
+          <Ionicons name="chatbubble-outline" size={21} color={colors.foreground} />
+          {!detail && display.comment_count > 0 ? (
+            <Text style={styles.actionCount}>{formatNumber(display.comment_count)}</Text>
+          ) : null}
+        </Pressable>
+        <Pressable onPress={handleRepost} style={styles.action} hitSlop={8}>
+          <Ionicons
+            name="repeat"
+            size={22}
+            color={reposted ? colors.success : colors.foreground}
+          />
+          {!detail && repostCount > 0 ? (
+            <Text style={[styles.actionCount, reposted && { color: colors.success }]}>
+              {formatNumber(repostCount)}
+            </Text>
+          ) : null}
+        </Pressable>
+        <Pressable onPress={handleShare} style={styles.action} hitSlop={8}>
+          <Ionicons name="share-outline" size={21} color={colors.foreground} />
         </Pressable>
         <Pressable onPress={handleBookmark} style={[styles.action, styles.actionBookmark]} hitSlop={8}>
           <Ionicons
             name={bookmarked ? "bookmark" : "bookmark-outline"}
-            size={19}
-            color={bookmarked ? colors.primary : colors.mutedForeground}
+            size={21}
+            color={bookmarked ? colors.primary : colors.foreground}
           />
         </Pressable>
-        <Pressable onPress={handleShare} style={styles.action} hitSlop={8}>
-          <Ionicons name="share-outline" size={19} color={colors.mutedForeground} />
-        </Pressable>
       </View>
+
+      {actionError ? <Text style={styles.actionErrorText}>{actionError}</Text> : null}
 
       <ReactionCounts
         reactions={reactionCounts}
@@ -376,6 +447,14 @@ export function PostCard({
       />
     </Pressable>
   );
+}
+
+// Value comparison for the reseed check: the screens rebuild these arrays
+// on every render, so reference equality would report phantom changes.
+function sameReactionCounts(a: ReactionCount[], b: ReactionCount[]): boolean {
+  if (a.length !== b.length) return false;
+  const counts = new Map(a.map((r) => [r.reaction_type, r.count]));
+  return b.every((r) => counts.get(r.reaction_type) === r.count);
 }
 
 function bumpReaction(counts: ReactionCount[], type: ReactionType): ReactionCount[] {
@@ -457,7 +536,24 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: spacing(2.5),
   },
-  mediaBox: {
+  contentDetail: {
+    fontSize: 16,
+    lineHeight: 23,
+  },
+  // Feed media runs edge to edge like IG: the negative margins cancel the
+  // card's 16px inner padding, framed by 1px rules instead of a radius.
+  mediaFullBleed: {
+    marginTop: spacing(2.5),
+    marginHorizontal: -spacing(4),
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceElevated,
+  },
+  // Threaded reply cells keep an inset rounded frame; full bleed would
+  // collide with the left thread rule.
+  mediaInset: {
     marginTop: spacing(2.5),
     borderRadius: radii.md,
     borderWidth: 1,
@@ -469,6 +565,23 @@ const styles = StyleSheet.create({
   mediaImage: {
     width: "100%",
     height: "100%",
+  },
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 4,
+    marginTop: spacing(3),
+  },
+  statsTime: {
+    color: colors.mutedForeground,
+    fontSize: 13,
+  },
+  statsCount: {
+    color: colors.foreground,
+    fontSize: 13,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
   },
   quoteBox: {
     marginTop: spacing(2.5),
@@ -509,7 +622,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: spacing(3),
-    gap: spacing(7),
+    gap: spacing(5),
+  },
+  actionsDetail: {
+    marginTop: spacing(3),
+    paddingTop: spacing(3),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   action: {
     flexDirection: "row",
@@ -520,8 +639,14 @@ const styles = StyleSheet.create({
     marginLeft: "auto",
   },
   actionCount: {
-    color: colors.mutedForeground,
-    fontSize: 12.5,
+    color: colors.foreground,
+    fontSize: 13,
+    fontWeight: "700",
     fontVariant: ["tabular-nums"],
+  },
+  actionErrorText: {
+    color: colors.destructive,
+    fontSize: 12,
+    marginTop: spacing(2),
   },
 });

@@ -3,6 +3,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -16,6 +17,9 @@ import { useAuth } from "@/providers/auth-provider";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import { getListingById, startDmConversation } from "@/lib/queries/marketplace";
 import { colors, radii, spacing } from "@/lib/theme";
+
+// Web listing URL, shared so a recipient without the app still lands somewhere.
+const LISTING_SHARE_BASE = "https://orbitsocial.net/marketplace";
 
 function formatPrice(price: number, currency = "USD") {
   return new Intl.NumberFormat("en-US", {
@@ -133,7 +137,6 @@ export default function ListingDetailScreen() {
         )}
 
         <View style={styles.body}>
-          <Text style={styles.title}>{listing.title}</Text>
           <View style={styles.priceRow}>
             <Text style={styles.price}>
               {formatPrice(listing.price, listing.currency)}
@@ -144,6 +147,7 @@ export default function ListingDetailScreen() {
               </View>
             ) : null}
           </View>
+          <Text style={styles.title}>{listing.title}</Text>
 
           <View style={styles.badgeRow}>
             <View style={styles.badge}>
@@ -178,20 +182,37 @@ export default function ListingDetailScreen() {
             </View>
           </Pressable>
 
-          {!isOwnListing && user ? (
-            <View style={styles.messageButton}>
-              <Button
-                label="Message seller"
-                loading={messageSeller.isPending}
-                onPress={() => messageSeller.mutate()}
-              />
-              {messageSeller.isError ? (
-                <Text style={styles.messageError}>
-                  Could not open the conversation. Try again.
-                </Text>
+          <View style={styles.actions}>
+            <View style={styles.actionsRow}>
+              {!isOwnListing && user ? (
+                <View style={styles.actionButton}>
+                  <Button
+                    label="Message seller"
+                    loading={messageSeller.isPending}
+                    onPress={() => messageSeller.mutate()}
+                    style={styles.pairButton}
+                  />
+                </View>
               ) : null}
+              <View style={styles.actionButton}>
+                <Button
+                  label="Share"
+                  variant="outline"
+                  onPress={() =>
+                    void Share.share({
+                      message: `${LISTING_SHARE_BASE}/${listing.id}`,
+                    })
+                  }
+                  style={[styles.pairButton, styles.pairButtonSecondary]}
+                />
+              </View>
             </View>
-          ) : null}
+            {messageSeller.isError ? (
+              <Text style={styles.messageError}>
+                Could not open the conversation. Try again.
+              </Text>
+            ) : null}
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -227,22 +248,21 @@ const styles = StyleSheet.create({
   body: {
     padding: spacing(4),
   },
-  title: {
-    color: colors.foreground,
-    fontSize: 20,
-    fontWeight: "800",
-    letterSpacing: -0.4,
-  },
   priceRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing(2.5),
-    marginTop: spacing(1.5),
   },
   price: {
-    color: colors.primary,
-    fontSize: 18,
+    color: colors.foreground,
+    fontSize: 20,
     fontWeight: "700",
+    letterSpacing: -0.3,
+  },
+  title: {
+    color: colors.textSecondary,
+    fontSize: 15,
+    marginTop: spacing(1),
   },
   soldBadge: {
     backgroundColor: colors.destructive,
@@ -303,8 +323,23 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     marginTop: 1,
   },
-  messageButton: {
+  actions: {
     marginTop: spacing(4),
+  },
+  actionsRow: {
+    flexDirection: "row",
+    gap: spacing(2.5),
+  },
+  actionButton: {
+    flex: 1,
+  },
+  pairButton: {
+    minHeight: 36,
+    borderRadius: 10,
+  },
+  pairButtonSecondary: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 0,
   },
   messageError: {
     color: colors.destructive,

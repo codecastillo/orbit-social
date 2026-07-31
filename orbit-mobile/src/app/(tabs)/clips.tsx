@@ -3,11 +3,14 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  Share,
   StyleSheet,
   Text,
   View,
   type ViewToken,
 } from "react-native";
+import { useRouter } from "expo-router";
+import { useEvent } from "expo";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsFocused } from "@react-navigation/native";
 import { VideoView, useVideoPlayer } from "expo-video";
@@ -17,9 +20,11 @@ import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import {
   CLIP_PAGE_SIZE,
   getClips,
+  recordClipShare,
   toggleClipLike,
   type ClipWithAuthor,
 } from "@/lib/queries/clips";
+import { toggleBookmark } from "@/lib/queries/posts";
 import { formatNumber } from "@/lib/format";
 import { useAuth } from "@/providers/auth-provider";
 import { colors, spacing } from "@/lib/theme";
@@ -43,15 +48,26 @@ function ClipItem({
   userId: string;
 }) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const video =
     clip.post_media.find((m) => m.type === "video") ?? clip.post_media[0];
 
   const player = useVideoPlayer(video?.url ?? null, (p) => {
     p.loop = true;
+    p.timeUpdateEventInterval = 0.25;
   });
+  // Drives the thin progress bar along the bottom edge.
+  const timeUpdate = useEvent(player, "timeUpdate");
+   
+  const duration = player.duration;
+  const progress =
+    duration > 0 && timeUpdate ? Math.min(1, timeUpdate.currentTime / duration) : 0;
   const [muted, setMuted] = useState(false);
   const [liked, setLiked] = useState(clip.user_has_liked);
   const [likeCount, setLikeCount] = useState(clip.like_count);
+  const [bookmarked, setBookmarked] = useState(clip.user_has_bookmarked);
+  const [bookmarkCount, setBookmarkCount] = useState(clip.bookmark_count);
+  const [shareCount, setShareCount] = useState(clip.share_count ?? 0);
 
   useEffect(() => {
     if (isActive) {
@@ -89,6 +105,22 @@ function ClipItem({
     setMuted((m) => !m);
   };
 
+  const handleBookmark = () => {
+    const was = bookmarked;
+    setBookmarked(!was);
+    setBookmarkCount((n) => (was ? n - 1 : n + 1));
+    toggleBookmark(userId, clip.id, was).catch(() => {
+      setBookmarked(was);
+      setBookmarkCount((n) => (was ? n + 1 : n - 1));
+    });
+  };
+
+  const handleShare = () => {
+    setShareCount((n) => n + 1);
+    recordClipShare(clip.id).catch(() => {});
+    Share.share({ url: `https://orbitsocial.net/clips/${clip.id}` }).catch(() => {});
+  };
+
   const authorName = clip.profiles.display_name || clip.profiles.username;
 
   return (
@@ -123,12 +155,17 @@ function ClipItem({
 
       <View style={[styles.overlay, { paddingBottom: spacing(4) }]}>
         <View style={styles.meta}>
-          <View style={styles.authorRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${authorName}'s profile`}
+            onPress={() => router.push(`/user/${clip.profiles.username}` as never)}
+            style={({ pressed }) => [styles.authorRow, pressed && { opacity: 0.8 }]}
+          >
             <Avatar url={clip.profiles.avatar_url} name={authorName} size={34} />
             <Text style={styles.authorName} numberOfLines={1}>
               {authorName}
             </Text>
-          </View>
+          </Pressable>
           {clip.content ? (
             <Text style={styles.caption} numberOfLines={3}>
               {clip.content}
@@ -150,7 +187,42 @@ function ClipItem({
             />
             <Text style={styles.actionCount}>{formatNumber(likeCount)}</Text>
           </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View comments"
+            onPress={() => router.push(`/post/${clip.id}` as never)}
+            style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="chatbubble-outline" size={28} color={OVERLAY_TEXT} />
+            <Text style={styles.actionCount}>{formatNumber(clip.comment_count)}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={bookmarked ? "Remove bookmark" : "Bookmark clip"}
+            onPress={handleBookmark}
+            style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons
+              name={bookmarked ? "bookmark" : "bookmark-outline"}
+              size={27}
+              color={OVERLAY_TEXT}
+            />
+            <Text style={styles.actionCount}>{formatNumber(bookmarkCount)}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Share clip"
+            onPress={handleShare}
+            style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="paper-plane-outline" size={27} color={OVERLAY_TEXT} />
+            <Text style={styles.actionCount}>{formatNumber(shareCount)}</Text>
+          </Pressable>
         </View>
+      </View>
+
+      <View style={styles.progressTrack} pointerEvents="none">
+        <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
       </View>
     </View>
   );
@@ -286,7 +358,7 @@ const styles = StyleSheet.create({
   },
   meta: {
     flex: 1,
-    marginRight: spacing(4),
+    marginRight: spacing(14),
   },
   authorRow: {
     flexDirection: "row",
@@ -306,15 +378,33 @@ const styles = StyleSheet.create({
     marginTop: spacing(2),
   },
   actions: {
+    // Floating right rail above the caption block, mirroring the web layout.
+    position: "absolute",
+    right: spacing(2),
+    bottom: spacing(28),
     alignItems: "center",
+    gap: spacing(5),
   },
   actionButton: {
     alignItems: "center",
+    minWidth: 44,
   },
   actionCount: {
     color: OVERLAY_TEXT,
     fontSize: 12,
     fontWeight: "600",
-    marginTop: 3,
+    marginTop: 4,
+  },
+  progressTrack: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 2.5,
+    backgroundColor: "rgba(255,255,255,0.25)",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: OVERLAY_TEXT,
   },
 });

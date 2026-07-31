@@ -13,9 +13,11 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Avatar } from "@/components/ui";
 import { useAuth } from "@/providers/auth-provider";
 import { createPost, uploadPostMedia, type NewPostMedia } from "@/lib/queries/posts";
+import { getOwnProfile } from "@/lib/queries/profiles";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const POST_MAX_LENGTH = 500;
@@ -35,6 +37,14 @@ export default function ComposeScreen() {
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
   const [images, setImages] = useState<PickedImage[]>([]);
+
+  // Own avatar beside the caption input; shares the profile cache key used
+  // by the profile and edit screens.
+  const { data: ownProfile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: () => getOwnProfile(user!.id),
+    enabled: !!user,
+  });
 
   const publishMutation = useMutation({
     mutationFn: async () => {
@@ -95,6 +105,8 @@ export default function ComposeScreen() {
         options={{
           title: "New post",
           presentation: "modal",
+          headerTitleAlign: "center",
+          headerTitleStyle: { fontSize: 16, fontWeight: "700" },
           headerLeft: () => (
             <Pressable
               accessibilityRole="button"
@@ -125,16 +137,23 @@ export default function ComposeScreen() {
         }}
       />
       <ScrollView style={styles.fill} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <TextInput
-          value={content}
-          onChangeText={setContent}
-          placeholder="What is happening in your orbit?"
-          placeholderTextColor={colors.textFaint}
-          style={styles.input}
-          multiline
-          autoFocus
-          maxLength={POST_MAX_LENGTH}
-        />
+        <View style={styles.inputRow}>
+          <Avatar
+            url={ownProfile?.avatar_url}
+            name={ownProfile?.display_name || ownProfile?.username || "You"}
+            size={36}
+          />
+          <TextInput
+            value={content}
+            onChangeText={setContent}
+            placeholder="What is happening in your orbit?"
+            placeholderTextColor={colors.textFaint}
+            style={styles.input}
+            multiline
+            autoFocus
+            maxLength={POST_MAX_LENGTH}
+          />
+        </View>
         {images.length > 0 ? (
           <View style={styles.previewGrid}>
             {images.map((img) => (
@@ -222,11 +241,18 @@ const styles = StyleSheet.create({
     padding: spacing(4),
     gap: spacing(4),
   },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing(3),
+  },
   input: {
+    flex: 1,
     color: colors.foreground,
     fontSize: 16,
     lineHeight: 22,
     minHeight: 120,
+    paddingTop: spacing(2),
     textAlignVertical: "top",
   },
   previewGrid: {

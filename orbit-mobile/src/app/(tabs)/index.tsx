@@ -13,7 +13,7 @@ import { useRouter } from "expo-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { StoriesBar } from "@/components/stories-bar";
 import { PostCard } from "@/components/post-card";
-import { PostListSkeleton } from "@/components/post-skeleton";
+import { PostListSkeleton, StoriesSkeleton } from "@/components/post-skeleton";
 import { Button, EmptyState } from "@/components/ui";
 import { useAuth } from "@/providers/auth-provider";
 import {
@@ -128,26 +128,33 @@ export default function FeedScreen() {
   );
 
   const header = (
-    <StoriesBoundary>
-      <StoriesBar />
-    </StoriesBoundary>
+    <>
+      <StoriesBoundary>
+        <StoriesBar />
+      </StoriesBoundary>
+      {tabsRow}
+    </>
   );
 
   let body: ReactNode;
   if (isLoading) {
     body = (
       <View style={styles.fill}>
-        {header}
+        <StoriesSkeleton />
+        {tabsRow}
         <PostListSkeleton />
       </View>
     );
   } else if (error) {
     body = (
-      <EmptyState
-        title="Could not load the feed"
-        description={error instanceof Error ? error.message : "Something went wrong."}
-        action={<Button label="Retry" variant="outline" onPress={() => refetch()} />}
-      />
+      <View style={styles.fill}>
+        {header}
+        <EmptyState
+          title="Could not load the feed"
+          description={error instanceof Error ? error.message : "Something went wrong."}
+          action={<Button label="Retry" variant="outline" onPress={() => refetch()} />}
+        />
+      </View>
     );
   } else {
     body = (
@@ -194,7 +201,6 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.fill}>
-      {tabsRow}
       {body}
       <Pressable
         accessibilityRole="button"
@@ -215,29 +221,29 @@ const styles = StyleSheet.create({
   },
   tabsRow: {
     flexDirection: "row",
+    gap: spacing(5),
+    paddingHorizontal: spacing(4),
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
   tabButton: {
-    flex: 1,
     alignItems: "center",
     paddingTop: spacing(2.5),
   },
   tabLabel: {
     color: colors.mutedForeground,
-    fontSize: 13.5,
-    fontWeight: "600",
-    letterSpacing: -0.3,
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: -0.2,
   },
   tabLabelActive: {
     color: colors.foreground,
-    fontWeight: "700",
   },
   tabIndicator: {
-    marginTop: spacing(2),
-    height: 2,
-    width: 56,
-    borderRadius: 1,
+    marginTop: spacing(1.5),
+    height: 2.5,
+    width: 24,
+    borderRadius: 1.5,
     backgroundColor: "transparent",
   },
   tabIndicatorActive: {

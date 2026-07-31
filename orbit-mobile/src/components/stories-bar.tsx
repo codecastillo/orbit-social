@@ -6,7 +6,8 @@ import { getActiveStories, type StoryGroup } from "@/lib/queries/stories";
 import { useAuth } from "@/providers/auth-provider";
 import { colors, radii, spacing } from "@/lib/theme";
 
-const AVATAR_SIZE = 56;
+const AVATAR_SIZE = 64;
+const RING_WIDTH = 2.5;
 
 function StoryRing({ group, isSelf }: { group: StoryGroup; isSelf: boolean }) {
   const router = useRouter();
@@ -39,9 +40,11 @@ function StoryRing({ group, isSelf }: { group: StoryGroup; isSelf: boolean }) {
 }
 
 /**
- * Horizontal row of active story rings, one per author, unviewed authors
- * highlighted. Renders nothing while loading or when nobody has an active
- * story so the feed above it does not jump around an empty strip.
+ * IG-style horizontal strip of active story rings, one per author, the
+ * viewer's own group first. Story creation is not built on mobile, so only
+ * authors with a live story appear; there is no "add story" affordance.
+ * Renders nothing while loading or when nobody has an active story so the
+ * feed above it does not jump around an empty strip.
  */
 export function StoriesBar() {
   const { user } = useAuth();
@@ -77,22 +80,22 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing(3),
-    paddingVertical: spacing(3),
+    paddingVertical: spacing(2.5),
     gap: spacing(3.5),
   },
   item: {
     alignItems: "center",
-    width: AVATAR_SIZE + spacing(4),
+    width: AVATAR_SIZE + spacing(3),
   },
   ring: {
-    borderWidth: 2,
+    borderWidth: RING_WIDTH,
     borderRadius: radii.full,
-    padding: 2,
+    padding: 2.5,
   },
   name: {
-    color: colors.textSecondary,
-    fontSize: 11.5,
+    color: colors.mutedForeground,
+    fontSize: 11,
     marginTop: spacing(1.5),
-    maxWidth: AVATAR_SIZE + spacing(4),
+    maxWidth: AVATAR_SIZE + spacing(3),
   },
 });

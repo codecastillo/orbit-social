@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -10,13 +10,13 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PostCard } from "@/components/post-card";
 import { PostListSkeleton } from "@/components/post-skeleton";
-import { Button, Centered, EmptyState } from "@/components/ui";
+import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import { useAuth } from "@/providers/auth-provider";
+import { getOwnProfile } from "@/lib/queries/profiles";
 import {
   checkUserInteractions,
   createPost,
@@ -27,7 +27,7 @@ import {
   type Post,
 } from "@/lib/queries/posts";
 import { getPostsReactionCounts } from "@/lib/queries/reactions";
-import { colors, radii, spacing } from "@/lib/theme";
+import { colors, spacing } from "@/lib/theme";
 
 const REPLY_MAX_LENGTH = 500;
 
@@ -37,6 +37,15 @@ export default function PostDetailScreen() {
   const queryClient = useQueryClient();
   const userId = user?.id ?? "";
   const [replyText, setReplyText] = useState("");
+  const replyInputRef = useRef<TextInput>(null);
+
+  // Own avatar for the pinned reply composer; shares the profile cache key
+  // used by the profile and edit screens.
+  const { data: ownProfile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: () => getOwnProfile(user!.id),
+    enabled: !!user,
+  });
 
   const postQuery = useQuery({
     queryKey: ["post", id],
@@ -135,6 +144,12 @@ export default function PostDetailScreen() {
         reactionCounts={reactionCounts?.get(displayId) ?? []}
         disableNavigation={options?.main}
         reply={!options?.main}
+        detail={options?.main}
+        onReplyPress={
+          // The main card is already on its own detail route; the reply
+          // icon focuses the composer instead of stacking a duplicate.
+          options?.main ? () => replyInputRef.current?.focus() : undefined
+        }
       />
     );
   };
@@ -176,7 +191,13 @@ export default function PostDetailScreen() {
         }
       />
       <View style={styles.replyBar}>
+        <Avatar
+          url={ownProfile?.avatar_url}
+          name={ownProfile?.display_name || ownProfile?.username || "You"}
+          size={32}
+        />
         <TextInput
+          ref={replyInputRef}
           value={replyText}
           onChangeText={setReplyText}
           placeholder={`Reply to @${post.profiles.username}`}
@@ -190,12 +211,16 @@ export default function PostDetailScreen() {
           accessibilityLabel="Send reply"
           disabled={!canSend}
           onPress={() => replyMutation.mutate(trimmedReply)}
-          style={[styles.sendButton, !canSend && { opacity: 0.4 }]}
+          style={({ pressed }) => [
+            styles.sendButton,
+            pressed && { opacity: 0.85 },
+            !canSend && { opacity: 0.4 },
+          ]}
         >
           {replyMutation.isPending ? (
             <ActivityIndicator size="small" color={colors.primaryForeground} />
           ) : (
-            <Ionicons name="arrow-up" size={18} color={colors.primaryForeground} />
+            <Text style={styles.sendLabel}>Send</Text>
           )}
         </Pressable>
       </View>
@@ -246,24 +271,28 @@ const styles = StyleSheet.create({
   },
   replyInput: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 36,
     maxHeight: 120,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceElevated,
     color: colors.foreground,
     paddingHorizontal: spacing(3.5),
-    paddingVertical: spacing(2.5),
+    paddingVertical: spacing(2),
     fontSize: 14,
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    height: 36,
+    minWidth: 56,
+    paddingHorizontal: spacing(3),
+    borderRadius: 10,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
+  },
+  sendLabel: {
+    color: colors.primaryForeground,
+    fontSize: 13,
+    fontWeight: "700",
   },
   replyError: {
     color: colors.destructive,

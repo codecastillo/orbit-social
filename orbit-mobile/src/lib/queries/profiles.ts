@@ -19,10 +19,22 @@ export interface Profile {
   created_at: string;
 }
 
+export interface ProfilePostMedia {
+  id: string;
+  type: "image" | "video" | "gif";
+  url: string;
+  thumbnail_url: string | null;
+  width: number | null;
+  height: number | null;
+  sort_order: number;
+}
+
 export interface ProfilePost {
   id: string;
   content: string | null;
+  type: "text" | "image" | "video" | "poll" | "quote" | "reel" | "repost";
   created_at: string;
+  post_media: ProfilePostMedia[];
 }
 
 export async function getOwnProfile(userId: string): Promise<Profile | null> {
@@ -129,14 +141,17 @@ export async function checkFollowing(
 }
 
 // Mirrors the web getUserPosts filters (top-level, non-community, no clips or
-// reposts) with a lean select for the mobile profile list.
+// reposts). Media feeds the profile grid tab; the list tab only needs text.
 export async function getUserRecentPosts(
   userId: string,
-  limit = 20,
+  limit = 60,
 ): Promise<ProfilePost[]> {
   const { data, error } = await supabase
     .from("posts")
-    .select("id, content, created_at")
+    .select(
+      `id, content, type, created_at,
+       post_media ( id, type, url, thumbnail_url, width, height, sort_order )`,
+    )
     .eq("user_id", userId)
     .is("reply_to_id", null)
     .is("community_id", null)
@@ -145,5 +160,57 @@ export async function getUserRecentPosts(
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return (data ?? []) as ProfilePost[];
+  return (data ?? []) as unknown as ProfilePost[];
+}
+
+export interface MentionPost {
+  id: string;
+  content: string | null;
+  created_at: string;
+  profiles: {
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+  };
+}
+
+export async function getUserClips(
+  userId: string,
+  limit = 60,
+): Promise<ProfilePost[]> {
+  const { data, error } = await supabase
+    .from("posts")
+    .select(
+      `id, content, type, created_at,
+       post_media ( id, type, url, thumbnail_url, width, height, sort_order )`,
+    )
+    .eq("user_id", userId)
+    .eq("type", "reel")
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as unknown as ProfilePost[];
+}
+
+// Posts by others whose text mentions @username. There is no mentions table;
+// the notification trigger parses content the same way.
+export async function getUserMentions(
+  username: string,
+  userId: string,
+  limit = 60,
+): Promise<MentionPost[]> {
+  const { data, error } = await supabase
+    .from("posts")
+    .select(
+      `id, content, created_at,
+       profiles!posts_user_id_fkey ( username, display_name, avatar_url )`,
+    )
+    .ilike("content", `%@${username}%`)
+    .neq("user_id", userId)
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as unknown as MentionPost[];
 }

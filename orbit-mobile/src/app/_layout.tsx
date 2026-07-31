@@ -68,9 +68,17 @@ export default function RootLayout() {
               headerTintColor: colors.foreground,
               headerTitleStyle: { fontWeight: "600" },
               contentStyle: { backgroundColor: colors.background },
+              // Chevron only; the default label leaks route group names
+              // like "(tabs)" on iOS.
+              headerBackButtonDisplayMode: "minimal",
             }}
           >
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            {/* The title feeds the iOS back long-press menu, which would
+                otherwise display the raw group name "(tabs)". */}
+            <Stack.Screen
+              name="(tabs)"
+              options={{ headerShown: false, title: "Home" }}
+            />
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="notifications" options={{ title: "Activity" }} />
           </Stack>

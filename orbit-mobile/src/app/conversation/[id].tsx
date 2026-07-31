@@ -29,7 +29,7 @@ import {
   useQueryClient,
   type InfiniteData,
 } from "@tanstack/react-query";
-import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
+import { Avatar, Button, EmptyState } from "@/components/ui";
 import { VoiceBubble } from "@/components/voice-bubble";
 import {
   VOICE_MIN_MS,
@@ -51,25 +51,136 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
 import { colors, radii, spacing } from "@/lib/theme";
 
-function MessageBubble({ message, isMine }: { message: Message; isMine: boolean }) {
+// A run of consecutive messages from one sender breaks after this much
+// silence, and a centered time chip marks the gap.
+const TIME_GAP_MS = 20 * 60 * 1000;
+const RUN_AVATAR_SIZE = 28;
+const BUBBLE_RADIUS = 18;
+const BUBBLE_RADIUS_TIGHT = 4;
+
+function timeChipLabel(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const time = date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  if (date.toDateString() === now.toDateString()) return time;
+  if (now.getTime() - date.getTime() < 6 * 24 * 60 * 60 * 1000) {
+    return `${date.toLocaleDateString(undefined, { weekday: "short" })} ${time}`;
+  }
+  const day = date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: date.getFullYear() === now.getFullYear() ? undefined : "numeric",
+  });
+  return `${day}, ${time}`;
+}
+
+function MessageBubble({
+  message,
+  isMine,
+  firstOfRun,
+  lastOfRun,
+  showTimeChip,
+  avatarUrl,
+  senderName,
+}: {
+  message: Message;
+  isMine: boolean;
+  firstOfRun: boolean;
+  lastOfRun: boolean;
+  showTimeChip: boolean;
+  avatarUrl: string | null;
+  senderName: string;
+}) {
   const voiceUrl = message.is_deleted ? null : voiceMessageUrl(message);
+  // Square the corner nearest the sender; the run's oldest message keeps the
+  // full radius on top so runs read as one grouped block.
+  const cornerStyle = isMine
+    ? {
+        borderTopRightRadius: firstOfRun ? BUBBLE_RADIUS : BUBBLE_RADIUS_TIGHT,
+        borderBottomRightRadius: BUBBLE_RADIUS_TIGHT,
+      }
+    : {
+        borderTopLeftRadius: firstOfRun ? BUBBLE_RADIUS : BUBBLE_RADIUS_TIGHT,
+        borderBottomLeftRadius: BUBBLE_RADIUS_TIGHT,
+      };
+
   return (
-    <View style={[styles.bubbleRow, isMine ? styles.bubbleRowMine : null]}>
-      {voiceUrl ? (
-        <VoiceBubble url={voiceUrl} isMine={isMine} />
-      ) : (
-        <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-          {message.is_deleted ? (
-            <Text style={[styles.bubbleText, styles.deletedText]}>
-              Message deleted
-            </Text>
-          ) : (
-            <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>
-              {message.content}
-            </Text>
-          )}
-        </View>
-      )}
+    <View
+      style={[
+        // In the inverted list a marginTop renders toward the older message,
+        // so it carries the between-runs spacing.
+        { marginTop: showTimeChip ? 0 : firstOfRun ? 10 : 2 },
+      ]}
+    >
+      {showTimeChip ? (
+        <Text style={styles.timeChip}>{timeChipLabel(message.created_at)}</Text>
+      ) : null}
+      <View style={[styles.bubbleRow, isMine && styles.bubbleRowMine]}>
+        {!isMine ? (
+          <View style={styles.runAvatar}>
+            {lastOfRun ? (
+              <Avatar url={avatarUrl} name={senderName} size={RUN_AVATAR_SIZE} />
+            ) : null}
+          </View>
+        ) : null}
+        {voiceUrl ? (
+          <View
+            style={[
+              styles.voiceWrap,
+              cornerStyle,
+              { backgroundColor: isMine ? colors.primary : colors.surfaceElevated },
+            ]}
+          >
+            <VoiceBubble url={voiceUrl} isMine={isMine} />
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.bubble,
+              isMine ? styles.bubbleMine : styles.bubbleTheirs,
+              cornerStyle,
+            ]}
+          >
+            {message.is_deleted ? (
+              <Text style={[styles.bubbleText, styles.deletedText]}>
+                Message deleted
+              </Text>
+            ) : (
+              <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>
+                {message.content}
+              </Text>
+            )}
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function ThreadSkeleton() {
+  const rows = [
+    { mine: false, width: 180 },
+    { mine: false, width: 120 },
+    { mine: true, width: 200 },
+    { mine: true, width: 96 },
+    { mine: false, width: 150 },
+    { mine: true, width: 170 },
+  ];
+  return (
+    <View style={styles.skeletonWrap}>
+      {rows.map((row, i) => (
+        <View
+          key={i}
+          style={[
+            styles.skeletonBubble,
+            { width: row.width },
+            row.mine && styles.skeletonBubbleMine,
+          ]}
+        />
+      ))}
     </View>
   );
 }
@@ -304,6 +415,39 @@ export default function ConversationScreen() {
   const messages = data?.pages.flat() ?? [];
   const hasText = draft.trim().length > 0;
 
+  // Messages arrive newest-first: index + 1 is the older neighbor, index - 1
+  // the newer one. A run breaks on a sender change or a long silence.
+  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
+    const older = messages[index + 1];
+    const newer = messages[index - 1];
+    const showTimeChip =
+      !older ||
+      new Date(item.created_at).getTime() - new Date(older.created_at).getTime() >
+        TIME_GAP_MS;
+    const firstOfRun =
+      showTimeChip || !older || older.sender_id !== item.sender_id;
+    const lastOfRun =
+      !newer ||
+      newer.sender_id !== item.sender_id ||
+      new Date(newer.created_at).getTime() - new Date(item.created_at).getTime() >
+        TIME_GAP_MS;
+    return (
+      <MessageBubble
+        message={item}
+        isMine={item.sender_id === user.id}
+        firstOfRun={firstOfRun}
+        lastOfRun={lastOfRun}
+        showTimeChip={showTimeChip}
+        avatarUrl={
+          item.sender?.avatar_url ??
+          conversation?.other_member?.avatar_url ??
+          null
+        }
+        senderName={item.sender?.display_name ?? title}
+      />
+    );
+  };
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -332,9 +476,7 @@ export default function ConversationScreen() {
 
       <View style={styles.body}>
         {isPending ? (
-          <Centered>
-            <ActivityIndicator color={colors.primary} />
-          </Centered>
+          <ThreadSkeleton />
         ) : isError ? (
           <EmptyState
             title="Messages did not load"
@@ -351,9 +493,7 @@ export default function ConversationScreen() {
             data={messages}
             inverted
             keyExtractor={(m) => m.id}
-            renderItem={({ item }) => (
-              <MessageBubble message={item} isMine={item.sender_id === user.id} />
-            )}
+            renderItem={renderMessage}
             contentContainerStyle={styles.messageList}
             onEndReached={() => {
               if (hasNextPage && !isFetchingNextPage) fetchNextPage();
@@ -445,13 +585,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing(2.5),
     paddingHorizontal: spacing(3),
-    paddingVertical: spacing(2.5),
+    paddingVertical: spacing(2),
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
   headerTitle: {
     color: colors.foreground,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     flexShrink: 1,
   },
@@ -461,19 +601,31 @@ const styles = StyleSheet.create({
   messageList: {
     paddingHorizontal: spacing(3),
     paddingVertical: spacing(3),
-    gap: spacing(1.5),
+  },
+  timeChip: {
+    alignSelf: "center",
+    color: colors.textFaint,
+    fontSize: 11.5,
+    fontWeight: "600",
+    marginTop: spacing(4),
+    marginBottom: spacing(2),
   },
   bubbleRow: {
     flexDirection: "row",
+    alignItems: "flex-end",
   },
   bubbleRowMine: {
     justifyContent: "flex-end",
   },
+  runAvatar: {
+    width: RUN_AVATAR_SIZE,
+    marginRight: spacing(1.5),
+  },
   bubble: {
-    maxWidth: "78%",
-    borderRadius: radii.lg,
+    maxWidth: "75%",
+    borderRadius: BUBBLE_RADIUS,
     paddingHorizontal: spacing(3.5),
-    paddingVertical: spacing(2.5),
+    paddingVertical: spacing(2),
   },
   bubbleMine: {
     backgroundColor: colors.primary,
@@ -493,6 +645,13 @@ const styles = StyleSheet.create({
     color: colors.mutedForeground,
     fontStyle: "italic",
   },
+  // The voice bubble owns its own padding and radius; the wrapper only
+  // supplies the run-aware silhouette in the matching bubble color so the
+  // squared corner reads through.
+  voiceWrap: {
+    maxWidth: "75%",
+    borderRadius: BUBBLE_RADIUS,
+  },
   composer: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -507,12 +666,10 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 40,
     maxHeight: 120,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceElevated,
     color: colors.foreground,
-    paddingHorizontal: spacing(3.5),
+    paddingHorizontal: spacing(4),
     paddingVertical: spacing(2.5),
     fontSize: 14.5,
   },
@@ -531,5 +688,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
     alignItems: "center",
     justifyContent: "center",
+  },
+  skeletonWrap: {
+    flex: 1,
+    justifyContent: "flex-end",
+    padding: spacing(3),
+    gap: spacing(2),
+  },
+  skeletonBubble: {
+    height: 36,
+    borderRadius: BUBBLE_RADIUS,
+    backgroundColor: colors.surfaceElevated,
+    alignSelf: "flex-start",
+  },
+  skeletonBubbleMine: {
+    alignSelf: "flex-end",
+    backgroundColor: colors.surface,
   },
 });

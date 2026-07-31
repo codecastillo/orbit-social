@@ -1,5 +1,4 @@
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -12,7 +11,7 @@ import { useState } from "react";
 import { Stack, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Centered, EmptyState } from "@/components/ui";
+import { Button, EmptyState } from "@/components/ui";
 import {
   getListings,
   LISTING_CATEGORIES,
@@ -65,11 +64,11 @@ function ListingCard({
         ) : null}
       </View>
       <View style={styles.cardBody}>
-        <Text style={styles.cardTitle} numberOfLines={1}>
-          {listing.title}
-        </Text>
         <Text style={styles.cardPrice}>
           {formatPrice(listing.price, listing.currency)}
+        </Text>
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          {listing.title}
         </Text>
       </View>
     </Pressable>
@@ -116,9 +115,14 @@ export default function MarketplaceScreen() {
       <Stack.Screen options={{ title: "Marketplace" }} />
       {chips}
       {listingsQuery.isPending ? (
-        <Centered>
-          <ActivityIndicator color={colors.primary} />
-        </Centered>
+        <View style={styles.listContent}>
+          {Array.from({ length: 3 }, (_, row) => (
+            <View key={row} style={styles.gridRow}>
+              <View style={styles.skeletonCard} />
+              <View style={styles.skeletonCard} />
+            </View>
+          ))}
+        </View>
       ) : listingsQuery.isError ? (
         <EmptyState
           title="Could not load listings"
@@ -181,16 +185,13 @@ const styles = StyleSheet.create({
     gap: spacing(2),
   },
   chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radii.full,
-    paddingHorizontal: spacing(3.5),
+    paddingHorizontal: spacing(3),
     paddingVertical: spacing(1.5),
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
   },
   chipActive: {
     backgroundColor: colors.primary,
-    borderColor: colors.primary,
   },
   chipLabel: {
     color: colors.textSecondary,
@@ -211,14 +212,11 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    overflow: "hidden",
   },
   cardImageWrap: {
     position: "relative",
+    borderRadius: 10,
+    overflow: "hidden",
   },
   cardImage: {
     width: "100%",
@@ -240,18 +238,23 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   cardBody: {
-    padding: spacing(2.5),
-  },
-  cardTitle: {
-    color: colors.foreground,
-    fontSize: 13,
-    fontWeight: "600",
-    letterSpacing: -0.2,
+    paddingTop: spacing(2),
+    paddingHorizontal: spacing(0.5),
   },
   cardPrice: {
-    color: colors.primary,
-    fontSize: 14,
+    color: colors.foreground,
+    fontSize: 15,
     fontWeight: "700",
-    marginTop: 2,
+  },
+  cardTitle: {
+    color: colors.mutedForeground,
+    fontSize: 13,
+    marginTop: 1,
+  },
+  skeletonCard: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceElevated,
   },
 });
