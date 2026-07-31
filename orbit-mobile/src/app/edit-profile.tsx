@@ -15,19 +15,56 @@ import { Stack, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
+import { Ionicons } from "@expo/vector-icons";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import {
   getOwnProfile,
   updateOwnProfile,
   uploadAvatar,
+  type AvatarBorderStyle,
   type Profile,
   type ProfileUpdates,
 } from "@/lib/queries/profiles";
-import { colors, spacing } from "@/lib/theme";
+import { colors, radii, spacing } from "@/lib/theme";
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
 const UNIQUE_VIOLATION = "23505";
 const BIO_MAX_LENGTH = 160;
+
+// Same curated palette the web settings profile page offers
+// (src/lib/design/accents.ts); null is the default violet brand accent.
+const PROFILE_ACCENTS: { value: string | null; label: string }[] = [
+  { value: null, label: "Default" },
+  { value: "#e5484d", label: "Red" },
+  { value: "#ffb224", label: "Amber" },
+  { value: "#30a46c", label: "Green" },
+  { value: "#0091ff", label: "Blue" },
+  { value: "#f76b15", label: "Orange" },
+  { value: "#d6409f", label: "Pink" },
+];
+
+const BORDER_OPTIONS: { value: AvatarBorderStyle; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "gold", label: "Gold" },
+  { value: "silver", label: "Silver" },
+  { value: "diamond", label: "Diamond" },
+];
+
+// Same normalization as the web websiteSchema: prepend https:// when the
+// user typed a bare domain, empty means no website. Returns null when the
+// result is not a valid http(s) URL.
+function normalizeWebsite(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  const url = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+  } catch {
+    return null;
+  }
+  return url;
+}
 
 export default function EditProfileScreen() {
   const { user } = useAuth();
@@ -96,6 +133,13 @@ function EditProfileForm({ profile }: { profile: Profile }) {
   const [username, setUsername] = useState(profile.username);
   const [bio, setBio] = useState(profile.bio ?? "");
   const [location, setLocation] = useState(profile.location ?? "");
+  const [website, setWebsite] = useState(profile.website ?? "");
+  const [themeColor, setThemeColor] = useState(profile.theme_color);
+  // Legacy stored values (animated-glow, gradient-rainbow) stay untouched
+  // until the user picks one of the current options, matching the web form.
+  const [avatarBorder, setAvatarBorder] = useState<AvatarBorderStyle>(
+    (profile.avatar_border as AvatarBorderStyle) || "none",
+  );
   const [pickedAvatar, setPickedAvatar] = useState<{
     uri: string;
     mimeType?: string;
@@ -108,6 +152,9 @@ function EditProfileForm({ profile }: { profile: Profile }) {
     username.trim().toLowerCase() !== profile.username ||
     bio.trim() !== (profile.bio ?? "") ||
     location.trim() !== (profile.location ?? "") ||
+    website.trim() !== (profile.website ?? "") ||
+    themeColor !== profile.theme_color ||
+    avatarBorder !== (profile.avatar_border ?? "none") ||
     pickedAvatar !== null;
 
   async function handlePickAvatar() {
@@ -130,6 +177,11 @@ function EditProfileForm({ profile }: { profile: Profile }) {
         display_name: displayName.trim(),
         bio: bio.trim() || null,
         location: location.trim() || null,
+        // handleSave already rejected invalid values, so the fallback here
+        // never fires; it only satisfies the null return type.
+        website: normalizeWebsite(website) || null,
+        theme_color: themeColor,
+        avatar_border: avatarBorder,
       };
       if (pickedAvatar) {
         updates.avatar_url = await uploadAvatar(
@@ -150,6 +202,9 @@ function EditProfileForm({ profile }: { profile: Profile }) {
       setUsername(updated.username);
       setBio(updated.bio ?? "");
       setLocation(updated.location ?? "");
+      setWebsite(updated.website ?? "");
+      setThemeColor(updated.theme_color);
+      setAvatarBorder((updated.avatar_border as AvatarBorderStyle) || "none");
       setPickedAvatar(null);
       setSaved(true);
     },
@@ -172,6 +227,10 @@ function EditProfileForm({ profile }: { profile: Profile }) {
     }
     if (!displayName.trim()) {
       setFormError("Enter a display name.");
+      return;
+    }
+    if (normalizeWebsite(website) === null) {
+      setFormError("Must be a valid URL");
       return;
     }
     setFormError(null);
@@ -275,12 +334,81 @@ function EditProfileForm({ profile }: { profile: Profile }) {
             {bio.length}/{BIO_MAX_LENGTH}
           </Text>
           <FormRow
+            label="Website"
+            value={website}
+            onChangeText={edit(setWebsite)}
+            placeholder="yoursite.com"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+          />
+          <FormRow
             label="Location"
             value={location}
             onChangeText={edit(setLocation)}
             placeholder="Where you are based"
             maxLength={60}
           />
+        </View>
+
+        <Text style={styles.sectionTitle}>Appearance</Text>
+        <View style={styles.appearanceSection}>
+          <Text style={styles.appearanceLabel}>Accent color</Text>
+          <View style={styles.swatchRow}>
+            {PROFILE_ACCENTS.map((accent) => {
+              const active = themeColor === accent.value;
+              return (
+                <Pressable
+                  key={accent.label}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`${accent.label} accent`}
+                  accessibilityState={{ selected: active }}
+                  onPress={() => {
+                    setThemeColor(accent.value);
+                    setSaved(false);
+                  }}
+                  style={[
+                    styles.swatch,
+                    { backgroundColor: accent.value ?? colors.primary },
+                    active && styles.swatchActive,
+                  ]}
+                >
+                  {active ? (
+                    <Ionicons name="checkmark" size={16} color="#fff" />
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={styles.appearanceLabel}>Avatar border</Text>
+          <View style={styles.borderRow}>
+            {BORDER_OPTIONS.map((option) => {
+              const active = avatarBorder === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`${option.label} border`}
+                  accessibilityState={{ selected: active }}
+                  onPress={() => {
+                    setAvatarBorder(option.value);
+                    setSaved(false);
+                  }}
+                  style={[styles.borderChip, active && styles.borderChipActive]}
+                >
+                  <Text
+                    style={[
+                      styles.borderChipLabel,
+                      active && styles.borderChipLabelActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
         {formError ? <Text style={styles.error}>{formError}</Text> : null}
@@ -352,6 +480,65 @@ const styles = StyleSheet.create({
   rowInputMultiline: {
     minHeight: 72,
     textAlignVertical: "top",
+  },
+  sectionTitle: {
+    color: colors.mutedForeground,
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    paddingHorizontal: spacing(4),
+    marginTop: spacing(6),
+    marginBottom: spacing(2),
+  },
+  appearanceSection: {
+    paddingHorizontal: spacing(4),
+    gap: spacing(2.5),
+  },
+  appearanceLabel: {
+    color: colors.foreground,
+    fontSize: 14,
+  },
+  swatchRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing(2.5),
+  },
+  swatch: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.full,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  swatchActive: {
+    borderWidth: 2,
+    borderColor: colors.foreground,
+  },
+  borderRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing(2),
+  },
+  borderChip: {
+    paddingHorizontal: spacing(3.5),
+    paddingVertical: spacing(2),
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  borderChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.surfaceElevated,
+  },
+  borderChipLabel: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  borderChipLabelActive: {
+    color: colors.primary,
   },
   bioCounter: {
     color: colors.textFaint,

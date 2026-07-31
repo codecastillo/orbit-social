@@ -1,9 +1,21 @@
 import { supabase } from "@/lib/supabase";
 
 const PROFILE_SELECT = `
-  id, username, display_name, avatar_url, bio, location, is_verified,
-  follower_count, following_count, post_count, created_at
+  id, username, display_name, avatar_url, bio, location, website, is_verified,
+  follower_count, following_count, post_count, created_at,
+  theme_color, avatar_border
 `;
+
+// Same union as the web UserAvatar (src/components/shared/user-avatar.tsx).
+// gradient-rainbow and animated-glow are legacy values no longer offered,
+// but stored rows still carry them.
+export type AvatarBorderStyle =
+  | "none"
+  | "gradient-rainbow"
+  | "gold"
+  | "silver"
+  | "diamond"
+  | "animated-glow";
 
 export interface Profile {
   id: string;
@@ -12,11 +24,14 @@ export interface Profile {
   avatar_url: string | null;
   bio: string | null;
   location: string | null;
+  website: string | null;
   is_verified: boolean;
   follower_count: number;
   following_count: number;
   post_count: number;
   created_at: string;
+  theme_color: string | null;
+  avatar_border: string | null;
 }
 
 export interface ProfilePostMedia {
@@ -64,7 +79,10 @@ export interface ProfileUpdates {
   display_name?: string;
   bio?: string | null;
   location?: string | null;
+  website?: string | null;
   avatar_url?: string;
+  theme_color?: string | null;
+  avatar_border?: AvatarBorderStyle;
 }
 
 export async function updateOwnProfile(

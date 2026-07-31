@@ -34,6 +34,8 @@ interface MessageReactionBarProps {
   onClose: () => void;
   /** When set, a "Reply" action row renders under the reaction glyphs. */
   onReply?: () => void;
+  /** When set, a "Report" action row renders under the reaction glyphs. */
+  onReport?: () => void;
 }
 
 /**
@@ -48,6 +50,7 @@ export function MessageReactionBar({
   onSelect,
   onClose,
   onReply,
+  onReport,
 }: MessageReactionBarProps) {
   // Lazy useState instead of useRef: the values are stable across renders
   // and reading them in render stays within the react-hooks/refs rule.
@@ -72,7 +75,8 @@ export function MessageReactionBar({
     Math.max(anchor.x + anchor.width / 2 - BAR_WIDTH / 2, SCREEN_GUTTER),
     window.width - BAR_WIDTH - SCREEN_GUTTER,
   );
-  const totalHeight = BAR_HEIGHT + (onReply ? ACTION_ROW_HEIGHT : 0);
+  const actionRows = (onReply ? 1 : 0) + (onReport ? 1 : 0);
+  const totalHeight = BAR_HEIGHT + actionRows * ACTION_ROW_HEIGHT;
   const top = Math.max(anchor.y - totalHeight - spacing(2), SCREEN_GUTTER);
 
   return (
@@ -83,7 +87,7 @@ export function MessageReactionBar({
             styles.bar,
             // The plain glyph strip keeps its pill silhouette; the version
             // with the Reply row squares off into a card.
-            { borderRadius: onReply ? radii.lg : radii.full },
+            { borderRadius: actionRows > 0 ? radii.lg : radii.full },
             { left, top, opacity, transform: [{ scale }] },
           ]}
           // Stop the backdrop press from swallowing taps on the row itself.
@@ -117,6 +121,21 @@ export function MessageReactionBar({
               ]}
             >
               <Text style={styles.actionLabel}>Reply</Text>
+            </Pressable>
+          ) : null}
+          {onReport ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Report message"
+              onPress={onReport}
+              style={({ pressed }) => [
+                styles.actionRow,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <Text style={[styles.actionLabel, styles.actionLabelDanger]}>
+                Report
+              </Text>
             </Pressable>
           ) : null}
         </Animated.View>
@@ -203,6 +222,9 @@ const styles = StyleSheet.create({
     color: colors.foreground,
     fontSize: 14.5,
     fontWeight: "600",
+  },
+  actionLabelDanger: {
+    color: colors.destructive,
   },
   reaction: {
     width: BUTTON_SIZE,

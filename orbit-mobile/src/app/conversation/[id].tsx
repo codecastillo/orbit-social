@@ -37,6 +37,7 @@ import {
   type ReactionPill,
 } from "@/components/message-reactions";
 import { LinkPreviewCard } from "@/components/link-preview-card";
+import { ReportSheet } from "@/components/report-sheet";
 import { VoiceBubble } from "@/components/voice-bubble";
 import {
   VOICE_MIN_MS,
@@ -489,6 +490,10 @@ export default function ConversationScreen() {
     messageId: string;
     anchor: ReactionBarAnchor;
   } | null>(null);
+
+  // Message picked for reporting; there is no thread-level header menu, so
+  // reporting rides the same long-press bar as reactions and Reply.
+  const [reportTarget, setReportTarget] = useState<Message | null>(null);
 
   // Same toggle semantics as the web message-bubble: insert to add, delete
   // by (message, user, emoji) to remove, optimistic patch, and a refetch as
@@ -1110,8 +1115,29 @@ export default function ConversationScreen() {
           if (target && !target.is_deleted) setReplyTo(target);
           setPicker(null);
         }}
+        onReport={
+          // Only others' messages can be reported.
+          picker &&
+          messageById.get(picker.messageId)?.sender_id !== user.id
+            ? () => {
+                const target = messageById.get(picker.messageId) ?? null;
+                if (target && !target.is_deleted) setReportTarget(target);
+                setPicker(null);
+              }
+            : undefined
+        }
         onClose={() => setPicker(null)}
       />
+
+      {reportTarget ? (
+        <ReportSheet
+          visible
+          onClose={() => setReportTarget(null)}
+          entityType="message"
+          entityId={reportTarget.id}
+          reportedUserId={reportTarget.sender_id}
+        />
+      ) : null}
     </View>
   );
 }

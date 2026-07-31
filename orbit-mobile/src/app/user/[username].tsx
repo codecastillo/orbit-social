@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -14,6 +15,7 @@ import {
 } from "@/components/profile-header";
 import { ProfileContent } from "@/components/profile-tabs";
 import { PostBellButton } from "@/components/post-bell-button";
+import { ReportSheet } from "@/components/report-sheet";
 import { startDmConversation } from "@/lib/queries/marketplace";
 import { restrictUser, unrestrictUser } from "@/lib/queries/content-safety";
 import { useRestrictedIds } from "@/lib/hooks/use-content-safety";
@@ -100,6 +102,8 @@ export default function PublicProfileScreen() {
       router.push(`/conversation/${conversationId}`);
     },
   });
+
+  const [reportOpen, setReportOpen] = useState(false);
 
   const restrictedQuery = useRestrictedIds();
   const isRestricted = !!profile && (restrictedQuery.data?.has(profile.id) ?? false);
@@ -195,6 +199,7 @@ export default function PublicProfileScreen() {
           disabled={restrictedQuery.isPending || toggleRestrict.isPending}
           onPress={() => toggleRestrict.mutate(!isRestricted)}
         />
+        <ProfileActionButton label="Report" onPress={() => setReportOpen(true)} />
       </>
     ) : undefined;
 
@@ -215,6 +220,14 @@ export default function PublicProfileScreen() {
         userId={profile.id}
         username={profile.username}
         onPressPost={(postId) => router.push(`/post/${postId}`)}
+      />
+      {/* Same entity_type and target as the web profile report dialog. */}
+      <ReportSheet
+        visible={reportOpen}
+        onClose={() => setReportOpen(false)}
+        entityType="profile"
+        entityId={profile.id}
+        reportedUserId={profile.id}
       />
     </View>
   );

@@ -18,6 +18,7 @@ import { LinkPreviewCard } from "@/components/link-preview-card";
 import { ReactionCounts } from "@/components/reaction-counts";
 import { RichText } from "@/components/rich-text";
 import { ReactionPicker, type ReactionAnchor } from "@/components/reaction-picker";
+import { ReportSheet } from "@/components/report-sheet";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
 import { extractFirstUrl } from "@/lib/queries/link-previews";
 import {
@@ -139,6 +140,7 @@ export function PostCard({
   const [userReaction, setUserReaction] = useState(userReactionProp);
   const [reactionCounts, setReactionCounts] = useState(reactionCountsProp);
   const [pickerAnchor, setPickerAnchor] = useState<ReactionAnchor | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const actionErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [seed, setSeed] = useState({
@@ -310,6 +312,11 @@ export function PostCard({
   const openOverflowMenu = () => {
     Alert.alert("Post options", undefined, [
       { text: "Not interested", onPress: handleNotInterested },
+      {
+        text: "Report post",
+        style: "destructive",
+        onPress: () => setReportOpen(true),
+      },
       { text: "Cancel", style: "cancel" },
     ]);
   };
@@ -597,6 +604,18 @@ export function PostCard({
         onSelect={applyReaction}
         onClose={() => setPickerAnchor(null)}
       />
+
+      {/* Mounted on demand: feed lists render many cards, and an idle Modal
+          per card would still cost a native host view each. */}
+      {reportOpen ? (
+        <ReportSheet
+          visible
+          onClose={() => setReportOpen(false)}
+          entityType="post"
+          entityId={display.id}
+          reportedUserId={display.user_id}
+        />
+      ) : null}
     </Pressable>
   );
 }

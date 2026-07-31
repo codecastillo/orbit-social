@@ -98,6 +98,11 @@ export default function SettingsScreen() {
       <Text style={styles.sectionTitle}>Safety</Text>
       <View style={styles.section}>
         <SettingsRow
+          icon="key-outline"
+          label="Security"
+          onPress={() => router.push("/settings/security" as Href)}
+        />
+        <SettingsRow
           icon="filter-outline"
           label="Muted words"
           onPress={() => router.push("/settings/muted-words" as Href)}
@@ -116,6 +121,20 @@ export default function SettingsScreen() {
           icon="laptop-outline"
           label="Sessions"
           onPress={() => router.push("/settings/sessions" as Href)}
+        />
+      </View>
+
+      <Text style={styles.sectionTitle}>Creator</Text>
+      <View style={styles.section}>
+        <SettingsRow
+          icon="radio-outline"
+          label="Streaming"
+          onPress={() => router.push("/settings/streaming" as Href)}
+        />
+        <SettingsRow
+          icon="bar-chart-outline"
+          label="Creator analytics"
+          onPress={() => router.push("/settings/creator" as Href)}
         />
       </View>
 

@@ -36,6 +36,29 @@ export interface Appeal {
   created_at: string;
 }
 
+// Mirrors the web createReport (src/lib/queries/admin.ts) so admin tooling
+// sees identical entity_type and reason strings from both clients.
+export async function createReport(
+  reporterId: string,
+  entityType: string,
+  entityId: string,
+  reason: string,
+  description?: string,
+  reportedUserId?: string,
+) {
+  const { error } = await supabase.from("reports").insert({
+    reporter_id: reporterId,
+    reported_user_id: reportedUserId || null,
+    entity_type: entityType,
+    entity_id: entityId,
+    reason,
+    description: description || null,
+    status: "pending",
+  });
+
+  if (error) throw error;
+}
+
 export async function getViolationHistory(userId: string) {
   const { data, error } = await supabase
     .from("reports")
