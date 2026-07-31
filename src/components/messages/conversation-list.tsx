@@ -35,7 +35,7 @@ export function ConversationList({
 
   if (conversations.length === 0) {
     return (
-      <div className="p-6 text-center text-muted-foreground">
+      <div className="flex min-h-[45vh] flex-col items-center justify-center p-6 text-center text-muted-foreground">
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
           <svg
             xmlns="http://www.w3.org/2000/svg"

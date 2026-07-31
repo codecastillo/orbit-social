@@ -163,21 +163,21 @@ function FeaturedTrend() {
   // instead of an indefinite skeleton.
   if (!tags || tags.length === 0) {
     return (
-      <div className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-xl border border-border bg-surface p-9 text-center">
-        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          ◇&nbsp;&nbsp;NOTHING TRENDING · YET
+      <div className="flex min-h-[220px] flex-col items-center justify-center gap-1 rounded-xl border border-border bg-surface p-9 text-center">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-surface-elevated">
+          <TrendingUp className="h-5 w-5 text-primary" strokeWidth={1.8} />
+        </div>
+        <h2 className="text-lg font-semibold tracking-[-0.01em] text-foreground">
+          Nothing trending yet
+        </h2>
+        <p className="mt-1 max-w-[420px] text-sm leading-relaxed text-muted-foreground">
+          Hashtags people use show up here. Post with a{" "}
+          <code className="font-mono text-foreground">#tag</code> to get one
+          moving.
         </p>
-        <h1 className="mt-2 text-[32px] font-bold leading-none tracking-[-0.035em] text-foreground">
-          The <span className="text-primary">air</span> is quiet today.
-        </h1>
-        <p className="mt-1.5 max-w-[460px] text-sm leading-normal text-text-secondary">
-          No hashtags moving across your orbit yet. Drop a post with a{" "}
-          <code className="font-mono text-foreground">#tag</code> and
-          start the signal yourself.
-        </p>
-        <div className="mt-3.5">
+        <div className="mt-4">
           <Link href="/feed">
-            <Button size="lg">Post yours</Button>
+            <Button>Post something</Button>
           </Link>
         </div>
       </div>

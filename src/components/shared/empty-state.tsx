@@ -19,7 +19,9 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center py-16 px-6 text-center",
+        // min-h centers the block in the viewport instead of hugging the top
+        // of its card; callers with tighter containers override via className.
+        "flex min-h-[45vh] flex-col items-center justify-center px-6 py-10 text-center",
         className
       )}
     >

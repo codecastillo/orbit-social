@@ -2,17 +2,20 @@
 
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Display, Acc } from "@/components/orbit/primitives";
+import { Button } from "@/components/ui/button";
 
 /**
- * Empty-state template: flat icon tile, accent headline word, optional dual
- * CTA. Used across Rooms / Live / Events / Notifications.
+ * Empty-state template: quiet icon tile, modest title, muted body, optional
+ * dual CTA, vertically centered in the viewport. Deliberately NOT the page
+ * header's display typography; when both used it, every empty page read like
+ * it announced the same thing twice.
  */
 export function OrbitEmptyState({
   icon: Icon,
   accent = "var(--primary)",
   headline,
   accentWord,
+  headlineTail,
   sub,
   ctaLabel,
   ctaIcon,
@@ -24,7 +27,7 @@ export function OrbitEmptyState({
   accent?: string;
   /** Plain text that precedes the accent word(s). */
   headline: string;
-  /** Accent-colored word(s) inside the headline. */
+  /** Formerly accent-colored; now rendered as plain text in the title. */
   accentWord: string;
   /** Plain text that follows the accent word (optional). */
   headlineTail?: string;
@@ -35,93 +38,29 @@ export function OrbitEmptyState({
   secondaryLabel?: string;
   onSecondary?: () => void;
 }) {
+  const title = [headline, accentWord, headlineTail].filter(Boolean).join(" ");
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "var(--foreground)",
-        fontFamily: "var(--font-geist-sans), -apple-system, system-ui, sans-serif",
-        padding: 60,
-        boxSizing: "border-box",
-        minHeight: 420,
-      }}
-    >
-      <div style={{ textAlign: "center", maxWidth: 440 }}>
-        <div
-          style={{
-            width: 72,
-            height: 72,
-            margin: "0 auto 24px",
-            borderRadius: 16,
-            background: `color-mix(in oklab, ${accent} 10%, transparent)`,
-            border: `1px solid color-mix(in oklab, ${accent} 25%, transparent)`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Icon style={{ width: 28, height: 28, color: accent }} strokeWidth={1.8} />
+    <div className="flex min-h-[55vh] items-center justify-center px-6 text-foreground">
+      <div className="flex max-w-[400px] flex-col items-center text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-surface">
+          <Icon className="h-6 w-6" strokeWidth={1.8} style={{ color: accent }} />
         </div>
 
-        <Display size={34} style={{ lineHeight: 1.08 }}>
-          {headline} <Acc>{accentWord}</Acc>.
-        </Display>
-        <p
-          style={{
-            fontSize: 14,
-            color: "var(--muted-foreground)",
-            marginTop: 14,
-            lineHeight: 1.55,
-          }}
-        >
-          {sub}
-        </p>
+        <h2 className="mt-5 text-lg font-semibold tracking-[-0.01em]">{title}</h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{sub}</p>
 
         {(ctaLabel || secondaryLabel) && (
-          <div style={{ display: "inline-flex", gap: 10, marginTop: 22 }}>
+          <div className="mt-5 inline-flex gap-2.5">
             {secondaryLabel && (
-              <button
-                type="button"
-                onClick={onSecondary}
-                style={{
-                  padding: "11px 18px",
-                  borderRadius: 8,
-                  background: "var(--surface)",
-                  border: `1px solid var(--border)`,
-                  color: "var(--foreground)",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
+              <Button variant="outline" onClick={onSecondary}>
                 {secondaryLabel}
-              </button>
+              </Button>
             )}
             {ctaLabel && (
-              <button
-                type="button"
-                onClick={onCta}
-                style={{
-                  padding: "12px 22px",
-                  borderRadius: 8,
-                  background: "var(--primary)",
-                  color: "var(--primary-foreground)",
-                  border: "none",
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontFamily: "inherit",
-                }}
-              >
+              <Button onClick={onCta}>
                 {ctaIcon}
                 {ctaLabel}
-              </button>
+              </Button>
             )}
           </div>
         )}
