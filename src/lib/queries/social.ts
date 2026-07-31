@@ -55,6 +55,38 @@ export async function checkFollowing(
   return new Set(data?.map((f) => f.following_id) ?? []);
 }
 
+// ── Post notification bell ───────────────────────────────────────────
+
+export async function checkPostNotificationSubscription(
+  userId: string,
+  creatorId: string
+) {
+  const { data, error } = await supabase
+    .from("post_notification_subscriptions")
+    .select("creator_id")
+    .eq("user_id", userId)
+    .eq("creator_id", creatorId)
+    .maybeSingle();
+  if (error) throw error;
+  return !!data;
+}
+
+export async function subscribeToCreatorPosts(userId: string, creatorId: string) {
+  const { error } = await supabase
+    .from("post_notification_subscriptions")
+    .insert({ user_id: userId, creator_id: creatorId });
+  if (error) throw error;
+}
+
+export async function unsubscribeFromCreatorPosts(userId: string, creatorId: string) {
+  const { error } = await supabase
+    .from("post_notification_subscriptions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("creator_id", creatorId);
+  if (error) throw error;
+}
+
 // ── Blocks ───────────────────────────────────────────────────────────
 
 export async function blockUser(blockerId: string, blockedId: string, expiresAt?: string) {

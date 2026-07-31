@@ -9,9 +9,13 @@ import {
   Check,
   AlertTriangle,
   Globe,
+  LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/orbit/confirm-dialog";
 import {
   getLoginHistory,
   flagLoginEvent,
@@ -25,6 +29,7 @@ export default function LoginActivityPage() {
   const { user } = useAuth();
   const [events, setEvents] = useState<LoginEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -44,6 +49,16 @@ export default function LoginActivityPage() {
     } catch {
       toast.error("Couldn't update event");
     }
+  };
+
+  const handleSignOutOthers = async () => {
+    // Revokes every session except this one; the current tab stays signed in.
+    const { error } = await createClient().auth.signOut({ scope: "others" });
+    if (error) {
+      toast.error("Couldn't sign out other sessions");
+      return;
+    }
+    toast.success("Signed out everywhere else");
   };
 
   const getDeviceIcon = (ua: string | null) => {
@@ -73,6 +88,23 @@ export default function LoginActivityPage() {
           Sign-ins to your account, newest first.
         </p>
       </div>
+
+      <div>
+        <Button variant="outline" onClick={() => setConfirmSignOut(true)}>
+          <LogOut className="h-3.5 w-3.5" />
+          Sign out other sessions
+        </Button>
+      </div>
+
+      <ConfirmDialog
+        open={confirmSignOut}
+        onOpenChange={setConfirmSignOut}
+        title="Sign out other sessions?"
+        description="Every device except this one will be signed out and will need to log in again."
+        confirmLabel="Sign out others"
+        danger
+        onConfirm={handleSignOutOthers}
+      />
 
       {events.length === 0 ? (
         <div className="rounded-xl border border-border bg-surface px-5 py-10 text-center text-muted-foreground">

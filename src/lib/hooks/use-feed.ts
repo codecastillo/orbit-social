@@ -1,7 +1,9 @@
 "use client";
 
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
 import { useAuth } from "./use-auth";
+import { useMutedWords, useNotInterestedIds } from "./use-content-safety";
 import {
   getFeedPosts,
   getPublicTimeline,
@@ -9,10 +11,47 @@ import {
   checkUserReposted,
   type PostWithAuthor,
 } from "@/lib/queries/posts";
+import {
+  buildMutedWordMatcher,
+  getRankingSignals,
+} from "@/lib/queries/content-safety";
 import { rankPosts } from "@/lib/services/feed-algorithm";
+
+interface FeedPage {
+  posts: PostWithAuthor[];
+  nextCursor: string | null;
+}
 
 export function useFeed(tab: "foryou" | "following") {
   const { user } = useAuth();
+  const { data: mutedWords } = useMutedWords();
+  const { data: notInterestedIds } = useNotInterestedIds();
+
+  // Content-safety filtering lives in `select` rather than the queryFn so
+  // it re-applies instantly when the viewer mutes a word or marks a post
+  // not interested, without refetching pages. Cursors are captured before
+  // filtering, so pagination is unaffected.
+  const filterPages = useCallback(
+    (data: InfiniteData<FeedPage, string | undefined>) => {
+      const matchesMutedWord = buildMutedWordMatcher(mutedWords ?? []);
+      return {
+        ...data,
+        pages: data.pages.map((page) => ({
+          ...page,
+          posts: page.posts.filter((post) => {
+            // Feedback on a repost row targets the original it displays.
+            const feedbackId =
+              post.type === "repost" && post.parent_post_id
+                ? post.parent_post_id
+                : post.id;
+            if (notInterestedIds?.has(feedbackId)) return false;
+            return !matchesMutedWord(post.content);
+          }),
+        })),
+      };
+    },
+    [mutedWords, notInterestedIds]
+  );
 
   return useInfiniteQuery({
     queryKey: ["feed", user ? tab : "public", user?.id ?? "anon"],
@@ -68,12 +107,22 @@ export function useFeed(tab: "foryou" | "following") {
       // pages are never re-ranked, so nothing reorders under the user's
       // thumb. Following stays strictly chronological and complete.
       const pagePosts =
-        tab === "foryou" ? rankPosts(enrichedPosts, user.id) : enrichedPosts;
+        tab === "foryou"
+          ? rankPosts(
+              enrichedPosts,
+              user.id,
+              undefined,
+              // Topic preferences and sensitivity demotion; degrades to
+              // neutral signals on failure inside the helper.
+              await getRankingSignals(user.id)
+            )
+          : enrichedPosts;
 
       return { posts: pagePosts, nextCursor };
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    select: filterPages,
     // 60s staleTime + no refetch on window focus avoids the request storm
     // that fires every time you tab back. Realtime channels still bump
     // the cache when something actually changes.

@@ -13,6 +13,9 @@ import {
   Filter,
   Users,
   Radio,
+  ShieldCheck,
+  SlidersHorizontal,
+  Download,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
@@ -81,6 +84,13 @@ const sections: Section[] = [
         description: "Hide posts containing specific words from your feed",
         hue: "var(--primary)",
       },
+      {
+        href: "/settings/account-status",
+        icon: ShieldCheck,
+        title: "Account Status",
+        description: "Your standing, violation history, and appeals",
+        hue: "var(--primary)",
+      },
     ],
   },
   {
@@ -100,6 +110,20 @@ const sections: Section[] = [
         title: "Close Friends",
         description: "Manage your close friends list for private sharing",
         hue: "#7dffa3",
+      },
+      {
+        href: "/settings/content",
+        icon: SlidersHorizontal,
+        title: "Content Preferences",
+        description: "Sensitive content, topic tuning, and time on Orbit",
+        hue: "var(--primary)",
+      },
+      {
+        href: "/settings/export",
+        icon: Download,
+        title: "Download Your Data",
+        description: "Export your posts, profile, and activity as JSON",
+        hue: "var(--primary)",
       },
     ],
   },

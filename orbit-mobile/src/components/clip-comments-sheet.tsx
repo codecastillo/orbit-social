@@ -25,6 +25,7 @@ import {
   type Post,
 } from "@/lib/queries/posts";
 import { getOwnProfile } from "@/lib/queries/profiles";
+import { useCommentFilter } from "@/lib/hooks/use-content-safety";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
 import { colors, radii, spacing } from "@/lib/theme";
 
@@ -161,10 +162,14 @@ export function ClipCommentsSheet({
     return () => cancelAnimationFrame(raf);
   }, [visible, height, fade, slide]);
 
+  const filterComments = useCommentFilter();
+
   const repliesQuery = useQuery({
     queryKey: ["clip-replies", clipId],
     queryFn: () => getReplies(clipId),
     enabled: visible,
+    // Muted words and restricted authors drop out at the hook layer.
+    select: filterComments,
   });
 
   // Viewer profile backs the optimistic reply row's avatar and name.

@@ -25,14 +25,55 @@ interface NotificationRecord {
   entity_id: string | null;
 }
 
-// Types with a preference column honor it; everything else sends.
-const PREF_COLUMN: Record<string, "likes" | "comments" | "follows" | "mentions" | "messages"> = {
+// Types with a preference column honor it; everything else sends. Quote
+// pushes ride the reposts toggle and both event types ride events: close
+// enough that a separate column would just be noise.
+const PREF_COLUMN: Record<string, string> = {
   like: "likes",
   comment: "comments",
   follow: "follows",
   mention: "mentions",
   message: "messages",
+  repost: "reposts",
+  quote: "reposts",
+  story_reaction: "story_replies",
+  live_started: "live_streams",
+  community_invite: "communities",
+  event_invite: "events",
+  event_reminder: "events",
 };
+
+const MINUTES_PER_DAY = 24 * 60;
+
+interface QuietHoursPrefs {
+  quiet_hours_enabled: boolean | null;
+  quiet_hours_start: number | null;
+  quiet_hours_end: number | null;
+  timezone_offset_minutes: number | null;
+}
+
+/**
+ * True when the recipient's local wall-clock hour falls inside the
+ * [start, end) quiet window. A window that wraps past midnight (start > end)
+ * covers late evening through early morning; start === end is an empty
+ * window and never suppresses.
+ */
+function inQuietHours(prefs: QuietHoursPrefs, now: Date): boolean {
+  if (!prefs.quiet_hours_enabled) return false;
+  const start = prefs.quiet_hours_start;
+  const end = prefs.quiet_hours_end;
+  if (start === null || end === null || start === end) return false;
+
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const offset = prefs.timezone_offset_minutes ?? 0;
+  const localMinutes =
+    ((utcMinutes + offset) % MINUTES_PER_DAY + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const localHour = Math.floor(localMinutes / 60);
+
+  return start < end
+    ? localHour >= start && localHour < end
+    : localHour >= start || localHour < end;
+}
 
 // Person-to-person types (message, mention, comment, follow) always push:
 // someone deliberately reached out. Ambient activity is capped per recipient
@@ -210,16 +251,25 @@ export async function POST(req: Request) {
   }
 
   const prefColumn = PREF_COLUMN[record.type];
+  const { data: prefs } = await admin
+    .from("notification_preferences")
+    .select(
+      `quiet_hours_enabled, quiet_hours_start, quiet_hours_end, timezone_offset_minutes${prefColumn ? `, ${prefColumn}` : ""}`,
+    )
+    .eq("user_id", record.user_id)
+    .maybeSingle();
   if (prefColumn) {
-    const { data: prefs } = await admin
-      .from("notification_preferences")
-      .select(prefColumn)
-      .eq("user_id", record.user_id)
-      .maybeSingle();
     const enabled = (prefs as Record<string, boolean | null> | null)?.[prefColumn];
     if (enabled === false) {
       return NextResponse.json({ ok: true, skipped: "preference" });
     }
+  }
+
+  // Quiet hours suppress push delivery only; the in-app notification row
+  // already exists. Checked before the budget so a suppressed push does not
+  // burn the weekly ambient allowance.
+  if (prefs && inQuietHours(prefs as unknown as QuietHoursPrefs, new Date())) {
+    return NextResponse.json({ ok: true, skipped: "quiet hours" });
   }
 
   // In-app notification rows are untouched by the budget; only push

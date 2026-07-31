@@ -5,6 +5,10 @@ import {
   type ReactionCount,
   type ReactionType,
 } from "@/lib/queries/reactions";
+import {
+  getRankingSignals,
+  type RankingSignals,
+} from "@/lib/queries/content-safety";
 
 export interface PostAuthor {
   id: string;
@@ -45,6 +49,8 @@ export interface Post {
   // Profile pin on top-level posts, author pin on comments (reply_to_id set).
   is_pinned: boolean;
   visibility: "public" | "close_friends";
+  // Optional because optimistic reply rows are built without it.
+  content_warning?: string | null;
   boosted_until?: string | null;
   created_at: string;
   profiles: PostAuthor;
@@ -57,7 +63,7 @@ export interface Post {
 const POST_SELECT = `
   id, user_id, content, type, parent_post_id, reply_to_id, community_id,
   like_count, comment_count, repost_count, bookmark_count, view_count,
-  is_hidden, is_pinned, visibility, boosted_until, created_at,
+  is_hidden, is_pinned, visibility, content_warning, boosted_until, created_at,
   profiles!posts_user_id_fkey (
     id, username, display_name, avatar_url, is_verified,
     follower_count, post_count
@@ -176,8 +182,33 @@ const COLD_START_WINDOW_HOURS = 48;
 const COLD_START_FOLLOWER_CEILING = 100;
 const COLD_START_POST_CEILING = 5;
 const COLD_START_MAX_BONUS = 0.3;
+// content_preferences topic adjustments and the demotion applied to
+// content-warning posts for viewers with sensitive_content_level "less".
+const TOPIC_SEE_LESS_PENALTY = -0.2;
+const TOPIC_SEE_MORE_BOOST = 0.1;
+const SENSITIVE_DEMOTION = -0.25;
 
-function scorePost(post: Post): number {
+// Additive adjustment from the viewer's content preferences: a see_less
+// hashtag outweighs any see_more match, and sensitive (content-warning)
+// posts are demoted for viewers who chose to see less sensitive content.
+function preferenceAdjustment(post: Post, signals?: RankingSignals): number {
+  if (!signals) return 0;
+  let adjustment = 0;
+  const tags = (post.content?.match(/#(\w+)/g) ?? []).map((t) =>
+    t.slice(1).toLowerCase(),
+  );
+  if (tags.some((t) => signals.seeLessTopics.has(t))) {
+    adjustment += TOPIC_SEE_LESS_PENALTY;
+  } else if (tags.some((t) => signals.seeMoreTopics.has(t))) {
+    adjustment += TOPIC_SEE_MORE_BOOST;
+  }
+  if (signals.demoteSensitive && post.content_warning) {
+    adjustment += SENSITIVE_DEMOTION;
+  }
+  return adjustment;
+}
+
+function scorePost(post: Post, signals?: RankingSignals): number {
   const ageHours = (Date.now() - new Date(post.created_at).getTime()) / (1000 * 60 * 60);
   const recency = Math.pow(0.5, ageHours / RECENCY_HALF_LIFE_HOURS);
 
@@ -203,13 +234,20 @@ function scorePost(post: Post): number {
     }
   }
 
-  return recency * 0.5 + engagement * 0.2 + media * 0.05 + boosted + coldStart;
+  return (
+    recency * 0.5 +
+    engagement * 0.2 +
+    media * 0.05 +
+    boosted +
+    coldStart +
+    preferenceAdjustment(post, signals)
+  );
 }
 
-function rankPage(posts: Post[]): Post[] {
+function rankPage(posts: Post[], signals?: RankingSignals): Post[] {
   if (posts.length <= 1) return posts;
   return posts
-    .map((post) => ({ post, score: scorePost(post) }))
+    .map((post) => ({ post, score: scorePost(post, signals) }))
     // created_at desc breaks score ties so re-renders never shuffle.
     .sort(
       (a, b) => b.score - a.score || b.post.created_at.localeCompare(a.post.created_at),
@@ -236,8 +274,12 @@ export async function getFeedPage(
     fetched.length < FEED_PAGE_SIZE ? null : fetched[fetched.length - 1].created_at;
 
   // For You ranks within the fetched window; Following stays strictly
-  // chronological and complete.
-  const posts = tab === "foryou" ? rankPage(fetched) : fetched;
+  // chronological and complete. Topic preferences and sensitivity
+  // demotion ride along; the helper degrades to neutral on failure.
+  const posts =
+    tab === "foryou"
+      ? rankPage(fetched, await getRankingSignals(userId))
+      : fetched;
 
   const parentIds = [
     ...new Set(

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MoreHorizontal, ExternalLink, Copy, UserX, VolumeX, Flag, Trash2, Loader2, Lock } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, ExternalLink, Copy, UserX, VolumeX, EyeOff, Eye, Flag, Trash2, Loader2, Lock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,10 +20,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FollowListDialog } from "@/components/profile/follow-list-dialog";
+import { PostBellButton } from "@/components/profile/post-bell-button";
 import { BlockMuteDialog } from "@/components/shared/block-mute-dialog";
 import { ReportDialog } from "@/components/shared/report-dialog";
 import { normalizeAccent } from "@/lib/design/accents";
 import { getOrCreateDMConversation } from "@/lib/queries/messages";
+import { restrictUser, unrestrictUser } from "@/lib/queries/content-safety";
+import { useRestrictedIds } from "@/lib/hooks/use-content-safety";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
@@ -127,6 +130,27 @@ export function ProfileContent({
   const requireAuth = useRequireAuth();
   const queryClient = useQueryClient();
   const supabase = createClient();
+
+  const { data: restrictedIds } = useRestrictedIds();
+  const isRestricted = restrictedIds?.has(profile.id) ?? false;
+
+  const handleToggleRestrict = async () => {
+    if (!requireAuth() || !user) return;
+    try {
+      if (isRestricted) {
+        await unrestrictUser(user.id, profile.id);
+        toast.success(`Unrestricted @${profile.username}`);
+      } else {
+        await restrictUser(user.id, profile.id);
+        toast.success(
+          `Restricted @${profile.username}. Their comments and read receipts are hidden from you.`
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ["restricted-users", user.id] });
+    } catch {
+      toast.error("Couldn't update restriction");
+    }
+  };
 
   // Live orbit / mutuals counts. Seeded from server data, then kept in sync
   // via realtime UPDATE on the profile row (the existing follow/unfollow
@@ -565,6 +589,9 @@ export function ProfileContent({
                 {isFollowing ? "Following" : "Follow"}
               </Button>
             )}
+            {!isOwnProfile && isFollowing && (
+              <PostBellButton creatorId={profile.id} />
+            )}
             {!isOwnProfile && (
               <Button
                 variant="outline"
@@ -623,6 +650,17 @@ export function ProfileContent({
                     >
                       <VolumeX className="mr-2 h-4 w-4" />
                       Mute @{profile.username}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer rounded-lg"
+                      onClick={handleToggleRestrict}
+                    >
+                      {isRestricted ? (
+                        <Eye className="mr-2 h-4 w-4" />
+                      ) : (
+                        <EyeOff className="mr-2 h-4 w-4" />
+                      )}
+                      {isRestricted ? "Unrestrict" : "Restrict"} @{profile.username}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="cursor-pointer rounded-lg"

@@ -13,6 +13,7 @@ import {
   type Post,
 } from "@/lib/queries/posts";
 import type { ReactionCount, ReactionType } from "@/lib/queries/reactions";
+import { useCommentFilter } from "@/lib/hooks/use-content-safety";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
 import { colors, spacing } from "@/lib/theme";
 
@@ -148,10 +149,14 @@ export function CommentThread({
     if (expandSignal === comment.id) setShowReplies(true);
   }
 
+  const filterComments = useCommentFilter();
+
   const repliesQuery = useQuery({
     queryKey: ["comment-replies", comment.id],
     queryFn: () => getReplies(comment.id),
     enabled: showReplies,
+    // Muted words and restricted authors drop out at the hook layer.
+    select: filterComments,
   });
 
   // The screen-level interactions query only covers top-level comments, so

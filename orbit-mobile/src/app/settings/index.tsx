@@ -88,6 +88,35 @@ export default function SettingsScreen() {
           label="Close friends"
           onPress={() => router.push("/settings/close-friends" as Href)}
         />
+        <SettingsRow
+          icon="options-outline"
+          label="Content preferences"
+          onPress={() => router.push("/settings/content" as Href)}
+        />
+      </View>
+
+      <Text style={styles.sectionTitle}>Safety</Text>
+      <View style={styles.section}>
+        <SettingsRow
+          icon="filter-outline"
+          label="Muted words"
+          onPress={() => router.push("/settings/muted-words" as Href)}
+        />
+        <SettingsRow
+          icon="eye-off-outline"
+          label="Restricted accounts"
+          onPress={() => router.push("/settings/restricted" as Href)}
+        />
+        <SettingsRow
+          icon="shield-checkmark-outline"
+          label="Account status"
+          onPress={() => router.push("/settings/account-status" as Href)}
+        />
+        <SettingsRow
+          icon="laptop-outline"
+          label="Sessions"
+          onPress={() => router.push("/settings/sessions" as Href)}
+        />
       </View>
 
       <View style={styles.section}>

@@ -23,6 +23,18 @@ const COLD_START_WINDOW_HOURS = 48;
 const COLD_START_FOLLOWER_CEILING = 100;
 const COLD_START_POST_CEILING = 5;
 const COLD_START_MAX_BONUS = 0.3;
+// content_preferences topic adjustments and the demotion applied to
+// content-warning posts for viewers with sensitive_content_level "less".
+const TOPIC_SEE_LESS_PENALTY = -0.2;
+const TOPIC_SEE_MORE_BOOST = 0.1;
+const SENSITIVE_DEMOTION = -0.25;
+
+/** Viewer signals from content_preferences and the profile sensitivity level. */
+export interface RankingSignals {
+  seeMoreTopics: Set<string>;
+  seeLessTopics: Set<string>;
+  demoteSensitive: boolean;
+}
 
 function ageHours(createdAt: string): number {
   return (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60);
@@ -78,6 +90,31 @@ function mediaBonus(post: PostWithAuthor): number {
   return hasVideo ? 0.15 : 0.1;
 }
 
+/**
+ * Additive adjustment from the viewer's content preferences: a see_less
+ * hashtag outweighs any see_more match, and sensitive (content-warning)
+ * posts are demoted for viewers who chose to see less sensitive content.
+ */
+function preferenceAdjustment(
+  post: PostWithAuthor,
+  signals?: RankingSignals
+): number {
+  if (!signals) return 0;
+  let adjustment = 0;
+  const tags = (post.content?.match(/#(\w+)/g) ?? []).map((t) =>
+    t.slice(1).toLowerCase()
+  );
+  if (tags.some((t) => signals.seeLessTopics.has(t))) {
+    adjustment += TOPIC_SEE_LESS_PENALTY;
+  } else if (tags.some((t) => signals.seeMoreTopics.has(t))) {
+    adjustment += TOPIC_SEE_MORE_BOOST;
+  }
+  if (signals.demoteSensitive && post.content_warning) {
+    adjustment += SENSITIVE_DEMOTION;
+  }
+  return adjustment;
+}
+
 /** Boost bonus: if the post is currently boosted, add a significant score bump. */
 function boostBonus(post: PostWithAuthor): number {
   if (!post.boosted_until) return 0;
@@ -95,12 +132,14 @@ function boostBonus(post: PostWithAuthor): number {
  * @param post           The post to score
  * @param _userId        Current user id (reserved for future per-user tuning)
  * @param interactions   Map of author_id -> # of times user liked their posts
+ * @param signals        Viewer content preferences; omitted for anon feeds
  * @returns A numeric score (higher = more relevant)
  */
 export function scorePost(
   post: PostWithAuthor,
   _userId: string,
-  interactions: UserInteractions
+  interactions: UserInteractions,
+  signals?: RankingSignals
 ): number {
   const recency = recencyScore(post.created_at);
   const engagement = engagementScore(post);
@@ -117,7 +156,8 @@ export function scorePost(
     social * 0.15 +
     media * 0.05 +
     boost +
-    coldStart
+    coldStart +
+    preferenceAdjustment(post, signals)
   );
 }
 
@@ -132,14 +172,15 @@ export function scorePost(
 export function rankPosts(
   posts: PostWithAuthor[],
   userId: string,
-  interactions: UserInteractions = new Map()
+  interactions: UserInteractions = new Map(),
+  signals?: RankingSignals
 ): PostWithAuthor[] {
   if (posts.length <= 1) return posts;
 
   // Score every post
   const scored = posts.map((post) => ({
     post,
-    score: scorePost(post, userId, interactions),
+    score: scorePost(post, userId, interactions, signals),
   }));
 
   // Sort by raw score descending; created_at desc breaks ties so equal

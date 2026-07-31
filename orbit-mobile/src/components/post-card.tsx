@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Platform,
   Pressable,
@@ -8,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -31,6 +33,7 @@ import {
   type ReactionCount,
   type ReactionType,
 } from "@/lib/queries/reactions";
+import { markNotInterested } from "@/lib/queries/content-safety";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const DEFAULT_MEDIA_ASPECT = 4 / 3;
@@ -116,6 +119,7 @@ export function PostCard({
   onReplyPress,
 }: PostCardProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const likeButtonRef = useRef<View>(null);
 
   const isRepost = post.type === "repost" && !!post.parent_post_id;
@@ -279,6 +283,37 @@ export function PostCard({
     Share.share(Platform.OS === "ios" ? { url } : { message: url }).catch(() => {});
   };
 
+  const handleNotInterested = () => {
+    // Optimistic: the feed screen filters against this cache, so the post
+    // disappears from the list immediately.
+    const cacheKey = ["not-interested", currentUserId];
+    const previous = queryClient.getQueryData<Set<string>>(cacheKey);
+    queryClient.setQueryData<Set<string>>(
+      cacheKey,
+      new Set(previous).add(display.id),
+    );
+    markNotInterested(currentUserId, display.id)
+      .then(() => {
+        // Reconcile with the server list in case the optimistic set was
+        // seeded before the query ever fetched.
+        queryClient.invalidateQueries({ queryKey: cacheKey });
+      })
+      .catch(() => {
+        queryClient.setQueryData(cacheKey, previous);
+        Alert.alert("Couldn't save your feedback");
+      });
+    Alert.alert("Got it", "You'll see fewer posts like this.");
+  };
+
+  // Overflow menu via the native alert sheet, the same feedback surface
+  // the rest of the app uses. Only others' posts carry feed feedback.
+  const openOverflowMenu = () => {
+    Alert.alert("Post options", undefined, [
+      { text: "Not interested", onPress: handleNotInterested },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
   const applyReaction = (type: ReactionType) => {
     setPickerAnchor(null);
     const previous = userReaction;
@@ -392,6 +427,21 @@ export function PostCard({
             @{display.profiles.username}
           </Text>
         </View>
+        {display.user_id !== currentUserId && currentUserId ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Post options"
+            onPress={openOverflowMenu}
+            hitSlop={8}
+            style={({ pressed }) => pressed && { opacity: 0.6 }}
+          >
+            <Ionicons
+              name="ellipsis-horizontal"
+              size={18}
+              color={colors.mutedForeground}
+            />
+          </Pressable>
+        ) : null}
       </Pressable>
 
       {display.content ? (

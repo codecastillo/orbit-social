@@ -396,7 +396,8 @@ export async function setReadReceiptsEnabled(
 /**
  * The other member's last_read_at for a 1:1 conversation, already gated by
  * the reciprocity rule: null when the conversation is a group, when either
- * side has read receipts off, or when there is no single counterpart.
+ * side has read receipts off, when the viewer has restricted the
+ * counterpart, or when there is no single counterpart.
  */
 export async function getDmSeenAt(
   conversationId: string,
@@ -421,6 +422,16 @@ export async function getDmSeenAt(
   const other = others[0];
   if (!other.last_read_at) return null;
   if (!(await getReadReceiptsEnabled(other.user_id))) return null;
+
+  // Restrict is viewer-side only (RLS keeps the list private), so seen
+  // state from a restricted counterpart is suppressed at display time.
+  const { data: restriction } = await supabase
+    .from("restricted_users")
+    .select("restricted_id")
+    .eq("user_id", viewerId)
+    .eq("restricted_id", other.user_id)
+    .maybeSingle();
+  if (restriction) return null;
 
   return other.last_read_at;
 }

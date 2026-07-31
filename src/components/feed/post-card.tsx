@@ -24,11 +24,13 @@ import {
   MapPin,
   AlertTriangle,
   Eye,
+  EyeOff,
   Users,
   ShieldBan,
   VolumeX,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -69,6 +71,7 @@ import {
   type ReactionCount,
 } from "@/lib/queries/reactions";
 import { boostPost, removeBoost } from "@/lib/queries/boost";
+import { markNotInterested } from "@/lib/queries/content-safety";
 import { ShareDialog } from "@/components/shared/share-dialog";
 import { BlockMuteDialog } from "@/components/shared/block-mute-dialog";
 import { ReportDialog } from "@/components/shared/report-dialog";
@@ -125,6 +128,7 @@ export const PostCard = memo(function PostCard({
   const { user } = useAuth();
   const requireAuth = useRequireAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked);
   const [isReposted, setIsReposted] = useState(initialIsReposted);
@@ -286,6 +290,28 @@ export const PostCard = memo(function PostCard({
   const handleDelete = async () => {
     try { await deletePost(post.id); toast.success("Post deleted"); onUpdate?.(); }
     catch { toast.error("Couldn't delete post"); }
+  };
+
+  const handleNotInterested = async () => {
+    if (!requireAuth() || !user) return;
+    // Optimistic: the feed's select filter reads this cache, so the post
+    // disappears from the list immediately.
+    const cacheKey = ["not-interested", user.id];
+    const previous = queryClient.getQueryData<Set<string>>(cacheKey);
+    queryClient.setQueryData<Set<string>>(
+      cacheKey,
+      new Set(previous).add(targetPostId)
+    );
+    try {
+      await markNotInterested(user.id, targetPostId);
+      toast.success("You'll see fewer posts like this");
+      // Reconcile with the server list in case the optimistic set was
+      // seeded before the query ever fetched.
+      queryClient.invalidateQueries({ queryKey: cacheKey });
+    } catch {
+      queryClient.setQueryData(cacheKey, previous);
+      toast.error("Couldn't save your feedback");
+    }
   };
 
   const handleShare = (e: React.MouseEvent) => {
@@ -628,6 +654,9 @@ export const PostCard = memo(function PostCard({
                     </>
                   ) : (
                     <>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleNotInterested(); }}>
+                        <EyeOff className="mr-2 h-4 w-4" /> Not interested
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setBlockMuteAction("block"); setBlockMuteOpen(true); }}>
                         <ShieldBan className="mr-2 h-4 w-4" /> Block
                       </DropdownMenuItem>

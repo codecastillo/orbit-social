@@ -1,20 +1,40 @@
 import { supabase } from "@/lib/supabase";
 
-// The five per-type columns the web notification settings page manages.
-export interface NotificationPrefs {
-  likes: boolean;
-  comments: boolean;
-  follows: boolean;
-  mentions: boolean;
-  messages: boolean;
+// The per-type columns the web notification settings page manages, plus
+// quiet hours. Hours are local wall-clock 0-23; the stored offset lets the
+// push fanout reconstruct local time from UTC.
+export const NOTIFICATION_TOGGLE_KEYS = [
+  "likes",
+  "comments",
+  "follows",
+  "mentions",
+  "messages",
+  "reposts",
+  "live_streams",
+  "events",
+  "marketplace",
+  "communities",
+  "story_replies",
+  "new_followers_posts",
+] as const;
+
+export type NotificationToggleKey = (typeof NOTIFICATION_TOGGLE_KEYS)[number];
+
+export interface NotificationPrefs
+  extends Record<NotificationToggleKey, boolean> {
+  quiet_hours_enabled: boolean;
+  quiet_hours_start: number;
+  quiet_hours_end: number;
 }
 
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
-  likes: true,
-  comments: true,
-  follows: true,
-  mentions: true,
-  messages: true,
+  ...(Object.fromEntries(
+    NOTIFICATION_TOGGLE_KEYS.map((key) => [key, true]),
+  ) as Record<NotificationToggleKey, boolean>),
+  quiet_hours_enabled: false,
+  // 10 PM to 8 AM: the window most people mean by "quiet hours".
+  quiet_hours_start: 22,
+  quiet_hours_end: 8,
 };
 
 export async function getNotificationPrefs(
@@ -22,18 +42,27 @@ export async function getNotificationPrefs(
 ): Promise<NotificationPrefs> {
   const { data, error } = await supabase
     .from("notification_preferences")
-    .select("likes, comments, follows, mentions, messages")
+    .select(
+      `${NOTIFICATION_TOGGLE_KEYS.join(", ")}, quiet_hours_enabled, quiet_hours_start, quiet_hours_end`,
+    )
     .eq("user_id", userId)
     .maybeSingle();
 
   if (error) throw error;
   if (!data) return DEFAULT_NOTIFICATION_PREFS;
+  const row = data as unknown as Record<string, boolean | number | null>;
   return {
-    likes: data.likes ?? true,
-    comments: data.comments ?? true,
-    follows: data.follows ?? true,
-    mentions: data.mentions ?? true,
-    messages: data.messages ?? true,
+    ...(Object.fromEntries(
+      NOTIFICATION_TOGGLE_KEYS.map((key) => [key, row[key] ?? true]),
+    ) as Record<NotificationToggleKey, boolean>),
+    quiet_hours_enabled:
+      (row.quiet_hours_enabled as boolean | null) ?? false,
+    quiet_hours_start:
+      (row.quiet_hours_start as number | null) ??
+      DEFAULT_NOTIFICATION_PREFS.quiet_hours_start,
+    quiet_hours_end:
+      (row.quiet_hours_end as number | null) ??
+      DEFAULT_NOTIFICATION_PREFS.quiet_hours_end,
   };
 }
 
@@ -44,6 +73,7 @@ export async function saveNotificationPrefs(
   const { error } = await supabase.from("notification_preferences").upsert({
     user_id: userId,
     ...prefs,
+    timezone_offset_minutes: new Date().getTimezoneOffset() * -1,
     updated_at: new Date().toISOString(),
   });
 

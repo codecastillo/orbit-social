@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { Alert, StyleSheet, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
   useMutation,
@@ -13,7 +13,10 @@ import {
   ProfileHeaderSkeleton,
 } from "@/components/profile-header";
 import { ProfileContent } from "@/components/profile-tabs";
+import { PostBellButton } from "@/components/post-bell-button";
 import { startDmConversation } from "@/lib/queries/marketplace";
+import { restrictUser, unrestrictUser } from "@/lib/queries/content-safety";
+import { useRestrictedIds } from "@/lib/hooks/use-content-safety";
 import {
   checkFollowing,
   followUser,
@@ -98,6 +101,30 @@ export default function PublicProfileScreen() {
     },
   });
 
+  const restrictedQuery = useRestrictedIds();
+  const isRestricted = !!profile && (restrictedQuery.data?.has(profile.id) ?? false);
+
+  const toggleRestrict = useMutation({
+    mutationFn: (nowRestricted: boolean) =>
+      nowRestricted
+        ? restrictUser(user!.id, profile!.id)
+        : unrestrictUser(user!.id, profile!.id),
+    onSuccess: (_data, nowRestricted) => {
+      if (nowRestricted) {
+        Alert.alert(
+          "Restricted",
+          `@${profile?.username}'s comments and read receipts are now hidden from you.`,
+        );
+      }
+    },
+    onError: () => Alert.alert(`Couldn't update @${profile?.username}`),
+    onSettled: () => {
+      // Comment lists and read receipts read this cache for enforcement.
+      queryClient.invalidateQueries({ queryKey: ["restricted-users", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["restricted-profiles", user?.id] });
+    },
+  });
+
   if (profileQuery.isPending) {
     return (
       <View style={styles.flex}>
@@ -157,10 +184,16 @@ export default function PublicProfileScreen() {
           disabled={followingQuery.isPending}
           onPress={() => toggleFollow.mutate(!isFollowing)}
         />
+        {isFollowing && <PostBellButton creatorId={profile.id} />}
         <ProfileActionButton
           label="Message"
           loading={openDm.isPending}
           onPress={() => openDm.mutate()}
+        />
+        <ProfileActionButton
+          label={isRestricted ? "Unrestrict" : "Restrict"}
+          disabled={restrictedQuery.isPending || toggleRestrict.isPending}
+          onPress={() => toggleRestrict.mutate(!isRestricted)}
         />
       </>
     ) : undefined;

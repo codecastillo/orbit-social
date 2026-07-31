@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useMemo, useEffect, useState } from "react";
+import { useRef, useCallback, useMemo, useState } from "react";
 import { Loader2, UserPlus, Compass } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { useFeed } from "@/lib/hooks/use-feed";
 import { useAuth } from "@/lib/hooks/use-auth";
 import type { UserInteractions } from "@/lib/services/feed-algorithm";
-import { useFilterStore } from "@/lib/stores/filter-store";
 import { getSuggestedUsers } from "@/lib/queries/social";
 import { followUser, unfollowUser } from "@/lib/queries/social";
 import { toast } from "sonner";
@@ -25,12 +24,6 @@ interface FeedListProps {
 
 export function FeedList({ tab }: FeedListProps) {
   const { user } = useAuth();
-  const { containsBlockedWord, loadFromStorage } = useFilterStore();
-
-  // Load blocked words from localStorage on mount
-  useEffect(() => {
-    loadFromStorage();
-  }, [loadFromStorage]);
 
   const {
     data,
@@ -83,18 +76,12 @@ export function FeedList({ tab }: FeedListProps) {
 
   // Both tabs render strictly chronologically (newest first). The server
   // already orders by created_at desc, so we just need to flatten +
-  // strip replies. Authors of pinned posts pin via their profile.
-  const rankedPosts = useMemo(() => {
+  // strip replies. Authors of pinned posts pin via their profile. Muted
+  // words and not-interested feedback are already filtered inside useFeed.
+  const allPosts = useMemo(() => {
     return (data?.pages.flatMap((page) => page.posts) || [])
       .filter((p) => !p.reply_to_id);
   }, [data]);
-
-  // Filter out posts containing blocked words
-  const allPosts = useMemo(() => {
-    return rankedPosts.filter(
-      (post) => !containsBlockedWord(post.content || "")
-    );
-  }, [rankedPosts, containsBlockedWord]);
 
   if (isLoading) return <FeedSkeleton />;
 

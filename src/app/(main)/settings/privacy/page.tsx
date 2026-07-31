@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,6 +18,10 @@ import {
   unmuteUser,
   type ProfileSummary,
 } from "@/lib/queries/social";
+import {
+  getRestrictedProfiles,
+  unrestrictUser,
+} from "@/lib/queries/content-safety";
 import {
   getReadReceiptsEnabled,
   setReadReceiptsEnabled,
@@ -84,6 +89,7 @@ function ToggleRow({
 export default function PrivacySettingsPage() {
   const { user, loading: authLoading } = useAuth();
   const supabase = createClient();
+  const queryClient = useQueryClient();
 
   const [isPrivate, setIsPrivate] = useState(false);
   const [hideActivity, setHideActivity] = useState(false);
@@ -94,6 +100,7 @@ export default function PrivacySettingsPage() {
   const [saving, setSaving] = useState(false);
   const [blocked, setBlocked] = useState<ProfileSummary[]>([]);
   const [muted, setMuted] = useState<ProfileSummary[]>([]);
+  const [restricted, setRestricted] = useState<ProfileSummary[]>([]);
   const [listsLoading, setListsLoading] = useState(true);
 
   useEffect(() => {
@@ -119,10 +126,15 @@ export default function PrivacySettingsPage() {
 
   useEffect(() => {
     if (!user) return;
-    Promise.all([getBlockedUsers(user.id), getMutedUsers(user.id)])
-      .then(([blockedUsers, mutedUsers]) => {
+    Promise.all([
+      getBlockedUsers(user.id),
+      getMutedUsers(user.id),
+      getRestrictedProfiles(user.id),
+    ])
+      .then(([blockedUsers, mutedUsers, restrictedUsers]) => {
         setBlocked(blockedUsers);
         setMuted(mutedUsers);
+        setRestricted(restrictedUsers);
       })
       .catch(() => toast.error("Couldn't load blocked and muted accounts"))
       .finally(() => setListsLoading(false));
@@ -149,6 +161,20 @@ export default function PrivacySettingsPage() {
     } catch {
       setMuted((prev) => [profile, ...prev]);
       toast.error(`Couldn't unmute @${profile.username}`);
+    }
+  };
+
+  const handleUnrestrict = async (profile: ProfileSummary) => {
+    if (!user) return;
+    setRestricted((prev) => prev.filter((p) => p.id !== profile.id));
+    try {
+      await unrestrictUser(user.id, profile.id);
+      // Comment lists and read receipts read this cache for enforcement.
+      queryClient.invalidateQueries({ queryKey: ["restricted-users", user.id] });
+      toast.success(`Unrestricted @${profile.username}`);
+    } catch {
+      setRestricted((prev) => [profile, ...prev]);
+      toast.error(`Couldn't unrestrict @${profile.username}`);
     }
   };
 
@@ -274,6 +300,32 @@ export default function PrivacySettingsPage() {
                 divider={index > 0}
                 actionLabel="Unmute"
                 onAction={() => handleUnmute(profile)}
+              />
+            ))}
+          </div>
+        )}
+      </FormSection>
+
+      <FormSection
+        title="Restricted accounts"
+        hint="Their comments and read receipts stay hidden from you"
+      >
+        {listsLoading ? (
+          <Skeleton className="h-14 w-full rounded-xl" />
+        ) : restricted.length === 0 ? (
+          <p className="m-0 py-2 text-[12.5px] text-muted-foreground">
+            You haven&apos;t restricted anyone. Restrict someone from their
+            profile menu.
+          </p>
+        ) : (
+          <div>
+            {restricted.map((profile, index) => (
+              <AccountRow
+                key={profile.id}
+                profile={profile}
+                divider={index > 0}
+                actionLabel="Unrestrict"
+                onAction={() => handleUnrestrict(profile)}
               />
             ))}
           </div>

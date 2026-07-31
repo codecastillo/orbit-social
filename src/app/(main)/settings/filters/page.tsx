@@ -1,36 +1,85 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Filter, Plus, X, Search } from "lucide-react";
 import { toast } from "sonner";
-import { useFilterStore } from "@/lib/stores/filter-store";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { useMutedWords } from "@/lib/hooks/use-content-safety";
+import {
+  addMutedWord,
+  importMutedWords,
+  removeMutedWord,
+} from "@/lib/queries/content-safety";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { FormSection, Input } from "@/components/orbit/forms";
 import { SettingsHeader } from "@/components/settings/settings-header";
 
+// Muted words used to live on-device under this key. The first visit
+// after sign-in silently imports them into muted_words and clears it.
+const LEGACY_STORAGE_KEY = "orbit_blocked_words";
+
 export default function FiltersPage() {
-  const {
-    blockedWords,
-    addBlockedWord,
-    removeBlockedWord,
-    loadFromStorage,
-  } = useFilterStore();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { data: mutedWords = [], isLoading } = useMutedWords();
   const [newWord, setNewWord] = useState("");
+  const [saving, setSaving] = useState(false);
+  const migrationRan = useRef(false);
 
   useEffect(() => {
-    loadFromStorage();
-  }, [loadFromStorage]);
+    if (!user || migrationRan.current) return;
+    migrationRan.current = true;
 
-  const handleAdd = () => {
+    let raw: string | null = null;
+    let legacyWords: unknown = [];
+    try {
+      raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (raw) legacyWords = JSON.parse(raw);
+    } catch {
+      // Unreadable legacy data; nothing worth migrating.
+    }
+    if (!raw) return;
+
+    const words = Array.isArray(legacyWords)
+      ? legacyWords
+          .map((w) => String(w).trim().toLowerCase())
+          .filter((w) => w.length > 0)
+      : [];
+    if (words.length === 0) {
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      return;
+    }
+
+    importMutedWords(user.id, words)
+      .then(() => {
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        queryClient.invalidateQueries({ queryKey: ["muted-words", user.id] });
+      })
+      .catch(() => {
+        // Keep the key so the import retries on the next visit.
+      });
+  }, [user, queryClient]);
+
+  const handleAdd = async () => {
     const trimmed = newWord.trim().toLowerCase();
-    if (!trimmed) return;
-    if (blockedWords.includes(trimmed)) {
+    if (!trimmed || !user || saving) return;
+    if (mutedWords.includes(trimmed)) {
       toast.error("Already filtered");
       return;
     }
-    addBlockedWord(trimmed);
-    setNewWord("");
-    toast.success(`Muted "${trimmed}"`);
+    setSaving(true);
+    try {
+      await addMutedWord(user.id, trimmed);
+      queryClient.invalidateQueries({ queryKey: ["muted-words", user.id] });
+      setNewWord("");
+      toast.success(`Muted "${trimmed}"`);
+    } catch {
+      toast.error("Couldn't mute that word");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -40,9 +89,15 @@ export default function FiltersPage() {
     }
   };
 
-  const handleRemove = (word: string) => {
-    removeBlockedWord(word);
-    toast.success(`Unmuted "${word}"`);
+  const handleRemove = async (word: string) => {
+    if (!user) return;
+    try {
+      await removeMutedWord(user.id, word);
+      queryClient.invalidateQueries({ queryKey: ["muted-words", user.id] });
+      toast.success(`Unmuted "${word}"`);
+    } catch {
+      toast.error("Couldn't unmute that word");
+    }
   };
 
   return (
@@ -54,11 +109,12 @@ export default function FiltersPage() {
           Mute <span className="text-primary">noise</span>.
         </h1>
         <p className="mt-2.5 max-w-[560px] text-[14.5px] leading-[1.55] text-muted-foreground">
-          Words you don&apos;t want to read. Hidden from feeds on this device.
+          Words you don&apos;t want to read. Hidden from feeds and comments
+          everywhere you sign in.
         </p>
       </div>
 
-      <FormSection title="Muted words" hint={`${blockedWords.length} on this device`}>
+      <FormSection title="Muted words" hint={`${mutedWords.length} muted`}>
         <div className="flex gap-2.5">
           <div className="flex-1">
             <Input
@@ -70,13 +126,15 @@ export default function FiltersPage() {
               prefix={<Search className="h-3.5 w-3.5" />}
             />
           </div>
-          <Button onClick={handleAdd} disabled={!newWord.trim()}>
+          <Button onClick={handleAdd} disabled={!newWord.trim() || saving}>
             <Plus className="h-3.5 w-3.5" />
             Add
           </Button>
         </div>
 
-        {blockedWords.length === 0 ? (
+        {isLoading ? (
+          <Skeleton className="mt-[18px] h-9 w-full rounded-xl" />
+        ) : mutedWords.length === 0 ? (
           <div className="pb-4 pt-8 text-center text-[13px] text-muted-foreground">
             <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-surface">
               <Filter className="h-5 w-5 text-text-faint" />
@@ -88,7 +146,7 @@ export default function FiltersPage() {
           </div>
         ) : (
           <div className="mt-[18px] flex flex-wrap gap-2">
-            {blockedWords.map((word) => (
+            {mutedWords.map((word) => (
               <div
                 key={word}
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-2.5 py-1.5 font-mono text-xs tracking-[0.02em] text-text-secondary"
@@ -109,9 +167,9 @@ export default function FiltersPage() {
 
       <div className="mt-2 rounded-xl border border-border bg-surface p-[18px] text-[12.5px] leading-[1.55] text-muted-foreground">
         <strong className="font-semibold text-text-secondary">How this works:</strong>{" "}
-        Posts containing your muted words are hidden from every feed (Home, Discover,
-        Hashtag, Location). This list is stored on your device and doesn't sync across
-        other browsers.
+        Posts and comments containing your muted words are hidden from every
+        feed (Home, Discover, Hashtag, Location). The list is saved to your
+        account and syncs across all your devices.
       </div>
     </div>
   );

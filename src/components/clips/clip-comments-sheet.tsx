@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { VerifiedStar } from "@/components/orbit/verified-star";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useCommentFilter } from "@/lib/hooks/use-content-safety";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import {
   createPost,
@@ -32,9 +33,13 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
 
+  const filterComments = useCommentFilter();
+
   const { data: comments, isLoading, isError, refetch } = useQuery({
     queryKey: ["clip-comments", postId],
     queryFn: () => getPostComments(postId),
+    // Muted words and restricted authors drop out at the hook layer.
+    select: filterComments,
   });
 
   // Realtime: any like / new reply / sub-reply across visible comments
@@ -227,10 +232,14 @@ function CommentRow({
     setLiked(initialLiked);
   }, [initialLiked]);
 
+  const filterComments = useCommentFilter();
+
   const { data: replies } = useQuery({
     queryKey: ["comment-replies", comment.id],
     queryFn: () => getCommentReplies(comment.id),
     enabled: repliesOpen,
+    // Muted words and restricted authors drop out at the hook layer.
+    select: filterComments,
   });
   // After the 20260429070000 migration, comment_count is the direct
   // children count on intermediate comments and full subtree size on

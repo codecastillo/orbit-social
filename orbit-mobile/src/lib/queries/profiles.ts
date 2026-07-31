@@ -140,6 +140,44 @@ export async function checkFollowing(
   return data !== null;
 }
 
+// Mirrors the web bell queries in src/lib/queries/social.ts: subscribe to a
+// creator's new posts via post_notification_subscriptions.
+export async function checkPostNotificationSubscription(
+  userId: string,
+  creatorId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("post_notification_subscriptions")
+    .select("creator_id")
+    .eq("user_id", userId)
+    .eq("creator_id", creatorId)
+    .maybeSingle();
+  if (error) throw error;
+  return data !== null;
+}
+
+export async function subscribeToCreatorPosts(
+  userId: string,
+  creatorId: string,
+) {
+  const { error } = await supabase
+    .from("post_notification_subscriptions")
+    .insert({ user_id: userId, creator_id: creatorId });
+  if (error) throw error;
+}
+
+export async function unsubscribeFromCreatorPosts(
+  userId: string,
+  creatorId: string,
+) {
+  const { error } = await supabase
+    .from("post_notification_subscriptions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("creator_id", creatorId);
+  if (error) throw error;
+}
+
 // Mirrors the web getUserPosts filters (top-level, non-community, no clips or
 // reposts). Media feeds the profile grid tab; the list tab only needs text.
 export async function getUserRecentPosts(

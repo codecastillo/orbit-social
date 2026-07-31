@@ -23,6 +23,11 @@ import {
   type FeedTab,
   type Post,
 } from "@/lib/queries/posts";
+import { buildMutedWordMatcher } from "@/lib/queries/content-safety";
+import {
+  useMutedWords,
+  useNotInterestedIds,
+} from "@/lib/hooks/use-content-safety";
 import { colors, spacing } from "@/lib/theme";
 
 const FEED_TABS: { key: FeedTab; label: string }[] = [
@@ -69,15 +74,28 @@ export default function FeedScreen() {
     enabled: !!userId,
   });
 
+  const { data: mutedWords } = useMutedWords();
+  const { data: notInterestedIds } = useNotInterestedIds();
+
   const { posts, originals, reactionCounts } = useMemo(() => {
     const pages = data?.pages ?? [];
+    // Content-safety filtering happens after the fetch so pagination
+    // cursors stay a clean created_at walk. Feedback on a repost row
+    // targets the original it displays, hence displayPostId.
+    const matchesMutedWord = buildMutedWordMatcher(mutedWords ?? []);
     const merged = {
-      posts: pages.flatMap((p) => p.posts),
+      posts: pages
+        .flatMap((p) => p.posts)
+        .filter(
+          (post) =>
+            !notInterestedIds?.has(displayPostId(post)) &&
+            !matchesMutedWord(post.content),
+        ),
       originals: new Map(pages.flatMap((p) => [...p.originals])),
       reactionCounts: new Map(pages.flatMap((p) => [...p.reactionCounts])),
     };
     return merged;
-  }, [data]);
+  }, [data, mutedWords, notInterestedIds]);
 
   // Interactions are checked against the id each card acts on (the
   // original for reposts), so likes and reactions light up correctly.

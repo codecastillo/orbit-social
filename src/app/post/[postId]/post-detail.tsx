@@ -14,6 +14,7 @@ import { OrbitErrorState } from "@/components/orbit/error-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useCommentFilter } from "@/lib/hooks/use-content-safety";
 import { formatNumber, formatTimeAgo } from "@/lib/utils/format";
 import {
   getPostById,
@@ -44,10 +45,14 @@ function CommentWithReplies({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
 
+  const filterComments = useCommentFilter();
+
   const { data: replies, refetch: refetchReplies } = useQuery({
     queryKey: ["comment-replies", comment.id],
     queryFn: () => getCommentReplies(comment.id),
     enabled: showReplies,
+    // Muted words and restricted authors drop out at the hook layer.
+    select: filterComments,
   });
 
   const handleSubmitReply = async () => {
@@ -179,6 +184,7 @@ export function PostDetail({ postId }: { postId: string }) {
   const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const filterComments = useCommentFilter();
 
   const {
     data: post,
@@ -193,6 +199,8 @@ export function PostDetail({ postId }: { postId: string }) {
   const { data: comments, isLoading: commentsLoading, refetch: refetchComments } = useQuery({
     queryKey: ["comments", postId],
     queryFn: () => getPostComments(postId),
+    // Muted words and restricted authors drop out at the hook layer.
+    select: filterComments,
   });
 
   const allPostIds = post ? [post.id, ...(comments || []).map((c) => c.id)] : [];

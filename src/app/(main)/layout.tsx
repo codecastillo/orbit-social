@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { TopBar } from "@/components/layout/top-bar";
 import { RealtimeBridge } from "@/components/layout/realtime-bridge";
+import { TimeOnOrbitTracker } from "@/components/layout/time-on-orbit-tracker";
 import { EmailVerificationBanner } from "@/components/shared/email-verification-banner";
 import { LazyPostComposer } from "@/components/feed/post-composer-lazy";
 
@@ -36,6 +37,7 @@ export default async function MainLayout({
       <Sidebar initialProfile={initialProfile} initialHasUser={!!user} />
       <TopBar />
       {user && <RealtimeBridge userId={user.id} />}
+      {user && <TimeOnOrbitTracker />}
 
       <main
         id="main-content"

@@ -118,6 +118,86 @@ export async function updateReportStatus(
   return data as unknown as ReportWithProfiles;
 }
 
+export interface AppealWithContext {
+  id: string;
+  report_id: string;
+  user_id: string;
+  message: string;
+  status: "pending" | "upheld" | "reversed";
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  appellant: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+  };
+  report: {
+    id: string;
+    entity_type: string;
+    reason: string;
+    action_taken: string | null;
+    status: string;
+    created_at: string;
+  } | null;
+}
+
+const APPEAL_SELECT = `
+  *,
+  appellant:profiles!report_appeals_user_id_fkey (
+    id, username, display_name, avatar_url
+  ),
+  report:reports!report_appeals_report_id_fkey (
+    id, entity_type, reason, action_taken, status, created_at
+  )
+`;
+
+export async function getPendingAppeals(limit = 50) {
+  const { data, error } = await supabase
+    .from("report_appeals")
+    .select(APPEAL_SELECT)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+  return data as unknown as AppealWithContext[];
+}
+
+export async function resolveAppeal(
+  appealId: string,
+  resolution: "upheld" | "reversed",
+  resolverId: string
+) {
+  const { data, error } = await supabase
+    .from("report_appeals")
+    .update({
+      status: resolution,
+      resolved_by: resolverId,
+      resolved_at: new Date().toISOString(),
+    })
+    .eq("id", appealId)
+    .select(APPEAL_SELECT)
+    .single();
+
+  if (error) throw error;
+  const appeal = data as unknown as AppealWithContext;
+
+  // A reversed appeal means the original action no longer stands, so the
+  // report drops back to reviewed and stops showing as a violation.
+  if (resolution === "reversed") {
+    await updateReportStatus(
+      appeal.report_id,
+      "reviewed",
+      resolverId,
+      "Reversed on appeal"
+    );
+  }
+
+  return appeal;
+}
+
 export async function getAdminStats(): Promise<AdminStats> {
   const adminClient = createAdminClient();
 

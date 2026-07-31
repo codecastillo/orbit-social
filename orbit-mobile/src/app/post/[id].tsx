@@ -22,6 +22,7 @@ import { PostCard } from "@/components/post-card";
 import { PostListSkeleton } from "@/components/post-skeleton";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import { useAuth } from "@/providers/auth-provider";
+import { useCommentFilter } from "@/lib/hooks/use-content-safety";
 import { getOwnProfile } from "@/lib/queries/profiles";
 import {
   checkUserInteractions,
@@ -81,10 +82,14 @@ export default function PostDetailScreen() {
     enabled: !!parentPostId,
   });
 
+  const filterComments = useCommentFilter();
+
   const repliesQuery = useQuery({
     queryKey: ["post-replies", id],
     queryFn: () => getReplies(id),
     enabled: !!id,
+    // Muted words and restricted authors drop out at the hook layer.
+    select: filterComments,
   });
 
   const visibleIds = [
