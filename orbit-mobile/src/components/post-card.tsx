@@ -202,8 +202,11 @@ export function PostCard({
   };
 
   const handleRepost = () => {
-    // Reposting yourself is rejected server-side on the web too.
-    if (display.user_id === currentUserId) return;
+    // Same rule as the web, but say so instead of silently ignoring the tap.
+    if (display.user_id === currentUserId) {
+      flashActionError("You can't repost your own post.");
+      return;
+    }
     const wasReposted = reposted;
     setReposted(!wasReposted);
     setRepostCount((n) => Math.max(0, n + (wasReposted ? -1 : 1)));
