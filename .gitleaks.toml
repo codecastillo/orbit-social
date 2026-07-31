@@ -1,0 +1,11 @@
+# Repo-level gitleaks allowlist, extending the default rules.
+#
+# Supabase "publishable" keys (sb_publishable_...) are the client-safe key
+# class, designed to be embedded in shipped app bundles; the secret ones are
+# sb_secret_/service_role and stay blocked.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Client-safe publishable keys"
+regexes = ['''sb_publishable_[A-Za-z0-9_-]+''']
