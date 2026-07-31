@@ -782,6 +782,17 @@ export async function unpinPost(postId: string): Promise<void> {
   if (error) throw error;
 }
 
+// SECURITY DEFINER RPC: only the parent post's author may pin, and pinning
+// clears any previously pinned sibling server-side.
+export async function pinComment(commentId: string, pinned: boolean): Promise<void> {
+  const { error } = await supabase.rpc("pin_comment", {
+    p_comment_id: commentId,
+    p_pinned: pinned,
+  });
+
+  if (error) throw error;
+}
+
 export async function getUserPinnedPosts(userId: string): Promise<PostWithAuthor[]> {
   const { data, error } = await supabase
     .from("posts")

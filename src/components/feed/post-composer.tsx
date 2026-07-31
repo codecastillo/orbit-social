@@ -20,6 +20,10 @@ import { formatDuration, generateWaveformBars, getAudioExtension } from "@/lib/u
 import { cn } from "@/lib/utils";
 import { useDraftsStore } from "@/lib/stores/drafts-store";
 import {
+  useUndoableSend,
+  type ScheduleUndoableSend,
+} from "@/lib/hooks/use-undoable-send";
+import {
   moderateContent,
   moderateContentEnhanced,
   flagContentForReview,
@@ -41,6 +45,23 @@ interface MediaPreview {
   type: "image" | "video" | "gif";
 }
 
+interface ComposerRestore {
+  content: string;
+  media: MediaPreview[];
+  audioFile: File | null;
+  location: string;
+  showPoll: boolean;
+  pollOptions: string[];
+  pollEndHours: number;
+  visibility: "public" | "close_friends";
+  contentWarning: string;
+}
+
+// Stashed when an undoable publish is cancelled after the dialog already
+// closed; the next ComposerForm mount consumes it to restore what was typed.
+// Module scope because the form unmounts with the dialog.
+let composerRestore: ComposerRestore | null = null;
+
 export function PostComposer() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -52,6 +73,9 @@ export function PostComposer() {
   const editingDraft = useDraftsStore((s) =>
     composeDraftId ? s.drafts.find((d) => d.id === composeDraftId) : undefined
   );
+  // Lives here rather than in ComposerForm: the form unmounts when the
+  // dialog closes, and the pending commit must survive that.
+  const { schedule: scheduleUndoableSend } = useUndoableSend();
 
   return (
     <Dialog open={composeOpen} onOpenChange={(open) => setComposeOpen(open)}>
@@ -75,6 +99,7 @@ export function PostComposer() {
                 initialContent={editingDraft?.content ?? composeInitialContent}
                 initialLocation={editingDraft?.location}
                 draftId={composeDraftId}
+                scheduleUndoableSend={scheduleUndoableSend}
                 onSuccess={() => {
                   setComposeOpen(false);
                   queryClient.invalidateQueries({ queryKey: ["feed"] });
@@ -177,6 +202,7 @@ function ComposerForm({
   initialContent,
   initialLocation,
   draftId,
+  scheduleUndoableSend,
   onSuccess,
   inline = false,
 }: {
@@ -186,14 +212,23 @@ function ComposerForm({
   initialContent?: string;
   initialLocation?: string;
   draftId?: string;
+  scheduleUndoableSend: ScheduleUndoableSend;
   onSuccess?: () => void;
   inline?: boolean;
 }) {
-  const [content, setContent] = useState(initialContent ?? "");
-  const [media, setMedia] = useState<MediaPreview[]>([]);
+  const queryClient = useQueryClient();
+  const setComposeOpen = useUIStore((s) => s.setComposeOpen);
+  // Seed from a stashed undo snapshot when a cancelled publish reopened the
+  // dialog; cleared after mount so the next compose starts blank.
+  const [restore] = useState(() => composerRestore);
+  useEffect(() => {
+    composerRestore = null;
+  }, []);
+  const [content, setContent] = useState(restore?.content ?? initialContent ?? "");
+  const [media, setMedia] = useState<MediaPreview[]>(restore?.media ?? []);
   const [posting, setPosting] = useState(false);
-  const [location, setLocation] = useState(initialLocation ?? "");
-  const [showLocation, setShowLocation] = useState(!!initialLocation);
+  const [location, setLocation] = useState(restore?.location ?? initialLocation ?? "");
+  const [showLocation, setShowLocation] = useState(!!(restore?.location ?? initialLocation));
   // When a video is the only attachment, the user picks where it goes:
   // Feed (regular video, plays inline) or Clip (vertical 9:16, lives in
   // the Clips tab). Default is set when the video is added based on its
@@ -216,8 +251,10 @@ function ComposerForm({
     discardRecording: discardAudioRecording,
   } = useAudioRecorder();
 
-  const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [audioFileUrl, setAudioFileUrl] = useState<string | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(restore?.audioFile ?? null);
+  const [audioFileUrl, setAudioFileUrl] = useState<string | null>(() =>
+    restore?.audioFile ? URL.createObjectURL(restore.audioFile) : null
+  );
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const [audioWaveform] = useState(() => generateWaveformBars(32));
@@ -231,16 +268,18 @@ function ComposerForm({
   const [scheduledAt, setScheduledAt] = useState("");
 
   // Poll state
-  const [showPoll, setShowPoll] = useState(false);
-  const [pollOptions, setPollOptions] = useState(["", ""]);
-  const [pollEndHours, setPollEndHours] = useState(24);
+  const [showPoll, setShowPoll] = useState(restore?.showPoll ?? false);
+  const [pollOptions, setPollOptions] = useState(restore?.pollOptions ?? ["", ""]);
+  const [pollEndHours, setPollEndHours] = useState(restore?.pollEndHours ?? 24);
 
   // Visibility state
-  const [visibility, setVisibility] = useState<"public" | "close_friends">("public");
+  const [visibility, setVisibility] = useState<"public" | "close_friends">(
+    restore?.visibility ?? "public"
+  );
 
   // Content warning state
-  const [contentWarning, setContentWarning] = useState("");
-  const [showContentWarning, setShowContentWarning] = useState(false);
+  const [contentWarning, setContentWarning] = useState(restore?.contentWarning ?? "");
+  const [showContentWarning, setShowContentWarning] = useState(!!restore?.contentWarning);
 
   const hasAudio = !!(audioBlob || audioFile);
   const currentAudioUrl = audioPreviewUrl || audioFileUrl;
@@ -459,51 +498,51 @@ function ComposerForm({
     setModerationWarning(null);
     setModerationConfirmed(false);
 
-    try {
-      // Flag high-severity content for admin review
-      const modResult = content.trim() ? moderateContent(content.trim()) : null;
+    // Flag high-severity content for admin review once the post commits.
+    const modResult = content.trim() ? moderateContent(content.trim()) : null;
 
-      // Upload media files
-      const uploadedMedia = await Promise.all(
-        media.map((m) => uploadPostMedia(user.id, m.file))
-      );
+    const isScheduling = showSchedule && scheduledAt;
+    const scheduledDate = isScheduling ? new Date(scheduledAt) : null;
 
-      // Upload audio if present
-      if (hasAudio) {
-        const audioToUpload = audioBlob || audioFile;
-        if (audioToUpload) {
-          const ext = audioFile
-            ? audioFile.name.split(".").pop() || "webm"
-            : getAudioExtension();
-          const audioFileName = `audio_${Date.now()}.${ext}`;
-          const audioFileObj =
-            audioToUpload instanceof File
-              ? audioToUpload
-              : new File([audioToUpload], audioFileName, {
-                  type: audioToUpload.type,
-                });
-          const uploaded = await uploadPostMedia(user.id, audioFileObj);
-          uploadedMedia.push(uploaded);
+    if (scheduledDate && scheduledDate <= new Date()) {
+      toast.error("Please pick a future date and time");
+      setPosting(false);
+      submittingRef.current = false;
+      return;
+    }
+
+    // Build poll data if poll is active
+    const pollData: PollData | undefined = showPoll && isPollValid
+      ? {
+          options: validPollOptions.map((text) => ({ text: text.trim(), votes: 0 })),
+          ends_at: new Date(Date.now() + pollEndHours * 60 * 60 * 1000).toISOString(),
+          multi_select: false,
         }
-      }
+      : undefined;
 
-      // Build poll data if poll is active
-      const pollData: PollData | undefined = showPoll && isPollValid
-        ? {
-            options: validPollOptions.map((text) => ({ text: text.trim(), votes: 0 })),
-            ends_at: new Date(Date.now() + pollEndHours * 60 * 60 * 1000).toISOString(),
-            multi_select: false,
-          }
-        : undefined;
+    // Captured up front: the form resets before the delayed commit runs, so
+    // the commit and the undo snapshot must not read state afterwards.
+    const trimmedContent = content.trim();
+    const mediaToUpload = media;
+    const audioUpload =
+      audioFile ??
+      (audioBlob
+        ? new File([audioBlob], `audio_${Date.now()}.${getAudioExtension()}`, {
+            type: audioBlob.type,
+          })
+        : null);
 
-      const isScheduling = showSchedule && scheduledAt;
-      const scheduledDate = isScheduling ? new Date(scheduledAt) : null;
+    const publish = async () => {
+      const uploadedMedia = await Promise.all(
+        mediaToUpload.map((m) => uploadPostMedia(user.id, m.file))
+      );
+      // Previews outlived the reset in case of an undo; the commit is the
+      // point of no return, so release them here.
+      mediaToUpload.forEach((m) => URL.revokeObjectURL(m.preview));
 
-      if (scheduledDate && scheduledDate <= new Date()) {
-        toast.error("Please pick a future date and time");
-        setPosting(false);
-        submittingRef.current = false;
-        return;
+      if (audioUpload) {
+        const uploaded = await uploadPostMedia(user.id, audioUpload);
+        uploadedMedia.push(uploaded);
       }
 
       // Single-video posts: if user picked Clip, force type='reel' so the
@@ -518,7 +557,7 @@ function ComposerForm({
 
       const createdPost = await createPost(
         user.id,
-        { content: content.trim() },
+        { content: trimmedContent },
         uploadedMedia,
         {
           replyToId,
@@ -546,8 +585,20 @@ function ComposerForm({
         }
       }
 
+      // The draft became a real post; keeping it would show a stale copy.
+      if (draftId) deleteDraft(draftId);
+      // The dialog's onSuccess invalidation ran before the commit landed, so
+      // refresh the feed again now that the post actually exists.
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      if (communityId) {
+        queryClient.invalidateQueries({
+          queryKey: ["community-posts", communityId],
+        });
+      }
+    };
+
+    const resetForm = () => {
       setContent("");
-      media.forEach((m) => URL.revokeObjectURL(m.preview));
       setMedia([]);
       clearAudio();
       setShowPoll(false);
@@ -560,22 +611,52 @@ function ComposerForm({
       setVisibility("public");
       setContentWarning("");
       setShowContentWarning(false);
-      // The draft became a real post; keeping it would show a stale copy.
-      if (draftId) deleteDraft(draftId);
-      toast.success(
-        isScheduling
-          ? "Post scheduled"
-          : replyToId
-            ? "Reply posted"
-            : "Post created"
-      );
-      onSuccess?.();
-    } catch {
-      toast.error("Couldn't create post");
-    } finally {
-      setPosting(false);
-      submittingRef.current = false;
+    };
+
+    if (isScheduling) {
+      // Scheduled posts already publish later and stay editable on the
+      // Scheduled page, so they commit immediately with no undo window.
+      try {
+        await publish();
+        resetForm();
+        toast.success("Post scheduled");
+        onSuccess?.();
+      } catch {
+        toast.error("Couldn't create post");
+      } finally {
+        setPosting(false);
+        submittingRef.current = false;
+      }
+      return;
     }
+
+    const snapshot: ComposerRestore = {
+      content,
+      media: mediaToUpload,
+      audioFile: audioUpload,
+      location,
+      showPoll,
+      pollOptions,
+      pollEndHours,
+      visibility,
+      contentWarning: showContentWarning ? contentWarning : "",
+    };
+
+    // Optimistic close: reset and dismiss now, commit after the undo window.
+    resetForm();
+    setPosting(false);
+    submittingRef.current = false;
+    onSuccess?.();
+    scheduleUndoableSend({
+      message: replyToId ? "Reply posted" : "Post created",
+      commit: () => {
+        publish().catch(() => toast.error("Couldn't create post"));
+      },
+      onUndo: () => {
+        composerRestore = snapshot;
+        setComposeOpen(true, { communityId, draftId });
+      },
+    });
   };
 
   return (

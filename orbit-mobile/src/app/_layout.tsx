@@ -5,6 +5,7 @@ import * as Notifications from "expo-notifications";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/providers/auth-provider";
 import { registerForPush } from "@/lib/push";
+import { UndoSnackbarHost } from "@/lib/undo-send";
 import { useNotificationTaps } from "@/lib/use-notification-taps";
 import { colors } from "@/lib/theme";
 
@@ -82,6 +83,8 @@ export default function RootLayout() {
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="notifications" options={{ title: "Activity" }} />
           </Stack>
+          {/* Above the navigator so undo countdowns survive screen changes. */}
+          <UndoSnackbarHost />
         </AuthGate>
       </AuthProvider>
     </QueryClientProvider>

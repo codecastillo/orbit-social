@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -9,8 +9,10 @@ import {
   Text,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CommentThread } from "@/components/comment-thread";
 import {
   MentionButton,
   MentionInput,
@@ -31,9 +33,14 @@ import {
   type Post,
 } from "@/lib/queries/posts";
 import { getPostsReactionCounts } from "@/lib/queries/reactions";
+import { supabase } from "@/lib/supabase";
 import { colors, spacing } from "@/lib/theme";
 
 const REPLY_MAX_LENGTH = 500;
+
+// Once per post per app session: remounts and refetches of the same detail
+// screen must not count the same reader twice.
+const viewedPostIds = new Set<string>();
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -41,6 +48,10 @@ export default function PostDetailScreen() {
   const queryClient = useQueryClient();
   const userId = user?.id ?? "";
   const [replyText, setReplyText] = useState("");
+  // The comment being replied to, or null for a reply to the post itself.
+  const [replyTarget, setReplyTarget] = useState<Post | null>(null);
+  // Last comment a reply landed under; its thread auto-opens to show it.
+  const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
   const replyInputRef = useRef<MentionInputHandle>(null);
 
   // Own avatar for the pinned reply composer; shares the profile cache key
@@ -93,10 +104,29 @@ export default function PostDetailScreen() {
     enabled: visibleIds.length > 0,
   });
 
+  // Fire-and-forget view count, only once the post is known to exist.
+  const loadedPostId = postQuery.data?.id ?? null;
+  useEffect(() => {
+    if (!loadedPostId || viewedPostIds.has(loadedPostId)) return;
+    viewedPostIds.add(loadedPostId);
+    void supabase
+      .rpc("increment_post_views", { p_post_id: loadedPostId })
+      .then(({ error }) => {
+        if (error) console.warn("increment_post_views failed", error.message);
+      });
+  }, [loadedPostId]);
+
   const replyMutation = useMutation({
-    mutationFn: (content: string) => createPost(userId, content, { replyToId: id }),
-    onSuccess: () => {
+    mutationFn: ({ content, replyToId }: { content: string; replyToId: string }) =>
+      createPost(userId, content, { replyToId }),
+    onSuccess: (_created, vars) => {
       setReplyText("");
+      setReplyTarget(null);
+      if (vars.replyToId !== id) {
+        setExpandedCommentId(vars.replyToId);
+        queryClient.invalidateQueries({ queryKey: ["comment-replies", vars.replyToId] });
+      }
+      // The comment list also carries the reply counts the expanders show.
       queryClient.invalidateQueries({ queryKey: ["post-replies", id] });
       // Refresh the parent post too so comment_count stays honest.
       queryClient.invalidateQueries({ queryKey: ["post", id] });
@@ -147,29 +177,32 @@ export default function PostDetailScreen() {
   const post = postQuery.data;
   const postDisplayId = displayPostId(post);
 
-  const cardFor = (item: Post, options?: { main?: boolean }) => {
-    const displayId = options?.main ? postDisplayId : item.id;
-    return (
-      <PostCard
-        post={item}
-        original={options?.main ? (originalQuery.data ?? null) : null}
-        currentUserId={userId}
-        isLiked={interactions?.likedPostIds.has(displayId) ?? false}
-        isBookmarked={interactions?.bookmarkedPostIds.has(displayId) ?? false}
-        isReposted={interactions?.repostedPostIds.has(displayId) ?? false}
-        userReaction={interactions?.reactions.get(displayId) ?? null}
-        reactionCounts={reactionCounts?.get(displayId) ?? []}
-        disableNavigation={options?.main}
-        reply={!options?.main}
-        detail={options?.main}
-        onReplyPress={
-          // The main card is already on its own detail route; the reply
-          // icon focuses the composer instead of stacking a duplicate.
-          options?.main ? () => replyInputRef.current?.focus() : undefined
-        }
-      />
-    );
-  };
+  // Stable sort: the pinned comment surfaces first, everything else keeps
+  // the query's created_at order.
+  const sortedReplies = [...(repliesQuery.data ?? [])].sort(
+    (a, b) => Number(b.is_pinned) - Number(a.is_pinned),
+  );
+
+  const mainCard = (
+    <PostCard
+      post={post}
+      original={originalQuery.data ?? null}
+      currentUserId={userId}
+      isLiked={interactions?.likedPostIds.has(postDisplayId) ?? false}
+      isBookmarked={interactions?.bookmarkedPostIds.has(postDisplayId) ?? false}
+      isReposted={interactions?.repostedPostIds.has(postDisplayId) ?? false}
+      userReaction={interactions?.reactions.get(postDisplayId) ?? null}
+      reactionCounts={reactionCounts?.get(postDisplayId) ?? []}
+      disableNavigation
+      detail
+      onReplyPress={() => {
+        // The main card is already on its own detail route; the reply
+        // icon focuses the composer instead of stacking a duplicate.
+        setReplyTarget(null);
+        replyInputRef.current?.focus();
+      }}
+    />
+  );
 
   return (
     <KeyboardAvoidingView
@@ -179,15 +212,31 @@ export default function PostDetailScreen() {
     >
       <Stack.Screen options={{ title: "Post" }} />
       <FlatList
-        data={repliesQuery.data ?? []}
+        data={sortedReplies}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => cardFor(item)}
+        renderItem={({ item }) => (
+          <CommentThread
+            comment={item}
+            currentUserId={userId}
+            isLiked={interactions?.likedPostIds.has(item.id) ?? false}
+            isBookmarked={interactions?.bookmarkedPostIds.has(item.id) ?? false}
+            isReposted={interactions?.repostedPostIds.has(item.id) ?? false}
+            userReaction={interactions?.reactions.get(item.id) ?? null}
+            reactionCounts={reactionCounts?.get(item.id) ?? []}
+            expandSignal={expandedCommentId}
+            onStartReply={(comment) => {
+              setReplyTarget(comment);
+              replyInputRef.current?.focus();
+            }}
+            canPin={post.user_id === userId}
+          />
+        )}
         initialNumToRender={8}
         windowSize={9}
         removeClippedSubviews
         ListHeaderComponent={
           <View style={styles.postWrap}>
-            {cardFor(post, { main: true })}
+            {mainCard}
             {repliesQuery.isLoading ? <PostListSkeleton count={2} /> : null}
             {repliesQuery.error ? (
               <View style={styles.repliesError}>
@@ -207,6 +256,22 @@ export default function PostDetailScreen() {
           ) : null
         }
       />
+      {replyTarget ? (
+        <View style={styles.replyContext}>
+          <Text style={styles.replyContextText} numberOfLines={1}>
+            Replying to @{replyTarget.profiles.username}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cancel reply"
+            onPress={() => setReplyTarget(null)}
+            hitSlop={8}
+            style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+          >
+            <Ionicons name="close" size={16} color={colors.mutedForeground} />
+          </Pressable>
+        </View>
+      ) : null}
       <View style={styles.replyBar}>
         <Avatar
           url={ownProfile?.avatar_url}
@@ -217,7 +282,7 @@ export default function PostDetailScreen() {
           ref={replyInputRef}
           value={replyText}
           onChangeText={setReplyText}
-          placeholder={`Reply to @${post.profiles.username}`}
+          placeholder={`Reply to @${(replyTarget ?? post).profiles.username}`}
           placeholderTextColor={colors.textFaint}
           containerStyle={styles.replyInputWrap}
           style={styles.replyInput}
@@ -233,7 +298,12 @@ export default function PostDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Send reply"
           disabled={!canSend}
-          onPress={() => replyMutation.mutate(trimmedReply)}
+          onPress={() =>
+            replyMutation.mutate({
+              content: trimmedReply,
+              replyToId: replyTarget?.id ?? id,
+            })
+          }
           style={({ pressed }) => [
             styles.sendButton,
             pressed && { opacity: 0.85 },
@@ -281,6 +351,22 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     textAlign: "center",
     padding: spacing(6),
+  },
+  replyContext: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing(2),
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(2),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  replyContextText: {
+    color: colors.mutedForeground,
+    fontSize: 12.5,
+    flexShrink: 1,
   },
   replyBar: {
     flexDirection: "row",

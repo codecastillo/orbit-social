@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useImperativeHandle, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,11 @@ import { generateSmartReplies } from "@/lib/services/smart-replies";
 export interface ReplyPreview {
   name: string;
   snippet: string;
+}
+
+export interface MessageInputHandle {
+  /** Puts text back in the box, e.g. after an undone or failed send. */
+  restoreDraft: (text: string) => void;
 }
 
 interface MessageInputProps {
@@ -24,6 +29,7 @@ interface MessageInputProps {
   onCancelReply?: () => void;
   /** Reports input activity so the page can broadcast typing state. */
   onTypingActivity?: (hasText: boolean) => void;
+  ref?: React.Ref<MessageInputHandle>;
 }
 
 export function MessageInput({
@@ -34,11 +40,19 @@ export function MessageInput({
   replyTo,
   onCancelReply,
   onTypingActivity,
+  ref,
 }: MessageInputProps) {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [isRecordingMode, setIsRecordingMode] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    restoreDraft: (text: string) => {
+      setContent(text);
+      setDismissed(true);
+    },
+  }));
 
   const handleSendAudio = useCallback(
     async (audioUrl: string) => {

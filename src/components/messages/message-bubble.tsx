@@ -8,6 +8,10 @@ import { isAudioMessage } from "@/lib/utils/audio";
 import { formatTime } from "@/lib/utils/format";
 import { InlineAudioPlayer } from "@/components/shared/inline-audio-player";
 import {
+  LinkPreviewCard,
+  extractFirstUrl,
+} from "@/components/shared/link-preview-card";
+import {
   MessageReactionPicker,
   MessageReactionsDisplay,
 } from "@/components/messages/message-reaction-picker";
@@ -322,6 +326,14 @@ export function MessageBubble({
                   {message.content}
                 </p>
               )}
+              {message.content && (() => {
+                const previewUrl = extractFirstUrl(message.content);
+                return previewUrl ? (
+                  <div className="mt-1.5 max-w-[280px]">
+                    <LinkPreviewCard url={previewUrl} variant="message" />
+                  </div>
+                ) : null;
+              })()}
               <p
                 className={cn(
                   "text-[10px] mt-1 text-right",

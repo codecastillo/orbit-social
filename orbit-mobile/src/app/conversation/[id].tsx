@@ -36,12 +36,14 @@ import {
   type ReactionBarAnchor,
   type ReactionPill,
 } from "@/components/message-reactions";
+import { LinkPreviewCard } from "@/components/link-preview-card";
 import { VoiceBubble } from "@/components/voice-bubble";
 import {
   VOICE_MIN_MS,
   VoiceRecordingBar,
 } from "@/components/voice-recording-bar";
 import { prefetchVoice } from "@/lib/audio-cache";
+import { extractFirstUrl } from "@/lib/queries/link-previews";
 import { safeBack } from "@/lib/nav";
 import {
   MESSAGE_PAGE_SIZE,
@@ -60,6 +62,7 @@ import {
   type MessageReactionGroup,
 } from "@/lib/queries/messages";
 import { supabase } from "@/lib/supabase";
+import { flushUndoableSends, scheduleUndoableSend } from "@/lib/undo-send";
 import { useAuth } from "@/providers/auth-provider";
 import { colors, radii, spacing } from "@/lib/theme";
 
@@ -230,6 +233,16 @@ function MessageBubble({
                 <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>
                   {message.content}
                 </Text>
+                {(() => {
+                  const previewUrl = message.content
+                    ? extractFirstUrl(message.content)
+                    : null;
+                  return previewUrl ? (
+                    <View style={styles.linkPreviewWrap}>
+                      <LinkPreviewCard url={previewUrl} />
+                    </View>
+                  ) : null;
+                })()}
               </>
             )}
           </Pressable>
@@ -675,19 +688,13 @@ export default function ConversationScreen() {
     };
   }, [kbSpace, kbRest]);
 
-  const sendMutation = useMutation({
-    mutationFn: ({
-      content,
-      replyToId,
-    }: {
-      content: string;
-      replyToId?: string;
-    }) => sendMessage(conversationId, user!.id, content, replyToId),
-    onSuccess: (message) => {
-      appendMessage(message);
-      queryClient.invalidateQueries({ queryKey: ["conversations", user?.id] });
-    },
-  });
+  // Ids of this screen's undoable sends still inside their window. Flushed
+  // on unmount so navigating away commits them instead of losing them.
+  const pendingSendIdsRef = useRef<number[]>([]);
+  useEffect(() => {
+    const pendingIds = pendingSendIdsRef.current;
+    return () => flushUndoableSends(pendingIds);
+  }, []);
 
   const voiceMutation = useMutation({
     mutationFn: (uri: string) => sendVoiceMessage(conversationId, user!.id, uri),
@@ -749,12 +756,99 @@ export default function ConversationScreen() {
 
   const handleSend = () => {
     const content = draft.trim();
-    if (!content || sendMutation.isPending) return;
+    if (!content || !user) return;
     setDraft("");
     notifyTyping(false);
-    const replyToId = replyTo?.id;
+    const replyMessage = replyTo;
+    const replyToId = replyMessage?.id;
     setReplyTo(null);
-    sendMutation.mutate({ content, replyToId });
+
+    // Same temp-id pattern as the web chat page: an optimistic bubble holds
+    // the spot during the undo window and the commit swaps in the server row.
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    appendMessage({
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: user.id,
+      content,
+      media_url: null,
+      media_type: null,
+      reply_to_id: replyToId ?? null,
+      is_deleted: false,
+      created_at: new Date().toISOString(),
+      sender: {
+        id: user.id,
+        username: (user.user_metadata?.username as string | undefined) ?? "",
+        display_name:
+          (user.user_metadata?.display_name as string | undefined) ?? "",
+        avatar_url:
+          (user.user_metadata?.avatar_url as string | undefined) ?? null,
+      },
+    });
+
+    const removeOptimistic = () => {
+      queryClient.setQueryData<InfiniteData<Message[]>>(
+        ["messages", conversationId],
+        (old) =>
+          old && {
+            ...old,
+            pages: old.pages.map((page) => page.filter((m) => m.id !== tempId)),
+          },
+      );
+    };
+
+    const restoreDraft = () =>
+      setDraft((prev) => (prev ? `${content} ${prev}` : content));
+
+    // A plain closure instead of useMutation: the commit may fire from the
+    // unmount flush, after mutation observers are gone, and setQueryData on
+    // the shared client still works then.
+    const commit = async () => {
+      try {
+        const message = await sendMessage(
+          conversationId,
+          user.id,
+          content,
+          replyToId,
+        );
+        queryClient.setQueryData<InfiniteData<Message[]>>(
+          ["messages", conversationId],
+          (old) => {
+            if (!old) return old;
+            // The realtime insert may have landed the server row already;
+            // in that case just drop the temp bubble.
+            const exists = old.pages.some((page) =>
+              page.some((m) => m.id === message.id),
+            );
+            return {
+              ...old,
+              pages: old.pages.map((page) =>
+                exists
+                  ? page.filter((m) => m.id !== tempId)
+                  : page.map((m) => (m.id === tempId ? message : m)),
+              ),
+            };
+          },
+        );
+        queryClient.invalidateQueries({ queryKey: ["conversations", user.id] });
+      } catch {
+        removeOptimistic();
+        restoreDraft();
+        Alert.alert("Message not sent", "Check your connection and try again.");
+      }
+    };
+
+    pendingSendIdsRef.current.push(
+      scheduleUndoableSend({
+        message: "Sent",
+        commit: () => void commit(),
+        onUndo: () => {
+          removeOptimistic();
+          setReplyTo(replyMessage);
+          restoreDraft();
+        },
+      }),
+    );
   };
 
   if (!user) return null;
@@ -963,18 +1057,12 @@ export default function ConversationScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Send message"
                   onPress={handleSend}
-                  disabled={sendMutation.isPending}
                   style={({ pressed }) => [
                     styles.sendButton,
-                    sendMutation.isPending && { opacity: 0.4 },
                     pressed && { opacity: 0.7 },
                   ]}
                 >
-                  {sendMutation.isPending ? (
-                    <ActivityIndicator size="small" color={colors.primaryForeground} />
-                  ) : (
-                    <Ionicons name="arrow-up" size={20} color={colors.primaryForeground} />
-                  )}
+                  <Ionicons name="arrow-up" size={20} color={colors.primaryForeground} />
                 </Pressable>
               ) : (
                 <Pressable
@@ -1101,6 +1189,10 @@ const styles = StyleSheet.create({
   deletedText: {
     color: colors.mutedForeground,
     fontStyle: "italic",
+  },
+  linkPreviewWrap: {
+    marginTop: spacing(1.5),
+    minWidth: 220,
   },
   quote: {
     borderLeftWidth: 2,

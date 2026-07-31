@@ -12,10 +12,12 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Avatar } from "@/components/ui";
+import { LinkPreviewCard } from "@/components/link-preview-card";
 import { ReactionCounts } from "@/components/reaction-counts";
 import { RichText } from "@/components/rich-text";
 import { ReactionPicker, type ReactionAnchor } from "@/components/reaction-picker";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
+import { extractFirstUrl } from "@/lib/queries/link-previews";
 import {
   createRepost,
   toggleBookmark,
@@ -345,6 +347,12 @@ export function PostCard({
   const media = [...display.post_media].sort((a, b) => a.sort_order - b.sort_order)[0];
   const aspectRatio =
     media?.width && media?.height ? media.width / media.height : DEFAULT_MEDIA_ASPECT;
+  // Link previews derive from content at render time, only for posts that
+  // carry no media of their own.
+  const previewUrl =
+    display.post_media.length === 0 && display.content
+      ? extractFirstUrl(display.content)
+      : null;
 
   return (
     <Pressable
@@ -427,6 +435,12 @@ export function PostCard({
         </Pressable>
       ) : null}
 
+      {previewUrl ? (
+        <View style={styles.linkPreviewWrap}>
+          <LinkPreviewCard url={previewUrl} />
+        </View>
+      ) : null}
+
       {quoted ? <QuotedPostPreview post={quoted} /> : null}
 
       {detail ? (
@@ -445,6 +459,15 @@ export function PostCard({
               {"· "}
               <Text style={styles.statsCount}>
                 {formatNumber(repostCount)} {repostCount === 1 ? "repost" : "reposts"}
+              </Text>
+            </Text>
+          ) : null}
+          {display.view_count > 0 ? (
+            <Text style={styles.statsTime}>
+              {"· "}
+              <Text style={styles.statsCount}>
+                {formatNumber(display.view_count)}{" "}
+                {display.view_count === 1 ? "view" : "views"}
               </Text>
             </Text>
           ) : null}
@@ -661,6 +684,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     fontVariant: ["tabular-nums"],
+  },
+  linkPreviewWrap: {
+    marginTop: spacing(2.5),
   },
   quoteBox: {
     marginTop: spacing(2.5),

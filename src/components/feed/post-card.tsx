@@ -75,6 +75,10 @@ import { ReportDialog } from "@/components/shared/report-dialog";
 import { ReactionPicker, ReactionCountsDisplay } from "./reaction-picker";
 import { PostInsights, computeUserAverages } from "./post-insights";
 import { AudioPlayer } from "@/components/feed/audio-player";
+import {
+  LinkPreviewCard,
+  extractFirstUrl,
+} from "@/components/shared/link-preview-card";
 import { isAudioMediaItem } from "@/lib/utils/audio";
 import { VerifiedStar } from "@/components/orbit/verified-star";
 
@@ -88,6 +92,13 @@ interface PostCardProps {
   compact?: boolean;
   /** All posts in the current feed, used to compute user averages for insights. */
   allUserPosts?: PostWithAuthor[];
+  /**
+   * Set when this card renders a top-level comment and the viewer owns the
+   * parent post; adds Pin comment / Unpin to the menu. The comment author
+   * and the parent post author can differ, so this is independent of
+   * isOwnPost.
+   */
+  onTogglePinComment?: () => void;
 }
 
 // Memoized: a feed renders dozens of these, each with its own state and
@@ -102,6 +113,7 @@ export const PostCard = memo(function PostCard({
   onUpdate,
   compact = false,
   allUserPosts,
+  onTogglePinComment,
 }: PostCardProps) {
   // Caller-provided state wins; otherwise fall back to whatever the query
   // baked into the row (e.g. profile tabs enrich posts via
@@ -572,6 +584,15 @@ export const PostCard = memo(function PostCard({
                   </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {onTogglePinComment && (
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onTogglePinComment(); }}>
+                      {post.is_pinned ? (
+                        <><PinOff className="mr-2 h-4 w-4" /> Unpin</>
+                      ) : (
+                        <><Pin className="mr-2 h-4 w-4" /> Pin comment</>
+                      )}
+                    </DropdownMenuItem>
+                  )}
                   {isOwnPost ? (
                     <>
                       <DropdownMenuItem onClick={handleEdit}>
@@ -698,6 +719,17 @@ export const PostCard = memo(function PostCard({
               )}
             </>
           )}
+
+          {/* Link preview: derived from content at render time, only when
+              the post carries no media of its own */}
+          {(!displayPost.content_warning || spoilerRevealed) && !isEditing && !displayHasMedia && (() => {
+            const previewUrl = extractFirstUrl(displayedContent || displayPost.content || "");
+            return previewUrl ? (
+              <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                <LinkPreviewCard url={previewUrl} />
+              </div>
+            ) : null;
+          })()}
 
           {/* Poll Display (hidden behind spoiler) */}
           {(!displayPost.content_warning || spoilerRevealed) && displayPost.type === "poll" && pollData && (

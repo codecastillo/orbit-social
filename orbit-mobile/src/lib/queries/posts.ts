@@ -40,7 +40,10 @@ export interface Post {
   comment_count: number;
   repost_count: number;
   bookmark_count: number;
+  view_count: number;
   is_hidden: boolean;
+  // Profile pin on top-level posts, author pin on comments (reply_to_id set).
+  is_pinned: boolean;
   visibility: "public" | "close_friends";
   boosted_until?: string | null;
   created_at: string;
@@ -53,8 +56,8 @@ export interface Post {
 // DB types the query parser infers the to-one profiles join as an array.
 const POST_SELECT = `
   id, user_id, content, type, parent_post_id, reply_to_id, community_id,
-  like_count, comment_count, repost_count, bookmark_count,
-  is_hidden, visibility, boosted_until, created_at,
+  like_count, comment_count, repost_count, bookmark_count, view_count,
+  is_hidden, is_pinned, visibility, boosted_until, created_at,
   profiles!posts_user_id_fkey (
     id, username, display_name, avatar_url, is_verified,
     follower_count, post_count
@@ -351,6 +354,16 @@ export async function undoRepost(userId: string, postId: string) {
     p_post_id: postId,
   });
   if (rpcError) console.error("decrement_post_reposts failed", rpcError);
+}
+
+// SECURITY DEFINER RPC: only the parent post's author may pin, and pinning
+// clears any previously pinned sibling server-side.
+export async function pinComment(commentId: string, pinned: boolean) {
+  const { error } = await supabase.rpc("pin_comment", {
+    p_comment_id: commentId,
+    p_pinned: pinned,
+  });
+  if (error) throw error;
 }
 
 export interface UserInteractions {

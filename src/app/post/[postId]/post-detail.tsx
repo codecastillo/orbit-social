@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, MessageCircle } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, MessageCircle, Pin } from "lucide-react";
 import { toast } from "sonner";
 import { PostCard } from "@/components/feed/post-card";
 import { PostSkeleton } from "@/components/shared/loading-skeleton";
@@ -14,7 +14,7 @@ import { OrbitErrorState } from "@/components/orbit/error-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { formatTimeAgo } from "@/lib/utils/format";
+import { formatNumber, formatTimeAgo } from "@/lib/utils/format";
 import {
   getPostById,
   getPostComments,
@@ -22,6 +22,7 @@ import {
   checkUserInteractions,
   checkUserReposted,
   createPost,
+  pinComment,
   type PostWithAuthor,
 } from "@/lib/queries/posts";
 
@@ -29,10 +30,13 @@ function CommentWithReplies({
   comment,
   interactions,
   onUpdate,
+  canPin,
 }: {
   comment: PostWithAuthor;
   interactions: { likedPostIds: Set<string>; bookmarkedPostIds: Set<string>; repostedPostIds: Set<string> };
   onUpdate: () => void;
+  // Viewer owns the parent post; only they can pin a comment.
+  canPin: boolean;
 }) {
   const { user } = useAuth();
   const [showReplyComposer, setShowReplyComposer] = useState(false);
@@ -69,8 +73,24 @@ function CommentWithReplies({
     }
   };
 
+  const handleTogglePin = async () => {
+    try {
+      await pinComment(comment.id, !comment.is_pinned);
+      toast.success(comment.is_pinned ? "Comment unpinned" : "Comment pinned");
+      onUpdate();
+    } catch {
+      toast.error("Couldn't update pin");
+    }
+  };
+
   return (
     <div>
+      {comment.is_pinned && (
+        <div className="flex items-center gap-1.5 px-4 pt-3 -mb-2 text-[11px] text-muted-foreground">
+          <Pin className="h-3 w-3" />
+          Pinned
+        </div>
+      )}
       <PostCard
         key={comment.id}
         post={comment}
@@ -79,6 +99,7 @@ function CommentWithReplies({
         isReposted={interactions.repostedPostIds.has(comment.id)}
         onUpdate={onUpdate}
         compact
+        onTogglePinComment={canPin ? handleTogglePin : undefined}
       />
 
       {/* Reply button for the comment */}
@@ -150,6 +171,10 @@ function CommentWithReplies({
   );
 }
 
+// Once per post per browser session: strict-mode double effects, refetches,
+// and back-and-forth navigation must not count the same reader twice.
+const viewedPostIds = new Set<string>();
+
 export function PostDetail({ postId }: { postId: string }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -185,6 +210,19 @@ export function PostDetail({ postId }: { postId: string }) {
     enabled: !!user && !!post,
     staleTime: 10_000,
   });
+
+  // Fire-and-forget view count, only once the post is known to exist.
+  useEffect(() => {
+    if (!post || viewedPostIds.has(post.id)) return;
+    viewedPostIds.add(post.id);
+    void import("@/lib/supabase/client").then(({ createClient }) =>
+      createClient()
+        .rpc("increment_post_views", { p_post_id: post.id })
+        .then(({ error }) => {
+          if (error) console.error("increment_post_views failed", error);
+        }),
+    );
+  }, [post]);
 
   if (postLoading) {
     return (
@@ -225,6 +263,12 @@ export function PostDetail({ postId }: { postId: string }) {
     );
   }
 
+  // Stable sort: the pinned comment surfaces first, everything else keeps
+  // the query's created_at order.
+  const sortedComments = [...(comments ?? [])].sort(
+    (a, b) => Number(b.is_pinned) - Number(a.is_pinned),
+  );
+
   return (
     <div className="border-x border-border min-h-screen">
       {/* Header */}
@@ -248,6 +292,14 @@ export function PostDetail({ postId }: { postId: string }) {
         onUpdate={() => queryClient.invalidateQueries({ queryKey: ["post", postId] })}
       />
 
+      {/* Views */}
+      {post.view_count > 0 && (
+        <div className="flex items-center gap-1.5 border-b border-border px-[22px] py-2.5 text-[12.5px] text-muted-foreground">
+          <Eye className="h-3.5 w-3.5" />
+          <span>{formatNumber(post.view_count)} views</span>
+        </div>
+      )}
+
       {/* Reply Composer */}
       <ReplyComposer
         postId={postId}
@@ -262,13 +314,14 @@ export function PostDetail({ postId }: { postId: string }) {
         <div className="flex justify-center py-6">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
-      ) : comments && comments.length > 0 ? (
-        comments.map((comment) => (
+      ) : sortedComments.length > 0 ? (
+        sortedComments.map((comment) => (
           <CommentWithReplies
             key={comment.id}
             comment={comment}
             interactions={interactions}
             onUpdate={() => refetchComments()}
+            canPin={user?.id === post.user_id}
           />
         ))
       ) : (

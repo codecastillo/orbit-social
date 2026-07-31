@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -28,7 +28,11 @@ import {
 import { blockUser } from "@/lib/queries/social";
 import { createClient } from "@/lib/supabase/client";
 import { ChatWindow, replySnippet } from "@/components/messages/chat-window";
-import { MessageInput } from "@/components/messages/message-input";
+import {
+  MessageInput,
+  type MessageInputHandle,
+} from "@/components/messages/message-input";
+import { useUndoableSend } from "@/lib/hooks/use-undoable-send";
 import {
   TypingIndicator,
   useTypingChannel,
@@ -86,6 +90,16 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [seenAt, setSeenAt] = useState<string | null>(null);
+  const messageInputRef = useRef<MessageInputHandle>(null);
+  const { schedule: scheduleUndoableSend, flush: flushUndoableSends } =
+    useUndoableSend();
+
+  // Switching conversations re-renders this page in place, so commit any
+  // pending sends from the previous thread rather than letting an Undo
+  // restore their text into the wrong input.
+  useEffect(() => {
+    return () => flushUndoableSends();
+  }, [conversationId, flushUndoableSends]);
 
   const webrtc = useWebRTC(conversationId, user?.id ?? "");
 
@@ -260,30 +274,7 @@ export default function ChatPage({ params }: ChatPageProps) {
         };
       }
     );
-    try {
-      const real = await sendMessage(
-        conversationId,
-        user.id,
-        content,
-        undefined,
-        undefined,
-        replyToId
-      );
-      queryClient.setQueryData(
-        ["messages", conversationId],
-        (old: { pages: { messages: { id: string }[]; nextCursor: string | null }[] } | undefined) => {
-          if (!old) return old;
-          return {
-            ...old,
-            pages: old.pages.map((p) => ({
-              ...p,
-              messages: p.messages.map((m) => (m.id === tempId ? real : m)),
-            })),
-          };
-        }
-      );
-    } catch (e) {
-      console.error("sendMessage failed", e);
+    const removeOptimistic = () =>
       queryClient.setQueryData(
         ["messages", conversationId],
         (old: { pages: { messages: { id: string }[]; nextCursor: string | null }[] } | undefined) => {
@@ -297,11 +288,52 @@ export default function ChatPage({ params }: ChatPageProps) {
           };
         }
       );
-      setReplyTo(replyMessage);
-      toast.error("Couldn't send message");
-      // Rethrow so MessageInput keeps the text in the box for a retry.
-      throw e;
-    }
+
+    const commit = async () => {
+      try {
+        const real = await sendMessage(
+          conversationId,
+          user.id,
+          content,
+          undefined,
+          undefined,
+          replyToId
+        );
+        queryClient.setQueryData(
+          ["messages", conversationId],
+          (old: { pages: { messages: { id: string }[]; nextCursor: string | null }[] } | undefined) => {
+            if (!old) return old;
+            return {
+              ...old,
+              pages: old.pages.map((p) => ({
+                ...p,
+                messages: p.messages.map((m) => (m.id === tempId ? real : m)),
+              })),
+            };
+          }
+        );
+      } catch (e) {
+        console.error("sendMessage failed", e);
+        removeOptimistic();
+        setReplyTo(replyMessage);
+        // The input cleared when the send was scheduled, so put the text
+        // back for a retry instead of rethrowing into MessageInput.
+        messageInputRef.current?.restoreDraft(content);
+        toast.error("Couldn't send message");
+      }
+    };
+
+    // The write commits after the undo window; the optimistic bubble is
+    // already on screen, so the thread reads as sent immediately.
+    scheduleUndoableSend({
+      message: "Sent",
+      commit: () => void commit(),
+      onUndo: () => {
+        removeOptimistic();
+        setReplyTo(replyMessage);
+        messageInputRef.current?.restoreDraft(content);
+      },
+    });
   };
 
   const togglePin = async () => {
@@ -532,6 +564,7 @@ export default function ChatPage({ params }: ChatPageProps) {
 
         <TypingIndicator names={typingNames} isGroup={isGroup} />
         <MessageInput
+          ref={messageInputRef}
           onSend={handleSend}
           onTypingActivity={notifyTyping}
           replyTo={

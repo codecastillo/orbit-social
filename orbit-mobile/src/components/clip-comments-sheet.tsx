@@ -193,7 +193,9 @@ export function ClipCommentsSheet({
         comment_count: 0,
         repost_count: 0,
         bookmark_count: 0,
+        view_count: 0,
         is_hidden: false,
+        is_pinned: false,
         visibility: "public",
         created_at: new Date().toISOString(),
         profiles: profile

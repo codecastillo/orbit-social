@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,7 +13,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/ui";
 import {
   MentionButton,
@@ -22,6 +23,7 @@ import {
 import { useAuth } from "@/providers/auth-provider";
 import { createPost, uploadPostMedia, type NewPostMedia } from "@/lib/queries/posts";
 import { getOwnProfile } from "@/lib/queries/profiles";
+import { scheduleUndoableSend } from "@/lib/undo-send";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const POST_MAX_LENGTH = 500;
@@ -35,12 +37,23 @@ interface PickedImage {
   mimeType: string;
 }
 
+// Stashed when an undoable publish is cancelled after this modal already
+// closed; the next mount consumes it so the user gets their draft back.
+// Module scope because the screen unmounts on router.back().
+let undoRestore: { content: string; images: PickedImage[] } | null = null;
+
 export default function ComposeScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [content, setContent] = useState("");
-  const [images, setImages] = useState<PickedImage[]>([]);
+  // Seed from a stashed undo snapshot when a cancelled publish reopened
+  // this modal; cleared after mount so the next compose starts blank.
+  const [restore] = useState(() => undoRestore);
+  useEffect(() => {
+    undoRestore = null;
+  }, []);
+  const [content, setContent] = useState(restore?.content ?? "");
+  const [images, setImages] = useState<PickedImage[]>(restore?.images ?? []);
   const captionRef = useRef<MentionInputHandle>(null);
 
   // Own avatar beside the caption input; shares the profile cache key used
@@ -51,27 +64,47 @@ export default function ComposeScreen() {
     enabled: !!user,
   });
 
-  const publishMutation = useMutation({
-    mutationFn: async () => {
-      if (!user) throw new Error("You need to be signed in to post.");
-      let media: NewPostMedia[] | undefined;
-      if (images.length > 0) {
-        media = await Promise.all(
-          images.map(async (img) => ({
-            url: await uploadPostMedia(user.id, img.uri, img.mimeType),
-            type: img.mimeType === "image/gif" ? ("gif" as const) : ("image" as const),
-            width: img.width,
-            height: img.height,
-          })),
+  // Delayed commit: dismiss the modal right away and give the snackbar a
+  // 5 second undo window before the upload and insert actually run.
+  const handlePublish = () => {
+    if (!user) return;
+    const snapshot = { content, images };
+
+    const publish = async () => {
+      try {
+        let media: NewPostMedia[] | undefined;
+        if (snapshot.images.length > 0) {
+          media = await Promise.all(
+            snapshot.images.map(async (img) => ({
+              url: await uploadPostMedia(user.id, img.uri, img.mimeType),
+              type: img.mimeType === "image/gif" ? ("gif" as const) : ("image" as const),
+              width: img.width,
+              height: img.height,
+            })),
+          );
+        }
+        await createPost(user.id, snapshot.content.trim(), { media });
+        queryClient.invalidateQueries({ queryKey: ["feed"] });
+      } catch (err) {
+        // The screen is gone by the time the commit runs, so surface the
+        // failure globally instead of the old inline error text.
+        Alert.alert(
+          "Post not published",
+          err instanceof Error ? err.message : "The post could not be published.",
         );
       }
-      return createPost(user.id, content.trim(), { media });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["feed"] });
-      router.back();
-    },
-  });
+    };
+
+    router.back();
+    scheduleUndoableSend({
+      message: "Posted",
+      commit: () => void publish(),
+      onUndo: () => {
+        undoRestore = snapshot;
+        router.push("/compose");
+      },
+    });
+  };
 
   const pickImages = async () => {
     const remainingSlots = MAX_IMAGES - images.length;
@@ -98,7 +131,7 @@ export default function ComposeScreen() {
   };
 
   const trimmed = content.trim();
-  const canPost = (trimmed.length > 0 || images.length > 0) && !publishMutation.isPending;
+  const canPost = trimmed.length > 0 || images.length > 0;
   const remaining = POST_MAX_LENGTH - content.length;
 
   return (
@@ -127,16 +160,14 @@ export default function ComposeScreen() {
               accessibilityRole="button"
               accessibilityLabel="Publish post"
               disabled={!canPost}
-              onPress={() => publishMutation.mutate()}
+              onPress={handlePublish}
               style={({ pressed }) => [
                 styles.postPill,
                 pressed && { opacity: 0.85 },
                 !canPost && { opacity: 0.5 },
               ]}
             >
-              <Text style={styles.postPillLabel}>
-                {publishMutation.isPending ? "Posting" : "Post"}
-              </Text>
+              <Text style={styles.postPillLabel}>Post</Text>
             </Pressable>
           ),
         }}
@@ -188,20 +219,13 @@ export default function ComposeScreen() {
             ))}
           </View>
         ) : null}
-        {publishMutation.error ? (
-          <Text style={styles.error}>
-            {publishMutation.error instanceof Error
-              ? publishMutation.error.message
-              : "The post could not be published."}
-          </Text>
-        ) : null}
       </ScrollView>
       <View style={styles.toolbar}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Attach images"
           onPress={pickImages}
-          disabled={publishMutation.isPending || images.length >= MAX_IMAGES}
+          disabled={images.length >= MAX_IMAGES}
           style={({ pressed }) => [
             pressed && { opacity: 0.7 },
             images.length >= MAX_IMAGES && { opacity: 0.4 },
@@ -212,7 +236,6 @@ export default function ComposeScreen() {
         </Pressable>
         <MentionButton
           onPress={() => captionRef.current?.insertMentionTrigger()}
-          disabled={publishMutation.isPending}
         />
         {images.length > 0 ? (
           <Text style={styles.imageCount}>
@@ -301,10 +324,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
-  },
-  error: {
-    color: colors.destructive,
-    fontSize: 13,
   },
   toolbar: {
     flexDirection: "row",
