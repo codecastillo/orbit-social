@@ -157,10 +157,24 @@ export async function getMessages(
   return (data ?? []) as unknown as Message[];
 }
 
+export async function getMessageById(
+  messageId: string,
+): Promise<Message | null> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select(MESSAGE_SELECT)
+    .eq("id", messageId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as unknown as Message) ?? null;
+}
+
 export async function sendMessage(
   conversationId: string,
   senderId: string,
   content: string,
+  replyToId?: string,
 ): Promise<Message> {
   const { data: message, error: msgError } = await supabase
     .from("messages")
@@ -168,6 +182,7 @@ export async function sendMessage(
       conversation_id: conversationId,
       sender_id: senderId,
       content,
+      reply_to_id: replyToId ?? null,
     })
     .select(MESSAGE_SELECT)
     .single();
@@ -331,4 +346,81 @@ export async function markConversationRead(
     .eq("user_id", userId);
 
   if (error) throw error;
+}
+
+// ── Read receipts ───────────────────────────────────────────────────
+
+// The read_receipts_enabled column ships in a later migration; until it
+// lands, every profile read degrades to "enabled" and writes are no-ops.
+const MISSING_COLUMN_CODE = "42703";
+
+function isMissingReadReceiptsColumn(error: {
+  code?: string;
+  message?: string;
+}): boolean {
+  return (
+    error.code === MISSING_COLUMN_CODE ||
+    (error.message ?? "").includes("read_receipts_enabled")
+  );
+}
+
+/**
+ * Whether the user shares (and therefore also sees) DM read receipts.
+ * Reciprocal by design: this single flag gates both directions.
+ */
+export async function getReadReceiptsEnabled(userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("read_receipts_enabled")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error || !data) return true;
+  return (
+    (data as { read_receipts_enabled?: boolean }).read_receipts_enabled ?? true
+  );
+}
+
+export async function setReadReceiptsEnabled(
+  userId: string,
+  enabled: boolean,
+): Promise<void> {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ read_receipts_enabled: enabled })
+    .eq("id", userId);
+
+  if (error && !isMissingReadReceiptsColumn(error)) throw error;
+}
+
+/**
+ * The other member's last_read_at for a 1:1 conversation, already gated by
+ * the reciprocity rule: null when the conversation is a group, when either
+ * side has read receipts off, or when there is no single counterpart.
+ */
+export async function getDmSeenAt(
+  conversationId: string,
+  viewerId: string,
+): Promise<string | null> {
+  if (!(await getReadReceiptsEnabled(viewerId))) return null;
+
+  const { data: conv } = await supabase
+    .from("conversations")
+    .select("is_group")
+    .eq("id", conversationId)
+    .maybeSingle();
+  if (!conv || conv.is_group) return null;
+
+  const { data: others, error } = await supabase
+    .from("conversation_members")
+    .select("user_id, last_read_at")
+    .eq("conversation_id", conversationId)
+    .neq("user_id", viewerId);
+
+  if (error || !others || others.length !== 1) return null;
+  const other = others[0];
+  if (!other.last_read_at) return null;
+  if (!(await getReadReceiptsEnabled(other.user_id))) return null;
+
+  return other.last_read_at;
 }

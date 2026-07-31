@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { MessageBubble } from "./message-bubble";
-import type { Message } from "@/lib/queries/messages";
+import { useEffect, useRef, useState } from "react";
+import { MessageBubble, type QuotedReply } from "./message-bubble";
+import { getMessageById, type Message } from "@/lib/queries/messages";
+import { isAudioMessage } from "@/lib/utils/audio";
 
 interface ChatWindowProps {
   messages: Message[];
@@ -12,7 +13,24 @@ interface ChatWindowProps {
   isLoadingMore?: boolean;
   onPinMessage?: (messageId: string, isPinned: boolean) => void;
   onDeleteMessage?: (messageId: string) => void;
+  onReply?: (message: Message) => void;
+  /** Other member's last_read_at (1:1 only, already gated by preferences). */
+  seenAt?: string | null;
   isGroup?: boolean;
+}
+
+/** One-line description of a message for the quoted-reply block. */
+export function replySnippet(message: Message): string {
+  if (message.is_deleted) return "Message deleted";
+  if (
+    isAudioMessage(null, message.media_url) ||
+    message.content?.startsWith("[audio]")
+  ) {
+    return "Voice message";
+  }
+  if (message.content) return message.content.slice(0, 80);
+  if (message.media_url) return "Media";
+  return "Message";
 }
 
 function formatDateDivider(dateStr: string): string {
@@ -54,11 +72,73 @@ export function ChatWindow({
   isLoadingMore,
   onPinMessage,
   onDeleteMessage,
+  onReply,
+  seenAt,
   isGroup,
 }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(messages.length);
+
+  // Quoted replies resolve against already-loaded messages; anything older
+  // than the loaded pages gets a one-shot fetch, cached here (null = gone).
+  const [fetchedReplies, setFetchedReplies] = useState<
+    Map<string, Message | null>
+  >(new Map());
+
+  useEffect(() => {
+    const loaded = new Set(messages.map((m) => m.id));
+    const missing = Array.from(
+      new Set(
+        messages
+          .map((m) => m.reply_to_id)
+          .filter(
+            (id): id is string =>
+              !!id && !loaded.has(id) && !fetchedReplies.has(id)
+          )
+      )
+    );
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(
+      missing.map(
+        async (id) =>
+          [id, await getMessageById(id).catch(() => null)] as const
+      )
+    ).then((entries) => {
+      if (cancelled) return;
+      setFetchedReplies((prev) => new Map([...prev, ...entries]));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, fetchedReplies]);
+
+  const messageById = new Map(messages.map((m) => [m.id, m]));
+  const resolveReply = (message: Message): QuotedReply | null => {
+    if (!message.reply_to_id) return null;
+    const source =
+      messageById.get(message.reply_to_id) ??
+      fetchedReplies.get(message.reply_to_id);
+    if (!source) return null;
+    return {
+      name: source.sender?.display_name || "Message",
+      snippet: replySnippet(source),
+    };
+  };
+
+  // "Seen" sits under the newest own message the other member has read.
+  let seenMessageId: string | null = null;
+  if (seenAt && !isGroup) {
+    const seenTime = new Date(seenAt).getTime();
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.sender_id !== currentUserId || m.id.startsWith("temp-")) continue;
+      if (new Date(m.created_at).getTime() <= seenTime) seenMessageId = m.id;
+      break;
+    }
+  }
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -140,7 +220,14 @@ export function ChatWindow({
                 currentUserId={currentUserId}
                 onPinMessage={onPinMessage}
                 onDeleteMessage={onDeleteMessage}
+                onReply={onReply}
+                replyPreview={resolveReply(message)}
               />
+              {message.id === seenMessageId && (
+                <p className="m-0 mt-0.5 flex justify-end pr-1 text-[10px] font-medium text-muted-foreground/70">
+                  Seen
+                </p>
+              )}
             </div>
           );
         })}

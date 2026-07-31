@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Pin, Trash2 } from "lucide-react";
+import { Pin, Reply, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isAudioMessage } from "@/lib/utils/audio";
 import { formatTime } from "@/lib/utils/format";
@@ -18,6 +18,11 @@ import {
   type Message,
 } from "@/lib/queries/messages";
 
+export interface QuotedReply {
+  name: string;
+  snippet: string;
+}
+
 interface MessageBubbleProps {
   message: Message;
   isOwn: boolean;
@@ -25,6 +30,9 @@ interface MessageBubbleProps {
   currentUserId?: string;
   onPinMessage?: (messageId: string, isPinned: boolean) => void;
   onDeleteMessage?: (messageId: string) => void;
+  onReply?: (message: Message) => void;
+  /** Resolved snippet of the message this one replies to, when present. */
+  replyPreview?: QuotedReply | null;
 }
 
 export function MessageBubble({
@@ -34,6 +42,8 @@ export function MessageBubble({
   currentUserId,
   onPinMessage,
   onDeleteMessage,
+  onReply,
+  replyPreview,
 }: MessageBubbleProps) {
   const time = formatTime(message.created_at);
 
@@ -206,6 +216,15 @@ export function MessageBubble({
         <div className="flex items-center gap-1.5 min-w-0">
           {isOwn && (
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              {onReply && (
+                <button
+                  onClick={() => onReply(message)}
+                  className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                  title="Reply"
+                >
+                  <Reply className="h-3.5 w-3.5" />
+                </button>
+              )}
               {onDeleteMessage && (
                 <button
                   onClick={() => onDeleteMessage(message.id)}
@@ -258,6 +277,35 @@ export function MessageBubble({
                   {message.sender.display_name}
                 </p>
               )}
+              {message.reply_to_id && replyPreview && (
+                <div
+                  className={cn(
+                    "mb-1.5 rounded-md border-l-2 px-2.5 py-1.5",
+                    isOwn
+                      ? "border-primary-foreground/40 bg-primary-foreground/10"
+                      : "border-primary/50 bg-muted/40"
+                  )}
+                >
+                  <p
+                    className={cn(
+                      "m-0 text-[11px] font-semibold",
+                      isOwn ? "text-primary-foreground/80" : "text-primary"
+                    )}
+                  >
+                    {replyPreview.name}
+                  </p>
+                  <p
+                    className={cn(
+                      "m-0 truncate text-[11px]",
+                      isOwn
+                        ? "text-primary-foreground/60"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {replyPreview.snippet}
+                  </p>
+                </div>
+              )}
               {message.media_url && !isAudioMessage(null, message.media_url) && (
                 <div className="relative mb-1 aspect-[4/3] w-64 max-w-full overflow-hidden rounded-lg">
                   <Image
@@ -288,6 +336,15 @@ export function MessageBubble({
           </div>
           {!isOwn && (
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              {onReply && (
+                <button
+                  onClick={() => onReply(message)}
+                  className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                  title="Reply"
+                >
+                  <Reply className="h-3.5 w-3.5" />
+                </button>
+              )}
               <MessageReactionPicker
                 onSelect={handleReactionSelect}
                 existingEmojis={reactions

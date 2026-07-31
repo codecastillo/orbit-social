@@ -34,6 +34,64 @@ const PREF_COLUMN: Record<string, "likes" | "comments" | "follows" | "mentions" 
   message: "messages",
 };
 
+// Person-to-person types (message, mention, comment, follow) always push:
+// someone deliberately reached out. Ambient activity is capped per recipient
+// per ISO week so push notifications stay scarce and welcome instead of
+// training people to disable them.
+const AMBIENT_TYPES = new Set([
+  "like",
+  "repost",
+  "quote",
+  "live_started",
+  "event_reminder",
+  "community_invite",
+  "event_invite",
+  "story_reaction",
+]);
+const AMBIENT_WEEKLY_LIMIT = 3;
+
+/** Monday of the current ISO week, as a YYYY-MM-DD date string (UTC). */
+function isoWeekStart(now: Date): string {
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Checks and consumes one unit of the recipient's weekly ambient push
+ * budget. Returns false once the cap is hit. Any read error (including the
+ * push_budget table not being migrated yet) fails open and sends as before.
+ */
+async function consumeAmbientBudget(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+): Promise<boolean> {
+  const weekStart = isoWeekStart(new Date());
+  const { data, error } = await admin
+    .from("push_budget")
+    .select("ambient_count")
+    .eq("user_id", userId)
+    .eq("week_start", weekStart)
+    .maybeSingle();
+  if (error) return true;
+
+  const count = data?.ambient_count ?? 0;
+  if (count >= AMBIENT_WEEKLY_LIMIT) return false;
+
+  // Read-then-upsert can overshoot by one under concurrent webhook
+  // deliveries; acceptable for a soft cap.
+  const { error: writeError } = await admin
+    .from("push_budget")
+    .upsert(
+      { user_id: userId, week_start: weekStart, ambient_count: count + 1 },
+      { onConflict: "user_id,week_start" },
+    );
+  if (writeError) {
+    console.error("[push/notify] budget increment failed:", writeError);
+  }
+  return true;
+}
+
 function secretsMatch(provided: string | null, expected: string): boolean {
   if (!provided) return false;
   const a = Buffer.from(provided);
@@ -161,6 +219,15 @@ export async function POST(req: Request) {
     const enabled = (prefs as Record<string, boolean | null> | null)?.[prefColumn];
     if (enabled === false) {
       return NextResponse.json({ ok: true, skipped: "preference" });
+    }
+  }
+
+  // In-app notification rows are untouched by the budget; only push
+  // delivery is skipped.
+  if (AMBIENT_TYPES.has(record.type)) {
+    const withinBudget = await consumeAmbientBudget(admin, record.user_id);
+    if (!withinBudget) {
+      return NextResponse.json({ ok: true, skipped: "budget" });
     }
   }
 

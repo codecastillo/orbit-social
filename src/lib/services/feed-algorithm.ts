@@ -12,21 +12,52 @@ export type UserInteractions = Map<string, number>;
 // Scoring helpers
 // ---------------------------------------------------------------------------
 
-/** Exponential decay: returns 1.0 for brand-new posts, ~0 for very old ones. */
-function recencyScore(createdAt: string): number {
-  const ageMs = Date.now() - new Date(createdAt).getTime();
-  const ageHours = ageMs / (1000 * 60 * 60);
-  // Half-life of 12 hours
-  return Math.pow(0.5, ageHours / 12);
+const RECENCY_HALF_LIFE_HOURS = 12;
+// Weighted engagement at which the log-dampened score saturates at 1.0.
+const ENGAGEMENT_SATURATION = 500;
+const BOOST_BONUS = 0.35;
+// Cold start: authors below these thresholds get a decaying newness bonus
+// for their first posts, so a first post is guaranteed distribution even
+// with zero followers. Distribution is the creator-acquisition product.
+const COLD_START_WINDOW_HOURS = 48;
+const COLD_START_FOLLOWER_CEILING = 100;
+const COLD_START_POST_CEILING = 5;
+const COLD_START_MAX_BONUS = 0.3;
+
+function ageHours(createdAt: string): number {
+  return (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60);
 }
 
-/** Engagement rate: weighted interactions normalised by views. */
+/** Exponential decay: returns 1.0 for brand-new posts, ~0 for very old ones. */
+function recencyScore(createdAt: string): number {
+  return Math.pow(0.5, ageHours(createdAt) / RECENCY_HALF_LIFE_HOURS);
+}
+
+/** Log-dampened weighted interactions so viral outliers cannot dominate. */
 function engagementScore(post: PostWithAuthor): number {
   const weighted =
     post.like_count + post.comment_count * 2 + post.repost_count * 3;
-  const views = Math.max(post.view_count, 1);
-  // Cap at 1.0 to avoid outliers dominating
-  return Math.min(weighted / views, 1.0);
+  return Math.min(
+    Math.log1p(weighted) / Math.log1p(ENGAGEMENT_SATURATION),
+    1.0
+  );
+}
+
+/**
+ * Newness bonus for small authors' fresh posts. Fades linearly to zero over
+ * the first 48 hours so it never pins a stale post to the top.
+ */
+function coldStartBonus(post: PostWithAuthor): number {
+  const age = ageHours(post.created_at);
+  if (age >= COLD_START_WINDOW_HOURS) return 0;
+
+  const followers = post.profiles?.follower_count ?? 0;
+  const authored = post.profiles?.post_count ?? 0;
+  const isSmallAuthor =
+    followers < COLD_START_FOLLOWER_CEILING || authored <= COLD_START_POST_CEILING;
+  if (!isSmallAuthor) return 0;
+
+  return COLD_START_MAX_BONUS * (1 - age / COLD_START_WINDOW_HOURS);
 }
 
 /** Social proximity bonus based on how often the viewer has interacted. */
@@ -49,11 +80,9 @@ function mediaBonus(post: PostWithAuthor): number {
 
 /** Boost bonus: if the post is currently boosted, add a significant score bump. */
 function boostBonus(post: PostWithAuthor): number {
-  const boostedUntil = (post as PostWithAuthor & { boosted_until?: string | null }).boosted_until;
-  if (!boostedUntil) return 0;
-  if (new Date(boostedUntil) <= new Date()) return 0;
-  // Active boost gives a strong bonus
-  return 0.3;
+  if (!post.boosted_until) return 0;
+  if (new Date(post.boosted_until) <= new Date()) return 0;
+  return BOOST_BONUS;
 }
 
 // ---------------------------------------------------------------------------
@@ -78,15 +107,27 @@ export function scorePost(
   const social = socialProximityScore(post, interactions);
   const media = mediaBonus(post);
   const boost = boostBonus(post);
+  const coldStart = coldStartBonus(post);
 
-  // Weighted combination (boost is additive to ensure promoted posts surface)
-  return recency * 0.4 + engagement * 0.25 + social * 0.25 + media * 0.1 + boost;
+  // Recency carries the largest weight so the feed still feels fresh; boost
+  // and cold start are additive so promoted and first posts always surface.
+  return (
+    recency * 0.5 +
+    engagement * 0.2 +
+    social * 0.15 +
+    media * 0.05 +
+    boost +
+    coldStart
+  );
 }
 
 /**
  * Rank an array of posts using the scoring algorithm.
  * Also applies a diversity penalty so the same author doesn't appear
  * multiple times in a row.
+ *
+ * Callers rank one fetched page at a time: re-ranking already-delivered
+ * pages would reorder content under the user's thumb.
  */
 export function rankPosts(
   posts: PostWithAuthor[],
@@ -101,8 +142,12 @@ export function rankPosts(
     score: scorePost(post, userId, interactions),
   }));
 
-  // Sort by raw score descending
-  scored.sort((a, b) => b.score - a.score);
+  // Sort by raw score descending; created_at desc breaks ties so equal
+  // scores keep a stable order across re-renders.
+  scored.sort(
+    (a, b) =>
+      b.score - a.score || b.post.created_at.localeCompare(a.post.created_at)
+  );
 
   // Diversity pass: penalise consecutive posts from the same author
   const result: PostWithAuthor[] = [];

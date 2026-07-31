@@ -24,6 +24,7 @@ export interface PostWithAuthor {
   scheduled_at: string | null;
   visibility: "public" | "close_friends";
   content_warning: string | null;
+  boosted_until?: string | null;
   created_at: string;
   updated_at: string;
   profiles: {
@@ -32,6 +33,9 @@ export interface PostWithAuthor {
     display_name: string;
     avatar_url: string | null;
     is_verified: boolean;
+    // Author-size signals for feed ranking (cold-start detection).
+    follower_count?: number;
+    post_count?: number;
   };
   post_media: MediaItem[];
   user_has_liked?: boolean;
@@ -65,7 +69,8 @@ const POST_SELECT = `
   bookmark_count, poll_data, is_pinned, is_hidden, location, scheduled_at,
   visibility, content_warning, boosted_until, created_at, updated_at,
   profiles!posts_user_id_fkey (
-    id, username, display_name, avatar_url, is_verified
+    id, username, display_name, avatar_url, is_verified,
+    follower_count, post_count
   ),
   post_media (
     id, type, url, thumbnail_url, width, height, blurhash, sort_order

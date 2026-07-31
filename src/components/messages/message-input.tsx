@@ -2,10 +2,16 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VoiceRecorder } from "@/components/messages/voice-recorder";
 import { cn } from "@/lib/utils";
 import { generateSmartReplies } from "@/lib/services/smart-replies";
+
+export interface ReplyPreview {
+  name: string;
+  snippet: string;
+}
 
 interface MessageInputProps {
   onSend: (content: string) => Promise<void>;
@@ -13,9 +19,22 @@ interface MessageInputProps {
   disabled?: boolean;
   /** The last message from the other person, used for smart reply suggestions. */
   lastReceivedMessage?: string;
+  /** Message being replied to; renders the quoted bar above the input. */
+  replyTo?: ReplyPreview | null;
+  onCancelReply?: () => void;
+  /** Reports input activity so the page can broadcast typing state. */
+  onTypingActivity?: (hasText: boolean) => void;
 }
 
-export function MessageInput({ onSend, onSendAudio, disabled, lastReceivedMessage }: MessageInputProps) {
+export function MessageInput({
+  onSend,
+  onSendAudio,
+  disabled,
+  lastReceivedMessage,
+  replyTo,
+  onCancelReply,
+  onTypingActivity,
+}: MessageInputProps) {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -45,6 +64,7 @@ export function MessageInput({ onSend, onSendAudio, disabled, lastReceivedMessag
     if (!trimmed || sending) return;
 
     setSending(true);
+    onTypingActivity?.(false);
     try {
       await onSend(trimmed);
       setContent("");
@@ -54,7 +74,7 @@ export function MessageInput({ onSend, onSendAudio, disabled, lastReceivedMessag
     } finally {
       setSending(false);
     }
-  }, [content, sending, onSend]);
+  }, [content, sending, onSend, onTypingActivity]);
 
   const handleSuggestionClick = useCallback(
     async (suggestion: string) => {
@@ -81,6 +101,7 @@ export function MessageInput({ onSend, onSendAudio, disabled, lastReceivedMessag
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
+    onTypingActivity?.(e.target.value.trim().length > 0);
     if (e.target.value.length > 0) {
       setDismissed(true);
     }
@@ -88,6 +109,25 @@ export function MessageInput({ onSend, onSendAudio, disabled, lastReceivedMessag
 
   return (
     <div className="border-t border-border bg-background/95 backdrop-blur-sm p-3">
+      {replyTo && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+          <div className="min-w-0 flex-1 border-l-2 border-primary/60 pl-2.5">
+            <p className="m-0 text-xs font-medium text-primary">
+              Replying to {replyTo.name}
+            </p>
+            <p className="m-0 truncate text-xs text-muted-foreground">
+              {replyTo.snippet}
+            </p>
+          </div>
+          <button
+            onClick={onCancelReply}
+            aria-label="Cancel reply"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
       {/* Smart reply suggestions */}
       <AnimatePresence>
         {showSuggestions && (

@@ -41,7 +41,7 @@ export function UserSuggestionCard({
       }
     } catch {
       setIsFollowing(wasFollowing);
-      toast.error("Something went wrong");
+      toast.error("Couldn't update follow");
     }
   };
 

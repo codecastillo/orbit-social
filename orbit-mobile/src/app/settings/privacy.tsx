@@ -3,6 +3,7 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -16,6 +17,10 @@ import {
   unmuteUser,
   type BlockedProfile,
 } from "@/lib/queries/settings";
+import {
+  getReadReceiptsEnabled,
+  setReadReceiptsEnabled,
+} from "@/lib/queries/messages";
 import { useAuth } from "@/providers/auth-provider";
 import { colors, spacing } from "@/lib/theme";
 
@@ -125,6 +130,29 @@ export default function PrivacySettingsScreen() {
     },
   });
 
+  // Reads degrade to "enabled" until the read_receipts_enabled migration
+  // lands, so this row is safe to show either way.
+  const receiptsKey = ["read-receipts", user?.id];
+  const receiptsQuery = useQuery({
+    queryKey: receiptsKey,
+    queryFn: () => getReadReceiptsEnabled(user!.id),
+    enabled: !!user,
+  });
+
+  const receiptsMutation = useMutation({
+    mutationFn: (enabled: boolean) => setReadReceiptsEnabled(user!.id, enabled),
+    onMutate: async (enabled) => {
+      await queryClient.cancelQueries({ queryKey: receiptsKey });
+      const previous = queryClient.getQueryData<boolean>(receiptsKey);
+      queryClient.setQueryData(receiptsKey, enabled);
+      return { previous };
+    },
+    onError: (_error, _enabled, context) => {
+      queryClient.setQueryData(receiptsKey, context?.previous);
+      Alert.alert("Couldn't update read receipts");
+    },
+  });
+
   const unmuteMutation = useMutation({
     mutationFn: (profile: BlockedProfile) => unmuteUser(user!.id, profile.id),
     onMutate: async (profile) => {
@@ -183,6 +211,25 @@ export default function PrivacySettingsScreen() {
     <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: "Privacy" }} />
 
+      <Text style={styles.sectionTitle}>Messages</Text>
+      <View style={styles.toggleRow}>
+        <View style={styles.toggleBody}>
+          <Text style={styles.toggleLabel}>Read receipts</Text>
+          <Text style={styles.toggleHint}>
+            Show people when you have seen their messages. Turn it off and you
+            will not see theirs either.
+          </Text>
+        </View>
+        <Switch
+          accessibilityLabel="Read receipts"
+          value={receiptsQuery.data ?? true}
+          onValueChange={(enabled) => receiptsMutation.mutate(enabled)}
+          disabled={receiptsQuery.isPending}
+          trackColor={{ false: colors.border, true: colors.primary }}
+          thumbColor={colors.foreground}
+        />
+      </View>
+
       <AccountSection
         title="Blocked accounts"
         profiles={blockedQuery.data}
@@ -230,6 +277,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     paddingHorizontal: spacing(4),
     paddingVertical: spacing(3),
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(3),
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(3),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  toggleBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  toggleLabel: {
+    color: colors.foreground,
+    fontSize: 14.5,
+    fontWeight: "600",
+  },
+  toggleHint: {
+    marginTop: 2,
+    color: colors.mutedForeground,
+    fontSize: 12,
+    lineHeight: 16,
   },
   accountRow: {
     flexDirection: "row",

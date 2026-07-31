@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Flag,
   Users,
+  UsersRound,
   ShieldAlert,
   Loader2,
 } from "lucide-react";
@@ -20,6 +21,7 @@ const adminLinks = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/reports", label: "Reports", icon: Flag },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/starter-packs", label: "Starter Packs", icon: UsersRound },
 ];
 
 export default function AdminLayout({

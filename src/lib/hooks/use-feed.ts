@@ -9,6 +9,7 @@ import {
   checkUserReposted,
   type PostWithAuthor,
 } from "@/lib/queries/posts";
+import { rankPosts } from "@/lib/services/feed-algorithm";
 
 export function useFeed(tab: "foryou" | "following") {
   const { user } = useAuth();
@@ -22,9 +23,11 @@ export function useFeed(tab: "foryou" | "following") {
       // Anon viewers see the public timeline (no follow graph available).
       if (!user) {
         const posts = await getPublicTimeline(pageParam);
+        // Cursor comes from the chronological fetch order, before ranking,
+        // so pagination stays a clean created_at walk.
         const nextCursor =
           posts.length > 0 ? posts[posts.length - 1].created_at : null;
-        return { posts, nextCursor };
+        return { posts: rankPosts(posts, "anon"), nextCursor };
       }
 
       const posts = await getFeedPosts(user.id, tab, pageParam);
@@ -56,10 +59,18 @@ export function useFeed(tab: "foryou" | "following") {
         }
       }
 
+      // Cursor comes from the chronological fetch order, before ranking,
+      // so pagination stays a clean created_at walk regardless of tab.
       const nextCursor =
         posts.length > 0 ? posts[posts.length - 1].created_at : null;
 
-      return { posts: enrichedPosts, nextCursor };
+      // For You ranks each page's batch in isolation; already-delivered
+      // pages are never re-ranked, so nothing reorders under the user's
+      // thumb. Following stays strictly chronological and complete.
+      const pagePosts =
+        tab === "foryou" ? rankPosts(enrichedPosts, user.id) : enrichedPosts;
+
+      return { posts: pagePosts, nextCursor };
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,

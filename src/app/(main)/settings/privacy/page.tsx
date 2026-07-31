@@ -17,6 +17,10 @@ import {
   unmuteUser,
   type ProfileSummary,
 } from "@/lib/queries/social";
+import {
+  getReadReceiptsEnabled,
+  setReadReceiptsEnabled,
+} from "@/lib/queries/messages";
 
 function AccountRow({
   profile,
@@ -53,6 +57,30 @@ function AccountRow({
   );
 }
 
+function ToggleRow({
+  label,
+  hint,
+  on,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  on: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center gap-[18px] border-t border-border py-3.5">
+      <div className="flex-1">
+        <div className="text-sm font-semibold text-foreground">{label}</div>
+        <div className="mt-1 text-[12.5px] leading-[1.45] text-muted-foreground">
+          {hint}
+        </div>
+      </div>
+      <Toggle on={on} onChange={onChange} />
+    </div>
+  );
+}
+
 export default function PrivacySettingsPage() {
   const { user, loading: authLoading } = useAuth();
   const supabase = createClient();
@@ -61,6 +89,7 @@ export default function PrivacySettingsPage() {
   const [hideActivity, setHideActivity] = useState(false);
   const [privateFollowers, setPrivateFollowers] = useState(false);
   const [privateLikes, setPrivateLikes] = useState(false);
+  const [readReceipts, setReadReceipts] = useState(true);
   const [profileLoading, setProfileLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [blocked, setBlocked] = useState<ProfileSummary[]>([]);
@@ -83,6 +112,9 @@ export default function PrivacySettingsPage() {
         }
         setProfileLoading(false);
       });
+    // Separate read: getReadReceiptsEnabled degrades to true until the
+    // read_receipts_enabled migration lands, without failing the main select.
+    getReadReceiptsEnabled(user.id).then(setReadReceipts);
   }, [user, supabase]);
 
   useEffect(() => {
@@ -133,7 +165,13 @@ export default function PrivacySettingsPage() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", user.id);
-    if (error) toast.error("Couldn't update privacy settings");
+    let receiptsError = false;
+    try {
+      await setReadReceiptsEnabled(user.id, readReceipts);
+    } catch {
+      receiptsError = true;
+    }
+    if (error || receiptsError) toast.error("Couldn't update privacy settings");
     else toast.success("Saved");
     setSaving(false);
   };
@@ -146,28 +184,6 @@ export default function PrivacySettingsPage() {
       </div>
     );
   }
-
-  const ToggleRow = ({
-    label,
-    hint,
-    on,
-    onChange,
-  }: {
-    label: string;
-    hint: string;
-    on: boolean;
-    onChange: (v: boolean) => void;
-  }) => (
-    <div className="flex items-center gap-[18px] border-t border-border py-3.5">
-      <div className="flex-1">
-        <div className="text-sm font-semibold text-foreground">{label}</div>
-        <div className="mt-1 text-[12.5px] leading-[1.45] text-muted-foreground">
-          {hint}
-        </div>
-      </div>
-      <Toggle on={on} onChange={onChange} />
-    </div>
-  );
 
   return (
     <div className="flex flex-col gap-[18px] text-foreground">
@@ -204,6 +220,12 @@ export default function PrivacySettingsPage() {
             hint="The counts stay public, but the lists won't open for anyone but you."
             on={privateFollowers}
             onChange={setPrivateFollowers}
+          />
+          <ToggleRow
+            label="Read receipts"
+            hint="Show people when you've seen their messages. Turn it off and you won't see theirs either."
+            on={readReceipts}
+            onChange={setReadReceipts}
           />
           <ToggleRow
             label="Hide your Likes tab"

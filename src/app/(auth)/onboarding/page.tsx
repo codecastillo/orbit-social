@@ -22,11 +22,13 @@ import {
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getSuggestedUsers } from "@/lib/queries/social";
+import { getActiveStarterPacks } from "@/lib/queries/starter-packs";
 import { consumePendingRedirect } from "@/lib/utils/post-auth-redirect";
 import { Button } from "@/components/ui/button";
 import { AuthField, AuthInput } from "@/components/auth/auth-shell";
+import { StarterPacksStep } from "./starter-packs-step";
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 const INTERESTS: { label: string; hue: number }[] = [
   { label: "photography", hue: 18 },
@@ -69,6 +71,16 @@ export default function OnboardingPage() {
 
   const displayName = watch("displayName", "");
   const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+  // getActiveStarterPacks returns [] on any error, so a missing table just
+  // means the packs step never appears.
+  const { data: starterPacks } = useQuery({
+    queryKey: ["onboarding-starter-packs"],
+    queryFn: getActiveStarterPacks,
+    staleTime: 1000 * 60 * 5,
+  });
+  const hasPacks = (starterPacks?.length ?? 0) > 0;
+  const totalSteps = hasPacks ? 4 : 3;
 
   const handleAvatarUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -136,9 +148,8 @@ export default function OnboardingPage() {
     setStep(2);
   };
 
-  const finish = async () => {
+  const saveInterestsAndFollows = async () => {
     if (!user) return;
-    setFinishing(true);
     try {
       await supabase
         .from("profiles")
@@ -152,9 +163,21 @@ export default function OnboardingPage() {
       }));
       await supabase.from("follows").insert(inserts);
     }
-    setFinishing(false);
+  };
+
+  const goToFeed = () => {
     router.push(consumePendingRedirect("/feed"));
     router.refresh();
+  };
+
+  // Step 3 either finishes onboarding or hands off to the starter packs
+  // step, which follows people as buttons are tapped and only redirects.
+  const finish = async () => {
+    setFinishing(true);
+    await saveInterestsAndFollows();
+    setFinishing(false);
+    if (hasPacks) setStep(4);
+    else goToFeed();
   };
 
   const toggleInterest = (label: string) => {
@@ -171,7 +194,7 @@ export default function OnboardingPage() {
     setFollowed(next);
   };
 
-  const progress = step === 1 ? 33 : step === 2 ? 66 : 100;
+  const progress = Math.round((step / totalSteps) * 100);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -197,7 +220,7 @@ export default function OnboardingPage() {
             />
           </div>
           <span className="font-mono text-[11px] text-muted-foreground">
-            {step} / 3
+            {step} / {totalSteps}
           </span>
         </header>
 
@@ -234,6 +257,16 @@ export default function OnboardingPage() {
                 toggle={toggleFollow}
                 finishing={finishing}
                 onFinish={finish}
+                isLastStep={!hasPacks}
+              />
+            </div>
+          )}
+          {step === 4 && user && starterPacks && (
+            <div className="flex flex-1 flex-col">
+              <StarterPacksStep
+                packs={starterPacks}
+                userId={user.id}
+                onFinish={goToFeed}
               />
             </div>
           )}
@@ -421,11 +454,13 @@ function Step3Follows({
   toggle,
   finishing,
   onFinish,
+  isLastStep,
 }: {
   followed: Set<string>;
   toggle: (id: string) => void;
   finishing: boolean;
   onFinish: () => void;
+  isLastStep: boolean;
 }) {
   const { user } = useAuth();
   const { data: suggestions, isLoading } = useQuery({
@@ -519,7 +554,8 @@ function Step3Follows({
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <>
-              Enter Orbit <ArrowRight className="h-3.5 w-3.5" />
+              {isLastStep ? "Enter Orbit" : "Continue"}{" "}
+              <ArrowRight className="h-3.5 w-3.5" />
             </>
           )}
         </Button>

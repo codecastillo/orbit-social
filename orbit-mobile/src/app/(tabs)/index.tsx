@@ -17,7 +17,6 @@ import { PostListSkeleton, StoriesSkeleton } from "@/components/post-skeleton";
 import { Button, EmptyState } from "@/components/ui";
 import { useAuth } from "@/providers/auth-provider";
 import {
-  FEED_PAGE_SIZE,
   checkUserInteractions,
   displayPostId,
   getFeedPage,
@@ -64,10 +63,9 @@ export default function FeedScreen() {
     queryKey: ["feed", userId, tab],
     queryFn: ({ pageParam }) => getFeedPage(userId, tab, pageParam),
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      lastPage.posts.length < FEED_PAGE_SIZE
-        ? undefined
-        : lastPage.posts[lastPage.posts.length - 1].created_at,
+    // The page's chronological cursor, captured before For You ranking
+    // reorders posts; the last ranked item is no longer the oldest.
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: !!userId,
   });
 

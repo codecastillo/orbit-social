@@ -15,6 +15,8 @@ const BUTTON_SIZE = 44;
 const BAR_PADDING = 6;
 const BAR_WIDTH = MESSAGE_REACTION_GLYPHS.length * BUTTON_SIZE + BAR_PADDING * 2;
 const BAR_HEIGHT = BUTTON_SIZE + BAR_PADDING * 2;
+// Extra height when the optional Reply action row is shown.
+const ACTION_ROW_HEIGHT = 40;
 const SCREEN_GUTTER = 16;
 
 export interface ReactionBarAnchor {
@@ -30,6 +32,8 @@ interface MessageReactionBarProps {
   existingEmojis: string[];
   onSelect: (emoji: string) => void;
   onClose: () => void;
+  /** When set, a "Reply" action row renders under the reaction glyphs. */
+  onReply?: () => void;
 }
 
 /**
@@ -43,6 +47,7 @@ export function MessageReactionBar({
   existingEmojis,
   onSelect,
   onClose,
+  onReply,
 }: MessageReactionBarProps) {
   // Lazy useState instead of useRef: the values are stable across renders
   // and reading them in render stays within the react-hooks/refs rule.
@@ -67,31 +72,53 @@ export function MessageReactionBar({
     Math.max(anchor.x + anchor.width / 2 - BAR_WIDTH / 2, SCREEN_GUTTER),
     window.width - BAR_WIDTH - SCREEN_GUTTER,
   );
-  const top = Math.max(anchor.y - BAR_HEIGHT - spacing(2), SCREEN_GUTTER);
+  const totalHeight = BAR_HEIGHT + (onReply ? ACTION_ROW_HEIGHT : 0);
+  const top = Math.max(anchor.y - totalHeight - spacing(2), SCREEN_GUTTER);
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Dismiss reactions">
         <Animated.View
-          style={[styles.bar, { left, top, opacity, transform: [{ scale }] }]}
+          style={[
+            styles.bar,
+            // The plain glyph strip keeps its pill silhouette; the version
+            // with the Reply row squares off into a card.
+            { borderRadius: onReply ? radii.lg : radii.full },
+            { left, top, opacity, transform: [{ scale }] },
+          ]}
           // Stop the backdrop press from swallowing taps on the row itself.
           onStartShouldSetResponder={() => true}
         >
-          {MESSAGE_REACTION_GLYPHS.map(({ emoji, label }) => (
+          <View style={styles.glyphRow}>
+            {MESSAGE_REACTION_GLYPHS.map(({ emoji, label }) => (
+              <Pressable
+                key={emoji}
+                accessibilityRole="button"
+                accessibilityLabel={`React with ${label}`}
+                onPress={() => onSelect(emoji)}
+                style={({ pressed }) => [
+                  styles.reaction,
+                  existingEmojis.includes(emoji) && styles.reactionActive,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Text style={styles.glyph}>{emoji}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {onReply ? (
             <Pressable
-              key={emoji}
               accessibilityRole="button"
-              accessibilityLabel={`React with ${label}`}
-              onPress={() => onSelect(emoji)}
+              accessibilityLabel="Reply to message"
+              onPress={onReply}
               style={({ pressed }) => [
-                styles.reaction,
-                existingEmojis.includes(emoji) && styles.reactionActive,
+                styles.actionRow,
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <Text style={styles.glyph}>{emoji}</Text>
+              <Text style={styles.actionLabel}>Reply</Text>
             </Pressable>
-          ))}
+          ) : null}
         </Animated.View>
       </Pressable>
     </Modal>
@@ -151,9 +178,7 @@ const styles = StyleSheet.create({
   },
   bar: {
     position: "absolute",
-    flexDirection: "row",
     padding: BAR_PADDING,
-    borderRadius: radii.full,
     backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.border,
@@ -162,6 +187,22 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 8,
+  },
+  glyphRow: {
+    flexDirection: "row",
+  },
+  actionRow: {
+    height: ACTION_ROW_HEIGHT,
+    alignItems: "center",
+    justifyContent: "center",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    marginTop: BAR_PADDING,
+  },
+  actionLabel: {
+    color: colors.foreground,
+    fontSize: 14.5,
+    fontWeight: "600",
   },
   reaction: {
     width: BUTTON_SIZE,

@@ -47,6 +47,8 @@ import {
   MESSAGE_PAGE_SIZE,
   addMessageReaction,
   getConversations,
+  getDmSeenAt,
+  getMessageById,
   getMessages,
   getMessagesReactions,
   markConversationRead,
@@ -67,6 +69,32 @@ const TIME_GAP_MS = 20 * 60 * 1000;
 const RUN_AVATAR_SIZE = 28;
 const BUBBLE_RADIUS = 18;
 const BUBBLE_RADIUS_TIGHT = 4;
+
+// Typing broadcast pacing, mirrored on the web (typing-indicator.tsx): fire
+// at most every 2s while the input changes, stop after 3s idle, and expire
+// remote typers a beat later so a dropped stop event can't stick the row.
+const TYPING_THROTTLE_MS = 2000;
+const TYPING_IDLE_MS = 3000;
+const TYPING_EXPIRE_MS = 4500;
+
+interface TypingPayload {
+  userId: string;
+  name: string;
+  typing: boolean;
+}
+
+interface QuotedReply {
+  name: string;
+  snippet: string;
+}
+
+/** One-line description of a message for the quoted-reply block. */
+function replySnippet(message: Message): string {
+  if (message.is_deleted) return "Message deleted";
+  if (voiceMessageUrl(message)) return "Voice message";
+  if (message.content) return message.content.slice(0, 80);
+  return "Message";
+}
 
 function timeChipLabel(iso: string): string {
   const date = new Date(iso);
@@ -96,6 +124,8 @@ function MessageBubble({
   avatarUrl,
   senderName,
   reactions,
+  replyPreview,
+  showSeen,
   onLongPress,
   onToggleReaction,
 }: {
@@ -107,6 +137,8 @@ function MessageBubble({
   avatarUrl: string | null;
   senderName: string;
   reactions: ReactionPill[];
+  replyPreview: QuotedReply | null;
+  showSeen: boolean;
   onLongPress: (message: Message, anchor: ReactionBarAnchor) => void;
   onToggleReaction: (messageId: string, emoji: string) => void;
 }) {
@@ -118,6 +150,22 @@ function MessageBubble({
     });
   };
   const voiceUrl = message.is_deleted ? null : voiceMessageUrl(message);
+  const quote = replyPreview ? (
+    <View style={[styles.quote, isMine ? styles.quoteMine : styles.quoteTheirs]}>
+      <Text
+        style={[styles.quoteName, isMine && styles.quoteNameMine]}
+        numberOfLines={1}
+      >
+        {replyPreview.name}
+      </Text>
+      <Text
+        style={[styles.quoteSnippet, isMine && styles.quoteSnippetMine]}
+        numberOfLines={1}
+      >
+        {replyPreview.snippet}
+      </Text>
+    </View>
+  ) : null;
   // Square the corner nearest the sender; the run's oldest message keeps the
   // full radius on top so runs read as one grouped block.
   const cornerStyle = isMine
@@ -159,6 +207,7 @@ function MessageBubble({
               { backgroundColor: isMine ? colors.primary : colors.surfaceElevated },
             ]}
           >
+            {quote ? <View style={styles.voiceQuoteInset}>{quote}</View> : null}
             <VoiceBubble url={voiceUrl} isMine={isMine} />
           </Pressable>
         ) : (
@@ -176,9 +225,12 @@ function MessageBubble({
                 Message deleted
               </Text>
             ) : (
-              <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>
-                {message.content}
-              </Text>
+              <>
+                {quote}
+                <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>
+                  {message.content}
+                </Text>
+              </>
             )}
           </Pressable>
         )}
@@ -192,6 +244,7 @@ function MessageBubble({
           />
         </View>
       ) : null}
+      {showSeen ? <Text style={styles.seenText}>Seen</Text> : null}
     </View>
   );
 }
@@ -229,6 +282,7 @@ export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
 
   // The conversations list is already cached from the Messages tab; reuse
   // it for the header name and avatar instead of a dedicated query.
@@ -266,6 +320,148 @@ export default function ConversationScreen() {
   });
 
   const messageIds = (data?.pages.flat() ?? []).map((m) => m.id);
+  const isGroup = conversation?.is_group ?? false;
+
+  // Other member's read state for the "Seen" marker, gated inside
+  // getDmSeenAt by the reciprocity rule. The newest message id keys the
+  // query so it refreshes as messages land.
+  const seenQuery = useQuery({
+    queryKey: ["dm-seen", conversationId, messageIds[0] ?? null],
+    queryFn: () => getDmSeenAt(conversationId, user!.id),
+    enabled: !!user && !!conversationId && !isGroup,
+  });
+
+  // Quoted replies resolve against loaded pages; anything older gets a
+  // one-shot fetch cached here (null = deleted or unavailable).
+  const [fetchedReplies, setFetchedReplies] = useState<
+    Map<string, Message | null>
+  >(new Map());
+
+  useEffect(() => {
+    const loaded = data?.pages.flat() ?? [];
+    const loadedIds = new Set(loaded.map((m) => m.id));
+    const missing = Array.from(
+      new Set(
+        loaded
+          .map((m) => m.reply_to_id)
+          .filter(
+            (id): id is string =>
+              !!id && !loadedIds.has(id) && !fetchedReplies.has(id),
+          ),
+      ),
+    );
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(
+      missing.map(
+        async (id) => [id, await getMessageById(id).catch(() => null)] as const,
+      ),
+    ).then((entries) => {
+      if (cancelled) return;
+      setFetchedReplies((prev) => new Map([...prev, ...entries]));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [data, fetchedReplies]);
+
+  // Ephemeral typing state over the shared `typing-{conversationId}`
+  // broadcast topic, matching the web's typing-indicator hook so events
+  // cross platforms.
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(
+    null,
+  );
+  const typingLastSentRef = useRef(0);
+  const typingIdleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingExpireRef = useRef(
+    new Map<string, ReturnType<typeof setTimeout>>(),
+  );
+  const [typers, setTypers] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    if (!user || !conversationId) return;
+    const expireTimers = typingExpireRef.current;
+    const channel = supabase
+      .channel(`typing-${conversationId}`)
+      .on("broadcast", { event: "typing" }, ({ payload }) => {
+        const { userId, name, typing } = payload as TypingPayload;
+        if (userId === user.id) return;
+
+        setTypers((prev) => {
+          const next = new Map(prev);
+          if (typing) next.set(userId, name);
+          else next.delete(userId);
+          return next;
+        });
+
+        const existing = expireTimers.get(userId);
+        if (existing) clearTimeout(existing);
+        if (typing) {
+          expireTimers.set(
+            userId,
+            setTimeout(() => {
+              expireTimers.delete(userId);
+              setTypers((prev) => {
+                const next = new Map(prev);
+                next.delete(userId);
+                return next;
+              });
+            }, TYPING_EXPIRE_MS),
+          );
+        } else {
+          expireTimers.delete(userId);
+        }
+      })
+      .subscribe();
+    typingChannelRef.current = channel;
+
+    return () => {
+      typingChannelRef.current = null;
+      for (const timer of expireTimers.values()) clearTimeout(timer);
+      expireTimers.clear();
+      if (typingIdleRef.current) clearTimeout(typingIdleRef.current);
+      setTypers(new Map());
+      supabase.removeChannel(channel);
+    };
+  }, [user, conversationId]);
+
+  const sendTyping = useCallback(
+    (typing: boolean) => {
+      if (!user) return;
+      const name =
+        (user.user_metadata?.display_name as string | undefined) ||
+        (user.user_metadata?.username as string | undefined) ||
+        "Someone";
+      typingChannelRef.current?.send({
+        type: "broadcast",
+        event: "typing",
+        payload: { userId: user.id, name, typing },
+      });
+    },
+    [user],
+  );
+
+  const notifyTyping = useCallback(
+    (hasText: boolean) => {
+      if (typingIdleRef.current) clearTimeout(typingIdleRef.current);
+      if (!hasText) {
+        typingLastSentRef.current = 0;
+        sendTyping(false);
+        return;
+      }
+      const now = Date.now();
+      if (now - typingLastSentRef.current >= TYPING_THROTTLE_MS) {
+        typingLastSentRef.current = now;
+        sendTyping(true);
+      }
+      typingIdleRef.current = setTimeout(() => {
+        typingLastSentRef.current = 0;
+        sendTyping(false);
+      }, TYPING_IDLE_MS);
+    },
+    [sendTyping],
+  );
 
   // One batched query for every loaded message's reactions. The ids live in
   // the key, so realtime inserts and new pages refetch it automatically; the
@@ -401,12 +597,27 @@ export default function ConversationScreen() {
           markConversationRead(conversationId, user.id).catch(() => {});
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "conversation_members",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        () => {
+          // The other member's last_read_at moved; refresh the Seen marker.
+          queryClient.invalidateQueries({
+            queryKey: ["dm-seen", conversationId],
+          });
+        },
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, conversationId, appendMessage]);
+  }, [user, conversationId, appendMessage, queryClient]);
 
   // Realtime drops silently while backgrounded and never replays, so catch
   // up whenever the app returns to the foreground. Reactions have no
@@ -465,7 +676,13 @@ export default function ConversationScreen() {
   }, [kbSpace, kbRest]);
 
   const sendMutation = useMutation({
-    mutationFn: (content: string) => sendMessage(conversationId, user!.id, content),
+    mutationFn: ({
+      content,
+      replyToId,
+    }: {
+      content: string;
+      replyToId?: string;
+    }) => sendMessage(conversationId, user!.id, content, replyToId),
     onSuccess: (message) => {
       appendMessage(message);
       queryClient.invalidateQueries({ queryKey: ["conversations", user?.id] });
@@ -534,13 +751,51 @@ export default function ConversationScreen() {
     const content = draft.trim();
     if (!content || sendMutation.isPending) return;
     setDraft("");
-    sendMutation.mutate(content);
+    notifyTyping(false);
+    const replyToId = replyTo?.id;
+    setReplyTo(null);
+    sendMutation.mutate({ content, replyToId });
   };
 
   if (!user) return null;
 
   const messages = data?.pages.flat() ?? [];
   const hasText = draft.trim().length > 0;
+
+  const messageById = new Map(messages.map((m) => [m.id, m]));
+  const resolveReply = (message: Message): QuotedReply | null => {
+    if (!message.reply_to_id) return null;
+    const source =
+      messageById.get(message.reply_to_id) ??
+      fetchedReplies.get(message.reply_to_id);
+    if (!source) return null;
+    return {
+      name: source.sender?.display_name || "Message",
+      snippet: replySnippet(source),
+    };
+  };
+
+  // "Seen" sits under the newest own message the other member has read.
+  // Messages arrive newest-first, so the first own message is the latest.
+  let seenMessageId: string | null = null;
+  const seenAt = seenQuery.data ?? null;
+  if (seenAt && !isGroup) {
+    const seenTime = new Date(seenAt).getTime();
+    const lastOwn = messages.find((m) => m.sender_id === user.id);
+    if (lastOwn && new Date(lastOwn.created_at).getTime() <= seenTime) {
+      seenMessageId = lastOwn.id;
+    }
+  }
+
+  const typingNames = Array.from(typers.values());
+  const typingLabel =
+    typingNames.length === 0
+      ? null
+      : isGroup
+        ? typingNames.length === 1
+          ? `${typingNames[0]} is typing...`
+          : `${typingNames.slice(0, 2).join(" and ")} are typing...`
+        : "Typing...";
 
   // Messages arrive newest-first: index + 1 is the older neighbor, index - 1
   // the newer one. A run breaks on a sender change or a long silence.
@@ -579,6 +834,8 @@ export default function ConversationScreen() {
         }
         senderName={item.sender?.display_name ?? title}
         reactions={reactions}
+        replyPreview={resolveReply(item)}
+        showSeen={item.id === seenMessageId}
         onLongPress={(message, anchor) =>
           setPicker({ messageId: message.id, anchor })
         }
@@ -650,6 +907,35 @@ export default function ConversationScreen() {
           />
         )}
 
+        {typingLabel ? (
+          <Text style={styles.typingRow}>{typingLabel}</Text>
+        ) : null}
+
+        {replyTo ? (
+          <View style={styles.replyBar}>
+            <View style={styles.replyBarBody}>
+              <Text style={styles.replyBarName} numberOfLines={1}>
+                Replying to{" "}
+                {replyTo.sender_id === user.id
+                  ? "yourself"
+                  : replyTo.sender?.display_name || "message"}
+              </Text>
+              <Text style={styles.replyBarSnippet} numberOfLines={1}>
+                {replySnippet(replyTo)}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel reply"
+              onPress={() => setReplyTo(null)}
+              hitSlop={8}
+              style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+            >
+              <Ionicons name="close" size={18} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+        ) : null}
+
         <View style={styles.composer}>
           {recording ? (
             <VoiceRecordingBar
@@ -665,7 +951,10 @@ export default function ConversationScreen() {
                 placeholder="Message"
                 placeholderTextColor={colors.textFaint}
                 value={draft}
-                onChangeText={setDraft}
+                onChangeText={(text) => {
+                  setDraft(text);
+                  notifyTyping(text.trim().length > 0);
+                }}
                 multiline
                 accessibilityLabel="Message text"
               />
@@ -724,6 +1013,13 @@ export default function ConversationScreen() {
         }
         onSelect={(emoji) => {
           if (picker) toggleReaction(picker.messageId, emoji);
+          setPicker(null);
+        }}
+        onReply={() => {
+          const target = picker
+            ? (messageById.get(picker.messageId) ?? null)
+            : null;
+          if (target && !target.is_deleted) setReplyTo(target);
           setPicker(null);
         }}
         onClose={() => setPicker(null)}
@@ -805,6 +1101,85 @@ const styles = StyleSheet.create({
   deletedText: {
     color: colors.mutedForeground,
     fontStyle: "italic",
+  },
+  quote: {
+    borderLeftWidth: 2,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1),
+    marginBottom: spacing(1),
+  },
+  quoteMine: {
+    borderLeftColor: "rgba(23, 17, 31, 0.4)",
+    backgroundColor: "rgba(23, 17, 31, 0.12)",
+  },
+  quoteTheirs: {
+    borderLeftColor: colors.primary,
+    backgroundColor: colors.surface,
+  },
+  quoteName: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  quoteNameMine: {
+    color: colors.primaryForeground,
+  },
+  quoteSnippet: {
+    color: colors.mutedForeground,
+    fontSize: 11,
+  },
+  quoteSnippetMine: {
+    color: "rgba(23, 17, 31, 0.7)",
+  },
+  // The voice bubble owns its padding; give an attached quote its own inset.
+  voiceQuoteInset: {
+    paddingHorizontal: spacing(2),
+    paddingTop: spacing(2),
+  },
+  seenText: {
+    alignSelf: "flex-end",
+    color: colors.textFaint,
+    fontSize: 10.5,
+    fontWeight: "600",
+    marginTop: 2,
+    marginRight: spacing(1),
+  },
+  typingRow: {
+    color: colors.mutedForeground,
+    fontSize: 12,
+    paddingHorizontal: spacing(4),
+    paddingBottom: spacing(1),
+  },
+  replyBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    marginHorizontal: spacing(3),
+    marginBottom: spacing(1),
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(2),
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  replyBarBody: {
+    flex: 1,
+    minWidth: 0,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.primary,
+    paddingLeft: spacing(2),
+  },
+  replyBarName: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  replyBarSnippet: {
+    color: colors.mutedForeground,
+    fontSize: 12,
+    marginTop: 1,
   },
   // The voice bubble owns its own padding and radius; the wrapper only
   // supplies the run-aware silhouette in the matching bubble color so the

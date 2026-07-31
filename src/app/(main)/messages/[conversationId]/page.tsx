@@ -19,6 +19,7 @@ import {
   sendMessage,
   markConversationRead,
   getPinnedMessages,
+  getDmSeenAt,
   pinMessage,
   unpinMessage,
   deleteMessage,
@@ -26,8 +27,12 @@ import {
 } from "@/lib/queries/messages";
 import { blockUser } from "@/lib/queries/social";
 import { createClient } from "@/lib/supabase/client";
-import { ChatWindow } from "@/components/messages/chat-window";
+import { ChatWindow, replySnippet } from "@/components/messages/chat-window";
 import { MessageInput } from "@/components/messages/message-input";
+import {
+  TypingIndicator,
+  useTypingChannel,
+} from "@/components/messages/typing-indicator";
 import { GroupSettingsDialog } from "@/components/messages/group-settings-dialog";
 import { ConfirmDialog } from "@/components/orbit/confirm-dialog";
 import { CallButton } from "@/components/messages/call-button";
@@ -79,8 +84,20 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [blockSaving, setBlockSaving] = useState(false);
   const [blockConfirmOpen, setBlockConfirmOpen] = useState(false);
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [seenAt, setSeenAt] = useState<string | null>(null);
 
   const webrtc = useWebRTC(conversationId, user?.id ?? "");
+
+  const selfName =
+    user?.user_metadata?.display_name ||
+    user?.user_metadata?.username ||
+    "Someone";
+  const { typingNames, notifyTyping } = useTypingChannel(
+    conversationId,
+    user?.id ?? "",
+    selfName
+  );
 
   // Bumped by the group settings dialog after a mutation to refetch the
   // conversation info and member list.
@@ -151,8 +168,65 @@ export default function ChatPage({ params }: ChatPageProps) {
     markConversationRead(conversationId, user.id);
   }, [user, conversationId, messages.length]);
 
+  // Route param changes re-render this page in place, so a half-set reply
+  // or a stale read state must not leak into another conversation. Adjusting
+  // state during render (not in an effect) is the React-endorsed pattern.
+  const [prevConversationId, setPrevConversationId] = useState(conversationId);
+  if (prevConversationId !== conversationId) {
+    setPrevConversationId(conversationId);
+    setReplyTo(null);
+    setSeenAt(null);
+  }
+
+  // Read state for the "Seen" marker: refresh when messages change and when
+  // the other member's last_read_at updates. getDmSeenAt already applies the
+  // reciprocity gate, so a null here simply hides the marker.
+  const isGroupConversation = conversationInfo?.is_group ?? false;
+  useEffect(() => {
+    if (!user || !conversationId || isGroupConversation) return;
+    let cancelled = false;
+    getDmSeenAt(conversationId, user.id)
+      .then((value) => {
+        if (!cancelled) setSeenAt(value);
+      })
+      .catch(() => {
+        if (!cancelled) setSeenAt(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, conversationId, isGroupConversation, messages.length]);
+
+  useEffect(() => {
+    if (!user || !conversationId || isGroupConversation) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`read-state-${conversationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "conversation_members",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        () => {
+          getDmSeenAt(conversationId, user.id)
+            .then(setSeenAt)
+            .catch(() => {});
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, conversationId, isGroupConversation]);
+
   const handleSend = async (content: string) => {
     if (!user) return;
+    const replyMessage = replyTo;
+    const replyToId = replyMessage?.id;
+    setReplyTo(null);
     const tempId = `temp-${crypto.randomUUID()}`;
     const optimistic = {
       id: tempId,
@@ -161,7 +235,7 @@ export default function ChatPage({ params }: ChatPageProps) {
       content,
       media_url: null,
       media_type: null,
-      reply_to_id: null,
+      reply_to_id: replyToId ?? null,
       is_deleted: false,
       created_at: new Date().toISOString(),
       sender: {
@@ -187,7 +261,14 @@ export default function ChatPage({ params }: ChatPageProps) {
       }
     );
     try {
-      const real = await sendMessage(conversationId, user.id, content);
+      const real = await sendMessage(
+        conversationId,
+        user.id,
+        content,
+        undefined,
+        undefined,
+        replyToId
+      );
       queryClient.setQueryData(
         ["messages", conversationId],
         (old: { pages: { messages: { id: string }[]; nextCursor: string | null }[] } | undefined) => {
@@ -216,6 +297,7 @@ export default function ChatPage({ params }: ChatPageProps) {
           };
         }
       );
+      setReplyTo(replyMessage);
       toast.error("Couldn't send message");
       // Rethrow so MessageInput keeps the text in the box for a retry.
       throw e;
@@ -442,11 +524,29 @@ export default function ChatPage({ params }: ChatPageProps) {
           isLoadingMore={isFetchingNextPage}
           onPinMessage={handlePinMessage}
           onDeleteMessage={handleDeleteMessage}
+          onReply={setReplyTo}
+          seenAt={seenAt}
           isGroup={isGroup}
         />
       )}
 
-        <MessageInput onSend={handleSend} />
+        <TypingIndicator names={typingNames} isGroup={isGroup} />
+        <MessageInput
+          onSend={handleSend}
+          onTypingActivity={notifyTyping}
+          replyTo={
+            replyTo
+              ? {
+                  name:
+                    replyTo.sender_id === user.id
+                      ? "yourself"
+                      : replyTo.sender?.display_name || "Message",
+                  snippet: replySnippet(replyTo),
+                }
+              : null
+          }
+          onCancelReply={() => setReplyTo(null)}
+        />
       </div>{/* /chat panel */}
 
       {/* PROFILE RAIL */}
