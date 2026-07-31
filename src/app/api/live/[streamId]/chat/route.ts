@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createBearerClient, createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const noStore = { "Cache-Control": "no-store, max-age=0" };
@@ -28,8 +28,17 @@ export async function POST(
     );
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // The native app has no auth cookies; it sends the session access token
+  // as a Bearer header instead. Either way the token is validated by
+  // supabase.auth.getUser and RLS runs as the caller.
+  const authorization = request.headers.get("authorization");
+  const bearerToken = authorization?.startsWith("Bearer ")
+    ? authorization.slice("Bearer ".length)
+    : undefined;
+  const supabase = bearerToken
+    ? createBearerClient(authorization!)
+    : await createClient();
+  const { data: { user } } = await supabase.auth.getUser(bearerToken);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401, headers: noStore });
   }

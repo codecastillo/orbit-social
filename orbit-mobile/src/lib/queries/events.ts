@@ -74,6 +74,71 @@ export async function getEventById(eventId: string) {
   return data as unknown as EventWithCreator;
 }
 
+export async function createEvent(
+  creatorId: string,
+  data: {
+    title: string;
+    description?: string;
+    location?: string;
+    start_at: string;
+    cover_url?: string;
+  },
+) {
+  const { data: event, error } = await supabase
+    .from("events")
+    .insert({
+      creator_id: creatorId,
+      title: data.title,
+      description: data.description || null,
+      location: data.location || null,
+      start_at: data.start_at,
+      end_at: null,
+      is_online: false,
+      online_url: null,
+      community_id: null,
+      cover_url: data.cover_url || null,
+      attendee_count: 0,
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  const created = event as { id: string };
+
+  // Auto-RSVP the host as "going", matching the web create flow. The
+  // event_rsvps trigger recomputes attendee_count.
+  await supabase
+    .from("event_rsvps")
+    .upsert(
+      { event_id: created.id, user_id: creatorId, status: "going" },
+      { onConflict: "event_id,user_id" },
+    );
+
+  return created;
+}
+
+export async function uploadEventCover(
+  userId: string,
+  uri: string,
+  mimeType: string,
+): Promise<string> {
+  // The web app has no event cover upload yet; reuse the covers bucket,
+  // whose RLS gates writes by uid first path segment.
+  const ext = mimeType.split("/")[1] ?? "jpg";
+  const path = `${userId}/events/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const response = await fetch(uri);
+  const body = await response.arrayBuffer();
+
+  const { error } = await supabase.storage
+    .from("covers")
+    .upload(path, body, { contentType: mimeType });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from("covers").getPublicUrl(path);
+  return data.publicUrl;
+}
+
 export async function getEventAttendees(eventId: string, limit = 20) {
   const { data, error } = await supabase
     .from("event_rsvps")

@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,11 +17,12 @@ import { VideoView, useVideoPlayer } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
+import { useAuth } from "@/providers/auth-provider";
 import { getStreamById, hlsUrl } from "@/lib/queries/live";
 import { supabase } from "@/lib/supabase";
 import { safeBack } from "@/lib/nav";
 import { formatNumber } from "@/lib/format";
-import { colors, spacing } from "@/lib/theme";
+import { colors, radii, spacing } from "@/lib/theme";
 
 interface ChatMessage {
   id: string;
@@ -28,12 +32,58 @@ interface ChatMessage {
 }
 
 const CHAT_BUFFER = 60;
+const CHAT_MAX_LENGTH = 500;
+
+// Chat sends go through the web API so its checks (followers-only, slow
+// mode, live status) apply to mobile too. The native client has no auth
+// cookies, so the session access token rides in the Authorization header.
+const CHAT_API_BASE = "https://orbitsocial.net";
+
+// Minimal port of the web use-stream-presence hook: join the same presence
+// channel so mobile viewers show up in viewer_count, and read the live
+// headcount back. The streamer's web session owns the viewer_count write.
+function useViewerPresence(
+  streamId: string | undefined,
+  userId: string | null,
+  isStreamer: boolean,
+): number {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!streamId) return;
+    // Random fallback lives inside the effect so it stays stable for the
+    // life of one subscription without tripping render purity.
+    const presenceKey = userId ?? `anon-${Math.random().toString(36).slice(2)}`;
+    const channel = supabase.channel(`presence:live:${streamId}`, {
+      config: { presence: { key: presenceKey } },
+    });
+
+    const sync = () => setCount(Object.keys(channel.presenceState()).length);
+
+    channel
+      .on("presence", { event: "sync" }, sync)
+      .on("presence", { event: "join" }, sync)
+      .on("presence", { event: "leave" }, sync)
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED" && !isStreamer) {
+          await channel.track({ joined_at: Date.now() });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [streamId, userId, isStreamer]);
+
+  return count;
+}
 
 export default function LiveViewerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+  const { user } = useAuth();
 
   const {
     data: stream,
@@ -46,8 +96,11 @@ export default function LiveViewerScreen() {
     refetchInterval: 30_000,
   });
 
-  // Chat is read-only for now: the web's send path authenticates via
-  // cookies, which the native client does not carry.
+  const isStreamer = !!user && stream?.user_id === user.id;
+  const presenceCount = useViewerPresence(id, user?.id ?? null, isStreamer);
+
+  // Messages arrive via the broadcast the chat API emits, including our
+  // own sends, so a successful POST needs no local append.
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   useEffect(() => {
     if (!id) return;
@@ -62,6 +115,56 @@ export default function LiveViewerScreen() {
       supabase.removeChannel(channel);
     };
   }, [id]);
+
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+
+  const sendChat = useCallback(async () => {
+    const content = draft.trim();
+    if (!content || sending) return;
+    setSending(true);
+    setChatError(null);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        setChatError("Sign in to chat.");
+        return;
+      }
+      const res = await fetch(`${CHAT_API_BASE}/api/live/${id}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content }),
+      });
+      if (res.ok) {
+        setDraft("");
+        return;
+      }
+      let body: { error?: string; retry_after?: number } = {};
+      try {
+        body = (await res.json()) as { error?: string; retry_after?: number };
+      } catch {}
+      if (res.status === 403 && body.error === "followers_only") {
+        setChatError("Only followers can chat in this stream");
+      } else if (res.status === 429 && body.error === "slow_mode") {
+        setChatError(`Slow mode, wait ${body.retry_after ?? 0}s`);
+      } else if (res.status === 410 && body.error === "stream_not_live") {
+        setChatError("Stream isn't live");
+      } else {
+        setChatError("Couldn't send");
+      }
+    } catch {
+      setChatError("Couldn't send");
+    } finally {
+      setSending(false);
+    }
+  }, [draft, sending, id]);
 
   const playbackUrl = stream?.mux_playback_id ? hlsUrl(stream.mux_playback_id) : null;
   const player = useVideoPlayer(playbackUrl, (p) => {
@@ -100,9 +203,13 @@ export default function LiveViewerScreen() {
   }
 
   const live = stream.status === "live";
+  const canSend = draft.trim().length > 0 && !sending;
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <KeyboardAvoidingView
+      style={[styles.root, { paddingTop: insets.top }]}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={styles.videoWrap}>
@@ -139,7 +246,9 @@ export default function LiveViewerScreen() {
             </View>
             <View style={styles.viewers}>
               <Ionicons name="eye-outline" size={13} color="#fff" />
-              <Text style={styles.viewersText}>{formatNumber(stream.viewer_count)}</Text>
+              <Text style={styles.viewersText}>
+                {formatNumber(presenceCount > 0 ? presenceCount : stream.viewer_count)}
+              </Text>
             </View>
           </View>
         )}
@@ -179,8 +288,45 @@ export default function LiveViewerScreen() {
           </Text>
         )}
       />
+      {live && user ? (
+        <>
+          {chatError ? <Text style={styles.chatErrorText}>{chatError}</Text> : null}
+          <View style={styles.composer}>
+            <TextInput
+              style={styles.composerInput}
+              placeholder="Say something"
+              placeholderTextColor={colors.textFaint}
+              value={draft}
+              onChangeText={(text) => {
+                setDraft(text);
+                if (chatError) setChatError(null);
+              }}
+              maxLength={CHAT_MAX_LENGTH}
+              multiline
+              accessibilityLabel="Chat message"
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Send chat message"
+              onPress={() => void sendChat()}
+              disabled={!canSend}
+              style={({ pressed }) => [
+                styles.sendButton,
+                !canSend && { opacity: 0.4 },
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              {sending ? (
+                <ActivityIndicator size="small" color={colors.primaryForeground} />
+              ) : (
+                <Ionicons name="arrow-up" size={20} color={colors.primaryForeground} />
+              )}
+            </Pressable>
+          </View>
+        </>
+      ) : null}
       <View style={{ height: insets.bottom }} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -283,5 +429,40 @@ const styles = StyleSheet.create({
   chatName: {
     color: colors.foreground,
     fontWeight: "600",
+  },
+  chatErrorText: {
+    color: colors.destructive,
+    fontSize: 12,
+    paddingHorizontal: spacing(4),
+    paddingTop: spacing(1.5),
+  },
+  composer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing(2),
+    paddingHorizontal: spacing(3),
+    paddingTop: spacing(2),
+    paddingBottom: spacing(2),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  composerInput: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 90,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceElevated,
+    color: colors.foreground,
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(2.5),
+    fontSize: 14.5,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

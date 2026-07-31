@@ -221,6 +221,22 @@ export default function OwnProfileScreen() {
               }}
             />
             <SheetRow
+              icon="bookmark-outline"
+              label="Saved"
+              onPress={() => {
+                setMenuOpen(false);
+                router.push("/bookmarks" as Href);
+              }}
+            />
+            <SheetRow
+              icon="settings-outline"
+              label="Settings"
+              onPress={() => {
+                setMenuOpen(false);
+                router.push("/settings" as Href);
+              }}
+            />
+            <SheetRow
               icon="log-out-outline"
               label="Sign out"
               destructive

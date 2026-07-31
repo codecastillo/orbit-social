@@ -7,6 +7,7 @@ import {
   View,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Button, EmptyState } from "@/components/ui";
 import { getEvents, type EventWithCreator } from "@/lib/queries/events";
@@ -78,6 +79,26 @@ function EventsSkeleton() {
   );
 }
 
+function CreateEventHeaderButton() {
+  const router = useRouter();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Create an event"
+      onPress={() => router.push("/events/create")}
+      hitSlop={8}
+      style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+    >
+      <Ionicons name="add" size={26} color={colors.foreground} />
+    </Pressable>
+  );
+}
+
+const screenOptions = {
+  title: "Events",
+  headerRight: () => <CreateEventHeaderButton />,
+};
+
 export default function EventsScreen() {
   const router = useRouter();
 
@@ -89,7 +110,7 @@ export default function EventsScreen() {
   if (eventsQuery.isPending) {
     return (
       <View style={styles.flex}>
-        <Stack.Screen options={{ title: "Events" }} />
+        <Stack.Screen options={screenOptions} />
         <EventsSkeleton />
       </View>
     );
@@ -98,7 +119,7 @@ export default function EventsScreen() {
   if (eventsQuery.isError) {
     return (
       <>
-        <Stack.Screen options={{ title: "Events" }} />
+        <Stack.Screen options={screenOptions} />
         <EmptyState
           title="Could not load events"
           description="Check your connection and try again."
@@ -116,7 +137,7 @@ export default function EventsScreen() {
 
   return (
     <View style={styles.flex}>
-      <Stack.Screen options={{ title: "Events" }} />
+      <Stack.Screen options={screenOptions} />
       <FlatList
         data={eventsQuery.data}
         keyExtractor={(event) => event.id}

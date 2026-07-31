@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { Avatar, Button, EmptyState } from "@/components/ui";
@@ -94,6 +95,26 @@ function RoomsSkeleton() {
   );
 }
 
+function CreateRoomHeaderButton() {
+  const router = useRouter();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Start a room"
+      onPress={() => router.push("/communities/create")}
+      hitSlop={8}
+      style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+    >
+      <Ionicons name="add" size={26} color={colors.foreground} />
+    </Pressable>
+  );
+}
+
+const screenOptions = {
+  title: "Rooms",
+  headerRight: () => <CreateRoomHeaderButton />,
+};
+
 export default function CommunitiesScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -118,7 +139,7 @@ export default function CommunitiesScreen() {
   if (allQuery.isPending) {
     return (
       <View style={styles.flex}>
-        <Stack.Screen options={{ title: "Rooms" }} />
+        <Stack.Screen options={screenOptions} />
         <RoomsSkeleton />
       </View>
     );
@@ -127,7 +148,7 @@ export default function CommunitiesScreen() {
   if (allQuery.isError) {
     return (
       <>
-        <Stack.Screen options={{ title: "Rooms" }} />
+        <Stack.Screen options={screenOptions} />
         <EmptyState
           title="Could not load rooms"
           description="Check your connection and try again."
@@ -145,7 +166,7 @@ export default function CommunitiesScreen() {
 
   return (
     <View style={styles.flex}>
-      <Stack.Screen options={{ title: "Rooms" }} />
+      <Stack.Screen options={screenOptions} />
       <FlatList
         data={otherRooms}
         keyExtractor={(community) => community.id}

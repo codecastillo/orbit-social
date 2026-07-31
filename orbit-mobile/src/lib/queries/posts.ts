@@ -67,9 +67,9 @@ export type FeedTab = "foryou" | "following";
 // server-side join instead of an IN list.
 const FOLLOWING_IDS_LIMIT = 1000;
 
-// Mobile still skips close-friends resolution (public posts plus the
-// viewer's own), but now includes reposts and quotes; the card resolves
-// their originals per page. Reels stay in the clips tab.
+// Includes reposts and quotes; the card resolves their originals per
+// page. Reels stay in the clips tab. Close-friends visibility resolves
+// after the fetch, same as the web getFeedPosts.
 export async function getFeedPosts(userId: string, tab: FeedTab, cursor?: string) {
   let query = supabase
     .from("posts")
@@ -78,7 +78,6 @@ export async function getFeedPosts(userId: string, tab: FeedTab, cursor?: string
     .is("community_id", null)
     .eq("is_hidden", false)
     .not("type", "eq", "reel")
-    .or(`visibility.eq.public,user_id.eq.${userId}`)
     .order("created_at", { ascending: false })
     .limit(FEED_PAGE_SIZE);
 
@@ -102,7 +101,32 @@ export async function getFeedPosts(userId: string, tab: FeedTab, cursor?: string
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as unknown as Post[];
+
+  // Filter close_friends posts: only show if the viewer is in the poster's
+  // close_friends list, mirroring the web getFeedPosts.
+  const posts = data as unknown as Post[];
+  const closeFriendsPosts = posts.filter(
+    (p) => p.visibility === "close_friends" && p.user_id !== userId,
+  );
+
+  if (closeFriendsPosts.length > 0) {
+    const posterIds = [...new Set(closeFriendsPosts.map((p) => p.user_id))];
+    const { data: cfData } = await supabase
+      .from("close_friends")
+      .select("user_id")
+      .in("user_id", posterIds)
+      .eq("friend_id", userId);
+
+    const allowedPosterIds = new Set((cfData ?? []).map((cf) => cf.user_id));
+
+    return posts.filter((p) => {
+      if (p.visibility !== "close_friends") return true;
+      if (p.user_id === userId) return true;
+      return allowedPosterIds.has(p.user_id);
+    });
+  }
+
+  return posts;
 }
 
 export async function getPostsByIds(postIds: string[]): Promise<Map<string, Post>> {
@@ -152,15 +176,17 @@ export async function getFeedPage(
   return { posts, originals, reactionCounts };
 }
 
-export async function getPost(postId: string) {
+// Null when the post does not exist or RLS hides it (a close-friends post
+// the viewer is not allowed to see looks identical to a missing row).
+export async function getPost(postId: string): Promise<Post | null> {
   const { data, error } = await supabase
     .from("posts")
     .select(POST_SELECT)
     .eq("id", postId)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
-  return data as unknown as Post;
+  return data as unknown as Post | null;
 }
 
 export async function getReplies(postId: string) {

@@ -10,6 +10,7 @@ import {
 import { useState } from "react";
 import { Stack, useRouter } from "expo-router";
 import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Button, EmptyState } from "@/components/ui";
 import {
@@ -112,7 +113,12 @@ export default function MarketplaceScreen() {
 
   return (
     <View style={styles.flex}>
-      <Stack.Screen options={{ title: "Marketplace" }} />
+      <Stack.Screen
+        options={{
+          title: "Marketplace",
+          headerRight: () => <CreateListingHeaderButton />,
+        }}
+      />
       {chips}
       {listingsQuery.isPending ? (
         <View style={styles.listContent}>
@@ -168,6 +174,21 @@ export default function MarketplaceScreen() {
         />
       )}
     </View>
+  );
+}
+
+function CreateListingHeaderButton() {
+  const router = useRouter();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Create a listing"
+      onPress={() => router.push("/marketplace/create")}
+      hitSlop={8}
+      style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+    >
+      <Ionicons name="add" size={26} color={colors.foreground} />
+    </Pressable>
   );
 }
 

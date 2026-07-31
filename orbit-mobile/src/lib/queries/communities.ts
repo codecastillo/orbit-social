@@ -105,6 +105,71 @@ export async function getMyJoinRequestStatus(communityId: string, userId: string
   return (data?.status as "pending" | "approved" | "rejected" | null) ?? null;
 }
 
+export async function createCommunity(
+  name: string,
+  slug: string,
+  description: string,
+  joinPolicy: JoinPolicy,
+) {
+  // Same SECURITY DEFINER RPC the web create dialog calls; images are
+  // uploaded after create (the storage path needs the community id) and
+  // patched in via update_community.
+  const { data, error } = await supabase.rpc("create_community", {
+    p_name: name,
+    p_slug: slug,
+    p_description: description,
+    p_join_policy: joinPolicy,
+    p_avatar_url: null,
+    p_cover_url: null,
+  });
+
+  if (error) throw error;
+  return data as Community;
+}
+
+export async function updateCommunity(
+  communityId: string,
+  patch: { avatarUrl?: string | null; coverUrl?: string | null },
+) {
+  const { data, error } = await supabase.rpc("update_community", {
+    p_community_id: communityId,
+    p_name: null,
+    p_description: null,
+    p_avatar_url: patch.avatarUrl ?? null,
+    p_cover_url: patch.coverUrl ?? null,
+    p_clear_avatar: false,
+    p_clear_cover: false,
+  });
+  if (error) throw error;
+  return data as Community;
+}
+
+export async function uploadCommunityImage(
+  userId: string,
+  communityId: string,
+  kind: "avatar" | "cover",
+  uri: string,
+  mimeType: string,
+): Promise<string> {
+  // First path segment must be the user's id: the avatars/covers storage
+  // RLS gates writes by uid folder (same convention as the web app).
+  const bucket = kind === "avatar" ? "avatars" : "covers";
+  const ext = mimeType.split("/")[1] ?? "jpg";
+  const path = `${userId}/communities/${communityId}/${kind}.${ext}`;
+
+  const response = await fetch(uri);
+  const body = await response.arrayBuffer();
+
+  const { error } = await supabase.storage
+    .from(bucket)
+    .upload(path, body, { contentType: mimeType, upsert: true });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  // Cache-bust: the path is stable across replacements.
+  return `${data.publicUrl}?t=${Date.now()}`;
+}
+
 export async function joinCommunity(communityId: string) {
   // SECURITY DEFINER RPC: routes by community.join_policy. Public rooms join
   // immediately, approval rooms create a pending request, invite rooms refuse.

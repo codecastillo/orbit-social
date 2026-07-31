@@ -79,6 +79,72 @@ export async function getListingById(listingId: string) {
   return data as unknown as ListingWithSeller;
 }
 
+export async function createListing(
+  sellerId: string,
+  data: {
+    title: string;
+    description?: string;
+    price: number;
+    category: string;
+    condition: string;
+    imageUrls?: string[];
+  },
+) {
+  const { data: listing, error } = await supabase
+    .from("listings")
+    .insert({
+      seller_id: sellerId,
+      title: data.title,
+      description: data.description || null,
+      price: data.price,
+      currency: "USD",
+      category: data.category,
+      condition: data.condition,
+      location: null,
+      status: "active",
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  const created = listing as { id: string };
+
+  if (data.imageUrls && data.imageUrls.length > 0) {
+    const { error: imgError } = await supabase.from("listing_images").insert(
+      data.imageUrls.map((url, i) => ({
+        listing_id: created.id,
+        url,
+        sort_order: i,
+      })),
+    );
+    if (imgError) throw imgError;
+  }
+
+  return created;
+}
+
+export async function uploadListingImage(
+  sellerId: string,
+  uri: string,
+  mimeType: string,
+): Promise<string> {
+  const ext = mimeType.split("/")[1] ?? "jpg";
+  const filePath = `${sellerId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const response = await fetch(uri);
+  const body = await response.arrayBuffer();
+
+  const { error: uploadError } = await supabase.storage
+    .from("listing-images")
+    .upload(filePath, body, { contentType: mimeType });
+  if (uploadError) throw uploadError;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("listing-images").getPublicUrl(filePath);
+  return publicUrl;
+}
+
 // Same RPC the web listing page uses for "Message seller": returns the
 // existing DM conversation id or creates one.
 export async function startDmConversation(otherUserId: string): Promise<string> {

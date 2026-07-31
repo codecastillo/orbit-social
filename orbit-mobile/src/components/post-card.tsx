@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
+import {
+  Animated,
+  Platform,
+  Pressable,
+  Share,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -183,14 +191,51 @@ export function PostCard({
     actionErrorTimer.current = setTimeout(() => setActionError(null), ACTION_ERROR_TTL_MS);
   };
 
+  // Tap feedback: the heart pops on like, and double-tapping media likes
+  // with a burst overlay, the gesture people bring from every other app.
+  const [heartScale] = useState(() => new Animated.Value(1));
+  const [burst] = useState(() => new Animated.Value(0));
+  const lastMediaTapRef = useRef(0);
+
+  const popHeart = () => {
+    heartScale.setValue(0.6);
+    Animated.spring(heartScale, {
+      toValue: 1,
+      friction: 3,
+      tension: 220,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const playBurst = () => {
+    burst.setValue(0);
+    Animated.sequence([
+      Animated.spring(burst, { toValue: 1, friction: 4, tension: 160, useNativeDriver: true }),
+      Animated.delay(250),
+      Animated.timing(burst, { toValue: 0, duration: 180, useNativeDriver: true }),
+    ]).start();
+  };
+
   const handleLike = () => {
     const wasLiked = liked;
+    if (!wasLiked) popHeart();
     setLiked(!wasLiked);
     setLikeCount((n) => Math.max(0, n + (wasLiked ? -1 : 1)));
     toggleLike(currentUserId, display.id, wasLiked).catch(() => {
       setLiked(wasLiked);
       setLikeCount((n) => Math.max(0, n + (wasLiked ? 1 : -1)));
     });
+  };
+
+  const handleMediaTap = () => {
+    const now = Date.now();
+    if (now - lastMediaTapRef.current < 300) {
+      lastMediaTapRef.current = 0;
+      playBurst();
+      if (!liked) handleLike();
+      return;
+    }
+    lastMediaTapRef.current = now;
   };
 
   const handleBookmark = () => {
@@ -345,7 +390,8 @@ export function PostCard({
       ) : null}
 
       {media && media.type !== "video" ? (
-        <View
+        <Pressable
+          onPress={handleMediaTap}
           style={[reply ? styles.mediaInset : styles.mediaFullBleed, { aspectRatio }]}
         >
           <Image
@@ -356,7 +402,26 @@ export function PostCard({
             contentFit="cover"
             transition={200}
           />
-        </View>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.burstWrap,
+              {
+                opacity: burst,
+                transform: [
+                  {
+                    scale: burst.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.4, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <Ionicons name="heart" size={84} color={colors.primary} style={styles.burstHeart} />
+          </Animated.View>
+        </Pressable>
       ) : null}
 
       {quoted ? <QuotedPostPreview post={quoted} /> : null}
@@ -392,22 +457,16 @@ export function PostCard({
           style={styles.action}
           hitSlop={8}
         >
-          <Ionicons
-            name={liked ? "heart" : "heart-outline"}
-            size={22}
-            color={liked ? colors.destructive : colors.foreground}
-          />
-          {!detail && likeCount > 0 ? (
-            <Text style={[styles.actionCount, liked && { color: colors.destructive }]}>
-              {formatNumber(likeCount)}
-            </Text>
-          ) : null}
+          <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+            <Ionicons
+              name={liked ? "heart" : "heart-outline"}
+              size={22}
+              color={liked ? colors.primary : colors.foreground}
+            />
+          </Animated.View>
         </Pressable>
         <Pressable onPress={onReplyPress ?? openDetail} style={styles.action} hitSlop={8}>
           <Ionicons name="chatbubble-outline" size={21} color={colors.foreground} />
-          {!detail && display.comment_count > 0 ? (
-            <Text style={styles.actionCount}>{formatNumber(display.comment_count)}</Text>
-          ) : null}
         </Pressable>
         <Pressable onPress={handleRepost} style={styles.action} hitSlop={8}>
           <Ionicons
@@ -415,11 +474,6 @@ export function PostCard({
             size={22}
             color={reposted ? colors.success : colors.foreground}
           />
-          {!detail && repostCount > 0 ? (
-            <Text style={[styles.actionCount, reposted && { color: colors.success }]}>
-              {formatNumber(repostCount)}
-            </Text>
-          ) : null}
         </Pressable>
         <Pressable onPress={handleShare} style={styles.action} hitSlop={8}>
           <Ionicons name="share-outline" size={21} color={colors.foreground} />
@@ -432,6 +486,25 @@ export function PostCard({
           />
         </Pressable>
       </View>
+
+      {!detail && (likeCount > 0 || repostCount > 0) ? (
+        <Text style={styles.summaryLine}>
+          {likeCount > 0
+            ? `${formatNumber(likeCount)} ${likeCount === 1 ? "like" : "likes"}`
+            : ""}
+          {likeCount > 0 && repostCount > 0 ? "  ·  " : ""}
+          {repostCount > 0
+            ? `${formatNumber(repostCount)} ${repostCount === 1 ? "repost" : "reposts"}`
+            : ""}
+        </Text>
+      ) : null}
+      {!detail && display.comment_count > 0 ? (
+        <Pressable onPress={onReplyPress ?? openDetail} hitSlop={4}>
+          <Text style={styles.viewComments}>
+            View {display.comment_count === 1 ? "1 reply" : `all ${formatNumber(display.comment_count)} replies`}
+          </Text>
+        </Pressable>
+      ) : null}
 
       {actionError ? <Text style={styles.actionErrorText}>{actionError}</Text> : null}
 
@@ -641,11 +714,26 @@ const styles = StyleSheet.create({
   actionBookmark: {
     marginLeft: "auto",
   },
-  actionCount: {
+  summaryLine: {
     color: colors.foreground,
     fontSize: 13,
     fontWeight: "700",
+    marginTop: spacing(2),
     fontVariant: ["tabular-nums"],
+  },
+  viewComments: {
+    color: colors.mutedForeground,
+    fontSize: 13,
+    marginTop: spacing(1.5),
+  },
+  burstWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  burstHeart: {
+    textShadowColor: "rgba(0, 0, 0, 0.35)",
+    textShadowRadius: 12,
   },
   actionErrorText: {
     color: colors.destructive,

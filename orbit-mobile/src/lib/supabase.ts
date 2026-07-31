@@ -18,7 +18,10 @@ if (!url || !key) {
 
 export const supabase = createClient(url, key, {
   auth: {
-    storage: AsyncStorage,
+    // AsyncStorage only exists in the native runtime; Expo's static web
+    // rendering evaluates this module under Node and crashes the dev server
+    // if it touches it. React Native defines window, Node does not.
+    storage: typeof window === "undefined" ? undefined : AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
     // No browser URL to parse on native.

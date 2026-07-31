@@ -183,7 +183,7 @@ function ClipItem({
             <Ionicons
               name={liked ? "heart" : "heart-outline"}
               size={30}
-              color={liked ? colors.destructive : OVERLAY_TEXT}
+              color={liked ? colors.primary : OVERLAY_TEXT}
             />
             <Text style={styles.actionCount}>{formatNumber(likeCount)}</Text>
           </Pressable>

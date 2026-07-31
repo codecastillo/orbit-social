@@ -112,7 +112,7 @@ export default function PostDetailScreen() {
     );
   }
 
-  if (postQuery.error || !postQuery.data) {
+  if (postQuery.error) {
     return (
       <Centered>
         <Stack.Screen options={{ title: "Post" }} />
@@ -122,6 +122,19 @@ export default function PostDetailScreen() {
             postQuery.error instanceof Error ? postQuery.error.message : "Something went wrong."
           }
           action={<Button label="Retry" variant="outline" onPress={() => postQuery.refetch()} />}
+        />
+      </Centered>
+    );
+  }
+
+  // Missing and not-visible-to-you (close friends) look the same: no row.
+  if (!postQuery.data) {
+    return (
+      <Centered>
+        <Stack.Screen options={{ title: "Post" }} />
+        <EmptyState
+          title="This post isn't available."
+          description="It may have been deleted, or it's only shared with close friends."
         />
       </Centered>
     );
