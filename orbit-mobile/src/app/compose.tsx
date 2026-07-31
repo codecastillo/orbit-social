@@ -14,12 +14,13 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui";
 import { useAuth } from "@/providers/auth-provider";
-import { createPost, uploadPostMedia } from "@/lib/queries/posts";
+import { createPost, uploadPostMedia, type NewPostMedia } from "@/lib/queries/posts";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const POST_MAX_LENGTH = 500;
+const MAX_IMAGES = 4; // Same attachment cap as the web composer.
+const COUNTER_WARN_THRESHOLD = 20;
 
 interface PickedImage {
   uri: string;
@@ -33,22 +34,21 @@ export default function ComposeScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
-  const [image, setImage] = useState<PickedImage | null>(null);
+  const [images, setImages] = useState<PickedImage[]>([]);
 
   const publishMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("You need to be signed in to post.");
-      let media;
-      if (image) {
-        const url = await uploadPostMedia(user.id, image.uri, image.mimeType);
-        media = [
-          {
-            url,
-            type: image.mimeType === "image/gif" ? ("gif" as const) : ("image" as const),
-            width: image.width,
-            height: image.height,
-          },
-        ];
+      let media: NewPostMedia[] | undefined;
+      if (images.length > 0) {
+        media = await Promise.all(
+          images.map(async (img) => ({
+            url: await uploadPostMedia(user.id, img.uri, img.mimeType),
+            type: img.mimeType === "image/gif" ? ("gif" as const) : ("image" as const),
+            width: img.width,
+            height: img.height,
+          })),
+        );
       }
       return createPost(user.id, content.trim(), { media });
     },
@@ -58,24 +58,32 @@ export default function ComposeScreen() {
     },
   });
 
-  const pickImage = async () => {
+  const pickImages = async () => {
+    const remainingSlots = MAX_IMAGES - images.length;
+    if (remainingSlots <= 0) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       quality: 0.85,
+      allowsMultipleSelection: true,
+      selectionLimit: remainingSlots,
     });
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      setImage({
+    if (!result.canceled && result.assets.length > 0) {
+      const picked = result.assets.slice(0, remainingSlots).map((asset) => ({
         uri: asset.uri,
         width: asset.width,
         height: asset.height,
         mimeType: asset.mimeType ?? "image/jpeg",
-      });
+      }));
+      setImages((prev) => [...prev, ...picked]);
     }
   };
 
+  const removeImage = (uri: string) => {
+    setImages((prev) => prev.filter((img) => img.uri !== uri));
+  };
+
   const trimmed = content.trim();
-  const canPost = (trimmed.length > 0 || image !== null) && !publishMutation.isPending;
+  const canPost = (trimmed.length > 0 || images.length > 0) && !publishMutation.isPending;
   const remaining = POST_MAX_LENGTH - content.length;
 
   return (
@@ -88,8 +96,30 @@ export default function ComposeScreen() {
           title: "New post",
           presentation: "modal",
           headerLeft: () => (
-            <Pressable onPress={() => router.back()} hitSlop={8}>
-              <Ionicons name="close" size={24} color={colors.foreground} />
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.back()}
+              hitSlop={8}
+              style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.cancelLabel}>Cancel</Text>
+            </Pressable>
+          ),
+          headerRight: () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Publish post"
+              disabled={!canPost}
+              onPress={() => publishMutation.mutate()}
+              style={({ pressed }) => [
+                styles.postPill,
+                pressed && { opacity: 0.85 },
+                !canPost && { opacity: 0.5 },
+              ]}
+            >
+              <Text style={styles.postPillLabel}>
+                {publishMutation.isPending ? "Posting" : "Post"}
+              </Text>
             </Pressable>
           ),
         }}
@@ -105,23 +135,30 @@ export default function ComposeScreen() {
           autoFocus
           maxLength={POST_MAX_LENGTH}
         />
-        {image ? (
-          <View style={[styles.preview, { aspectRatio: image.width / image.height }]}>
-            <Image
-              source={{ uri: image.uri }}
-              alt="Attached image preview"
-              style={styles.previewImage}
-              contentFit="cover"
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Remove image"
-              onPress={() => setImage(null)}
-              style={styles.removeImage}
-              hitSlop={8}
-            >
-              <Ionicons name="close" size={16} color={colors.foreground} />
-            </Pressable>
+        {images.length > 0 ? (
+          <View style={styles.previewGrid}>
+            {images.map((img) => (
+              <View
+                key={img.uri}
+                style={[styles.preview, images.length === 1 && styles.previewSingle]}
+              >
+                <Image
+                  source={{ uri: img.uri }}
+                  alt="Attached image preview"
+                  style={styles.previewImage}
+                  contentFit="cover"
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove image"
+                  onPress={() => removeImage(img.uri)}
+                  style={({ pressed }) => [styles.removeImage, pressed && { opacity: 0.7 }]}
+                  hitSlop={8}
+                >
+                  <Ionicons name="close" size={16} color={colors.foreground} />
+                </Pressable>
+              </View>
+            ))}
           </View>
         ) : null}
         {publishMutation.error ? (
@@ -135,23 +172,25 @@ export default function ComposeScreen() {
       <View style={styles.toolbar}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Attach an image"
-          onPress={pickImage}
-          disabled={publishMutation.isPending}
+          accessibilityLabel="Attach images"
+          onPress={pickImages}
+          disabled={publishMutation.isPending || images.length >= MAX_IMAGES}
+          style={({ pressed }) => [
+            pressed && { opacity: 0.7 },
+            images.length >= MAX_IMAGES && { opacity: 0.4 },
+          ]}
           hitSlop={8}
         >
           <Ionicons name="image-outline" size={24} color={colors.primary} />
         </Pressable>
-        <Text style={[styles.counter, remaining <= 20 && { color: colors.warning }]}>
+        {images.length > 0 ? (
+          <Text style={styles.imageCount}>
+            {images.length}/{MAX_IMAGES}
+          </Text>
+        ) : null}
+        <Text style={[styles.counter, remaining <= COUNTER_WARN_THRESHOLD && { color: colors.warning }]}>
           {remaining}
         </Text>
-        <Button
-          label="Post"
-          loading={publishMutation.isPending}
-          disabled={!canPost}
-          onPress={() => publishMutation.mutate()}
-          style={styles.postButton}
-        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -161,6 +200,23 @@ const styles = StyleSheet.create({
   fill: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  cancelLabel: {
+    color: colors.foreground,
+    fontSize: 15,
+  },
+  postPill: {
+    minHeight: 32,
+    paddingHorizontal: spacing(4),
+    borderRadius: radii.full,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  postPillLabel: {
+    color: colors.primaryForeground,
+    fontSize: 13.5,
+    fontWeight: "700",
   },
   body: {
     padding: spacing(4),
@@ -173,11 +229,23 @@ const styles = StyleSheet.create({
     minHeight: 120,
     textAlignVertical: "top",
   },
+  previewGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing(2),
+  },
   preview: {
+    width: "48.5%",
+    aspectRatio: 1,
     borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     overflow: "hidden",
     backgroundColor: colors.surfaceElevated,
+  },
+  previewSingle: {
     width: "100%",
+    aspectRatio: 4 / 3,
   },
   previewImage: {
     width: "100%",
@@ -207,13 +275,15 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
+  imageCount: {
+    color: colors.mutedForeground,
+    fontSize: 13,
+    fontVariant: ["tabular-nums"],
+  },
   counter: {
     marginLeft: "auto",
     color: colors.mutedForeground,
     fontSize: 13,
     fontVariant: ["tabular-nums"],
-  },
-  postButton: {
-    minWidth: 88,
   },
 });

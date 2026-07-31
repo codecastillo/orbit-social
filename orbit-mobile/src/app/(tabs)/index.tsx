@@ -1,10 +1,11 @@
-import { Component, useMemo, type ReactNode } from "react";
+import { Component, useMemo, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,10 +19,17 @@ import { useAuth } from "@/providers/auth-provider";
 import {
   FEED_PAGE_SIZE,
   checkUserInteractions,
-  getFeedPosts,
+  displayPostId,
+  getFeedPage,
+  type FeedTab,
   type Post,
 } from "@/lib/queries/posts";
 import { colors, spacing } from "@/lib/theme";
+
+const FEED_TABS: { key: FeedTab; label: string }[] = [
+  { key: "foryou", label: "For you" },
+  { key: "following", label: "Following" },
+];
 
 // StoriesBar is owned by another surface; a crash there should never take
 // the feed down with it.
@@ -41,6 +49,7 @@ export default function FeedScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const userId = user?.id ?? "";
+  const [tab, setTab] = useState<FeedTab>("foryou");
 
   const {
     data,
@@ -52,30 +61,70 @@ export default function FeedScreen() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["feed", userId],
-    queryFn: ({ pageParam }) => getFeedPosts(userId, pageParam),
+    queryKey: ["feed", userId, tab],
+    queryFn: ({ pageParam }) => getFeedPage(userId, tab, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
-      lastPage.length < FEED_PAGE_SIZE ? undefined : lastPage[lastPage.length - 1].created_at,
+      lastPage.posts.length < FEED_PAGE_SIZE
+        ? undefined
+        : lastPage.posts[lastPage.posts.length - 1].created_at,
     enabled: !!userId,
   });
 
-  const posts = useMemo(() => data?.pages.flat() ?? [], [data]);
-  const postIds = useMemo(() => posts.map((p) => p.id), [posts]);
+  const { posts, originals, reactionCounts } = useMemo(() => {
+    const pages = data?.pages ?? [];
+    const merged = {
+      posts: pages.flatMap((p) => p.posts),
+      originals: new Map(pages.flatMap((p) => [...p.originals])),
+      reactionCounts: new Map(pages.flatMap((p) => [...p.reactionCounts])),
+    };
+    return merged;
+  }, [data]);
+
+  // Interactions are checked against the id each card acts on (the
+  // original for reposts), so likes and reactions light up correctly.
+  const displayIds = useMemo(() => [...new Set(posts.map(displayPostId))], [posts]);
 
   const { data: interactions } = useQuery({
-    queryKey: ["post-interactions", userId, postIds],
-    queryFn: () => checkUserInteractions(userId, postIds),
-    enabled: !!userId && postIds.length > 0,
+    queryKey: ["post-interactions", userId, displayIds],
+    queryFn: () => checkUserInteractions(userId, displayIds),
+    enabled: !!userId && displayIds.length > 0,
   });
 
-  const renderItem = ({ item }: { item: Post }) => (
-    <PostCard
-      post={item}
-      currentUserId={userId}
-      isLiked={interactions?.likedPostIds.has(item.id) ?? false}
-      isBookmarked={interactions?.bookmarkedPostIds.has(item.id) ?? false}
-    />
+  const renderItem = ({ item }: { item: Post }) => {
+    const displayId = displayPostId(item);
+    return (
+      <PostCard
+        post={item}
+        original={item.parent_post_id ? (originals.get(item.parent_post_id) ?? null) : null}
+        currentUserId={userId}
+        isLiked={interactions?.likedPostIds.has(displayId) ?? false}
+        isBookmarked={interactions?.bookmarkedPostIds.has(displayId) ?? false}
+        isReposted={interactions?.repostedPostIds.has(displayId) ?? false}
+        userReaction={interactions?.reactions.get(displayId) ?? null}
+        reactionCounts={reactionCounts.get(displayId) ?? []}
+      />
+    );
+  };
+
+  const tabsRow = (
+    <View style={styles.tabsRow}>
+      {FEED_TABS.map(({ key, label }) => {
+        const active = tab === key;
+        return (
+          <Pressable
+            key={key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            onPress={() => setTab(key)}
+            style={({ pressed }) => [styles.tabButton, pressed && { opacity: 0.7 }]}
+          >
+            <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
+            <View style={[styles.tabIndicator, active && styles.tabIndicatorActive]} />
+          </Pressable>
+        );
+      })}
+    </View>
   );
 
   const header = (
@@ -107,6 +156,9 @@ export default function FeedScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ListHeaderComponent={header}
+        initialNumToRender={8}
+        windowSize={9}
+        removeClippedSubviews
         refreshControl={
           <RefreshControl
             refreshing={isRefetching && !isFetchingNextPage}
@@ -120,8 +172,12 @@ export default function FeedScreen() {
         onEndReachedThreshold={0.5}
         ListEmptyComponent={
           <EmptyState
-            title="Nothing here yet"
-            description="Follow people or share your first post to get the feed going."
+            title={tab === "following" ? "Your following feed is quiet" : "Nothing here yet"}
+            description={
+              tab === "following"
+                ? "Posts from people you follow will show up here."
+                : "Follow people or share your first post to get the feed going."
+            }
           />
         }
         ListFooterComponent={
@@ -138,6 +194,7 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.fill}>
+      {tabsRow}
       {body}
       <Pressable
         accessibilityRole="button"
@@ -155,6 +212,36 @@ const styles = StyleSheet.create({
   fill: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  tabsRow: {
+    flexDirection: "row",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: "center",
+    paddingTop: spacing(2.5),
+  },
+  tabLabel: {
+    color: colors.mutedForeground,
+    fontSize: 13.5,
+    fontWeight: "600",
+    letterSpacing: -0.3,
+  },
+  tabLabelActive: {
+    color: colors.foreground,
+    fontWeight: "700",
+  },
+  tabIndicator: {
+    marginTop: spacing(2),
+    height: 2,
+    width: 56,
+    borderRadius: 1,
+    backgroundColor: "transparent",
+  },
+  tabIndicatorActive: {
+    backgroundColor: colors.primary,
   },
   emptyContent: {
     flexGrow: 1,

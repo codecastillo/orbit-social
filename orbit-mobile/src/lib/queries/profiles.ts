@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 
 const PROFILE_SELECT = `
-  id, username, display_name, avatar_url, bio, is_verified,
+  id, username, display_name, avatar_url, bio, location, is_verified,
   follower_count, following_count, post_count, created_at
 `;
 
@@ -11,6 +11,7 @@ export interface Profile {
   display_name: string;
   avatar_url: string | null;
   bio: string | null;
+  location: string | null;
   is_verified: boolean;
   follower_count: number;
   following_count: number;
@@ -46,9 +47,17 @@ export async function getProfileByUsername(
   return data as unknown as Profile | null;
 }
 
+export interface ProfileUpdates {
+  username?: string;
+  display_name?: string;
+  bio?: string | null;
+  location?: string | null;
+  avatar_url?: string;
+}
+
 export async function updateOwnProfile(
   userId: string,
-  updates: { username: string; display_name: string },
+  updates: ProfileUpdates,
 ): Promise<Profile> {
   const { data, error } = await supabase
     .from("profiles")
@@ -58,6 +67,27 @@ export async function updateOwnProfile(
     .single();
   if (error) throw error;
   return data as unknown as Profile;
+}
+
+/**
+ * Uploads a picked image to the same avatars bucket and path the web
+ * onboarding flow uses (`${userId}/avatar.${ext}`, upsert) and returns the
+ * public URL to store on profiles.avatar_url.
+ */
+export async function uploadAvatar(
+  userId: string,
+  uri: string,
+  mimeType?: string,
+): Promise<string> {
+  const ext = mimeType?.split("/")[1] ?? uri.split(".").pop() ?? "jpg";
+  const path = `${userId}/avatar.${ext}`;
+  const body = await fetch(uri).then((response) => response.arrayBuffer());
+  const { error } = await supabase.storage.from("avatars").upload(path, body, {
+    contentType: mimeType ?? "image/jpeg",
+    upsert: true,
+  });
+  if (error) throw error;
+  return supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
 }
 
 /**

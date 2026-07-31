@@ -1,6 +1,6 @@
 import "react-native-url-polyfill/auto";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, processLock } from "@supabase/supabase-js";
 import Constants from "expo-constants";
 
 const extra = Constants.expoConfig?.extra as
@@ -23,5 +23,8 @@ export const supabase = createClient(url, key, {
     persistSession: true,
     // No browser URL to parse on native.
     detectSessionInUrl: false,
+    // Without an explicit lock, getSession can stall for seconds on React
+    // Native cold start while auth-js waits on the default lock.
+    lock: processLock,
   },
 });

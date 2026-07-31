@@ -40,6 +40,12 @@
         {
           "photosPermission": "Orbit uses your photos when you attach them to a post or story."
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Orbit uses the microphone when you record a voice message."
+        }
       ]
     ],
     "experiments": {

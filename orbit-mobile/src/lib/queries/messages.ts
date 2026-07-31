@@ -184,6 +184,57 @@ export async function sendMessage(
   return message as unknown as Message;
 }
 
+// The extensions the web client recognizes as audio in message-bubble.tsx.
+const AUDIO_EXTENSIONS = [".webm", ".mp3", ".ogg", ".m4a", ".wav"];
+
+/**
+ * The playable URL when a message is a voice clip, else null. Mirrors the web
+ * client's getAudioSrc: an audio-extension media_url, or the "[audio] url"
+ * content marker the web voice recorder sends.
+ */
+export function voiceMessageUrl(
+  message: Pick<Message, "content" | "media_url">,
+): string | null {
+  if (message.media_url) {
+    const lower = message.media_url.toLowerCase();
+    if (AUDIO_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
+      return message.media_url;
+    }
+  }
+  if (message.content?.startsWith("[audio]")) {
+    const url = message.content.slice("[audio]".length).trim();
+    if (url) return url;
+  }
+  return null;
+}
+
+/**
+ * Upload a recorded clip and post it, mirroring the web voice recorder's
+ * shape exactly (message-media bucket, `${userId}/${timestamp}_voice.ext`
+ * path, "[audio] url" content) so clips are interchangeable across clients.
+ */
+export async function sendVoiceMessage(
+  conversationId: string,
+  senderId: string,
+  localUri: string,
+): Promise<Message> {
+  const path = `${senderId}/${Date.now()}_voice.m4a`;
+  const body = await fetch(localUri).then((response) => response.arrayBuffer());
+  // Direct storage upload works in Expo Go; release builds can drop the
+  // authenticated role on storage requests and may need an edge-function
+  // upload instead (mello hit this in production). Revisit before a store
+  // build.
+  const { error } = await supabase.storage
+    .from("message-media")
+    .upload(path, body, { contentType: "audio/mp4" });
+  if (error) throw error;
+
+  const { publicUrl } = supabase.storage
+    .from("message-media")
+    .getPublicUrl(path).data;
+  return sendMessage(conversationId, senderId, `[audio] ${publicUrl}`);
+}
+
 export async function markConversationRead(
   conversationId: string,
   userId: string,

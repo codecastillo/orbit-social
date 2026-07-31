@@ -9,6 +9,11 @@ function SkeletonRow() {
         <View style={[styles.line, { width: "45%" }]} />
         <View style={[styles.line, { width: "90%" }]} />
         <View style={[styles.line, { width: "70%" }]} />
+        <View style={styles.actionRow}>
+          <View style={styles.actionStub} />
+          <View style={styles.actionStub} />
+          <View style={styles.actionStub} />
+        </View>
       </View>
     </View>
   );
@@ -46,6 +51,17 @@ const styles = StyleSheet.create({
   },
   line: {
     height: 12,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceElevated,
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: spacing(7),
+    marginTop: spacing(1),
+  },
+  actionStub: {
+    width: 32,
+    height: 10,
     borderRadius: radii.sm,
     backgroundColor: colors.surfaceElevated,
   },

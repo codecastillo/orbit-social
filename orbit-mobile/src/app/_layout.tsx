@@ -1,14 +1,27 @@
 import { useEffect, useState } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as Notifications from "expo-notifications";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/providers/auth-provider";
+import { registerForPush } from "@/lib/push";
+import { useNotificationTaps } from "@/lib/use-notification-taps";
 import { colors } from "@/lib/theme";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  useNotificationTaps();
 
   useEffect(() => {
     if (loading) return;
@@ -19,6 +32,14 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       router.replace("/(tabs)");
     }
   }, [user, loading, segments, router]);
+
+  useEffect(() => {
+    if (user) {
+      registerForPush(user.id).catch((err) =>
+        console.warn("[push] registration failed:", err),
+      );
+    }
+  }, [user]);
 
   return <>{children}</>;
 }
@@ -51,6 +72,7 @@ export default function RootLayout() {
           >
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="notifications" options={{ title: "Activity" }} />
           </Stack>
         </AuthGate>
       </AuthProvider>

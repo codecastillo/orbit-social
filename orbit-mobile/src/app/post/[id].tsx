@@ -20,10 +20,13 @@ import { useAuth } from "@/providers/auth-provider";
 import {
   checkUserInteractions,
   createPost,
+  displayPostId,
   getPost,
+  getPostsByIds,
   getReplies,
   type Post,
 } from "@/lib/queries/posts";
+import { getPostsReactionCounts } from "@/lib/queries/reactions";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const REPLY_MAX_LENGTH = 500;
@@ -41,6 +44,19 @@ export default function PostDetailScreen() {
     enabled: !!id,
   });
 
+  const parentPostId = postQuery.data?.parent_post_id ?? null;
+
+  // Repost and quote detail rows need their original resolved before the
+  // card can render it.
+  const originalQuery = useQuery({
+    queryKey: ["post-original", parentPostId],
+    queryFn: async () => {
+      const originals = await getPostsByIds([parentPostId as string]);
+      return originals.get(parentPostId as string) ?? null;
+    },
+    enabled: !!parentPostId,
+  });
+
   const repliesQuery = useQuery({
     queryKey: ["post-replies", id],
     queryFn: () => getReplies(id),
@@ -48,7 +64,7 @@ export default function PostDetailScreen() {
   });
 
   const visibleIds = [
-    ...(postQuery.data ? [postQuery.data.id] : []),
+    ...(postQuery.data ? [displayPostId(postQuery.data)] : []),
     ...(repliesQuery.data?.map((r) => r.id) ?? []),
   ];
 
@@ -56,6 +72,12 @@ export default function PostDetailScreen() {
     queryKey: ["post-interactions", userId, visibleIds],
     queryFn: () => checkUserInteractions(userId, visibleIds),
     enabled: !!userId && visibleIds.length > 0,
+  });
+
+  const { data: reactionCounts } = useQuery({
+    queryKey: ["post-reactions", visibleIds],
+    queryFn: () => getPostsReactionCounts(visibleIds),
+    enabled: visibleIds.length > 0,
   });
 
   const replyMutation = useMutation({
@@ -72,7 +94,7 @@ export default function PostDetailScreen() {
   const trimmedReply = replyText.trim();
   const canSend = trimmedReply.length > 0 && !replyMutation.isPending;
 
-  if (postQuery.isLoading) {
+  if (postQuery.isLoading || (parentPostId && originalQuery.isLoading)) {
     return (
       <View style={styles.fill}>
         <Stack.Screen options={{ title: "Post" }} />
@@ -97,15 +119,25 @@ export default function PostDetailScreen() {
   }
 
   const post = postQuery.data;
+  const postDisplayId = displayPostId(post);
 
-  const renderReply = ({ item }: { item: Post }) => (
-    <PostCard
-      post={item}
-      currentUserId={userId}
-      isLiked={interactions?.likedPostIds.has(item.id) ?? false}
-      isBookmarked={interactions?.bookmarkedPostIds.has(item.id) ?? false}
-    />
-  );
+  const cardFor = (item: Post, options?: { main?: boolean }) => {
+    const displayId = options?.main ? postDisplayId : item.id;
+    return (
+      <PostCard
+        post={item}
+        original={options?.main ? (originalQuery.data ?? null) : null}
+        currentUserId={userId}
+        isLiked={interactions?.likedPostIds.has(displayId) ?? false}
+        isBookmarked={interactions?.bookmarkedPostIds.has(displayId) ?? false}
+        isReposted={interactions?.repostedPostIds.has(displayId) ?? false}
+        userReaction={interactions?.reactions.get(displayId) ?? null}
+        reactionCounts={reactionCounts?.get(displayId) ?? []}
+        disableNavigation={options?.main}
+        reply={!options?.main}
+      />
+    );
+  };
 
   return (
     <KeyboardAvoidingView
@@ -117,16 +149,13 @@ export default function PostDetailScreen() {
       <FlatList
         data={repliesQuery.data ?? []}
         keyExtractor={(item) => item.id}
-        renderItem={renderReply}
+        renderItem={({ item }) => cardFor(item)}
+        initialNumToRender={8}
+        windowSize={9}
+        removeClippedSubviews
         ListHeaderComponent={
           <View style={styles.postWrap}>
-            <PostCard
-              post={post}
-              currentUserId={userId}
-              isLiked={interactions?.likedPostIds.has(post.id) ?? false}
-              isBookmarked={interactions?.bookmarkedPostIds.has(post.id) ?? false}
-              disableNavigation
-            />
+            {cardFor(post, { main: true })}
             {repliesQuery.isLoading ? <PostListSkeleton count={2} /> : null}
             {repliesQuery.error ? (
               <View style={styles.repliesError}>

@@ -198,9 +198,63 @@ export async function POST(req: Request) {
     await admin.from("push_subscriptions").delete().in("id", expired);
   }
 
+  const expoSent = await sendExpoPushes(admin, record.user_id, payload);
+
   return NextResponse.json({
     ok: true,
     sent: results.filter((r) => r === "sent").length,
+    expoSent,
     pruned: expired.length,
   });
+}
+
+// Native devices register Expo push tokens (a different transport from the
+// browser's Web Push subscriptions). Fan the same payload out to them via
+// Expo's push API and prune tokens the service reports as dead.
+async function sendExpoPushes(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  payload: PushPayload,
+): Promise<number> {
+  const { data: tokens } = await admin
+    .from("expo_push_tokens")
+    .select("token")
+    .eq("user_id", userId);
+  if (!tokens || tokens.length === 0) return 0;
+
+  const messages = tokens.map((t) => ({
+    to: t.token,
+    title: payload.title,
+    body: payload.body,
+    sound: "default" as const,
+    data: { url: payload.url },
+  }));
+
+  try {
+    const res = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(messages),
+    });
+    const result = (await res.json()) as {
+      data?: { status: string; details?: { error?: string } }[];
+    };
+
+    const dead = (result.data ?? [])
+      .map((ticket, i) =>
+        ticket.status === "error" &&
+        ticket.details?.error === "DeviceNotRegistered"
+          ? tokens[i].token
+          : null,
+      )
+      .filter((t): t is string => t !== null);
+    if (dead.length > 0) {
+      await admin.from("expo_push_tokens").delete().in("token", dead);
+    }
+
+    return (result.data ?? []).filter((t) => t.status === "ok").length;
+  } catch (err) {
+    console.error("[push/notify] expo push send failed:", err);
+    return 0;
+  }
 }

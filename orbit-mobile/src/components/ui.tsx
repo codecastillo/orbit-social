@@ -93,7 +93,9 @@ export function Avatar({
         alt={name}
         style={{ width: size, height: size, borderRadius: size / 2 }}
         contentFit="cover"
-        transition={150}
+        // The fade replays on every mount even on cache hits, which flashes
+        // avatars in lists.
+        transition={0}
       />
     );
   }

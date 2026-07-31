@@ -1,7 +1,6 @@
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -14,7 +13,7 @@ import {
 } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { Button, Centered, EmptyState } from "@/components/ui";
-import { ProfileHeader } from "@/components/profile-header";
+import { ProfileHeader, ProfilePostRow } from "@/components/profile-header";
 import {
   checkFollowing,
   followUser,
@@ -22,43 +21,8 @@ import {
   getUserRecentPosts,
   unfollowUser,
   type Profile,
-  type ProfilePost,
 } from "@/lib/queries/profiles";
-import { formatTimeAgo } from "@/lib/format";
 import { colors, spacing } from "@/lib/theme";
-
-const EXCERPT_LENGTH = 140;
-
-function excerpt(content: string | null): string {
-  if (!content) return "Shared a post";
-  return content.length > EXCERPT_LENGTH
-    ? `${content.slice(0, EXCERPT_LENGTH).trimEnd()}...`
-    : content;
-}
-
-function PostRow({
-  post,
-  author,
-  onPress,
-}: {
-  post: ProfilePost;
-  author: Profile;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.postRow, pressed && { opacity: 0.7 }]}
-    >
-      <View style={styles.postMeta}>
-        <Text style={styles.postAuthor}>{author.display_name}</Text>
-        <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
-      </View>
-      <Text style={styles.postContent}>{excerpt(post.content)}</Text>
-    </Pressable>
-  );
-}
 
 export default function PublicProfileScreen() {
   const { username } = useLocalSearchParams<{ username: string }>();
@@ -186,9 +150,10 @@ export default function PublicProfileScreen() {
         keyExtractor={(post) => post.id}
         ListHeaderComponent={<ProfileHeader profile={profile} action={followAction} />}
         renderItem={({ item }) => (
-          <PostRow
-            post={item}
-            author={profile}
+          <ProfilePostRow
+            authorName={profile.display_name}
+            content={item.content}
+            createdAt={item.created_at}
             onPress={() => router.push(`/post/${item.id}`)}
           />
         )}
@@ -225,32 +190,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: spacing(8),
-  },
-  postRow: {
-    paddingHorizontal: spacing(4),
-    paddingVertical: spacing(3),
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  postMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  postAuthor: {
-    color: colors.foreground,
-    fontSize: 13.5,
-    fontWeight: "600",
-  },
-  postTime: {
-    color: colors.textFaint,
-    fontSize: 12,
-  },
-  postContent: {
-    color: colors.textSecondary,
-    fontSize: 13.5,
-    lineHeight: 19,
-    marginTop: 4,
   },
   postsLoading: {
     padding: spacing(8),

@@ -9,6 +9,7 @@ import {
   type ViewToken,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useIsFocused } from "@react-navigation/native";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
@@ -159,6 +160,9 @@ export default function ClipsScreen() {
   const { user } = useAuth();
   const [pageHeight, setPageHeight] = useState(0);
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
+  // Pause playback whenever the tab blurs; without this the active clip's
+  // audio keeps running under every other screen.
+  const isFocused = useIsFocused();
 
   const {
     data,
@@ -197,11 +201,11 @@ export default function ClipsScreen() {
       <ClipItem
         clip={item}
         height={pageHeight}
-        isActive={item.id === activeClipId}
+        isActive={isFocused && item.id === activeClipId}
         userId={user?.id ?? ""}
       />
     ),
-    [pageHeight, activeClipId, user?.id],
+    [pageHeight, activeClipId, isFocused, user?.id],
   );
 
   if (!user) return null;

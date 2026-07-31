@@ -1,4 +1,10 @@
 import { supabase } from "@/lib/supabase";
+import {
+  getPostsReactionCounts,
+  getUserReactions,
+  type ReactionCount,
+  type ReactionType,
+} from "@/lib/queries/reactions";
 
 export interface PostAuthor {
   id: string;
@@ -24,6 +30,7 @@ export interface Post {
   user_id: string;
   content: string | null;
   type: "text" | "image" | "video" | "reel" | "poll" | "repost" | "quote";
+  parent_post_id: string | null;
   reply_to_id: string | null;
   community_id: string | null;
   like_count: number;
@@ -41,7 +48,7 @@ export interface Post {
 // screens render. The cast goes through unknown because without generated
 // DB types the query parser infers the to-one profiles join as an array.
 const POST_SELECT = `
-  id, user_id, content, type, reply_to_id, community_id,
+  id, user_id, content, type, parent_post_id, reply_to_id, community_id,
   like_count, comment_count, repost_count, bookmark_count,
   is_hidden, visibility, created_at,
   profiles!posts_user_id_fkey (
@@ -54,18 +61,23 @@ const POST_SELECT = `
 
 export const FEED_PAGE_SIZE = 20;
 
-// v1 feed skips close-friends resolution: public posts plus the viewer's
-// own, newest first. Reels and reposts are excluded like the web public
-// timeline (reels live in the clips tab, reposts need quoted-post
-// rendering the mobile card does not have yet).
-export async function getFeedPosts(userId: string, cursor?: string) {
+export type FeedTab = "foryou" | "following";
+
+// Bounded like the web getFeedPosts: past this the Following tab needs a
+// server-side join instead of an IN list.
+const FOLLOWING_IDS_LIMIT = 1000;
+
+// Mobile still skips close-friends resolution (public posts plus the
+// viewer's own), but now includes reposts and quotes; the card resolves
+// their originals per page. Reels stay in the clips tab.
+export async function getFeedPosts(userId: string, tab: FeedTab, cursor?: string) {
   let query = supabase
     .from("posts")
     .select(POST_SELECT)
     .is("reply_to_id", null)
     .is("community_id", null)
     .eq("is_hidden", false)
-    .not("type", "in", "(reel,repost)")
+    .not("type", "eq", "reel")
     .or(`visibility.eq.public,user_id.eq.${userId}`)
     .order("created_at", { ascending: false })
     .limit(FEED_PAGE_SIZE);
@@ -74,9 +86,69 @@ export async function getFeedPosts(userId: string, cursor?: string) {
     query = query.lt("created_at", cursor);
   }
 
+  if (tab === "following") {
+    const { data: following, error: followsError } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", userId)
+      .limit(FOLLOWING_IDS_LIMIT);
+    if (followsError) throw followsError;
+
+    const followingIds = following?.map((f) => f.following_id) ?? [];
+    followingIds.push(userId); // Include own posts
+    query = query.in("user_id", followingIds);
+  }
+
   const { data, error } = await query;
   if (error) throw error;
   return data as unknown as Post[];
+}
+
+export async function getPostsByIds(postIds: string[]): Promise<Map<string, Post>> {
+  if (postIds.length === 0) return new Map();
+
+  const { data, error } = await supabase.from("posts").select(POST_SELECT).in("id", postIds);
+
+  if (error) throw error;
+  return new Map(((data ?? []) as unknown as Post[]).map((p) => [p.id, p]));
+}
+
+export interface FeedPage {
+  posts: Post[];
+  // Resolved parents for repost and quote rows, keyed by original post id.
+  originals: Map<string, Post>;
+  // Reaction tallies keyed by the id each card displays (the original for
+  // repost rows), fetched once per page instead of per card.
+  reactionCounts: Map<string, ReactionCount[]>;
+}
+
+// A repost row displays and acts on its original post; every other row
+// (including quotes, whose embedded card is secondary) acts on itself.
+export function displayPostId(post: Post): string {
+  return post.type === "repost" && post.parent_post_id ? post.parent_post_id : post.id;
+}
+
+export async function getFeedPage(
+  userId: string,
+  tab: FeedTab,
+  cursor?: string,
+): Promise<FeedPage> {
+  const posts = await getFeedPosts(userId, tab, cursor);
+
+  const parentIds = [
+    ...new Set(
+      posts
+        .filter((p) => (p.type === "repost" || p.type === "quote") && p.parent_post_id)
+        .map((p) => p.parent_post_id as string),
+    ),
+  ];
+
+  const originals = await getPostsByIds(parentIds);
+  const reactionCounts = await getPostsReactionCounts([
+    ...new Set(posts.map((p) => displayPostId(p))),
+  ]);
+
+  return { posts, originals, reactionCounts };
 }
 
 export async function getPost(postId: string) {
@@ -134,9 +206,55 @@ export async function toggleBookmark(userId: string, postId: string, isBookmarke
   }
 }
 
+// Web createRepost/undoRepost equivalents. The count bump goes through a
+// SECURITY DEFINER RPC because a direct UPDATE on someone else's post is
+// silently blocked by RLS, leaving the count stuck.
+export async function createRepost(userId: string, postId: string) {
+  const { data: existing } = await supabase
+    .from("posts")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("type", "repost")
+    .eq("parent_post_id", postId)
+    .maybeSingle();
+
+  if (existing) throw new Error("Already reposted");
+
+  const { error } = await supabase.from("posts").insert({
+    user_id: userId,
+    content: null,
+    type: "repost",
+    parent_post_id: postId,
+  });
+  if (error) throw error;
+
+  const { error: rpcError } = await supabase.rpc("increment_post_reposts", {
+    p_post_id: postId,
+  });
+  if (rpcError) console.error("increment_post_reposts failed", rpcError);
+}
+
+export async function undoRepost(userId: string, postId: string) {
+  const { error } = await supabase
+    .from("posts")
+    .delete()
+    .eq("user_id", userId)
+    .eq("type", "repost")
+    .eq("parent_post_id", postId);
+
+  if (error) throw error;
+
+  const { error: rpcError } = await supabase.rpc("decrement_post_reposts", {
+    p_post_id: postId,
+  });
+  if (rpcError) console.error("decrement_post_reposts failed", rpcError);
+}
+
 export interface UserInteractions {
   likedPostIds: Set<string>;
   bookmarkedPostIds: Set<string>;
+  repostedPostIds: Set<string>;
+  reactions: Map<string, ReactionType>;
 }
 
 export async function checkUserInteractions(
@@ -144,10 +262,15 @@ export async function checkUserInteractions(
   postIds: string[],
 ): Promise<UserInteractions> {
   if (postIds.length === 0) {
-    return { likedPostIds: new Set(), bookmarkedPostIds: new Set() };
+    return {
+      likedPostIds: new Set(),
+      bookmarkedPostIds: new Set(),
+      repostedPostIds: new Set(),
+      reactions: new Map(),
+    };
   }
 
-  const [likesResult, bookmarksResult] = await Promise.all([
+  const [likesResult, bookmarksResult, repostsResult, reactions] = await Promise.all([
     supabase
       .from("post_likes")
       .select("post_id")
@@ -158,14 +281,26 @@ export async function checkUserInteractions(
       .select("post_id")
       .eq("user_id", userId)
       .in("post_id", postIds),
+    supabase
+      .from("posts")
+      .select("parent_post_id")
+      .eq("user_id", userId)
+      .eq("type", "repost")
+      .in("parent_post_id", postIds),
+    getUserReactions(userId, postIds),
   ]);
 
   if (likesResult.error) throw likesResult.error;
   if (bookmarksResult.error) throw bookmarksResult.error;
+  if (repostsResult.error) throw repostsResult.error;
 
   return {
     likedPostIds: new Set(likesResult.data.map((l) => l.post_id)),
     bookmarkedPostIds: new Set(bookmarksResult.data.map((b) => b.post_id)),
+    repostedPostIds: new Set(
+      repostsResult.data.map((r) => r.parent_post_id as string).filter(Boolean),
+    ),
+    reactions,
   };
 }
 

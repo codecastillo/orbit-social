@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Animated,
+  AppState,
+  Easing,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -14,6 +17,12 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+} from "expo-audio";
+import {
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -21,12 +30,21 @@ import {
   type InfiniteData,
 } from "@tanstack/react-query";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
+import { VoiceBubble } from "@/components/voice-bubble";
+import {
+  VOICE_MIN_MS,
+  VoiceRecordingBar,
+} from "@/components/voice-recording-bar";
+import { prefetchVoice } from "@/lib/audio-cache";
+import { safeBack } from "@/lib/nav";
 import {
   MESSAGE_PAGE_SIZE,
   getConversations,
   getMessages,
   markConversationRead,
   sendMessage,
+  sendVoiceMessage,
+  voiceMessageUrl,
   type Message,
 } from "@/lib/queries/messages";
 import { supabase } from "@/lib/supabase";
@@ -34,19 +52,24 @@ import { useAuth } from "@/providers/auth-provider";
 import { colors, radii, spacing } from "@/lib/theme";
 
 function MessageBubble({ message, isMine }: { message: Message; isMine: boolean }) {
+  const voiceUrl = message.is_deleted ? null : voiceMessageUrl(message);
   return (
     <View style={[styles.bubbleRow, isMine ? styles.bubbleRowMine : null]}>
-      <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-        {message.is_deleted ? (
-          <Text style={[styles.bubbleText, styles.deletedText]}>
-            Message deleted
-          </Text>
-        ) : (
-          <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>
-            {message.content}
-          </Text>
-        )}
-      </View>
+      {voiceUrl ? (
+        <VoiceBubble url={voiceUrl} isMine={isMine} />
+      ) : (
+        <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
+          {message.is_deleted ? (
+            <Text style={[styles.bubbleText, styles.deletedText]}>
+              Message deleted
+            </Text>
+          ) : (
+            <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>
+              {message.content}
+            </Text>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -153,6 +176,56 @@ export default function ConversationScreen() {
     };
   }, [user, conversationId, appendMessage]);
 
+  // Realtime drops silently while backgrounded and never replays, so catch
+  // up whenever the app returns to the foreground.
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (status) => {
+      if (status === "active") void refetch();
+    });
+    return () => subscription.remove();
+  }, [refetch]);
+
+  // Warm the local voice cache so the first tap on a clip plays instantly
+  // instead of streaming.
+  useEffect(() => {
+    const urls = (data?.pages.flat() ?? [])
+      .map((m) => (m.is_deleted ? null : voiceMessageUrl(m)))
+      .filter((url): url is string => url !== null);
+    if (urls.length > 0) void prefetchVoice(urls);
+  }, [data]);
+
+  // Drive a bottom spacer on the keyboard's own animation curve so the
+  // composer rises in lockstep with the keyboard. KeyboardAvoidingView lags
+  // behind it. Android never emits keyboardWill* events and handles the
+  // inset itself, so the spacer simply rests there.
+  const kbRest = Math.max(insets.bottom - 8, 0);
+  const [kbSpace] = useState(() => new Animated.Value(kbRest));
+  useEffect(() => {
+    // Match iOS's keyboard animation curve so the spacer tracks the keyboard
+    // for the whole rise, not just the start and end.
+    const keyboardEasing = Easing.bezier(0.17, 0.59, 0.25, 1);
+    const show = Keyboard.addListener("keyboardWillShow", (e) => {
+      Animated.timing(kbSpace, {
+        toValue: e.endCoordinates.height,
+        duration: e.duration || 250,
+        easing: keyboardEasing,
+        useNativeDriver: false,
+      }).start();
+    });
+    const hide = Keyboard.addListener("keyboardWillHide", (e) => {
+      Animated.timing(kbSpace, {
+        toValue: kbRest,
+        duration: e.duration || 250,
+        easing: keyboardEasing,
+        useNativeDriver: false,
+      }).start();
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [kbSpace, kbRest]);
+
   const sendMutation = useMutation({
     mutationFn: (content: string) => sendMessage(conversationId, user!.id, content),
     onSuccess: (message) => {
@@ -160,6 +233,64 @@ export default function ConversationScreen() {
       queryClient.invalidateQueries({ queryKey: ["conversations", user?.id] });
     },
   });
+
+  const voiceMutation = useMutation({
+    mutationFn: (uri: string) => sendVoiceMessage(conversationId, user!.id, uri),
+    onSuccess: (message) => {
+      appendMessage(message);
+      queryClient.invalidateQueries({ queryKey: ["conversations", user?.id] });
+    },
+    onError: () => {
+      Alert.alert(
+        "Voice message not sent",
+        "Check your connection and try again.",
+      );
+    },
+  });
+
+  // The live meter and timer live in VoiceRecordingBar so the recorder's
+  // frequent metering updates only re-render that bar, never this screen.
+  const recorder = useAudioRecorder({
+    ...RecordingPresets.HIGH_QUALITY,
+    isMeteringEnabled: true,
+  });
+  const [recording, setRecording] = useState(false);
+
+  const startRecording = async () => {
+    if (recording || voiceMutation.isPending) return;
+    const permission = await requestRecordingPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        "Microphone needed",
+        "Turn on microphone access in Settings to send a voice message.",
+      );
+      return;
+    }
+    // Recording fails unless the session allows it before prepare/record.
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    await recorder.prepareToRecordAsync();
+    recorder.record();
+    setRecording(true);
+  };
+
+  const finishRecording = async (shouldSend: boolean) => {
+    if (!recording) return;
+    // durationMillis resets once stop() lands, so read it first.
+    const durationMs = recorder.getStatus().durationMillis;
+    setRecording(false);
+    try {
+      await recorder.stop();
+    } catch {
+      // Nothing to send if the recorder never got going.
+    }
+    // Playback stays quiet until the session leaves recording mode.
+    await setAudioModeAsync({ allowsRecording: false });
+    const uri = recorder.uri;
+    // Ignore accidental taps that record almost nothing.
+    if (shouldSend && uri && durationMs >= VOICE_MIN_MS) {
+      voiceMutation.mutate(uri);
+    }
+  };
 
   const handleSend = () => {
     const content = draft.trim();
@@ -171,6 +302,7 @@ export default function ConversationScreen() {
   if (!user) return null;
 
   const messages = data?.pages.flat() ?? [];
+  const hasText = draft.trim().length > 0;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -180,7 +312,7 @@ export default function ConversationScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Back"
-          onPress={() => router.back()}
+          onPress={() => safeBack(router)}
           hitSlop={8}
           style={({ pressed }) => [pressed && { opacity: 0.6 }]}
         >
@@ -198,10 +330,7 @@ export default function ConversationScreen() {
         </Text>
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.body}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <View style={styles.body}>
         {isPending ? (
           <Centered>
             <ActivityIndicator color={colors.primary} />
@@ -241,35 +370,67 @@ export default function ConversationScreen() {
           />
         )}
 
-        <View style={[styles.composer, { paddingBottom: insets.bottom + spacing(2) }]}>
-          <TextInput
-            style={styles.composerInput}
-            placeholder="Message"
-            placeholderTextColor={colors.textFaint}
-            value={draft}
-            onChangeText={setDraft}
-            multiline
-            accessibilityLabel="Message text"
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Send message"
-            onPress={handleSend}
-            disabled={!draft.trim() || sendMutation.isPending}
-            style={({ pressed }) => [
-              styles.sendButton,
-              (!draft.trim() || sendMutation.isPending) && { opacity: 0.4 },
-              pressed && { opacity: 0.7 },
-            ]}
-          >
-            {sendMutation.isPending ? (
-              <ActivityIndicator size="small" color={colors.primaryForeground} />
-            ) : (
-              <Ionicons name="arrow-up" size={20} color={colors.primaryForeground} />
-            )}
-          </Pressable>
+        <View style={styles.composer}>
+          {recording ? (
+            <VoiceRecordingBar
+              recorder={recorder}
+              onCancel={() => void finishRecording(false)}
+              onSend={() => void finishRecording(true)}
+              onAutoStop={() => void finishRecording(true)}
+            />
+          ) : (
+            <>
+              <TextInput
+                style={styles.composerInput}
+                placeholder="Message"
+                placeholderTextColor={colors.textFaint}
+                value={draft}
+                onChangeText={setDraft}
+                multiline
+                accessibilityLabel="Message text"
+              />
+              {hasText ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Send message"
+                  onPress={handleSend}
+                  disabled={sendMutation.isPending}
+                  style={({ pressed }) => [
+                    styles.sendButton,
+                    sendMutation.isPending && { opacity: 0.4 },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  {sendMutation.isPending ? (
+                    <ActivityIndicator size="small" color={colors.primaryForeground} />
+                  ) : (
+                    <Ionicons name="arrow-up" size={20} color={colors.primaryForeground} />
+                  )}
+                </Pressable>
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Record a voice message"
+                  onPress={() => void startRecording()}
+                  disabled={voiceMutation.isPending}
+                  style={({ pressed }) => [
+                    styles.micButton,
+                    voiceMutation.isPending && { opacity: 0.4 },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  {voiceMutation.isPending ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Ionicons name="mic" size={20} color={colors.primary} />
+                  )}
+                </Pressable>
+              )}
+            </>
+          )}
         </View>
-      </KeyboardAvoidingView>
+        <Animated.View style={{ height: kbSpace }} />
+      </View>
     </View>
   );
 }
@@ -338,6 +499,7 @@ const styles = StyleSheet.create({
     gap: spacing(2),
     paddingHorizontal: spacing(3),
     paddingTop: spacing(2),
+    paddingBottom: spacing(2),
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
@@ -359,6 +521,14 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: radii.full,
     backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  micButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceElevated,
     alignItems: "center",
     justifyContent: "center",
   },

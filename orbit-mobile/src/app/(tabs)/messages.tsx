@@ -35,6 +35,9 @@ function previewText(
   if (!last) return "No messages yet";
   if (last.is_deleted) return "Message deleted";
   const prefix = last.sender_id === userId ? "You: " : "";
+  // Voice clips store their URL as "[audio] url" content (matching the web
+  // client); the raw URL makes a useless preview.
+  if (last.content?.startsWith("[audio]")) return `${prefix}Voice message`;
   return `${prefix}${last.content ?? "Sent an attachment"}`;
 }
 
