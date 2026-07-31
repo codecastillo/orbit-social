@@ -1,12 +1,31 @@
 "use client";
 
 import { useRef, useEffect, useCallback } from "react";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Film } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { getClips } from "@/lib/queries/clips";
+import { getClips, getCuratedClips } from "@/lib/queries/clips";
 import { checkUserInteractions, type PostWithAuthor } from "@/lib/queries/posts";
 import { ClipPlayer } from "./clip-player";
+
+/** Stamp per-viewer like/bookmark/loop-it state onto a page of clips. */
+async function enrichWithInteractions(
+  clips: PostWithAuthor[],
+  userId: string | undefined,
+): Promise<PostWithAuthor[]> {
+  if (clips.length === 0 || !userId) return clips;
+  const { likedPostIds, bookmarkedPostIds, repostedPostIds } =
+    await checkUserInteractions(
+      userId,
+      clips.map((c) => c.id),
+    );
+  return clips.map((c) => ({
+    ...c,
+    user_has_liked: likedPostIds.has(c.id),
+    user_has_bookmarked: bookmarkedPostIds.has(c.id),
+    user_has_reposted: repostedPostIds.has(c.id),
+  }));
+}
 
 export function ClipFeed() {
   const { user } = useAuth();
@@ -38,19 +57,7 @@ export function ClipFeed() {
     queryKey: ["clips", user?.id],
     queryFn: async ({ pageParam }) => {
       const clips = await getClips(pageParam, 5);
-
-      let enrichedClips = clips;
-      if (clips.length > 0 && user) {
-        const postIds = clips.map((c) => c.id);
-        const { likedPostIds, bookmarkedPostIds } =
-          await checkUserInteractions(user.id, postIds);
-
-        enrichedClips = clips.map((c) => ({
-          ...c,
-          user_has_liked: likedPostIds.has(c.id),
-          user_has_bookmarked: bookmarkedPostIds.has(c.id),
-        }));
-      }
+      const enrichedClips = await enrichWithInteractions(clips, user?.id);
 
       const nextCursor =
         clips.length > 0 ? clips[clips.length - 1].created_at : null;
@@ -60,6 +67,15 @@ export function ClipFeed() {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     staleTime: 30_000,
+  });
+
+  // Weekly Best Loops curation, pinned at the front of the pager with a
+  // badge on each curated clip. Empty table degrades to the plain feed.
+  const { data: bestLoops } = useQuery({
+    queryKey: ["best-loops", user?.id],
+    queryFn: async () =>
+      enrichWithInteractions(await getCuratedClips(), user?.id),
+    staleTime: 5 * 60_000,
   });
 
   const handleIntersect = useCallback(
@@ -110,8 +126,15 @@ export function ClipFeed() {
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const allClips: PostWithAuthor[] =
-    data?.pages.flatMap((page) => page.clips) ?? [];
+  // Curated clips lead; drop their duplicates from the chronological
+  // pages so a curated clip never renders twice in the pager.
+  const curated = bestLoops ?? [];
+  const curatedIds = new Set(curated.map((c) => c.id));
+  const feedClips: PostWithAuthor[] =
+    data?.pages
+      .flatMap((page) => page.clips)
+      .filter((c) => !curatedIds.has(c.id)) ?? [];
+  const allClips: PostWithAuthor[] = [...curated, ...feedClips];
 
   if (isLoading) {
     return (
@@ -160,7 +183,12 @@ export function ClipFeed() {
         className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide bg-black"
       >
         {allClips.map((clip) => (
-          <ClipPlayer key={clip.id} clip={clip} onNavigate={scrollByOne} />
+          <ClipPlayer
+            key={clip.id}
+            clip={clip}
+            onNavigate={scrollByOne}
+            isBestLoop={curatedIds.has(clip.id)}
+          />
         ))}
 
         <div ref={sentinelRef} className="h-1" />

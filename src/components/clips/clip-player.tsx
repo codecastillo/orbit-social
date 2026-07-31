@@ -2,10 +2,10 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Volume2, VolumeX, Play, ChevronUp, ChevronDown } from "lucide-react";
+import { Volume2, VolumeX, Play, ChevronUp, ChevronDown, Repeat } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { formatTimeAgo } from "@/lib/utils/format";
+import { formatNumber, formatTimeAgo } from "@/lib/utils/format";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { VerifiedStar } from "@/components/orbit/verified-star";
 import { ClipActions } from "./clip-actions";
@@ -13,6 +13,7 @@ import { ClipCommentsSheet } from "./clip-comments-sheet";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { checkFollowing, followUser, unfollowUser } from "@/lib/queries/social";
+import { flushClipLoops } from "@/lib/queries/clips";
 import { createClient } from "@/lib/supabase/client";
 import { useUIStore } from "@/lib/stores/ui-store";
 import type { PostWithAuthor } from "@/lib/queries/posts";
@@ -20,9 +21,15 @@ import type { PostWithAuthor } from "@/lib/queries/posts";
 interface ClipPlayerProps {
   clip: PostWithAuthor;
   onNavigate?: (dir: 1 | -1) => void;
+  /** True for clips pinned from the weekly Best Loops curation. */
+  isBestLoop?: boolean;
 }
 
-export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
+// Flush accumulated loops to the server every N completed loops; the
+// remainder goes out on unmount. Matches the RPC's per-call clamp intent.
+const LOOP_FLUSH_BATCH = 5;
+
+export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
   const { user } = useAuth();
   const requireAuth = useRequireAuth();
   const queryClient = useQueryClient();
@@ -36,6 +43,29 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
   const [followOverride, setFollowOverride] = useState<boolean | null>(null);
   const [progress, setProgress] = useState(0); // 0 to 1
   const [commentsOpen, setCommentsOpen] = useState(false);
+  // Loop counting: the <video loop> attribute never fires "ended", so we
+  // detect the wrap-around on timeupdate (currentTime jumps back to ~0
+  // from near the end). Loops accumulate in a ref and flush in batches.
+  const lastTimeRef = useRef(0);
+  const pendingLoopsRef = useRef(0);
+  const [shownLoops, setShownLoops] = useState(clip.loop_count ?? 0);
+
+  // Render-time adjustment: adopt the server count only when it grows,
+  // so a realtime refetch that lands mid-batch never yanks the displayed
+  // number backwards.
+  const serverLoops = clip.loop_count ?? 0;
+  const [prevServerLoops, setPrevServerLoops] = useState(serverLoops);
+  if (serverLoops !== prevServerLoops) {
+    setPrevServerLoops(serverLoops);
+    setShownLoops((prev) => Math.max(prev, serverLoops));
+  }
+
+  const flushLoops = useCallback(() => {
+    const loops = pendingLoopsRef.current;
+    if (loops === 0) return;
+    pendingLoopsRef.current = 0;
+    flushClipLoops(clip.id, loops);
+  }, [clip.id]);
 
   const videoUrl = clip.post_media?.[0]?.url;
   const author = clip.profiles;
@@ -74,14 +104,30 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
 
     const onTime = () => {
       if (video.duration > 0) setProgress(video.currentTime / video.duration);
+      const t = video.currentTime;
+      // Wrap-around = previous tick was near the end, now we're back at
+      // the start. The near-end guard keeps a backwards scrub from the
+      // middle of the clip from counting as a loop.
+      if (
+        video.duration > 0 &&
+        t < 1 &&
+        lastTimeRef.current > Math.max(video.duration - 1.5, t)
+      ) {
+        pendingLoopsRef.current += 1;
+        setShownLoops((n) => n + 1);
+        if (pendingLoopsRef.current >= LOOP_FLUSH_BATCH) flushLoops();
+      }
+      lastTimeRef.current = t;
     };
     video.addEventListener("timeupdate", onTime);
 
     return () => {
       observer.disconnect();
       video.removeEventListener("timeupdate", onTime);
+      // Send the sub-batch remainder when the clip scrolls away/unmounts.
+      flushLoops();
     };
-  }, []);
+  }, [flushLoops]);
 
   // Realtime: react to count changes (like/comment/share) on this clip
   // and to new replies under this clip without requiring a refresh.
@@ -140,6 +186,9 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
     video.currentTime = ratio * video.duration;
+    // Keep the wrap-around detector in sync so an end-to-start scrub
+    // does not register as a completed loop.
+    lastTimeRef.current = video.currentTime;
     setProgress(ratio);
   };
 
@@ -283,6 +332,16 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
         </div>
       )}
 
+      {/* Best Loops badge, top left, mirrors the mute toggle's chrome */}
+      {isBestLoop && (
+        <div className="absolute top-5 left-5 z-10 flex items-center gap-1.5 rounded-full border border-white/15 bg-black/60 px-3 py-1.5">
+          <Repeat className="h-3 w-3 text-primary" strokeWidth={2.4} />
+          <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-white">
+            Best Loops
+          </span>
+        </div>
+      )}
+
       {/* Mute toggle, top right */}
       <button
         onClick={toggleMute}
@@ -301,6 +360,16 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
         className="absolute bottom-0 left-0 right-20 px-5 pb-7 pt-10"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Headline metric: completed loops, the number this surface is about */}
+        <div className="mb-2.5 flex items-center gap-1.5 text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
+          <Repeat className="h-[15px] w-[15px]" strokeWidth={2.4} />
+          <span className="text-[15px] font-bold tabular-nums tracking-[-0.01em]">
+            {formatNumber(shownLoops)}
+          </span>
+          <span className="text-[11px] font-semibold text-white/60">
+            {shownLoops === 1 ? "loop" : "loops"}
+          </span>
+        </div>
         <div className="flex items-center gap-3 mb-3">
           <Link href={`/${author.username}`} className="flex items-center gap-2.5">
             <UserAvatar
@@ -370,8 +439,10 @@ export function ClipPlayer({ clip, onNavigate }: ClipPlayerProps) {
           commentCount={clip.comment_count}
           bookmarkCount={clip.bookmark_count}
           shareCount={clip.share_count ?? 0}
+          repostCount={clip.repost_count}
           isLiked={clip.user_has_liked ?? false}
           isBookmarked={clip.user_has_bookmarked ?? false}
+          isReposted={clip.user_has_reposted ?? false}
           onComment={() => setCommentsOpen(true)}
         />
       </div>

@@ -1,13 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Heart, MessageCircle, Share2, Bookmark } from "lucide-react";
+import { Heart, MessageCircle, Share2, Bookmark, Repeat } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useEffect } from "react";
 import { formatNumber } from "@/lib/utils/format";
-import { toggleLike, toggleBookmark } from "@/lib/queries/posts";
+import {
+  toggleLike,
+  toggleBookmark,
+  createRepost,
+  undoRepost,
+} from "@/lib/queries/posts";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { createClient } from "@/lib/supabase/client";
@@ -19,8 +24,10 @@ interface ClipActionsProps {
   commentCount: number;
   bookmarkCount: number;
   shareCount: number;
+  repostCount: number;
   isLiked: boolean;
   isBookmarked: boolean;
+  isReposted: boolean;
   onComment: () => void;
 }
 
@@ -60,8 +67,10 @@ export function ClipActions({
   commentCount,
   bookmarkCount,
   shareCount,
+  repostCount,
   isLiked: initialIsLiked,
   isBookmarked: initialIsBookmarked,
+  isReposted: initialIsReposted,
   onComment,
 }: ClipActionsProps) {
   const { user } = useAuth();
@@ -69,6 +78,8 @@ export function ClipActions({
   const queryClient = useQueryClient();
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked);
+  const [isReposted, setIsReposted] = useState(initialIsReposted);
+  const [localRepostCount, setLocalRepostCount] = useState(repostCount);
   const [localLikeCount, setLocalLikeCount] = useState(likeCount);
   const [localBookmarkCount, setLocalBookmarkCount] = useState(bookmarkCount);
   const [localShareCount, setLocalShareCount] = useState(shareCount);
@@ -80,6 +91,15 @@ export function ClipActions({
   // refetch clobber an optimistic local bump back to a smaller number.
   useEffect(() => setLocalLikeCount(likeCount), [likeCount]);
   useEffect(() => setLocalBookmarkCount(bookmarkCount), [bookmarkCount]);
+
+  // Render-time adjustment (not an effect): adopt the authoritative
+  // repost count when the prop changes, keeping optimistic bumps between
+  // refetches.
+  const [prevRepostCount, setPrevRepostCount] = useState(repostCount);
+  if (repostCount !== prevRepostCount) {
+    setPrevRepostCount(repostCount);
+    setLocalRepostCount(repostCount);
+  }
   useEffect(() => {
     setLocalShareCount((prev) => Math.max(prev, shareCount));
   }, [shareCount]);
@@ -111,6 +131,28 @@ export function ClipActions({
       setIsBookmarked(wasBookmarked);
       setLocalBookmarkCount((c) => (wasBookmarked ? c + 1 : c - 1));
       toast.error("Couldn't update save");
+    }
+  };
+
+  // "Loop it" is the clips-native name for a repost: same createRepost/
+  // undoRepost rows underneath, so a loop from here shows up on the
+  // user's profile and in followers' feeds like any other repost.
+  const handleLoopIt = async () => {
+    if (!requireAuth() || !user) return;
+    const wasReposted = isReposted;
+    setIsReposted(!wasReposted);
+    setLocalRepostCount((c) => (wasReposted ? c - 1 : c + 1));
+    try {
+      if (wasReposted) {
+        await undoRepost(user.id, postId);
+      } else {
+        await createRepost(user.id, postId);
+      }
+      queryClient.invalidateQueries({ queryKey: ["clips"] });
+    } catch {
+      setIsReposted(wasReposted);
+      setLocalRepostCount((c) => (wasReposted ? c + 1 : c - 1));
+      toast.error("Couldn't loop this clip");
     }
   };
 
@@ -165,6 +207,19 @@ export function ClipActions({
         label={formatNumber(localBookmarkCount)}
         ariaLabel={isBookmarked ? "Remove bookmark" : "Bookmark"}
         onClick={handleBookmark}
+      />
+      <ActionPill
+        icon={
+          <Repeat
+            className={`h-[26px] w-[26px] ${
+              isReposted ? "text-primary" : "text-white"
+            }`}
+            strokeWidth={isReposted ? 2.4 : 1.8}
+          />
+        }
+        label={localRepostCount > 0 ? formatNumber(localRepostCount) : "Loop it"}
+        ariaLabel={isReposted ? "Undo loop" : "Loop it"}
+        onClick={handleLoopIt}
       />
       <ActionPill
         icon={<Share2 className="h-[26px] w-[26px]" strokeWidth={1.8} />}

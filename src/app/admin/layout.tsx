@@ -10,6 +10,7 @@ import {
   Flag,
   Users,
   UsersRound,
+  Repeat,
   ShieldAlert,
   Loader2,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const adminLinks = [
   { href: "/admin/reports", label: "Reports", icon: Flag },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/starter-packs", label: "Starter Packs", icon: UsersRound },
+  { href: "/admin/best-loops", label: "Best Loops", icon: Repeat },
 ];
 
 export default function AdminLayout({

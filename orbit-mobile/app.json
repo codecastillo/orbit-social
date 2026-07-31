@@ -46,6 +46,13 @@
         {
           "microphonePermission": "Orbit uses the microphone when you record a voice message."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Orbit uses the camera when you record a clip.",
+          "microphonePermission": "Orbit records audio with your clips."
+        }
       ]
     ],
     "experiments": {

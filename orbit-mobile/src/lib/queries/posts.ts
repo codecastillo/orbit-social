@@ -454,6 +454,44 @@ export async function createPost(
   return post as unknown as Post;
 }
 
+export interface NewReelMedia {
+  url: string;
+  width: number | null;
+  height: number | null;
+  durationMs: number;
+}
+
+// Reel equivalent of createPost. The web composer forces type "reel" on a
+// single video destined for clips; the clip camera captures that shape
+// directly. duration_ms on post_media feeds the clips Loop lane.
+export async function createReelPost(userId: string, content: string, media: NewReelMedia) {
+  const { data: post, error } = await supabase
+    .from("posts")
+    .insert({
+      user_id: userId,
+      content: content || null,
+      type: "reel",
+      visibility: "public",
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+
+  const { error: mediaError } = await supabase.from("post_media").insert({
+    post_id: post.id,
+    type: "video",
+    url: media.url,
+    width: media.width,
+    height: media.height,
+    duration_ms: Math.round(media.durationMs),
+    sort_order: 0,
+  });
+  if (mediaError) throw mediaError;
+
+  return post.id as string;
+}
+
 // Uploads into the same "post-media" bucket the web app uses, with the
 // same {userId}/{timestamp}_{random}.{ext} path convention.
 export async function uploadPostMedia(

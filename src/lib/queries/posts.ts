@@ -17,6 +17,8 @@ export interface PostWithAuthor {
   share_count?: number;
   view_count: number;
   bookmark_count: number;
+  // Completed playback loops, reels only (increment_clip_loops RPC).
+  loop_count?: number;
   poll_data: PollData | null;
   is_pinned: boolean;
   is_hidden: boolean;
@@ -53,6 +55,7 @@ export interface MediaItem {
   height: number | null;
   blurhash: string | null;
   sort_order: number;
+  duration_ms?: number | null;
 }
 
 export interface PollData {

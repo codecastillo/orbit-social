@@ -30,6 +30,7 @@ export function ClipCreator({ open, onOpenChange }: ClipCreatorProps) {
 
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [durationMs, setDurationMs] = useState<number | null>(null);
   const [caption, setCaption] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +51,7 @@ export function ClipCreator({ open, onOpenChange }: ClipCreatorProps) {
     }
 
     setVideoFile(file);
+    setDurationMs(null); // re-read from the new file's metadata
     setVideoPreviewUrl(URL.createObjectURL(file));
   };
 
@@ -59,6 +61,7 @@ export function ClipCreator({ open, onOpenChange }: ClipCreatorProps) {
     }
     setVideoFile(null);
     setVideoPreviewUrl(null);
+    setDurationMs(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -75,7 +78,7 @@ export function ClipCreator({ open, onOpenChange }: ClipCreatorProps) {
       if (!user || !videoFile) throw new Error("Missing data");
 
       const videoUrl = await uploadClipVideo(user.id, videoFile);
-      return createClip(user.id, caption, videoUrl);
+      return createClip(user.id, caption, videoUrl, undefined, durationMs);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clips"] });
@@ -116,6 +119,15 @@ export function ClipCreator({ open, onOpenChange }: ClipCreatorProps) {
                 controls
                 muted
                 playsInline
+                onLoadedMetadata={(e) => {
+                  // Persisted into post_media.duration_ms with the insert.
+                  // Some containers report Infinity/NaN until fully
+                  // buffered; store nothing rather than garbage.
+                  const seconds = e.currentTarget.duration;
+                  if (Number.isFinite(seconds) && seconds > 0) {
+                    setDurationMs(Math.round(seconds * 1000));
+                  }
+                }}
               />
               <button
                 type="button"
