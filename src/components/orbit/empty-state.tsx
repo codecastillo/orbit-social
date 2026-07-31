@@ -40,9 +40,9 @@ export function OrbitEmptyState({
 }) {
   const title = [headline, accentWord, headlineTail].filter(Boolean).join(" ");
   return (
-    <div className="flex min-h-[55vh] items-center justify-center px-6 text-foreground">
+    <div className="flex min-h-[55vh] items-center justify-center rounded-xl border border-border bg-surface px-6 py-10 text-foreground">
       <div className="flex max-w-[400px] flex-col items-center text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-surface">
+        <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-surface-elevated">
           <Icon className="h-6 w-6" strokeWidth={1.8} style={{ color: accent }} />
         </div>
 
