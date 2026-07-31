@@ -16,6 +16,10 @@ if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
     ignoreErrors: [
       /Lock broken by another request with the 'steal' option/i,
       /Lock "lock:sb-.*-auth-token" was released because another request stole it/i,
+      // Injected by Outlook's link-scanning webview and some Chrome
+      // extensions inside visitors' browsers; the string exists nowhere in
+      // this codebase. Classic third-party noise, not an app failure.
+      /Object Not Found Matching Id:\d+, MethodName:\w+, ParamCount:\d+/,
     ],
   });
 }
