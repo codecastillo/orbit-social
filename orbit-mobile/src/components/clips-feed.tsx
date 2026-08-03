@@ -35,6 +35,8 @@ import {
   type ClipWithAuthor,
 } from "@/lib/queries/clips";
 import { createRepost, toggleBookmark, undoRepost } from "@/lib/queries/posts";
+import { buildMutedWordMatcher } from "@/lib/queries/content-safety";
+import { useMutedWords } from "@/lib/hooks/use-content-safety";
 import { formatNumber } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
@@ -690,17 +692,29 @@ export function ClipsFeed({
     enabled: !!user,
   });
 
+  const { data: mutedWords } = useMutedWords();
+
   // Curated picks lead the All lane; the Loops lane stays a pure duration
   // filter. Deduped so a curated clip does not repeat when its page arrives.
   const curatedIds = useMemo(
     () => new Set(lane === "all" ? (curated ?? []).map((c) => c.id) : []),
     [curated, lane],
   );
+  // Same matcher the home feed and comments use. Applied after the fetch so
+  // pagination cursors stay a clean created_at walk, and over the merged
+  // list so both lanes and the curated prepend are filtered alike.
+  const matchesMutedWord = useMemo(
+    () => buildMutedWordMatcher(mutedWords ?? []),
+    [mutedWords],
+  );
   const clips = useMemo(() => {
     const pageClips = data?.pages.flat() ?? [];
-    if (lane !== "all" || !curated || curated.length === 0) return pageClips;
-    return [...curated, ...pageClips.filter((c) => !curatedIds.has(c.id))];
-  }, [data, curated, curatedIds, lane]);
+    const merged =
+      lane !== "all" || !curated || curated.length === 0
+        ? pageClips
+        : [...curated, ...pageClips.filter((c) => !curatedIds.has(c.id))];
+    return merged.filter((c) => !matchesMutedWord(c.content));
+  }, [data, curated, curatedIds, lane, matchesMutedWord]);
 
   // FlatList requires a referentially stable handler; empty deps keep it so.
   const onViewableItemsChanged = useCallback(

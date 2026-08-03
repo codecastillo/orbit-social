@@ -42,7 +42,12 @@ import {
   type Post,
 } from "@/lib/queries/posts";
 import { getOwnProfile } from "@/lib/queries/profiles";
-import { deleteDraft } from "@/lib/queries/drafts";
+import {
+  createDraft,
+  deleteDraft,
+  updateDraft,
+  type DraftData,
+} from "@/lib/queries/drafts";
 import { consumeDraftRestore } from "@/lib/draft-restore";
 import { consumeQuoteSeed } from "@/lib/quote-seed";
 import { formatTimeAgo } from "@/lib/format";
@@ -123,6 +128,17 @@ function formatScheduleDate(date: Date): string {
 
 function formatScheduleTime(date: Date): string {
   return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+// A draft's scheduledAt is whatever the web composer's datetime-local input
+// produces (local wall clock, no zone), so drafts saved here round-trip into
+// that input instead of landing as an unreadable ISO timestamp.
+function toDateTimeLocal(date: Date): string {
+  const pad = (value: number) => value.toString().padStart(2, "0");
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
 }
 
 // Stashed when an undoable publish is cancelled after this modal already
@@ -342,6 +358,92 @@ export default function ComposeScreen() {
   const altEditing = altEditingUri
     ? (media.find((m) => m.uri === altEditingUri) ?? null)
     : null;
+  const draftId = draft?.id;
+
+  // Attachments and voice notes never reach a draft (uploading unpublished
+  // media would cost storage for posts that may never exist), so they alone
+  // don't make a composer worth keeping.
+  const hasDraftContent =
+    trimmed.length > 0 ||
+    location.trim().length > 0 ||
+    visibility !== "public" ||
+    (showContentWarning && contentWarning.trim().length > 0) ||
+    (showPoll && validPollOptions.length >= 2) ||
+    showSchedule;
+
+  // Set once the composer's content is spoken for (published, saved, or
+  // discarded) so the unmount fallback below can't save it a second time.
+  const exitHandledRef = useRef(false);
+
+  const persistDraft = async () => {
+    if (!user) return;
+    const draftData: DraftData = {
+      ...(location.trim() ? { location: location.trim() } : {}),
+      ...(visibility !== "public" ? { visibility } : {}),
+      ...(showContentWarning && contentWarning.trim()
+        ? { contentWarning: contentWarning.trim() }
+        : {}),
+      ...(showPoll && validPollOptions.length >= 2
+        ? { poll: { options: validPollOptions, endHours: pollEndHours } }
+        : {}),
+      ...(showSchedule ? { scheduledAt: toDateTimeLocal(scheduledDate) } : {}),
+    };
+    try {
+      if (draftId) await updateDraft(draftId, content, draftData);
+      else await createDraft(user.id, content, draftData);
+      queryClient.invalidateQueries({ queryKey: ["post-drafts"] });
+    } catch {
+      // The screen is already gone, so surface the loss globally.
+      Alert.alert(
+        "Draft not saved",
+        "The draft could not be saved. Check your connection and try again.",
+      );
+    }
+  };
+
+  const handleClose = () => {
+    if (exitHandledRef.current || !hasDraftContent) {
+      router.back();
+      return;
+    }
+    Alert.alert(
+      "Save as draft?",
+      media.length > 0 || voiceNote
+        ? "Attachments aren't kept in drafts."
+        : undefined,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => {
+            exitHandledRef.current = true;
+            router.back();
+          },
+        },
+        {
+          text: "Save draft",
+          onPress: () => {
+            exitHandledRef.current = true;
+            void persistDraft();
+            router.back();
+          },
+        },
+      ],
+    );
+  };
+
+  // A swipe-dismissed modal (and Android's back gesture) never runs the
+  // Cancel handler, so the same save runs on unmount from the latest state.
+  const saveOnExitRef = useRef(() => {});
+  useEffect(() => {
+    saveOnExitRef.current = () => {
+      if (exitHandledRef.current || !hasDraftContent) return;
+      exitHandledRef.current = true;
+      void persistDraft();
+    };
+  });
+  useEffect(() => () => saveOnExitRef.current(), []);
 
   // Delayed commit: dismiss the modal right away and give the snackbar a
   // 5 second undo window before the upload and insert actually run.
@@ -361,7 +463,9 @@ export default function ComposeScreen() {
       );
       return;
     }
-    const draftId = draft?.id;
+    // The content is becoming a post, so the unmount fallback must not also
+    // stash it as a draft.
+    exitHandledRef.current = true;
 
     const pollData: PollData | undefined =
       showPoll && validPollOptions.length >= 2
@@ -490,7 +594,7 @@ export default function ComposeScreen() {
           headerLeft: () => (
             <Pressable
               accessibilityRole="button"
-              onPress={() => router.back()}
+              onPress={handleClose}
               hitSlop={8}
               style={({ pressed }) => [pressed && { opacity: 0.7 }]}
             >

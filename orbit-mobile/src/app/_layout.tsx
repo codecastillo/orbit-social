@@ -20,7 +20,7 @@ Notifications.setNotificationHandler({
 });
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, mfaPending } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   useNotificationTaps();
@@ -28,20 +28,22 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading) return;
     const inAuthGroup = segments[0] === "(auth)";
-    if (!user && !inAuthGroup) {
+    // A session that still owes its TOTP code is not signed in as far as the
+    // app is concerned; the login screen hosts the challenge.
+    if ((!user || mfaPending) && !inAuthGroup) {
       router.replace("/(auth)/login");
-    } else if (user && inAuthGroup) {
+    } else if (user && !mfaPending && inAuthGroup) {
       router.replace("/(tabs)");
     }
-  }, [user, loading, segments, router]);
+  }, [user, loading, mfaPending, segments, router]);
 
   useEffect(() => {
-    if (user) {
+    if (user && !mfaPending) {
       registerForPush(user.id).catch((err) =>
         console.warn("[push] registration failed:", err),
       );
     }
-  }, [user]);
+  }, [user, mfaPending]);
 
   return <>{children}</>;
 }

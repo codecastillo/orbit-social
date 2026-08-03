@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   Images,
   Settings2,
+  Archive,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -21,6 +22,7 @@ import {
   markConversationRead,
   getPinnedMessages,
   getDmSeenAt,
+  closeConversation,
   pinMessage,
   unpinMessage,
   deleteMessage,
@@ -112,6 +114,8 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [pinSaving, setPinSaving] = useState(false);
   const [blockSaving, setBlockSaving] = useState(false);
   const [blockConfirmOpen, setBlockConfirmOpen] = useState(false);
+  const [closeSaving, setCloseSaving] = useState(false);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [forwardMessage, setForwardMessage] = useState<Message | null>(null);
@@ -490,6 +494,22 @@ export default function ChatPage({ params }: ChatPageProps) {
     }
   };
 
+  const handleClose = async () => {
+    if (!user || closeSaving) return;
+    setCloseSaving(true);
+    try {
+      await closeConversation(conversationId, user.id);
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      toast.success("Conversation closed");
+      router.push("/messages");
+    } catch (e) {
+      console.error("closeConversation failed", e);
+      toast.error("Couldn't close conversation");
+    } finally {
+      setCloseSaving(false);
+    }
+  };
+
   const handleDeleteMessage = async (messageId: string) => {
     const setDeleted = (deleted: boolean) =>
       queryClient.setQueryData(
@@ -798,6 +818,18 @@ export default function ChatPage({ params }: ChatPageProps) {
                   {isPinned ? "Unpin conversation" : "Pin conversation"}
                 </button>
               )}
+              {/* Not destructive: nothing is deleted, the thread just leaves
+                  the list until a new message resurfaces it, so no danger
+                  styling. */}
+              <button
+                type="button"
+                onClick={() => setCloseConfirmOpen(true)}
+                disabled={closeSaving}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] text-text-secondary transition-colors hover:bg-surface-elevated disabled:opacity-60"
+              >
+                <Archive className="h-3.5 w-3.5" strokeWidth={1.8} />
+                Close conversation
+              </button>
               {!isGroup && otherUser && (
                 <button
                   type="button"
@@ -856,6 +888,15 @@ export default function ChatPage({ params }: ChatPageProps) {
         open={mediaDialogOpen}
         onOpenChange={setMediaDialogOpen}
         conversationId={conversationId}
+      />
+
+      <ConfirmDialog
+        open={closeConfirmOpen}
+        onOpenChange={setCloseConfirmOpen}
+        title="Close conversation?"
+        description="It disappears from your messages until someone sends a new message."
+        confirmLabel="Close"
+        onConfirm={handleClose}
       />
 
       {otherUser && (

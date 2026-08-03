@@ -1,9 +1,11 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useMemo } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Film } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useMutedWords } from "@/lib/hooks/use-content-safety";
+import { buildMutedWordMatcher } from "@/lib/queries/content-safety";
 import { getClips, getCuratedClips } from "@/lib/queries/clips";
 import { checkUserInteractions, type PostWithAuthor } from "@/lib/queries/posts";
 import { ClipPlayer } from "./clip-player";
@@ -32,6 +34,16 @@ export function ClipFeed() {
   const queryClient = useQueryClient();
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const { data: mutedWords } = useMutedWords();
+
+  // Same matcher the home feed and comments use, applied in `select` so
+  // muting a word drops matching captions from the pager instantly, with
+  // no refetch. Cursors are captured before filtering, so pagination is
+  // unaffected. The curated shelf below runs through it too.
+  const matchesMutedWord = useMemo(
+    () => buildMutedWordMatcher(mutedWords ?? []),
+    [mutedWords],
+  );
 
   // Note: previously this hook subscribed to every INSERT on `posts` with
   // type='reel' and busted the entire ["clips"] cache on each. That made
@@ -66,6 +78,13 @@ export function ClipFeed() {
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    select: (result) => ({
+      ...result,
+      pages: result.pages.map((page) => ({
+        ...page,
+        clips: page.clips.filter((clip) => !matchesMutedWord(clip.content)),
+      })),
+    }),
     staleTime: 30_000,
   });
 
@@ -75,6 +94,7 @@ export function ClipFeed() {
     queryKey: ["best-loops", user?.id],
     queryFn: async () =>
       enrichWithInteractions(await getCuratedClips(), user?.id),
+    select: (clips) => clips.filter((clip) => !matchesMutedWord(clip.content)),
     staleTime: 5 * 60_000,
   });
 

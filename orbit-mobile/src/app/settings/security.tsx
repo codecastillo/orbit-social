@@ -147,13 +147,16 @@ export default function SecuritySettingsScreen() {
             const { error } = await supabase.auth.mfa.unenroll({
               factorId: verifiedFactorId,
             });
+            let codesError: string | null = null;
             if (!error) {
               // Stored recovery code hashes pair with the removed factor,
-              // same cleanup as the web security page.
-              await supabase
+              // same cleanup as the web security page. The delete policy
+              // requires an aal2 session, so it can fail on its own.
+              const { error: deleteError } = await supabase
                 .from("mfa_recovery_codes")
                 .delete()
                 .eq("user_id", user.id);
+              codesError = deleteError?.message ?? null;
             }
             setIsDisabling(false);
             if (error) {
@@ -162,6 +165,13 @@ export default function SecuritySettingsScreen() {
             }
             queryClient.setQueryData(factorKey, null);
             resetSetup();
+            if (codesError) {
+              Alert.alert(
+                "Two-factor disabled, recovery codes remain",
+                `Your old recovery codes could not be deleted (${codesError}). Remove them at ${WEB_SECURITY_URL}.`,
+              );
+              return;
+            }
             Alert.alert("Two-factor disabled");
           },
         },

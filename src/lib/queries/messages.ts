@@ -55,11 +55,16 @@ export async function getConversations(
   // Get all conversations the user is a member of
   const { data: memberships, error: memberError } = await supabase
     .from("conversation_members")
-    .select("conversation_id, last_read_at, is_muted, is_pinned")
+    .select("conversation_id, last_read_at, is_muted, is_pinned, hidden_at")
     .eq("user_id", userId);
 
   if (memberError) throw memberError;
   if (!memberships || memberships.length === 0) return [];
+
+  const hiddenByConv = new Map<string, string>();
+  for (const m of memberships) {
+    if (m.hidden_at) hiddenByConv.set(m.conversation_id, m.hidden_at);
+  }
 
   const conversationIds = memberships.map((m) => m.conversation_id);
   const membershipByConv = new Map(
@@ -82,9 +87,21 @@ export async function getConversations(
   if (convError) throw convError;
   if (!conversations) return [];
 
+  // A closed conversation stays hidden until something newer than the close
+  // arrives: last_message_at moving past hidden_at resurfaces it. Same rule
+  // as the mobile list (orbit-mobile/src/lib/queries/messages.ts) so a thread
+  // closed on either platform disappears on both.
+  const visible = conversations.filter((conv) => {
+    const hiddenAt = hiddenByConv.get(conv.id);
+    return (
+      !hiddenAt ||
+      new Date(conv.last_message_at).getTime() > new Date(hiddenAt).getTime()
+    );
+  });
+
   // Batch the DM counterpart lookups: all other members in one query, their
   // profiles in a second.
-  const dmIds = conversations.filter((c) => !c.is_group).map((c) => c.id);
+  const dmIds = visible.filter((c) => !c.is_group).map((c) => c.id);
   const otherMemberByConv = new Map<string, string>();
   const profileById = new Map<
     string,
@@ -114,7 +131,7 @@ export async function getConversations(
     }
   }
 
-  return conversations.map((conv) => {
+  return visible.map((conv) => {
     const { last_messages, ...rest } = conv;
     const membership = membershipByConv.get(conv.id);
     const lastMessage = last_messages?.[0] ?? null;
@@ -694,6 +711,24 @@ export async function setConversationMuted(
   const { error } = await supabase
     .from("conversation_members")
     .update({ is_muted: muted })
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
+/**
+ * Hide a conversation from the viewer's list until a new message arrives.
+ * Archive semantics: the membership row stays, only the list filters it
+ * (see getConversations). Mirrors the mobile write so both lists agree.
+ */
+export async function closeConversation(
+  conversationId: string,
+  userId: string
+) {
+  const { error } = await supabase
+    .from("conversation_members")
+    .update({ hidden_at: new Date().toISOString() })
     .eq("conversation_id", conversationId)
     .eq("user_id", userId);
 
