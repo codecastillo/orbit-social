@@ -52,6 +52,7 @@ export interface Post {
   // Optional because optimistic reply rows are built without it.
   content_warning?: string | null;
   boosted_until?: string | null;
+  poll_data: PollData | null;
   created_at: string;
   profiles: PostAuthor;
   post_media: PostMediaItem[];
@@ -63,7 +64,8 @@ export interface Post {
 const POST_SELECT = `
   id, user_id, content, type, parent_post_id, reply_to_id, community_id,
   like_count, comment_count, repost_count, bookmark_count, view_count,
-  is_hidden, is_pinned, visibility, content_warning, boosted_until, created_at,
+  is_hidden, is_pinned, visibility, content_warning, boosted_until, poll_data,
+  created_at,
   profiles!posts_user_id_fkey (
     id, username, display_name, avatar_url, is_verified,
     follower_count, post_count
@@ -462,30 +464,115 @@ export async function checkUserInteractions(
   };
 }
 
+// Same shape the web PollData uses; poll_data is stored as-is in JSONB.
+export interface PollData {
+  options: { text: string; votes: number }[];
+  ends_at: string;
+  multi_select: boolean;
+}
+
+// Mirrors the web votePoll: one poll_votes row per user per post (the web
+// UI never honors multi_select), then a denormalized bump of the votes
+// count inside posts.poll_data so both apps read tallies from the post row.
+export async function votePoll(userId: string, postId: string, optionIndex: number) {
+  const { data: existingVote } = await supabase
+    .from("poll_votes")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("post_id", postId)
+    .maybeSingle();
+
+  if (existingVote) throw new Error("Already voted");
+
+  const { error: voteError } = await supabase.from("poll_votes").insert({
+    user_id: userId,
+    post_id: postId,
+    option_index: optionIndex,
+  });
+  if (voteError) throw voteError;
+
+  const { data: post } = await supabase
+    .from("posts")
+    .select("poll_data")
+    .eq("id", postId)
+    .single();
+
+  if (post?.poll_data) {
+    const pollData = post.poll_data as PollData;
+    pollData.options[optionIndex].votes += 1;
+
+    const { error: updateError } = await supabase
+      .from("posts")
+      .update({ poll_data: pollData })
+      .eq("id", postId);
+    if (updateError) throw updateError;
+  }
+}
+
+export async function getUserPollVote(userId: string, postId: string): Promise<number | null> {
+  const { data, error } = await supabase
+    .from("poll_votes")
+    .select("option_index")
+    .eq("user_id", userId)
+    .eq("post_id", postId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.option_index ?? null;
+}
+
 export interface NewPostMedia {
   url: string;
   type: "image" | "video" | "gif";
   width: number | null;
   height: number | null;
+  durationMs?: number;
+  altText?: string;
 }
 
-// Same insert shape the web createPost uses; the mobile composer only
-// needs text and image posts, plus replies from the detail screen.
+// Same insert shape the web createPost uses, including the derived post
+// type and the scheduled_at + is_hidden pairing that keeps scheduled
+// posts out of every feed until the publisher flips them live.
 export async function createPost(
   userId: string,
   content: string,
-  options?: { replyToId?: string; media?: NewPostMedia[] },
+  options?: {
+    replyToId?: string;
+    type?: Post["type"];
+    media?: NewPostMedia[];
+    pollData?: PollData;
+    scheduledAt?: string;
+    visibility?: "public" | "close_friends";
+    contentWarning?: string;
+    location?: string;
+  },
 ) {
   const media = options?.media ?? [];
+
+  const postType =
+    options?.type ||
+    (media.length > 0
+      ? media[0].type === "video"
+        ? "video"
+        : "image"
+      : options?.pollData
+        ? "poll"
+        : "text");
 
   const { data: post, error } = await supabase
     .from("posts")
     .insert({
       user_id: userId,
       content,
-      type: media.length > 0 ? "image" : "text",
+      type: postType,
       reply_to_id: options?.replyToId || null,
-      visibility: "public",
+      poll_data: options?.pollData || null,
+      visibility: options?.visibility || "public",
+      content_warning: options?.contentWarning || null,
+      location: options?.location || null,
+      ...(options?.scheduledAt
+        ? { scheduled_at: options.scheduledAt, is_hidden: true }
+        : {}),
     })
     .select(POST_SELECT)
     .single();
@@ -501,6 +588,8 @@ export async function createPost(
         width: m.width,
         height: m.height,
         sort_order: i,
+        ...(m.durationMs != null ? { duration_ms: Math.round(m.durationMs) } : {}),
+        ...(m.altText ? { alt_text: m.altText } : {}),
       })),
     );
     if (mediaError) throw mediaError;
@@ -514,6 +603,9 @@ export interface NewReelMedia {
   width: number | null;
   height: number | null;
   durationMs: number;
+  // Cover frame uploaded by the gallery flow; the camera flow leaves it
+  // unset and tiles fall back to on-device frame extraction.
+  thumbnailUrl?: string | null;
 }
 
 // Reel equivalent of createPost. The web composer forces type "reel" on a
@@ -537,6 +629,7 @@ export async function createReelPost(userId: string, content: string, media: New
     post_id: post.id,
     type: "video",
     url: media.url,
+    thumbnail_url: media.thumbnailUrl ?? null,
     width: media.width,
     height: media.height,
     duration_ms: Math.round(media.durationMs),
@@ -554,7 +647,9 @@ export async function uploadPostMedia(
   uri: string,
   mimeType: string,
 ): Promise<string> {
-  const ext = mimeType.split("/")[1] ?? "jpg";
+  // Voice notes record as audio/mp4; name them .m4a because the web feed
+  // detects audio media purely by URL extension (isAudioMediaItem).
+  const ext = mimeType === "audio/mp4" ? "m4a" : (mimeType.split("/")[1] ?? "jpg");
   const filePath = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
 
   const response = await fetch(uri);

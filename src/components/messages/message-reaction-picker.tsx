@@ -8,7 +8,9 @@ interface MessageReactionPickerProps {
   existingEmojis?: string[];
 }
 
-const MESSAGE_REACTIONS = [
+// Exported so the story viewer's quick-reaction row stays in lockstep with
+// the DM reaction set.
+export const MESSAGE_REACTIONS = [
   { emoji: "\u2764\uFE0F", label: "Love" },
   { emoji: "\uD83D\uDC4D", label: "Thumbs Up" },
   { emoji: "\uD83D\uDE02", label: "Laugh" },

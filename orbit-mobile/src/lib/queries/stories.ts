@@ -1,4 +1,33 @@
 import { supabase } from "@/lib/supabase";
+import { sendMessage } from "@/lib/queries/messages";
+
+export type StoryOverlayPosition = "top" | "center" | "bottom";
+
+// Canonical JSON shape of stories.text_overlay, kept byte-identical with the
+// web client (src/lib/queries/stories.ts) so both viewers render the same:
+//   { "text": "...", "position": "top" | "center" | "bottom",
+//     "size": "small" | "large" }
+export interface StoryTextOverlay {
+  text: string;
+  position: StoryOverlayPosition;
+  size: "small" | "large";
+}
+
+// Canonical JSON shape of stories.interactive_data, same web parity. Object
+// wrapper so later interactive elements (polls, questions) can sit beside
+// stickers without a shape migration:
+//   { "stickers": [ { "type": "mention" | "link", "value": "...",
+//                     "position": "top" | "center" | "bottom" } ] }
+// mention value is a username without the @; link value is an absolute URL.
+export interface StorySticker {
+  type: "mention" | "link";
+  value: string;
+  position: StoryOverlayPosition;
+}
+
+export interface StoryInteractiveData {
+  stickers: StorySticker[];
+}
 
 export interface StoryWithAuthor {
   id: string;
@@ -7,6 +36,8 @@ export interface StoryWithAuthor {
   media_type: "image" | "video";
   thumbnail_url: string | null;
   duration_seconds: number;
+  interactive_data: StoryInteractiveData | null;
+  text_overlay: StoryTextOverlay | null;
   visibility: string;
   view_count: number;
   expires_at: string;
@@ -50,7 +81,8 @@ export async function getActiveStories(userId: string): Promise<StoryGroup[]> {
     .from("stories")
     .select(
       `id, user_id, media_url, media_type, thumbnail_url, duration_seconds,
-       visibility, view_count, expires_at, created_at,
+       interactive_data, text_overlay, visibility, view_count, expires_at,
+       created_at,
        profiles!stories_user_id_fkey (id, username, display_name, avatar_url, is_verified)`,
     )
     .in("user_id", authorIds)
@@ -159,6 +191,13 @@ export async function createStory(
   userId: string,
   mediaUrl: string,
   visibility: StoryVisibility,
+  options?: {
+    mediaType?: "image" | "video";
+    thumbnailUrl?: string;
+    durationSeconds?: number;
+    textOverlay?: StoryTextOverlay;
+    interactiveData?: StoryInteractiveData;
+  },
 ) {
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + STORY_LIFETIME_HOURS);
@@ -168,9 +207,12 @@ export async function createStory(
     .insert({
       user_id: userId,
       media_url: mediaUrl,
-      media_type: "image",
-      thumbnail_url: null,
-      duration_seconds: STORY_DEFAULT_DURATION_SECONDS,
+      media_type: options?.mediaType ?? "image",
+      thumbnail_url: options?.thumbnailUrl ?? null,
+      duration_seconds:
+        options?.durationSeconds ?? STORY_DEFAULT_DURATION_SECONDS,
+      interactive_data: options?.interactiveData ?? null,
+      text_overlay: options?.textOverlay ?? null,
       visibility,
       expires_at: expiresAt.toISOString(),
     })
@@ -179,6 +221,41 @@ export async function createStory(
 
   if (error) throw error;
   return data as { id: string };
+}
+
+/**
+ * React to someone's story: opens (or reuses) the DM with the author, sends
+ * a message referencing the story (messages have no metadata column, so the
+ * reference stays in the text), and writes a story_reaction notification.
+ * No DB trigger produces story_reaction, so the insert happens here; the
+ * notifications INSERT policy allows it. Mirrors the web sendStoryReaction.
+ */
+export async function sendStoryReaction(
+  story: Pick<StoryWithAuthor, "id" | "user_id">,
+  reactorId: string,
+  emoji: string,
+) {
+  const { data: conversationId, error: convError } = await supabase.rpc(
+    "start_dm_conversation",
+    { p_other_id: story.user_id },
+  );
+  if (convError) throw convError;
+  if (!conversationId || typeof conversationId !== "string") {
+    throw new Error("start_dm_conversation returned no conversation id");
+  }
+
+  await sendMessage(conversationId, reactorId, `Reacted ${emoji} to your story`);
+
+  const { error } = await supabase.from("notifications").insert({
+    user_id: story.user_id,
+    actor_id: reactorId,
+    type: "story_reaction",
+    entity_type: "story",
+    entity_id: story.id,
+    data: { emoji },
+  });
+
+  if (error) throw error;
 }
 
 export async function markStoryViewed(storyId: string, viewerId: string) {

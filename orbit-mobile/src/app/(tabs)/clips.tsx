@@ -586,6 +586,14 @@ export default function ClipsScreen() {
         </Pressable>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Upload a clip from your gallery"
+          onPress={() => router.push("/clip-upload" as Href)}
+          style={({ pressed }) => [styles.topButton, pressed && { opacity: 0.7 }]}
+        >
+          <Ionicons name="images-outline" size={18} color={OVERLAY_TEXT} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Search clips"
           onPress={() => router.push("/(tabs)/discover" as never)}
           style={({ pressed }) => [styles.topButton, pressed && { opacity: 0.7 }]}

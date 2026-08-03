@@ -53,7 +53,8 @@
           "cameraPermission": "Orbit uses the camera when you record a clip.",
           "microphonePermission": "Orbit records audio with your clips."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

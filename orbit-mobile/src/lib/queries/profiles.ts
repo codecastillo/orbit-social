@@ -213,6 +213,8 @@ export async function getUserRecentPosts(
     .is("community_id", null)
     .eq("is_hidden", false)
     .not("type", "in", "(reel,repost)")
+    // Pinned posts lead, like the web profile's pinned section.
+    .order("is_pinned", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw error;

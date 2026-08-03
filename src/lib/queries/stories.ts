@@ -1,6 +1,35 @@
 import { createClient } from "@/lib/supabase/client";
+import { getOrCreateDMConversation, sendMessage } from "@/lib/queries/messages";
 
 const supabase = createClient();
+
+export type StoryOverlayPosition = "top" | "center" | "bottom";
+
+// Canonical JSON shape of stories.text_overlay, written here and in the
+// mobile createStory. Both viewers render it identically:
+//   { "text": "...", "position": "top" | "center" | "bottom",
+//     "size": "small" | "large" }
+export interface StoryTextOverlay {
+  text: string;
+  position: StoryOverlayPosition;
+  size: "small" | "large";
+}
+
+// Canonical JSON shape of stories.interactive_data. Kept as an object
+// wrapper so later interactive elements (polls, questions) can sit beside
+// stickers without a shape migration:
+//   { "stickers": [ { "type": "mention" | "link", "value": "...",
+//                     "position": "top" | "center" | "bottom" } ] }
+// mention value is a username without the @; link value is an absolute URL.
+export interface StorySticker {
+  type: "mention" | "link";
+  value: string;
+  position: StoryOverlayPosition;
+}
+
+export interface StoryInteractiveData {
+  stickers: StorySticker[];
+}
 
 export interface StoryWithAuthor {
   id: string;
@@ -9,8 +38,8 @@ export interface StoryWithAuthor {
   media_type: "image" | "video";
   thumbnail_url: string | null;
   duration_seconds: number;
-  interactive_data: Record<string, unknown> | null;
-  text_overlay: Record<string, unknown> | null;
+  interactive_data: StoryInteractiveData | null;
+  text_overlay: StoryTextOverlay | null;
   visibility: string;
   view_count: number;
   expires_at: string;
@@ -37,8 +66,8 @@ export async function createStory(
   options?: {
     thumbnailUrl?: string;
     durationSeconds?: number;
-    interactiveData?: Record<string, unknown>;
-    textOverlay?: Record<string, unknown>;
+    interactiveData?: StoryInteractiveData;
+    textOverlay?: StoryTextOverlay;
     visibility?: string;
   }
 ) {
@@ -219,6 +248,40 @@ export async function deleteStory(storyId: string) {
     .from("stories")
     .delete()
     .eq("id", storyId);
+
+  if (error) throw error;
+}
+
+/**
+ * React to someone's story: sends a DM to the author referencing the story
+ * (messages have no metadata column, so the reference stays in the text)
+ * and writes a story_reaction notification. No DB trigger produces
+ * story_reaction, so the insert happens here; the notifications INSERT
+ * policy allows it.
+ */
+export async function sendStoryReaction(
+  story: Pick<StoryWithAuthor, "id" | "user_id">,
+  reactorId: string,
+  emoji: string
+) {
+  const conversationId = await getOrCreateDMConversation(
+    reactorId,
+    story.user_id
+  );
+  await sendMessage(
+    conversationId,
+    reactorId,
+    `Reacted ${emoji} to your story`
+  );
+
+  const { error } = await supabase.from("notifications").insert({
+    user_id: story.user_id,
+    actor_id: reactorId,
+    type: "story_reaction",
+    entity_type: "story",
+    entity_id: story.id,
+    data: { emoji },
+  });
 
   if (error) throw error;
 }

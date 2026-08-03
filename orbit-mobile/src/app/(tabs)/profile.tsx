@@ -229,6 +229,14 @@ export default function OwnProfileScreen() {
               }}
             />
             <SheetRow
+              icon="document-text-outline"
+              label="Drafts"
+              onPress={() => {
+                setMenuOpen(false);
+                router.push("/drafts" as Href);
+              }}
+            />
+            <SheetRow
               icon="settings-outline"
               label="Settings"
               onPress={() => {

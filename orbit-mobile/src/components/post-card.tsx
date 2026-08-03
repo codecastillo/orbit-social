@@ -12,9 +12,10 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { Avatar } from "@/components/ui";
 import { LinkPreviewCard } from "@/components/link-preview-card";
+import { PollCard } from "@/components/poll-card";
 import { ReactionCounts } from "@/components/reaction-counts";
 import { RichText } from "@/components/rich-text";
 import { ReactionPicker, type ReactionAnchor } from "@/components/reaction-picker";
@@ -34,6 +35,7 @@ import {
   type ReactionCount,
   type ReactionType,
 } from "@/lib/queries/reactions";
+import { deletePost, pinPost, unpinPost } from "@/lib/queries/post-management";
 import { markNotInterested } from "@/lib/queries/content-safety";
 import { colors, radii, spacing } from "@/lib/theme";
 
@@ -307,9 +309,61 @@ export function PostCard({
     Alert.alert("Got it", "You'll see fewer posts like this.");
   };
 
+  const handleDelete = () => {
+    Alert.alert("Delete post?", "This can't be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          deletePost(display.id)
+            .then(() => {
+              queryClient.invalidateQueries({ queryKey: ["feed"] });
+              queryClient.invalidateQueries({ queryKey: ["profile-posts"] });
+              queryClient.invalidateQueries({ queryKey: ["post", display.id] });
+            })
+            .catch(() => flashActionError("Couldn't delete the post."));
+        },
+      },
+    ]);
+  };
+
+  const handleTogglePin = () => {
+    const request = display.is_pinned ? unpinPost(display.id) : pinPost(display.id);
+    request
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["profile-posts"] });
+        queryClient.invalidateQueries({ queryKey: ["post", display.id] });
+      })
+      .catch(() => flashActionError("Couldn't update the pin."));
+  };
+
   // Overflow menu via the native alert sheet, the same feedback surface
-  // the rest of the app uses. Only others' posts carry feed feedback.
+  // the rest of the app uses. Own posts get management actions; others'
+  // posts carry feed feedback and reporting.
   const openOverflowMenu = () => {
+    if (display.user_id === currentUserId) {
+      // Same rule as the web menu: profile pins are for top-level posts
+      // outside rooms; comments pin through their own reply-row action.
+      const canPin = display.reply_to_id === null && !display.community_id;
+      Alert.alert("Post options", undefined, [
+        {
+          text: "Edit post",
+          onPress: () => router.push(`/edit-post?id=${display.id}` as Href),
+        },
+        ...(canPin
+          ? [
+              {
+                text: display.is_pinned ? "Unpin from profile" : "Pin to profile",
+                onPress: handleTogglePin,
+              },
+            ]
+          : []),
+        { text: "Delete post", style: "destructive", onPress: handleDelete },
+        { text: "Cancel", style: "cancel" },
+      ]);
+      return;
+    }
     Alert.alert("Post options", undefined, [
       { text: "Not interested", onPress: handleNotInterested },
       {
@@ -434,7 +488,7 @@ export function PostCard({
             @{display.profiles.username}
           </Text>
         </View>
-        {display.user_id !== currentUserId && currentUserId ? (
+        {currentUserId ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Post options"
@@ -455,6 +509,14 @@ export function PostCard({
         <RichText style={[styles.content, detail && styles.contentDetail]}>
           {display.content}
         </RichText>
+      ) : null}
+
+      {display.type === "poll" && display.poll_data ? (
+        <PollCard
+          postId={display.id}
+          pollData={display.poll_data}
+          currentUserId={currentUserId}
+        />
       ) : null}
 
       {media && media.type !== "video" ? (

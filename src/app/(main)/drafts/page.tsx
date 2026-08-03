@@ -3,7 +3,14 @@
 import { useEffect } from "react";
 import { Trash2, FileText, Pencil, MapPin } from "lucide-react";
 import { toast } from "sonner";
-import { useDraftsStore, type Draft } from "@/lib/stores/drafts-store";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/hooks/use-auth";
+import {
+  deleteDraft,
+  listDrafts,
+  migrateLocalDrafts,
+  type PostDraft,
+} from "@/lib/queries/drafts";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { formatTimeAgo } from "@/lib/utils/format";
 import { Button } from "@/components/ui/button";
@@ -11,23 +18,42 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
 
 export default function DraftsPage() {
-  const { drafts, hydrate, hydrated, deleteDraft } = useDraftsStore();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
 
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+  const { data: drafts = [], isPending } = useQuery({
+    queryKey: ["post-drafts", user?.id],
+    queryFn: () => listDrafts(user!.id),
+    enabled: !!user,
+  });
 
-  const handleEdit = (draft: Draft) => {
+  // Landing here before ever opening the composer still picks up any
+  // legacy on-device drafts.
+  useEffect(() => {
+    if (!user) return;
+    migrateLocalDrafts(user.id).then((imported) => {
+      if (imported) {
+        queryClient.invalidateQueries({ queryKey: ["post-drafts", user.id] });
+      }
+    });
+  }, [user, queryClient]);
+
+  const handleEdit = (draft: PostDraft) => {
     setComposeOpen(true, { draftId: draft.id });
   };
 
-  const handleDelete = (id: string) => {
-    deleteDraft(id);
-    toast.success("Draft deleted");
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteDraft(id);
+      queryClient.invalidateQueries({ queryKey: ["post-drafts", user?.id] });
+      toast.success("Draft deleted");
+    } catch {
+      toast.error("Couldn't delete draft");
+    }
   };
 
-  if (!hydrated) {
+  if (!user || isPending) {
     return (
       <div className="flex flex-col gap-[18px]">
         <Skeleton className="h-[68px] rounded-xl" />
@@ -81,7 +107,7 @@ export default function DraftsPage() {
               <div className="absolute inset-y-0 left-0 w-[3px] bg-primary" />
               <div className="min-w-0 flex-1">
                 <div className="mb-2.5 font-mono text-[10.5px] tracking-[0.12em] text-primary">
-                  ◆&nbsp;&nbsp;DRAFT · {formatTimeAgo(draft.updatedAt || draft.createdAt).toUpperCase()}
+                  ◆&nbsp;&nbsp;DRAFT · {formatTimeAgo(draft.updated_at || draft.created_at).toUpperCase()}
                 </div>
 
                 {draft.content ? (
@@ -89,13 +115,13 @@ export default function DraftsPage() {
                     {draft.content}
                   </p>
                 ) : (
-                  <p className="text-sm italic text-text-faint">No text yet, media only.</p>
+                  <p className="text-sm italic text-text-faint">No text yet.</p>
                 )}
 
-                {draft.location && (
+                {draft.draft_data.location && (
                   <div className="mt-2.5 inline-flex items-center gap-[5px] font-mono text-[11px] tracking-[0.04em] text-muted-foreground">
                     <MapPin className="size-[11px]" />
-                    {draft.location}
+                    {draft.draft_data.location}
                   </div>
                 )}
 

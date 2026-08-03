@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Image as ImageIcon, X, Loader2, BarChart3, Plus, Minus, Clock, MapPin, FileText, AlertTriangle, Users, Globe, Camera, Calendar, Mic } from "lucide-react";
 import { toast } from "sonner";
@@ -18,7 +18,14 @@ import { suggestCaptions, suggestCaptionsAI } from "@/lib/services/caption-sugge
 import { useAudioRecorder } from "@/lib/hooks/use-audio-recorder";
 import { formatDuration, generateWaveformBars, getAudioExtension } from "@/lib/utils/audio";
 import { cn } from "@/lib/utils";
-import { useDraftsStore } from "@/lib/stores/drafts-store";
+import {
+  createDraft,
+  updateDraft,
+  deleteDraft,
+  listDrafts,
+  migrateLocalDrafts,
+  type DraftData,
+} from "@/lib/queries/drafts";
 import {
   useUndoableSend,
   type ScheduleUndoableSend,
@@ -70,9 +77,24 @@ export function PostComposer() {
   const composeInitialContent = useUIStore((s) => s.composeInitialContent);
   const composeDraftId = useUIStore((s) => s.composeDraftId);
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
-  const editingDraft = useDraftsStore((s) =>
-    composeDraftId ? s.drafts.find((d) => d.id === composeDraftId) : undefined
-  );
+  const draftsQuery = useQuery({
+    queryKey: ["post-drafts", user?.id],
+    queryFn: () => listDrafts(user!.id),
+    enabled: !!user && !!composeDraftId,
+  });
+  const editingDraft = composeDraftId
+    ? draftsQuery.data?.find((d) => d.id === composeDraftId)
+    : undefined;
+  // Drafts moved server-side; the first composer open after sign-in
+  // silently imports any legacy on-device drafts.
+  useEffect(() => {
+    if (!composeOpen || !user) return;
+    migrateLocalDrafts(user.id).then((imported) => {
+      if (imported) {
+        queryClient.invalidateQueries({ queryKey: ["post-drafts", user.id] });
+      }
+    });
+  }, [composeOpen, user, queryClient]);
   // Lives here rather than in ComposerForm: the form unmounts when the
   // dialog closes, and the pending commit must survive that.
   const { schedule: scheduleUndoableSend } = useUndoableSend();
@@ -92,12 +114,14 @@ export function PostComposer() {
             </div>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
-            {user && (
+            {/* When opening a draft, wait for the fetch so the form's state
+                seeds from the draft instead of mounting blank. */}
+            {user && (!composeDraftId || !draftsQuery.isPending) && (
               <ComposerForm
                 user={user}
                 communityId={composeCommunityId}
                 initialContent={editingDraft?.content ?? composeInitialContent}
-                initialLocation={editingDraft?.location}
+                initialDraftData={editingDraft?.draft_data}
                 draftId={composeDraftId}
                 scheduleUndoableSend={scheduleUndoableSend}
                 onSuccess={() => {
@@ -200,7 +224,7 @@ function ComposerForm({
   replyToId,
   communityId,
   initialContent,
-  initialLocation,
+  initialDraftData,
   draftId,
   scheduleUndoableSend,
   onSuccess,
@@ -210,7 +234,7 @@ function ComposerForm({
   replyToId?: string;
   communityId?: string;
   initialContent?: string;
-  initialLocation?: string;
+  initialDraftData?: DraftData;
   draftId?: string;
   scheduleUndoableSend: ScheduleUndoableSend;
   onSuccess?: () => void;
@@ -227,8 +251,12 @@ function ComposerForm({
   const [content, setContent] = useState(restore?.content ?? initialContent ?? "");
   const [media, setMedia] = useState<MediaPreview[]>(restore?.media ?? []);
   const [posting, setPosting] = useState(false);
-  const [location, setLocation] = useState(restore?.location ?? initialLocation ?? "");
-  const [showLocation, setShowLocation] = useState(!!(restore?.location ?? initialLocation));
+  const [location, setLocation] = useState(
+    restore?.location ?? initialDraftData?.location ?? ""
+  );
+  const [showLocation, setShowLocation] = useState(
+    !!(restore?.location ?? initialDraftData?.location)
+  );
   // When a video is the only attachment, the user picks where it goes:
   // Feed (regular video, plays inline) or Clip (vertical 9:16, lives in
   // the Clips tab). Default is set when the video is added based on its
@@ -236,7 +264,6 @@ function ComposerForm({
   const [videoDestination, setVideoDestination] = useState<"feed" | "clip">("feed");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
-  const { saveDraft, updateDraft, deleteDraft } = useDraftsStore();
 
   // Audio recording
   const {
@@ -263,23 +290,34 @@ function ComposerForm({
   // when the user explicitly taps the Start button.
   const [voiceArmed, setVoiceArmed] = useState(false);
 
-  // Schedule state
-  const [showSchedule, setShowSchedule] = useState(false);
-  const [scheduledAt, setScheduledAt] = useState("");
+  // Schedule state (undo snapshots never carry a schedule: scheduled posts
+  // commit immediately, so only drafts seed it)
+  const [showSchedule, setShowSchedule] = useState(!!initialDraftData?.scheduledAt);
+  const [scheduledAt, setScheduledAt] = useState(initialDraftData?.scheduledAt ?? "");
 
   // Poll state
-  const [showPoll, setShowPoll] = useState(restore?.showPoll ?? false);
-  const [pollOptions, setPollOptions] = useState(restore?.pollOptions ?? ["", ""]);
-  const [pollEndHours, setPollEndHours] = useState(restore?.pollEndHours ?? 24);
+  const [showPoll, setShowPoll] = useState(
+    restore?.showPoll ?? !!initialDraftData?.poll
+  );
+  const [pollOptions, setPollOptions] = useState(
+    restore?.pollOptions ?? initialDraftData?.poll?.options ?? ["", ""]
+  );
+  const [pollEndHours, setPollEndHours] = useState(
+    restore?.pollEndHours ?? initialDraftData?.poll?.endHours ?? 24
+  );
 
   // Visibility state
   const [visibility, setVisibility] = useState<"public" | "close_friends">(
-    restore?.visibility ?? "public"
+    restore?.visibility ?? initialDraftData?.visibility ?? "public"
   );
 
   // Content warning state
-  const [contentWarning, setContentWarning] = useState(restore?.contentWarning ?? "");
-  const [showContentWarning, setShowContentWarning] = useState(!!restore?.contentWarning);
+  const [contentWarning, setContentWarning] = useState(
+    restore?.contentWarning ?? initialDraftData?.contentWarning ?? ""
+  );
+  const [showContentWarning, setShowContentWarning] = useState(
+    !!(restore?.contentWarning ?? initialDraftData?.contentWarning)
+  );
 
   const hasAudio = !!(audioBlob || audioFile);
   const currentAudioUrl = audioPreviewUrl || audioFileUrl;
@@ -465,6 +503,46 @@ function ComposerForm({
     }
   }, [consumeComposeAction]);
 
+  const [savingDraft, setSavingDraft] = useState(false);
+  const handleSaveDraft = async () => {
+    if (!content.trim()) {
+      toast.error("Nothing to save as draft");
+      return;
+    }
+    if (savingDraft) return;
+    setSavingDraft(true);
+    // Media is deliberately not persisted: uploading unpublished
+    // attachments would cost storage for posts that may never exist.
+    const draftData: DraftData = {
+      ...(location.trim() ? { location: location.trim() } : {}),
+      ...(visibility !== "public" ? { visibility } : {}),
+      ...(showContentWarning && contentWarning.trim()
+        ? { contentWarning: contentWarning.trim() }
+        : {}),
+      ...(showPoll && validPollOptions.length >= 2
+        ? { poll: { options: validPollOptions, endHours: pollEndHours } }
+        : {}),
+      ...(showSchedule && scheduledAt ? { scheduledAt } : {}),
+    };
+    try {
+      if (draftId) {
+        await updateDraft(draftId, content, draftData);
+      } else {
+        await createDraft(user.id, content, draftData);
+      }
+      queryClient.invalidateQueries({ queryKey: ["post-drafts", user.id] });
+      toast.success(
+        media.length > 0
+          ? "Draft saved. Attachments aren't kept in drafts."
+          : "Draft saved"
+      );
+    } catch {
+      toast.error("Couldn't save draft");
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   const submittingRef = useRef(false);
   const handleSubmit = async () => {
     if (!canPost || posting || submittingRef.current) return;
@@ -586,7 +664,14 @@ function ComposerForm({
       }
 
       // The draft became a real post; keeping it would show a stale copy.
-      if (draftId) deleteDraft(draftId);
+      if (draftId) {
+        try {
+          await deleteDraft(draftId);
+          queryClient.invalidateQueries({ queryKey: ["post-drafts", user.id] });
+        } catch {
+          // The stale draft stays listed; the user can delete it from Drafts.
+        }
+      }
       // The dialog's onSuccess invalidation ran before the commit landed, so
       // refresh the feed again now that the post actually exists.
       queryClient.invalidateQueries({ queryKey: ["feed"] });
@@ -1284,24 +1369,7 @@ function ComposerForm({
           </button>
           <button
             className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
-            onClick={() => {
-              if (!content.trim()) {
-                toast.error("Nothing to save as draft");
-                return;
-              }
-              // Media is deliberately not persisted: drafts live in
-              // localStorage and blob preview URLs die on reload.
-              if (draftId) {
-                updateDraft(draftId, content, [], location || undefined);
-              } else {
-                saveDraft(content, [], location || undefined);
-              }
-              toast.success(
-                media.length > 0
-                  ? "Draft saved. Attachments aren't kept in drafts."
-                  : "Draft saved"
-              );
-            }}
+            onClick={handleSaveDraft}
             title="Save as draft"
             aria-label="Save as draft"
           >

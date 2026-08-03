@@ -202,6 +202,7 @@ export function ClipCommentsSheet({
         is_hidden: false,
         is_pinned: false,
         visibility: "public",
+        poll_data: null,
         created_at: new Date().toISOString(),
         profiles: profile
           ? {

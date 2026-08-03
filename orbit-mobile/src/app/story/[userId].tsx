@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
   Easing,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -15,11 +16,14 @@ import { VideoView, useVideoPlayer } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Centered, EmptyState } from "@/components/ui";
+import { StoryOverlayLayer } from "@/components/story-overlays";
 import {
   getActiveStories,
   markStoryViewed,
+  sendStoryReaction,
   type StoryWithAuthor,
 } from "@/lib/queries/stories";
+import { MESSAGE_REACTION_GLYPHS } from "@/lib/queries/messages";
 import { formatTimeAgo } from "@/lib/format";
 import { useAuth } from "@/providers/auth-provider";
 import { colors, radii, spacing } from "@/lib/theme";
@@ -57,6 +61,10 @@ export default function StoryViewerScreen() {
   // Lazy useState instead of useRef so reading the value in render does
   // not trip the react-hooks/refs rule.
   const [progress] = useState(() => new Animated.Value(0));
+  const [reactionState, setReactionState] = useState<
+    "idle" | "sending" | "sent" | "failed"
+  >("idle");
+  const reactionResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     data: groups,
@@ -75,6 +83,7 @@ export default function StoryViewerScreen() {
 
   const goNext = () => {
     if (index + 1 < stories.length) {
+      setReactionState("idle");
       setIndex(index + 1);
     } else {
       router.back();
@@ -82,8 +91,30 @@ export default function StoryViewerScreen() {
   };
 
   const goPrev = () => {
-    if (index > 0) setIndex(index - 1);
+    if (index > 0) {
+      setReactionState("idle");
+      setIndex(index - 1);
+    }
   };
+
+  const react = async (story: StoryWithAuthor, emoji: string) => {
+    if (!user || reactionState === "sending") return;
+    setReactionState("sending");
+    if (reactionResetRef.current) clearTimeout(reactionResetRef.current);
+    try {
+      await sendStoryReaction(story, user.id, emoji);
+      setReactionState("sent");
+    } catch {
+      setReactionState("failed");
+    }
+    reactionResetRef.current = setTimeout(() => setReactionState("idle"), 1800);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (reactionResetRef.current) clearTimeout(reactionResetRef.current);
+    };
+  }, []);
 
   // Auto-advance images on a timer; video stories advance by tap only in
   // v1, so their bar stays empty while they play.
@@ -174,6 +205,54 @@ export default function StoryViewerScreen() {
             style={styles.nextZone}
             onPress={goNext}
           />
+
+          {/* Rendered after the tap zones so the sticker chips win the touch. */}
+          <StoryOverlayLayer
+            textOverlay={current.text_overlay}
+            stickers={current.interactive_data?.stickers ?? []}
+            onMentionPress={(username) => router.push(`/user/${username}`)}
+            onLinkPress={(url) => {
+              Linking.openURL(url).catch(() => {
+                // Malformed sticker URL; nothing actionable.
+              });
+            }}
+          />
+
+          {/* Quick reactions, other people's stories only. Sends a DM to
+              the author and a story_reaction notification. */}
+          {current.user_id !== user.id ? (
+            <View
+              style={[styles.reactionBar, { bottom: insets.bottom + spacing(4) }]}
+            >
+              {reactionState === "sent" || reactionState === "failed" ? (
+                <View style={styles.reactionRow}>
+                  <Text style={styles.reactionStatus}>
+                    {reactionState === "sent"
+                      ? "Reaction sent"
+                      : "Couldn't send reaction"}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.reactionRow}>
+                  {MESSAGE_REACTION_GLYPHS.map(({ emoji, label }) => (
+                    <Pressable
+                      key={emoji}
+                      accessibilityRole="button"
+                      accessibilityLabel={`React with ${label}`}
+                      disabled={reactionState === "sending"}
+                      onPress={() => react(current, emoji)}
+                      style={({ pressed }) => [
+                        styles.reactionButton,
+                        (pressed || reactionState === "sending") && { opacity: 0.6 },
+                      ]}
+                    >
+                      <Text style={styles.reactionGlyph}>{emoji}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : null}
 
           <View style={[styles.chrome, { top: insets.top + spacing(2) }]}>
             <View style={styles.progressRow}>
@@ -284,5 +363,35 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: spacing(1),
+  },
+  reactionBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  reactionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 44,
+    borderRadius: radii.full,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingHorizontal: spacing(2),
+  },
+  reactionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reactionGlyph: {
+    fontSize: 22,
+  },
+  reactionStatus: {
+    color: CHROME_TEXT,
+    fontSize: 13.5,
+    fontWeight: "600",
+    paddingHorizontal: spacing(3),
   },
 });

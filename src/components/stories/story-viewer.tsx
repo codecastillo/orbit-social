@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -10,12 +11,15 @@ import { formatTimeAgo } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { ConfirmDialog } from "@/components/orbit/confirm-dialog";
+import { MESSAGE_REACTIONS } from "@/components/messages/message-reaction-picker";
 import {
   deleteStory,
   getStoryViewers,
   markStoryViewed,
+  sendStoryReaction,
   type StoryGroup,
 } from "@/lib/queries/stories";
+import { StoryOverlayLayer } from "./story-overlays";
 
 interface StoryViewerProps {
   storyGroups: StoryGroup[];
@@ -29,8 +33,10 @@ export function StoryViewer({
   onClose,
 }: StoryViewerProps) {
   const { user } = useAuth();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [groupIndex, setGroupIndex] = useState(initialGroupIndex);
+  const [sendingReaction, setSendingReaction] = useState(false);
   const [storyIndex, setStoryIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -132,6 +138,19 @@ export function StoryViewer({
       toast.error("Couldn't delete moment");
     }
   }, [currentStory, queryClient, onClose]);
+
+  async function handleReact(emoji: string) {
+    if (!user?.id || !currentStory || sendingReaction) return;
+    setSendingReaction(true);
+    try {
+      await sendStoryReaction(currentStory, user.id, emoji);
+      toast.success("Reaction sent");
+    } catch {
+      toast.error("Couldn't send reaction");
+    } finally {
+      setSendingReaction(false);
+    }
+  }
 
   // Progress timer, held while a dialog or the viewers list is open
   useEffect(() => {
@@ -322,6 +341,21 @@ export function StoryViewer({
             )}
           </div>
 
+          {/* Text overlay and sticker chips, above the click zones so the
+              chips stay tappable */}
+          <StoryOverlayLayer
+            className="z-20"
+            textOverlay={currentStory.text_overlay}
+            stickers={currentStory.interactive_data?.stickers ?? []}
+            onMentionClick={(username) => {
+              onClose();
+              router.push(`/${username}`);
+            }}
+            onLinkClick={(url) =>
+              window.open(url, "_blank", "noopener,noreferrer")
+            }
+          />
+
           {/* Click zones for prev/next */}
           <div className="absolute inset-0 z-10 flex">
             <button
@@ -351,6 +385,26 @@ export function StoryViewer({
               aria-label="Next story"
             />
           </div>
+
+          {/* Quick reactions, other people's stories only. Sends a DM to
+              the author and a story_reaction notification. */}
+          {!isOwnStory && (
+            <div className="absolute bottom-4 inset-x-0 z-20 flex justify-center">
+              <div className="flex items-center gap-1 rounded-full bg-black/50 px-2 py-1.5 backdrop-blur-sm">
+                {MESSAGE_REACTIONS.map(({ emoji, label }) => (
+                  <button
+                    key={emoji}
+                    onClick={() => handleReact(emoji)}
+                    disabled={sendingReaction}
+                    aria-label={`React with ${label}`}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-xl transition hover:bg-white/15 disabled:opacity-50"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Viewer count, own stories only. Tap to see who watched. */}
           {isOwnStory && (
