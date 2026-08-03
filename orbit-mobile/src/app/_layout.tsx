@@ -83,7 +83,7 @@ export default function RootLayout() {
             />
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="notifications" options={{ title: "Activity" }} />
-            <Stack.Screen name="messages" options={{ title: "Messages" }} />
+            <Stack.Screen name="create-story" options={{ title: "New moment" }} />
           </Stack>
           {/* Above the navigator so undo countdowns survive screen changes. */}
           <UndoSnackbarHost />

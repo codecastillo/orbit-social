@@ -1,12 +1,26 @@
 "use client";
 
-import { useState, useCallback, useImperativeHandle, useMemo } from "react";
+import { useState, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { Paperclip, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { VoiceRecorder } from "@/components/messages/voice-recorder";
 import { cn } from "@/lib/utils";
 import { generateSmartReplies } from "@/lib/services/smart-replies";
+
+// Mirrors the post composer's image cap; video is tighter here because DM
+// media skips the transcoding pass posts get.
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
+
+export interface PendingAttachment {
+  file: File;
+  /** Local object URL for previews and the optimistic bubble. The page owns
+   * revoking it once the upload lands or the send is abandoned. */
+  previewUrl: string;
+  kind: "image" | "video";
+}
 
 export interface ReplyPreview {
   name: string;
@@ -14,12 +28,13 @@ export interface ReplyPreview {
 }
 
 export interface MessageInputHandle {
-  /** Puts text back in the box, e.g. after an undone or failed send. */
-  restoreDraft: (text: string) => void;
+  /** Puts text (and any unsent attachments) back, e.g. after an undone or
+   * failed send. */
+  restoreDraft: (text: string, attachments?: PendingAttachment[]) => void;
 }
 
 interface MessageInputProps {
-  onSend: (content: string) => Promise<void>;
+  onSend: (content: string, attachments: PendingAttachment[]) => Promise<void>;
   onSendAudio?: (audioUrl: string) => Promise<void>;
   disabled?: boolean;
   /** The last message from the other person, used for smart reply suggestions. */
@@ -43,13 +58,18 @@ export function MessageInput({
   ref,
 }: MessageInputProps) {
   const [content, setContent] = useState("");
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [sending, setSending] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [isRecordingMode, setIsRecordingMode] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useImperativeHandle(ref, () => ({
-    restoreDraft: (text: string) => {
+    restoreDraft: (text: string, restored?: PendingAttachment[]) => {
       setContent(text);
+      if (restored && restored.length > 0) {
+        setAttachments((prev) => [...restored, ...prev]);
+      }
       setDismissed(true);
     },
   }));
@@ -59,7 +79,7 @@ export function MessageInput({
       if (onSendAudio) {
         await onSendAudio(audioUrl);
       } else {
-        await onSend(`[audio] ${audioUrl}`);
+        await onSend(`[audio] ${audioUrl}`, []);
       }
     },
     [onSend, onSendAudio]
@@ -71,31 +91,69 @@ export function MessageInput({
   }, [lastReceivedMessage]);
 
   const showSuggestions =
-    smartReplies.length > 0 && content.length === 0 && !dismissed && !sending;
+    smartReplies.length > 0 &&
+    content.length === 0 &&
+    attachments.length === 0 &&
+    !dismissed &&
+    !sending;
+
+  const handleFilesSelected = (files: FileList | null) => {
+    if (!files) return;
+    const accepted: PendingAttachment[] = [];
+    for (const file of Array.from(files)) {
+      const isVideo = file.type.startsWith("video/");
+      const isImage = file.type.startsWith("image/");
+      if (!isVideo && !isImage) continue;
+      if (file.size > (isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE)) {
+        toast.error(
+          isVideo ? "Video must be under 50MB" : "Image must be under 10MB"
+        );
+        continue;
+      }
+      accepted.push({
+        file,
+        previewUrl: URL.createObjectURL(file),
+        kind: isVideo ? "video" : "image",
+      });
+    }
+    if (accepted.length > 0) {
+      setAttachments((prev) => [...prev, ...accepted]);
+      setDismissed(true);
+    }
+  };
+
+  const removeAttachment = (previewUrl: string) => {
+    setAttachments((prev) => {
+      const removed = prev.find((a) => a.previewUrl === previewUrl);
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return prev.filter((a) => a.previewUrl !== previewUrl);
+    });
+  };
 
   const handleSend = useCallback(async () => {
     const trimmed = content.trim();
-    if (!trimmed || sending) return;
+    if ((!trimmed && attachments.length === 0) || sending) return;
 
     setSending(true);
     onTypingActivity?.(false);
     try {
-      await onSend(trimmed);
+      await onSend(trimmed, attachments);
       setContent("");
+      setAttachments([]);
       setDismissed(false);
     } catch {
-      // The page surfaces the failure; keep the text so the user can retry.
+      // The page surfaces the failure; keep the draft so the user can retry.
     } finally {
       setSending(false);
     }
-  }, [content, sending, onSend, onTypingActivity]);
+  }, [content, attachments, sending, onSend, onTypingActivity]);
 
   const handleSuggestionClick = useCallback(
     async (suggestion: string) => {
       if (sending) return;
       setSending(true);
       try {
-        await onSend(suggestion);
+        await onSend(suggestion, []);
         setDismissed(false);
       } catch {
         // The page surfaces the failure.
@@ -121,6 +179,8 @@ export function MessageInput({
     }
   };
 
+  const canSend = (content.trim().length > 0 || attachments.length > 0) && !sending;
+
   return (
     <div className="border-t border-border bg-background/95 backdrop-blur-sm p-3">
       {replyTo && (
@@ -142,6 +202,42 @@ export function MessageInput({
           </button>
         </div>
       )}
+
+      {/* Attachment preview strip */}
+      {attachments.length > 0 && (
+        <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
+          {attachments.map((att) => (
+            <div
+              key={att.previewUrl}
+              className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border bg-muted/30"
+            >
+              {att.kind === "video" ? (
+                <video
+                  src={att.previewUrl}
+                  muted
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                // Object URLs bypass next/image on purpose: no remote loader.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={att.previewUrl}
+                  alt="Attachment preview"
+                  className="h-full w-full object-cover"
+                />
+              )}
+              <button
+                onClick={() => removeAttachment(att.previewUrl)}
+                aria-label="Remove attachment"
+                className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-background/80 text-foreground transition-colors hover:bg-background"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Smart reply suggestions */}
       <AnimatePresence>
         {showSuggestions && (
@@ -184,6 +280,31 @@ export function MessageInput({
           />
         ) : (
           <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                handleFilesSelected(e.target.files);
+                e.target.value = "";
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Attach media"
+              disabled={disabled || sending}
+              className={cn(
+                "h-10 w-10 shrink-0 flex items-center justify-center rounded-xl transition-colors",
+                "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                "disabled:opacity-50 disabled:cursor-not-allowed"
+              )}
+              title="Attach photo or video"
+            >
+              <Paperclip className="size-5" />
+            </button>
+
             <textarea
               value={content}
               onChange={handleChange}
@@ -220,7 +341,7 @@ export function MessageInput({
 
             <Button
               onClick={handleSend}
-              disabled={!content.trim() || sending || disabled}
+              disabled={!canSend || disabled}
               size="icon"
               className="rounded-xl h-10 w-10 shrink-0"
             >

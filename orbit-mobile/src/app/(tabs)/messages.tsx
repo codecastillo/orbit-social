@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar, Button, EmptyState } from "@/components/ui";
@@ -112,6 +112,7 @@ function ConversationSkeleton() {
 
 export default function MessagesScreen() {
   const { user } = useAuth();
+  const router = useRouter();
   const [search, setSearch] = useState("");
 
   const {
@@ -161,6 +162,15 @@ export default function MessagesScreen() {
           </Pressable>
         ) : null}
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="New group"
+        onPress={() => router.push("/new-group" as Href)}
+        hitSlop={8}
+        style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+      >
+        <Ionicons name="people-outline" size={22} color={colors.foreground} />
+      </Pressable>
     </View>
   );
 
@@ -226,11 +236,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   searchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(3),
     paddingHorizontal: spacing(4),
     paddingTop: spacing(2.5),
     paddingBottom: spacing(2),
   },
   searchPill: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing(2),

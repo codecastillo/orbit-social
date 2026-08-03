@@ -11,42 +11,21 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Avatar } from "@/components/ui";
+import { AvatarRing, avatarRingInnerSize } from "@/components/avatar-ring";
 import { RichText } from "@/components/rich-text";
 import { normalizeAccent } from "@/lib/accents";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
-import type { AvatarBorderStyle, Profile } from "@/lib/queries/profiles";
+import type { Profile } from "@/lib/queries/profiles";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const EXCERPT_LENGTH = 140;
 
-const AVATAR_FRAME_SIZE = 84;
-const AVATAR_RING_WIDTH = 2;
-const AVATAR_RING_INSET = 2;
-const AVATAR_SIZE =
-  AVATAR_FRAME_SIZE - (AVATAR_RING_WIDTH + AVATAR_RING_INSET) * 2;
-// Frame ring at 30% alpha. Once stories ship, an active-story ring goes
-// full strength; until then every avatar wears the muted frame.
-const AVATAR_RING_ALPHA = "4D";
-const AVATAR_RING_COLOR = `${colors.primary}${AVATAR_RING_ALPHA}`;
+const AVATAR_FRAME_SIZE = 72;
+const AVATAR_SIZE = avatarRingInnerSize(AVATAR_FRAME_SIZE);
 
-const COVER_HEIGHT = 120;
+const COVER_HEIGHT = 96;
 
-// RN has no gradient primitive without a new dependency, so the web
-// UserAvatar's gradient borders flatten to a two-tone ring: the light
-// gradient stop fills the frame, the dark stop draws its outer rim.
-// gradient-rainbow and animated-glow are legacy stored values.
-const BORDER_TONES: Partial<
-  Record<AvatarBorderStyle, { fill: string; rim: string }>
-> = {
-  gold: { fill: "#fcd34d", rim: "#d97706" },
-  silver: { fill: "#d4d4d8", rim: "#71717a" },
-  diamond: { fill: "#a5f3fc", rim: "#818cf8" },
-  "gradient-rainbow": { fill: "#f472b6", rim: colors.primary },
-  "animated-glow": { fill: colors.primary, rim: colors.primary },
-};
-
-const ACTION_HEIGHT = 36;
-const ACTION_RADIUS = 10;
+const ACTION_HEIGHT = 32;
 
 function websiteHost(url: string): string {
   try {
@@ -72,31 +51,32 @@ function Stat({
   label: string;
   onPress?: () => void;
 }) {
+  const content = (
+    <>
+      <Text style={styles.statValue}>{formatNumber(value)}</Text>
+      <Text style={styles.statLabel}> {label}</Text>
+    </>
+  );
   if (!onPress) {
-    return (
-      <View style={styles.stat}>
-        <Text style={styles.statValue}>{formatNumber(value)}</Text>
-        <Text style={styles.statLabel}>{label}</Text>
-      </View>
-    );
+    return <View style={styles.stat}>{content}</View>;
   }
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`View ${label.toLowerCase()}`}
       onPress={onPress}
+      hitSlop={6}
       style={({ pressed }) => [styles.stat, pressed && { opacity: 0.6 }]}
     >
-      <Text style={styles.statValue}>{formatNumber(value)}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      {content}
     </Pressable>
   );
 }
 
 /**
- * Compact filled button for the profile action row. Primary is the violet
- * fill, secondary the elevated-surface fill; pass a pair inside the header's
- * `actions` slot and they split the row evenly.
+ * Compact outline button for the profile action row. Primary carries the
+ * violet border and label, secondary the hairline surface border; pass a pair
+ * inside the header's `actions` slot and they split the row evenly.
  */
 export function ProfileActionButton({
   label,
@@ -125,9 +105,7 @@ export function ProfileActionButton({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={
-            variant === "primary" ? colors.primaryForeground : colors.foreground
-          }
+          color={variant === "primary" ? colors.primary : colors.foreground}
         />
       ) : (
         <Text
@@ -146,17 +124,19 @@ export function ProfileActionButton({
 export function ProfileHeader({
   profile,
   actions,
+  topAction,
   onPressFollowers,
   onPressFollowing,
 }: {
   profile: Profile;
   actions?: ReactNode;
+  /** Ghost icon button pinned to the right of the identity row (the
+      own-profile settings gear once the nav header is hidden). */
+  topAction?: ReactNode;
   onPressFollowers?: () => void;
   onPressFollowing?: () => void;
 }) {
   const themeAccent = normalizeAccent(profile.theme_color);
-  const borderTones =
-    BORDER_TONES[(profile.avatar_border ?? "none") as AvatarBorderStyle];
 
   return (
     <View>
@@ -170,95 +150,97 @@ export function ProfileHeader({
         />
       ) : null}
       <View style={styles.container}>
-      <View style={styles.topRow}>
-        {/* Decorative avatar_border and the accent ring are mutually
-            exclusive, same as the web profile hero: a decorative border
-            replaces the frame's fill and rim, otherwise the muted ring
-            picks up the profile accent when one is set. */}
-        <View
-          style={[
-            styles.avatarFrame,
-            profile.cover_url ? styles.avatarFrameOverCover : null,
-            borderTones
-              ? {
-                  backgroundColor: borderTones.fill,
-                  borderColor: borderTones.rim,
-                }
-              : themeAccent
-                ? { borderColor: `${themeAccent}${AVATAR_RING_ALPHA}` }
-                : null,
-          ]}
-        >
-          <Avatar
-            url={profile.avatar_url}
-            name={profile.display_name}
-            size={AVATAR_SIZE}
-          />
+        <View style={styles.identityRow}>
+          <AvatarRing
+            size={AVATAR_FRAME_SIZE}
+            border={profile.avatar_border}
+            accent={themeAccent}
+            style={profile.cover_url ? styles.avatarFrameOverCover : null}
+          >
+            <Avatar
+              url={profile.avatar_url}
+              name={profile.display_name}
+              size={AVATAR_SIZE}
+            />
+          </AvatarRing>
+          <View style={styles.nameBlock}>
+            <View style={styles.nameRow}>
+              <Text
+                style={[
+                  styles.displayName,
+                  themeAccent ? { color: themeAccent } : null,
+                ]}
+                numberOfLines={1}
+              >
+                {profile.display_name}
+              </Text>
+              {profile.is_verified ? (
+                <Ionicons
+                  name="checkmark-circle"
+                  size={15}
+                  color={colors.primary}
+                />
+              ) : null}
+            </View>
+            <Text style={styles.username}>@{profile.username}</Text>
+            <View style={styles.statsLine}>
+              <Stat value={profile.post_count} label="Posts" />
+              <Text style={styles.statDot}>·</Text>
+              <Stat
+                value={profile.follower_count}
+                label="Followers"
+                onPress={onPressFollowers}
+              />
+              <Text style={styles.statDot}>·</Text>
+              <Stat
+                value={profile.following_count}
+                label="Following"
+                onPress={onPressFollowing}
+              />
+            </View>
+          </View>
+          {topAction ? (
+            <View style={styles.topAction}>{topAction}</View>
+          ) : null}
         </View>
-        <View style={styles.stats}>
-          <Stat value={profile.post_count} label="Posts" />
-          <Stat
-            value={profile.follower_count}
-            label="Followers"
-            onPress={onPressFollowers}
-          />
-          <Stat
-            value={profile.following_count}
-            label="Following"
-            onPress={onPressFollowing}
-          />
-        </View>
-      </View>
-      <View style={styles.nameRow}>
-        <Text
-          style={[
-            styles.displayName,
-            themeAccent ? { color: themeAccent } : null,
-          ]}
-        >
-          {profile.display_name}
-        </Text>
-        {profile.is_verified ? (
-          <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
+        {profile.bio ? (
+          <RichText style={styles.bio}>{profile.bio}</RichText>
         ) : null}
-      </View>
-      <Text style={styles.username}>@{profile.username}</Text>
-      {profile.bio ? <RichText style={styles.bio}>{profile.bio}</RichText> : null}
-      {profile.location ? (
-        <View style={styles.locationRow}>
-          <Ionicons
-            name="location-outline"
-            size={13}
-            color={colors.mutedForeground}
-          />
-          <Text style={styles.location}>{profile.location}</Text>
-        </View>
-      ) : null}
-      {profile.website ? (
-        <Pressable
-          accessibilityRole="link"
-          accessibilityLabel={`Open website ${websiteHost(profile.website)}`}
-          onPress={() => {
-            Linking.openURL(profile.website!).catch(() => {
-              // Stored URLs are validated on save; nothing actionable.
-            });
-          }}
-          style={({ pressed }) => [styles.websiteRow, pressed && { opacity: 0.7 }]}
-        >
-          <Text style={styles.websiteLabel}>ALSO ON</Text>
-          <View style={styles.websiteChip}>
+        {profile.location ? (
+          <View style={styles.locationRow}>
+            <Ionicons
+              name="location-outline"
+              size={13}
+              color={colors.mutedForeground}
+            />
+            <Text style={styles.location}>{profile.location}</Text>
+          </View>
+        ) : null}
+        {profile.website ? (
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={`Open website ${websiteHost(profile.website)}`}
+            onPress={() => {
+              Linking.openURL(profile.website!).catch(() => {
+                // Stored URLs are validated on save; nothing actionable.
+              });
+            }}
+            style={({ pressed }) => [
+              styles.websiteRow,
+              pressed && { opacity: 0.7 },
+            ]}
+          >
             <Ionicons
               name="globe-outline"
-              size={12}
-              color={colors.textSecondary}
+              size={13}
+              color={colors.mutedForeground}
             />
-            <Text style={styles.websiteChipText} numberOfLines={1}>
+            <Text style={styles.websiteText} numberOfLines={1}>
               {websiteHost(profile.website)}
             </Text>
-          </View>
-        </Pressable>
-      ) : null}
-      {actions ? <View style={styles.actions}>{actions}</View> : null}
+          </Pressable>
+        ) : null}
+        {actions ? <View style={styles.actions}>{actions}</View> : null}
       </View>
     </View>
   );
@@ -268,21 +250,16 @@ export function ProfileHeader({
 export function ProfileHeaderSkeleton() {
   return (
     <View style={styles.container}>
-      <View style={styles.topRow}>
-        <View style={styles.avatarFrame}>
+      <View style={styles.identityRow}>
+        <AvatarRing size={AVATAR_FRAME_SIZE}>
           <View style={styles.skeletonAvatar} />
-        </View>
-        <View style={styles.stats}>
-          {["posts", "followers", "following"].map((key) => (
-            <View key={key} style={styles.stat}>
-              <View style={styles.skeletonStatValue} />
-              <View style={styles.skeletonStatLabel} />
-            </View>
-          ))}
+        </AvatarRing>
+        <View style={styles.nameBlock}>
+          <View style={styles.skeletonName} />
+          <View style={styles.skeletonUsername} />
+          <View style={styles.skeletonStatsLine} />
         </View>
       </View>
-      <View style={styles.skeletonName} />
-      <View style={styles.skeletonUsername} />
       <View style={styles.skeletonBio} />
       <View style={styles.actions}>
         <View style={styles.skeletonAction} />
@@ -325,77 +302,80 @@ export function ProfilePostRow({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: spacing(4),
+    paddingHorizontal: spacing(3),
     paddingTop: spacing(3),
-    paddingBottom: spacing(4),
+    paddingBottom: spacing(3.5),
   },
-  topRow: {
+  identityRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
   },
   cover: {
     height: COVER_HEIGHT,
     backgroundColor: colors.surfaceElevated,
   },
-  avatarFrame: {
-    width: AVATAR_FRAME_SIZE,
-    height: AVATAR_FRAME_SIZE,
-    borderRadius: AVATAR_FRAME_SIZE / 2,
-    borderWidth: AVATAR_RING_WIDTH,
-    borderColor: AVATAR_RING_COLOR,
-    // Opaque so the banner cannot show through the ring inset when the
-    // avatar overlaps the cover.
-    backgroundColor: colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   // With a banner the avatar rides half over its bottom edge, like the web
-  // profile hero.
+  // profile hero; the name block stays clear of the banner to its right.
   avatarFrameOverCover: {
     marginTop: -(AVATAR_FRAME_SIZE / 2),
   },
-  stats: {
+  nameBlock: {
     flex: 1,
-    flexDirection: "row",
-    justifyContent: "space-evenly",
-    marginLeft: spacing(4),
+    marginLeft: spacing(3),
   },
-  stat: {
-    alignItems: "center",
-  },
-  statValue: {
-    color: colors.foreground,
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: -0.3,
-  },
-  statLabel: {
-    color: colors.mutedForeground,
-    fontSize: 12,
-    marginTop: 2,
+  topAction: {
+    marginLeft: spacing(2),
+    alignSelf: "flex-start",
   },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginTop: spacing(3),
   },
   displayName: {
     color: colors.foreground,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: "700",
     letterSpacing: -0.2,
+    flexShrink: 1,
   },
   username: {
     color: colors.mutedForeground,
     fontSize: 13,
     marginTop: 1,
   },
+  statsLine: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginTop: spacing(2),
+  },
+  stat: {
+    flexDirection: "row",
+    alignItems: "baseline",
+  },
+  statValue: {
+    color: colors.foreground,
+    fontSize: 12.5,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+  },
+  statLabel: {
+    color: colors.mutedForeground,
+    fontSize: 10,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  statDot: {
+    color: colors.textFaint,
+    fontSize: 10,
+    marginHorizontal: spacing(1),
+  },
   bio: {
     color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
-    marginTop: spacing(2),
+    marginTop: spacing(2.5),
   },
   locationRow: {
     flexDirection: "row",
@@ -410,56 +390,40 @@ const styles = StyleSheet.create({
   websiteRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing(2),
-    marginTop: spacing(2),
-  },
-  websiteLabel: {
-    color: colors.mutedForeground,
-    fontSize: 10.5,
-    fontWeight: "500",
-    letterSpacing: 0.9,
-  },
-  websiteChip: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: 4,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing(2.5),
-    paddingVertical: 5,
+    marginTop: spacing(1),
   },
-  websiteChipText: {
-    color: colors.textSecondary,
-    fontSize: 11,
+  websiteText: {
+    color: colors.primary,
+    fontSize: 12.5,
     fontWeight: "500",
     flexShrink: 1,
   },
   actions: {
     flexDirection: "row",
     gap: spacing(2),
-    marginTop: spacing(3.5),
+    marginTop: spacing(3),
   },
   actionButton: {
     flex: 1,
     height: ACTION_HEIGHT,
-    borderRadius: ACTION_RADIUS,
-    backgroundColor: colors.surfaceElevated,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: spacing(3),
+    paddingHorizontal: spacing(2.5),
   },
   actionButtonPrimary: {
-    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   actionLabel: {
     color: colors.foreground,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
   },
   actionLabelPrimary: {
-    color: colors.primaryForeground,
+    color: colors.primary,
   },
   skeletonAvatar: {
     width: AVATAR_SIZE,
@@ -467,25 +431,12 @@ const styles = StyleSheet.create({
     borderRadius: AVATAR_SIZE / 2,
     backgroundColor: colors.surfaceElevated,
   },
-  skeletonStatValue: {
-    width: 28,
-    height: 16,
-    borderRadius: 4,
-    backgroundColor: colors.surfaceElevated,
-  },
-  skeletonStatLabel: {
-    width: 48,
-    height: 9,
-    borderRadius: 4,
-    backgroundColor: colors.surface,
-    marginTop: 6,
-  },
   skeletonName: {
     width: 132,
     height: 14,
     borderRadius: 4,
     backgroundColor: colors.surfaceElevated,
-    marginTop: spacing(3.5),
+    marginTop: spacing(1),
   },
   skeletonUsername: {
     width: 88,
@@ -493,6 +444,13 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.surface,
     marginTop: spacing(2),
+  },
+  skeletonStatsLine: {
+    width: 176,
+    height: 10,
+    borderRadius: 4,
+    backgroundColor: colors.surface,
+    marginTop: spacing(2.5),
   },
   skeletonBio: {
     alignSelf: "stretch",
@@ -504,7 +462,7 @@ const styles = StyleSheet.create({
   skeletonAction: {
     flex: 1,
     height: ACTION_HEIGHT,
-    borderRadius: ACTION_RADIUS,
+    borderRadius: radii.sm,
     backgroundColor: colors.surfaceElevated,
   },
   postRow: {

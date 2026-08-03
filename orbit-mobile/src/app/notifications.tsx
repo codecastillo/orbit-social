@@ -50,7 +50,7 @@ function notificationPhrase(notification: NotificationWithActor): string {
     case "message":
       return "sent you a message";
     case "story_reaction":
-      return "reacted to your story";
+      return "reacted to your moment";
     case "live_started":
       return "just went live";
     case "community_invite":

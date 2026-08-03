@@ -6,18 +6,30 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { MESSAGE_REACTION_GLYPHS } from "@/lib/queries/messages";
 import { colors, radii, spacing } from "@/lib/theme";
 
-const BUTTON_SIZE = 44;
+// Compact, iMessage-style card: small glyph targets and dense action rows
+// so the popup reads as a sheet beside the bubble, not a full menu.
+const BUTTON_SIZE = 36;
 const BAR_PADDING = 6;
-const BAR_WIDTH = MESSAGE_REACTION_GLYPHS.length * BUTTON_SIZE + BAR_PADDING * 2;
+// +1 slot for the "+" any-emoji button at the end of the row.
+const BAR_WIDTH =
+  (MESSAGE_REACTION_GLYPHS.length + 1) * BUTTON_SIZE + BAR_PADDING * 2;
 const BAR_HEIGHT = BUTTON_SIZE + BAR_PADDING * 2;
-// Extra height when the optional Reply action row is shown.
-const ACTION_ROW_HEIGHT = 40;
+// Extra height per action row shown under the glyphs.
+const ACTION_ROW_HEIGHT = 32;
 const SCREEN_GUTTER = 16;
+
+// One emoji grapheme: a pictographic base plus optional variation selector,
+// skin tone, and ZWJ-joined continuations. Hermes supports \p{...} property
+// escapes under the u flag.
+const SINGLE_EMOJI_RE =
+  /^\p{Extended_Pictographic}(?:\uFE0F|[\u{1F3FB}-\u{1F3FF}])*(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|[\u{1F3FB}-\u{1F3FF}])*)*$/u;
 
 export interface ReactionBarAnchor {
   // Window coordinates of the long-pressed bubble, from measureInWindow.
@@ -26,16 +38,21 @@ export interface ReactionBarAnchor {
   width: number;
 }
 
+export interface ReactionBarAction {
+  label: string;
+  /** Destructive actions (Report, Unsend) render in the danger color. */
+  destructive?: boolean;
+  onPress: () => void;
+}
+
 interface MessageReactionBarProps {
   visible: boolean;
   anchor: ReactionBarAnchor | null;
   existingEmojis: string[];
   onSelect: (emoji: string) => void;
   onClose: () => void;
-  /** When set, a "Reply" action row renders under the reaction glyphs. */
-  onReply?: () => void;
-  /** When set, a "Report" action row renders under the reaction glyphs. */
-  onReport?: () => void;
+  /** Action rows (Reply, Edit, Pin, ...) rendered under the reaction glyphs. */
+  actions?: ReactionBarAction[];
 }
 
 /**
@@ -49,13 +66,27 @@ export function MessageReactionBar({
   existingEmojis,
   onSelect,
   onClose,
-  onReply,
-  onReport,
+  actions = [],
 }: MessageReactionBarProps) {
   // Lazy useState instead of useRef: the values are stable across renders
   // and reading them in render stays within the react-hooks/refs rule.
   const [scale] = useState(() => new Animated.Value(0.8));
   const [opacity] = useState(() => new Animated.Value(0));
+  // The "+" button swaps the glyph row for a one-emoji input, so any emoji
+  // can react, not just the quick six.
+  const [customOpen, setCustomOpen] = useState(false);
+  const [custom, setCustom] = useState("");
+
+  // Reset the custom row whenever the bar reopens. Render-time adjustment
+  // instead of an effect, mirroring the settings screen's name seeding.
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (visible !== wasVisible) {
+    setWasVisible(visible);
+    if (visible) {
+      setCustomOpen(false);
+      setCustom("");
+    }
+  }
 
   useEffect(() => {
     if (visible) {
@@ -75,9 +106,19 @@ export function MessageReactionBar({
     Math.max(anchor.x + anchor.width / 2 - BAR_WIDTH / 2, SCREEN_GUTTER),
     window.width - BAR_WIDTH - SCREEN_GUTTER,
   );
-  const actionRows = (onReply ? 1 : 0) + (onReport ? 1 : 0);
-  const totalHeight = BAR_HEIGHT + actionRows * ACTION_ROW_HEIGHT;
+  const totalHeight = BAR_HEIGHT + actions.length * ACTION_ROW_HEIGHT;
   const top = Math.max(anchor.y - totalHeight - spacing(2), SCREEN_GUTTER);
+
+  // React the instant a full emoji lands; the emoji keyboard inserts one
+  // grapheme at a time, so no confirm button is needed.
+  const handleCustomChange = (text: string) => {
+    const candidate = text.trim();
+    if (SINGLE_EMOJI_RE.test(candidate)) {
+      onSelect(candidate);
+      return;
+    }
+    setCustom(candidate);
+  };
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
@@ -86,58 +127,76 @@ export function MessageReactionBar({
           style={[
             styles.bar,
             // The plain glyph strip keeps its pill silhouette; the version
-            // with the Reply row squares off into a card.
-            { borderRadius: actionRows > 0 ? radii.lg : radii.full },
+            // with action rows squares off into a card.
+            { borderRadius: actions.length > 0 ? radii.lg : radii.full },
             { left, top, opacity, transform: [{ scale }] },
           ]}
           // Stop the backdrop press from swallowing taps on the row itself.
           onStartShouldSetResponder={() => true}
         >
-          <View style={styles.glyphRow}>
-            {MESSAGE_REACTION_GLYPHS.map(({ emoji, label }) => (
+          {customOpen ? (
+            <View style={styles.customRow}>
+              <TextInput
+                style={styles.customInput}
+                value={custom}
+                onChangeText={handleCustomChange}
+                autoFocus
+                placeholder="Any emoji"
+                placeholderTextColor={colors.textFaint}
+                accessibilityLabel="React with any emoji"
+              />
+            </View>
+          ) : (
+            <View style={styles.glyphRow}>
+              {MESSAGE_REACTION_GLYPHS.map(({ emoji, label }) => (
+                <Pressable
+                  key={emoji}
+                  accessibilityRole="button"
+                  accessibilityLabel={`React with ${label}`}
+                  onPress={() => onSelect(emoji)}
+                  style={({ pressed }) => [
+                    styles.reaction,
+                    existingEmojis.includes(emoji) && styles.reactionActive,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text style={styles.glyph}>{emoji}</Text>
+                </Pressable>
+              ))}
               <Pressable
-                key={emoji}
                 accessibilityRole="button"
-                accessibilityLabel={`React with ${label}`}
-                onPress={() => onSelect(emoji)}
+                accessibilityLabel="React with any emoji"
+                onPress={() => setCustomOpen(true)}
                 style={({ pressed }) => [
                   styles.reaction,
-                  existingEmojis.includes(emoji) && styles.reactionActive,
                   pressed && { opacity: 0.7 },
                 ]}
               >
-                <Text style={styles.glyph}>{emoji}</Text>
+                <Ionicons name="add" size={20} color={colors.mutedForeground} />
               </Pressable>
-            ))}
-          </View>
-          {onReply ? (
+            </View>
+          )}
+          {actions.map((action) => (
             <Pressable
+              key={action.label}
               accessibilityRole="button"
-              accessibilityLabel="Reply to message"
-              onPress={onReply}
+              accessibilityLabel={`${action.label} message`}
+              onPress={action.onPress}
               style={({ pressed }) => [
                 styles.actionRow,
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <Text style={styles.actionLabel}>Reply</Text>
-            </Pressable>
-          ) : null}
-          {onReport ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Report message"
-              onPress={onReport}
-              style={({ pressed }) => [
-                styles.actionRow,
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <Text style={[styles.actionLabel, styles.actionLabelDanger]}>
-                Report
+              <Text
+                style={[
+                  styles.actionLabel,
+                  action.destructive && styles.actionLabelDanger,
+                ]}
+              >
+                {action.label}
               </Text>
             </Pressable>
-          ) : null}
+          ))}
         </Animated.View>
       </Pressable>
     </Modal>
@@ -220,7 +279,7 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     color: colors.foreground,
-    fontSize: 14.5,
+    fontSize: 13,
     fontWeight: "600",
   },
   actionLabelDanger: {
@@ -239,7 +298,23 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   glyph: {
-    fontSize: 24,
+    fontSize: 20,
+  },
+  customRow: {
+    width: BAR_WIDTH - BAR_PADDING * 2,
+    height: BUTTON_SIZE,
+    justifyContent: "center",
+  },
+  customInput: {
+    height: BUTTON_SIZE - 4,
+    borderRadius: radii.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.foreground,
+    paddingHorizontal: spacing(3),
+    paddingVertical: 0,
+    fontSize: 16,
   },
   pillRow: {
     flexDirection: "row",

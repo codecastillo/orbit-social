@@ -165,7 +165,7 @@ export function StoryViewersSheet({
               <View style={styles.stateWrap}>
                 <Text style={styles.emptyTitle}>No views yet</Text>
                 <Text style={styles.stateText}>
-                  People who watch this story will show up here.
+                  People who watch this moment will show up here.
                 </Text>
               </View>
             }

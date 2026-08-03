@@ -1,4 +1,4 @@
-import { Component, useMemo, useState, type ReactNode } from "react";
+import { Component, useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -8,9 +8,10 @@ import {
   Text,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useNavigation } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { ClipsFeed } from "@/components/clips-feed";
 import { StoriesBar } from "@/components/stories-bar";
 import { PostCard } from "@/components/post-card";
 import { PostListSkeleton, StoriesSkeleton } from "@/components/post-skeleton";
@@ -30,10 +31,19 @@ import {
 } from "@/lib/hooks/use-content-safety";
 import { colors, spacing } from "@/lib/theme";
 
-const FEED_TABS: { key: FeedTab; label: string }[] = [
+// Clips is a lane here, not a feed query: selecting it swaps the whole
+// content area for the clips pager instead of changing the feed fetch.
+type HomeLane = FeedTab | "clips";
+
+const HOME_TABS: { key: HomeLane; label: string }[] = [
   { key: "foryou", label: "For you" },
   { key: "following", label: "Following" },
+  { key: "clips", label: "Clips" },
 ];
+
+// Clearance the clips pager leaves for the lane tabs overlaid on the video;
+// its own All/Loops segment starts directly below this.
+const CLIPS_LANE_TABS_HEIGHT = 40;
 
 // StoriesBar is owned by another surface; a crash there should never take
 // the feed down with it.
@@ -51,9 +61,28 @@ class StoriesBoundary extends Component<{ children: ReactNode }, { failed: boole
 
 export default function FeedScreen() {
   const { user } = useAuth();
-  const router = useRouter();
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const userId = user?.id ?? "";
-  const [tab, setTab] = useState<FeedTab>("foryou");
+  const [lane, setLane] = useState<HomeLane>("foryou");
+  // The feed keeps its last For you/Following selection while Clips is up,
+  // so coming back lands exactly where the user left off.
+  const [feedTab, setFeedTab] = useState<FeedTab>("foryou");
+  // The clips pager mounts on first visit and then stays mounted (hidden)
+  // so its scroll position and players survive lane switches.
+  const [clipsMounted, setClipsMounted] = useState(false);
+
+  // The Orbit app header would stack on top of the floating lane row, so the
+  // Clips lane runs full-bleed. The focus-effect cleanup restores the header
+  // on every exit path: lane change, screen blur, and unmount.
+  const clipsLaneUp = lane === "clips";
+  useFocusEffect(
+    useCallback(() => {
+      if (!clipsLaneUp) return;
+      navigation.setOptions({ headerShown: false });
+      return () => navigation.setOptions({ headerShown: true });
+    }, [clipsLaneUp, navigation]),
+  );
 
   const {
     data,
@@ -65,8 +94,8 @@ export default function FeedScreen() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["feed", userId, tab],
-    queryFn: ({ pageParam }) => getFeedPage(userId, tab, pageParam),
+    queryKey: ["feed", userId, feedTab],
+    queryFn: ({ pageParam }) => getFeedPage(userId, feedTab, pageParam),
     initialPageParam: undefined as string | undefined,
     // The page's chronological cursor, captured before For You ranking
     // reorders posts; the last ranked item is no longer the oldest.
@@ -125,17 +154,51 @@ export default function FeedScreen() {
 
   const tabsRow = (
     <View style={styles.tabsRow}>
-      {FEED_TABS.map(({ key, label }) => {
-        const active = tab === key;
+      {HOME_TABS.map(({ key, label }) => {
+        const active = lane === key;
         return (
           <Pressable
             key={key}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
-            onPress={() => setTab(key)}
+            onPress={() => {
+              setLane(key);
+              if (key === "clips") {
+                setClipsMounted(true);
+              } else {
+                setFeedTab(key);
+              }
+            }}
             style={({ pressed }) => [styles.tabButton, pressed && { opacity: 0.7 }]}
           >
             <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
+            <View style={[styles.tabIndicator, active && styles.tabIndicatorActive]} />
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+
+  // Compact TikTok-style variant of the lane row for the clips layer: white
+  // text tabs centered over the video, violet underline on the active one.
+  const clipsTabsRow = (
+    <View style={styles.clipsTabsRow}>
+      {HOME_TABS.map(({ key, label }) => {
+        const active = lane === key;
+        return (
+          <Pressable
+            key={key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            onPress={() => {
+              setLane(key);
+              if (key !== "clips") setFeedTab(key);
+            }}
+            style={({ pressed }) => [styles.tabButton, pressed && { opacity: 0.7 }]}
+          >
+            <Text style={[styles.clipsTabLabel, active && styles.clipsTabLabelActive]}>
+              {label}
+            </Text>
             <View style={[styles.tabIndicator, active && styles.tabIndicatorActive]} />
           </Pressable>
         );
@@ -195,9 +258,9 @@ export default function FeedScreen() {
         onEndReachedThreshold={0.5}
         ListEmptyComponent={
           <EmptyState
-            title={tab === "following" ? "Your following feed is quiet" : "Nothing here yet"}
+            title={feedTab === "following" ? "Your following feed is quiet" : "Nothing here yet"}
             description={
-              tab === "following"
+              feedTab === "following"
                 ? "Posts from people you follow will show up here."
                 : "Follow people or share your first post to get the feed going."
             }
@@ -218,14 +281,23 @@ export default function FeedScreen() {
   return (
     <View style={styles.fill}>
       {body}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Compose a post"
-        onPress={() => router.push("/compose")}
-        style={({ pressed }) => [styles.composeButton, pressed && { opacity: 0.85 }]}
-      >
-        <Ionicons name="add" size={28} color={colors.primaryForeground} />
-      </Pressable>
+      {clipsMounted ? (
+        // Covers the feed instead of replacing it, so the feed's scroll
+        // offset is untouched when the user comes back from Clips. Hiding
+        // (not unmounting) the layer likewise keeps the clips pager where
+        // it was; ClipsFeed pauses itself via isActive.
+        <View style={[styles.clipsLayer, lane !== "clips" && styles.clipsLayerHidden]}>
+          <ClipsFeed
+            isActive={lane === "clips"}
+            topInset={insets.top + CLIPS_LANE_TABS_HEIGHT}
+          />
+          {/* The app header is hidden on this lane, so the lane row floats
+              over the video on a scrim and doubles as the way back. */}
+          <View style={[styles.clipsTabsScrim, { paddingTop: insets.top }]}>
+            {clipsTabsRow}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -265,26 +337,41 @@ const styles = StyleSheet.create({
   tabIndicatorActive: {
     backgroundColor: colors.primary,
   },
+  clipsTabsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: spacing(5),
+    height: CLIPS_LANE_TABS_HEIGHT,
+  },
+  // The clips surface is an always-dark video canvas, so the lane labels use
+  // literal white values instead of theme tokens (matching clips-feed).
+  clipsTabLabel: {
+    color: "rgba(255, 255, 255, 0.6)",
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  clipsTabLabelActive: {
+    color: "#ffffff",
+  },
+  clipsLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#000",
+  },
+  clipsLayerHidden: {
+    display: "none",
+  },
+  clipsTabsScrim: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+  },
   emptyContent: {
     flexGrow: 1,
   },
   footerLoader: {
     paddingVertical: spacing(5),
-  },
-  composeButton: {
-    position: "absolute",
-    right: spacing(5),
-    bottom: spacing(6),
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
   },
 });

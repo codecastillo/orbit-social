@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Pin, Reply, Trash2 } from "lucide-react";
+import { Forward, Pencil, Pin, Reply, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isAudioMessage } from "@/lib/utils/audio";
 import { formatTime } from "@/lib/utils/format";
@@ -27,6 +27,12 @@ export interface QuotedReply {
   snippet: string;
 }
 
+// Matches mainstream DM behavior: edits allowed shortly after sending only.
+const EDIT_WINDOW_MS = 15 * 60 * 1000;
+// updated_at lags created_at by a few ms on plain inserts in some stacks, so
+// only a clearly later timestamp counts as an edit.
+const EDITED_MARKER_GRACE_MS = 5000;
+
 interface MessageBubbleProps {
   message: Message;
   isOwn: boolean;
@@ -35,6 +41,8 @@ interface MessageBubbleProps {
   onPinMessage?: (messageId: string, isPinned: boolean) => void;
   onDeleteMessage?: (messageId: string) => void;
   onReply?: (message: Message) => void;
+  onEditMessage?: (messageId: string, content: string) => void;
+  onForward?: (message: Message) => void;
   /** Resolved snippet of the message this one replies to, when present. */
   replyPreview?: QuotedReply | null;
 }
@@ -47,9 +55,52 @@ export function MessageBubble({
   onPinMessage,
   onDeleteMessage,
   onReply,
+  onEditMessage,
+  onForward,
   replyPreview,
 }: MessageBubbleProps) {
   const time = formatTime(message.created_at);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState("");
+  const [editWindowClosed, setEditWindowClosed] = useState(false);
+
+  // Hides the edit button live once the window lapses; reading the clock in
+  // an effect keeps render pure.
+  useEffect(() => {
+    if (!isOwn || !onEditMessage) return;
+    const closesIn =
+      new Date(message.created_at).getTime() + EDIT_WINDOW_MS - Date.now();
+    const timer = setTimeout(
+      () => setEditWindowClosed(true),
+      Math.max(0, closesIn)
+    );
+    return () => clearTimeout(timer);
+  }, [isOwn, onEditMessage, message.created_at]);
+
+  const isEdited =
+    !!message.updated_at &&
+    new Date(message.updated_at).getTime() >
+      new Date(message.created_at).getTime() + EDITED_MARKER_GRACE_MS;
+  const canEdit =
+    isOwn &&
+    !!onEditMessage &&
+    !!message.content &&
+    !message.id.startsWith("temp-") &&
+    !editWindowClosed;
+  const canForward = !!onForward && !message.id.startsWith("temp-");
+
+  const startEditing = () => {
+    setEditDraft(message.content ?? "");
+    setIsEditing(true);
+  };
+
+  const saveEdit = () => {
+    const trimmed = editDraft.trim();
+    setIsEditing(false);
+    if (!trimmed || trimmed === message.content) return;
+    onEditMessage?.(message.id, trimmed);
+  };
 
   const [reactions, setReactions] = useState<
     { emoji: string; count: number; hasReacted: boolean }[]
@@ -229,6 +280,24 @@ export function MessageBubble({
                   <Reply className="h-3.5 w-3.5" />
                 </button>
               )}
+              {canEdit && (
+                <button
+                  onClick={startEditing}
+                  className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                  title="Edit message"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {canForward && (
+                <button
+                  onClick={() => onForward?.(message)}
+                  className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                  title="Forward message"
+                >
+                  <Forward className="h-3.5 w-3.5" />
+                </button>
+              )}
               {onDeleteMessage && (
                 <button
                   onClick={() => onDeleteMessage(message.id)}
@@ -310,21 +379,63 @@ export function MessageBubble({
                   </p>
                 </div>
               )}
-              {message.media_url && !isAudioMessage(null, message.media_url) && (
-                <div className="relative mb-1 aspect-[4/3] w-64 max-w-full overflow-hidden rounded-lg">
-                  <Image
+              {message.media_url &&
+                !isAudioMessage(null, message.media_url) &&
+                (message.media_type === "video" ? (
+                  <video
                     src={message.media_url}
-                    alt="Media"
-                    fill
-                    sizes="256px"
-                    className="object-cover"
+                    controls
+                    preload="metadata"
+                    className="mb-1 aspect-[4/3] w-64 max-w-full rounded-lg bg-black object-cover"
                   />
-                </div>
-              )}
-              {message.content && (
-                <p className="text-sm whitespace-pre-wrap break-words">
-                  {message.content}
-                </p>
+                ) : (
+                  <div className="relative mb-1 aspect-[4/3] w-64 max-w-full overflow-hidden rounded-lg">
+                    {message.media_url.startsWith("blob:") ? (
+                      // Optimistic bubbles preview a local object URL, which
+                      // next/image's loader can't process.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={message.media_url}
+                        alt="Media"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <Image
+                        src={message.media_url}
+                        alt="Media"
+                        fill
+                        sizes="256px"
+                        className="object-cover"
+                      />
+                    )}
+                  </div>
+                ))}
+              {isEditing ? (
+                <textarea
+                  value={editDraft}
+                  onChange={(e) => setEditDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      saveEdit();
+                    } else if (e.key === "Escape") {
+                      setIsEditing(false);
+                    }
+                  }}
+                  autoFocus
+                  rows={Math.min(4, editDraft.split("\n").length)}
+                  className={cn(
+                    "w-56 max-w-full resize-none rounded-md bg-black/20 px-2 py-1 text-sm",
+                    "focus:outline-none focus:ring-1 focus:ring-ring/60",
+                    isOwn ? "text-primary-foreground" : "text-foreground"
+                  )}
+                />
+              ) : (
+                message.content && (
+                  <p className="text-sm whitespace-pre-wrap break-words">
+                    {message.content}
+                  </p>
+                )
               )}
               {message.content && (() => {
                 const previewUrl = extractFirstUrl(message.content);
@@ -342,7 +453,7 @@ export function MessageBubble({
                     : "text-muted-foreground/60"
                 )}
               >
-                {time}
+                {isEdited ? `${time} (edited)` : time}
               </p>
             </div>
           </div>
@@ -355,6 +466,15 @@ export function MessageBubble({
                   title="Reply"
                 >
                   <Reply className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {canForward && (
+                <button
+                  onClick={() => onForward?.(message)}
+                  className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                  title="Forward message"
+                >
+                  <Forward className="h-3.5 w-3.5" />
                 </button>
               )}
               <MessageReactionPicker

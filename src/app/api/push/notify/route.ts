@@ -269,6 +269,23 @@ export async function POST(req: Request) {
     }
   }
 
+  // Message notifications carry the conversation id in entity_id (the
+  // trigger in 20260501030000 inserts entity_type 'conversation'). The
+  // trigger already skips muted members at insert time; this check also
+  // covers rows created by older trigger versions and a member who muted
+  // between insert and webhook delivery.
+  if (record.type === "message" && record.entity_id) {
+    const { data: membership } = await admin
+      .from("conversation_members")
+      .select("is_muted")
+      .eq("conversation_id", record.entity_id)
+      .eq("user_id", record.user_id)
+      .maybeSingle();
+    if (membership?.is_muted) {
+      return NextResponse.json({ ok: true, skipped: "conversation muted" });
+    }
+  }
+
   // Quiet hours suppress push delivery only; the in-app notification row
   // already exists. Checked before the budget so a suppressed push does not
   // burn the weekly ambient allowance.

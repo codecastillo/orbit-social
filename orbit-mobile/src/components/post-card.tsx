@@ -245,6 +245,7 @@ export function PostCard({
   const [liked, setLiked] = useState(isLiked);
   const [likeCount, setLikeCount] = useState(display.like_count);
   const [bookmarked, setBookmarked] = useState(isBookmarked);
+  const [bookmarkCount, setBookmarkCount] = useState(display.bookmark_count);
   const [reposted, setReposted] = useState(isReposted);
   const [repostCount, setRepostCount] = useState(display.repost_count);
   const [userReaction, setUserReaction] = useState(userReactionProp);
@@ -272,6 +273,7 @@ export function PostCard({
     isReposted,
     likeCount: display.like_count,
     repostCount: display.repost_count,
+    bookmarkCount: display.bookmark_count,
     userReaction: userReactionProp,
     reactionCounts: reactionCountsProp,
   });
@@ -292,6 +294,10 @@ export function PostCard({
   if (seed.isBookmarked !== isBookmarked) {
     setSeed((s) => ({ ...s, isBookmarked }));
     setBookmarked(isBookmarked);
+  }
+  if (seed.bookmarkCount !== display.bookmark_count) {
+    setSeed((s) => ({ ...s, bookmarkCount: display.bookmark_count }));
+    setBookmarkCount(display.bookmark_count);
   }
   if (seed.isReposted !== isReposted) {
     setSeed((s) => ({ ...s, isReposted }));
@@ -373,8 +379,10 @@ export function PostCard({
   const handleBookmark = () => {
     const wasBookmarked = bookmarked;
     setBookmarked(!wasBookmarked);
+    setBookmarkCount((n) => Math.max(0, n + (wasBookmarked ? -1 : 1)));
     toggleBookmark(currentUserId, display.id, wasBookmarked).catch(() => {
       setBookmarked(wasBookmarked);
+      setBookmarkCount((n) => Math.max(0, n + (wasBookmarked ? 1 : -1)));
     });
   };
 
@@ -789,9 +797,17 @@ export function PostCard({
               color={liked ? colors.primary : colors.foreground}
             />
           </Animated.View>
+          {!detail && likeCount > 0 ? (
+            <Text style={styles.actionCount}>{formatNumber(likeCount)}</Text>
+          ) : null}
         </Pressable>
         <Pressable onPress={onReplyPress ?? openDetail} style={styles.action} hitSlop={8}>
           <Ionicons name="chatbubble-outline" size={21} color={colors.foreground} />
+          {!detail && display.comment_count > 0 ? (
+            <Text style={styles.actionCount}>
+              {formatNumber(display.comment_count)}
+            </Text>
+          ) : null}
         </Pressable>
         <Pressable onPress={handleRepost} style={styles.action} hitSlop={8}>
           <Ionicons
@@ -799,6 +815,9 @@ export function PostCard({
             size={22}
             color={reposted ? colors.success : colors.foreground}
           />
+          {!detail && repostCount > 0 ? (
+            <Text style={styles.actionCount}>{formatNumber(repostCount)}</Text>
+          ) : null}
         </Pressable>
         <Pressable onPress={handleShare} style={styles.action} hitSlop={8}>
           <Ionicons name="share-outline" size={21} color={colors.foreground} />
@@ -809,20 +828,12 @@ export function PostCard({
             size={21}
             color={bookmarked ? colors.primary : colors.foreground}
           />
+          {!detail && bookmarkCount > 0 ? (
+            <Text style={styles.actionCount}>{formatNumber(bookmarkCount)}</Text>
+          ) : null}
         </Pressable>
       </View>
 
-      {!detail && (likeCount > 0 || repostCount > 0) ? (
-        <Text style={styles.summaryLine}>
-          {likeCount > 0
-            ? `${formatNumber(likeCount)} ${likeCount === 1 ? "like" : "likes"}`
-            : ""}
-          {likeCount > 0 && repostCount > 0 ? "  ·  " : ""}
-          {repostCount > 0
-            ? `${formatNumber(repostCount)} ${repostCount === 1 ? "repost" : "reposts"}`
-            : ""}
-        </Text>
-      ) : null}
       {!detail && display.comment_count > 0 ? (
         <Pressable onPress={onReplyPress ?? openDetail} hitSlop={4}>
           <Text style={styles.viewComments}>
@@ -1054,11 +1065,10 @@ const styles = StyleSheet.create({
   actionBookmark: {
     marginLeft: "auto",
   },
-  summaryLine: {
+  actionCount: {
     color: colors.foreground,
     fontSize: 13,
-    fontWeight: "700",
-    marginTop: spacing(2),
+    fontWeight: "600",
     fontVariant: ["tabular-nums"],
   },
   viewComments: {

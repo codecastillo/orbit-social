@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Volume2, VolumeX, Play, ChevronUp, ChevronDown, Repeat } from "lucide-react";
+import { Volume2, VolumeX, Play, ChevronUp, ChevronDown, Eye, Repeat } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatNumber, formatTimeAgo } from "@/lib/utils/format";
@@ -29,6 +29,10 @@ interface ClipPlayerProps {
 // remainder goes out on unmount. Matches the RPC's per-call clamp intent.
 const LOOP_FLUSH_BATCH = 5;
 
+// Once per clip per browser session, same pattern as post-detail: strict-mode
+// double effects and back-and-forth scrolling must not count a viewer twice.
+const viewedClipIds = new Set<string>();
+
 export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
   const { user } = useAuth();
   const requireAuth = useRequireAuth();
@@ -51,19 +55,10 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
   // Loop counting: the <video loop> attribute never fires "ended", so we
   // detect the wrap-around on timeupdate (currentTime jumps back to ~0
   // from near the end). Loops accumulate in a ref and flush in batches.
+  // Views headline the overlay now, but loops keep counting in the
+  // background: Best Loops curation and ranking depend on them.
   const lastTimeRef = useRef(0);
   const pendingLoopsRef = useRef(0);
-  const [shownLoops, setShownLoops] = useState(clip.loop_count ?? 0);
-
-  // Render-time adjustment: adopt the server count only when it grows,
-  // so a realtime refetch that lands mid-batch never yanks the displayed
-  // number backwards.
-  const serverLoops = clip.loop_count ?? 0;
-  const [prevServerLoops, setPrevServerLoops] = useState(serverLoops);
-  if (serverLoops !== prevServerLoops) {
-    setPrevServerLoops(serverLoops);
-    setShownLoops((prev) => Math.max(prev, serverLoops));
-  }
 
   const flushLoops = useCallback(() => {
     const loops = pendingLoopsRef.current;
@@ -97,6 +92,16 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
         if (entry.isIntersecting) {
           video.play().catch(() => {});
           setIsPlaying(true);
+          // Fire-and-forget view count the first time this clip starts
+          // playing, mirroring post-detail.
+          if (!viewedClipIds.has(clip.id)) {
+            viewedClipIds.add(clip.id);
+            void createClient()
+              .rpc("increment_post_views", { p_post_id: clip.id })
+              .then(({ error }) => {
+                if (error) console.error("increment_post_views failed", error);
+              });
+          }
         } else {
           video.pause();
           setIsPlaying(false);
@@ -119,7 +124,6 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
         lastTimeRef.current > Math.max(video.duration - 1.5, t)
       ) {
         pendingLoopsRef.current += 1;
-        setShownLoops((n) => n + 1);
         if (pendingLoopsRef.current >= LOOP_FLUSH_BATCH) flushLoops();
       }
       lastTimeRef.current = t;
@@ -132,7 +136,7 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
       // Send the sub-batch remainder when the clip scrolls away/unmounts.
       flushLoops();
     };
-  }, [flushLoops]);
+  }, [flushLoops, clip.id]);
 
   // Realtime: react to count changes (like/comment/share) on this clip
   // and to new replies under this clip without requiring a refresh.
@@ -382,14 +386,14 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
         className="absolute bottom-0 left-0 right-20 px-5 pb-7 pt-10"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Headline metric: completed loops, the number this surface is about */}
+        {/* Headline metric: views, TikTok-style reach number */}
         <div className="mb-2.5 flex items-center gap-1.5 text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
-          <Repeat className="h-[15px] w-[15px]" strokeWidth={2.4} />
+          <Eye className="h-[15px] w-[15px]" strokeWidth={2.4} />
           <span className="text-[15px] font-bold tabular-nums tracking-[-0.01em]">
-            {formatNumber(shownLoops)}
+            {formatNumber(clip.view_count ?? 0)}
           </span>
           <span className="text-[11px] font-semibold text-white/60">
-            {shownLoops === 1 ? "loop" : "loops"}
+            {(clip.view_count ?? 0) === 1 ? "view" : "views"}
           </span>
         </div>
         <div className="flex items-center gap-3 mb-3">

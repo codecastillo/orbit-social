@@ -38,6 +38,9 @@ export interface StoryWithAuthor {
   duration_seconds: number;
   interactive_data: StoryInteractiveData | null;
   text_overlay: StoryTextOverlay | null;
+  // Set by getActiveStories so the strip can lead with the first unseen
+  // moment as a card face. Not a table column.
+  viewed?: boolean;
   visibility: string;
   view_count: number;
   expires_at: string;
@@ -140,8 +143,9 @@ export async function getActiveStories(userId: string): Promise<StoryGroup[]> {
       group = { user: story.profiles, stories: [], hasUnviewed: false };
       groupMap.set(story.user_id, group);
     }
+    story.viewed = viewedIds.has(story.id);
     group.stories.push(story);
-    if (!viewedIds.has(story.id)) {
+    if (!story.viewed) {
       group.hasUnviewed = true;
     }
   }
@@ -244,7 +248,7 @@ export async function sendStoryReaction(
     throw new Error("start_dm_conversation returned no conversation id");
   }
 
-  await sendMessage(conversationId, reactorId, `Reacted ${emoji} to your story`);
+  await sendMessage(conversationId, reactorId, `Reacted ${emoji} to your moment`);
 
   const { error } = await supabase.from("notifications").insert({
     user_id: story.user_id,

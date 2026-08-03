@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -90,6 +90,96 @@ function ReplyRow({ reply, userId }: { reply: Post; userId: string }) {
 }
 
 /**
+ * A top-level comment plus its one level of nested replies, mirroring the
+ * post-detail CommentThread compactly (PostCard is too heavy for the sheet):
+ * a Reply action that targets the sheet composer, and a "View N replies"
+ * lazy expander. Nesting stops at one level, same as post detail.
+ */
+function CommentRow({
+  comment,
+  userId,
+  onStartReply,
+  expandSignal,
+}: {
+  comment: Post;
+  userId: string;
+  onStartReply: (comment: Post) => void;
+  // Id of the comment the sheet just posted a reply under, so the thread
+  // opens itself and the fresh reply is visible without another tap.
+  expandSignal: string | null;
+}) {
+  const [showReplies, setShowReplies] = useState(false);
+
+  // Render-time adjust instead of an effect, same pattern as comment-thread.
+  const [seenSignal, setSeenSignal] = useState(expandSignal);
+  if (seenSignal !== expandSignal) {
+    setSeenSignal(expandSignal);
+    if (expandSignal === comment.id) setShowReplies(true);
+  }
+
+  const filterComments = useCommentFilter();
+
+  const repliesQuery = useQuery({
+    queryKey: ["comment-replies", comment.id],
+    queryFn: () => getReplies(comment.id),
+    enabled: showReplies,
+    // Muted words and restricted authors drop out at the hook layer.
+    select: filterComments,
+  });
+
+  const replyCount = comment.comment_count;
+
+  return (
+    <View>
+      <ReplyRow reply={comment} userId={userId} />
+      <View style={styles.commentActions}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Reply to ${comment.profiles.username}`}
+          onPress={() => onStartReply(comment)}
+          hitSlop={8}
+          style={({ pressed }) => [styles.replyAction, pressed && { opacity: 0.7 }]}
+        >
+          <Ionicons
+            name="arrow-undo-outline"
+            size={13}
+            color={colors.mutedForeground}
+          />
+          <Text style={styles.replyActionLabel}>Reply</Text>
+        </Pressable>
+        {replyCount > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setShowReplies((v) => !v)}
+            hitSlop={8}
+            style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+          >
+            <Text style={styles.viewReplies}>
+              {showReplies
+                ? "Hide replies"
+                : `View ${replyCount === 1 ? "1 reply" : `${formatNumber(replyCount)} replies`}`}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {showReplies ? (
+        <View style={styles.nestedList}>
+          {repliesQuery.isPending ? (
+            <ActivityIndicator style={styles.nestedLoading} color={colors.primary} />
+          ) : null}
+          {repliesQuery.isSuccess && repliesQuery.data.length === 0 ? (
+            <Text style={styles.nestedEmpty}>No replies yet.</Text>
+          ) : null}
+          {(repliesQuery.data ?? []).map((reply) => (
+            <ReplyRow key={reply.id} reply={reply} userId={userId} />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/**
  * Comment overlay for the clips feed: the clip keeps playing underneath while
  * replies load in a slide-up panel. The backdrop fades in place and the panel
  * slides independently; Modal animationType="slide" would lift the dim layer
@@ -117,6 +207,11 @@ export function ClipCommentsSheet({
   const [slide] = useState(() => new Animated.Value(height));
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [draft, setDraft] = useState("");
+  // The comment being replied to, or null for a comment on the clip itself.
+  const [replyTarget, setReplyTarget] = useState<Post | null>(null);
+  // Last comment a reply landed under; its thread auto-opens to show it.
+  const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
+  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
@@ -130,6 +225,18 @@ export function ClipCommentsSheet({
       onHide.remove();
     };
   }, []);
+
+  // The reply target dies with the sheet; a stale one would silently
+  // retarget the next comment. Adjusted during render (the React-endorsed
+  // pattern) rather than in the animation effect below.
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (wasVisible !== visible) {
+    setWasVisible(visible);
+    if (!visible) {
+      setReplyTarget(null);
+      setExpandedCommentId(null);
+    }
+  }
 
   useEffect(() => {
     if (!visible) {
@@ -181,9 +288,15 @@ export function ClipCommentsSheet({
   });
 
   const sendMutation = useMutation({
-    mutationFn: (content: string) =>
-      createPost(userId, content, { replyToId: clipId }),
-    onMutate: (content) => {
+    mutationFn: ({ content, replyToId }: { content: string; replyToId: string }) =>
+      createPost(userId, content, { replyToId }),
+    onMutate: ({ content, replyToId }) => {
+      // The clip's comment_count covers the whole reply subtree, so nested
+      // replies bump the sheet count too.
+      onCountChange(1);
+      // Optimistic insert only for top-level comments; a nested reply lands
+      // via invalidation since its thread list may not be mounted yet.
+      if (replyToId !== clipId) return { tempId: null };
       const profile = profileQuery.data;
       const tempId = `pending-${Date.now()}`;
       const optimistic: Post = {
@@ -225,19 +338,27 @@ export function ClipCommentsSheet({
         ...(prev ?? []),
         optimistic,
       ]);
-      onCountChange(1);
       return { tempId };
     },
-    onSuccess: (created, _content, context) => {
-      queryClient.setQueryData<Post[]>(["clip-replies", clipId], (prev) =>
-        (prev ?? []).map((r) => (r.id === context.tempId ? created : r)),
-      );
+    onSuccess: (created, vars, context) => {
+      if (context.tempId) {
+        queryClient.setQueryData<Post[]>(["clip-replies", clipId], (prev) =>
+          (prev ?? []).map((r) => (r.id === context.tempId ? created : r)),
+        );
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["comment-replies", vars.replyToId] });
+      // Top-level rows carry the reply counts the expanders show.
+      queryClient.invalidateQueries({ queryKey: ["clip-replies", clipId] });
+      setExpandedCommentId(vars.replyToId);
     },
-    onError: (_err, _content, context) => {
-      queryClient.setQueryData<Post[]>(["clip-replies", clipId], (prev) =>
-        (prev ?? []).filter((r) => r.id !== context?.tempId),
-      );
+    onError: (_err, _vars, context) => {
       onCountChange(-1);
+      if (context?.tempId) {
+        queryClient.setQueryData<Post[]>(["clip-replies", clipId], (prev) =>
+          (prev ?? []).filter((r) => r.id !== context.tempId),
+        );
+      }
     },
   });
 
@@ -245,7 +366,8 @@ export function ClipCommentsSheet({
     const content = draft.trim();
     if (!content || sendMutation.isPending) return;
     setDraft("");
-    sendMutation.mutate(content);
+    sendMutation.mutate({ content, replyToId: replyTarget?.id ?? clipId });
+    setReplyTarget(null);
   };
 
   const canSend = draft.trim().length > 0 && !sendMutation.isPending;
@@ -322,7 +444,17 @@ export function ClipCommentsSheet({
             data={repliesQuery.data}
             keyExtractor={(reply) => reply.id}
             keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => <ReplyRow reply={item} userId={userId} />}
+            renderItem={({ item }) => (
+              <CommentRow
+                comment={item}
+                userId={userId}
+                expandSignal={expandedCommentId}
+                onStartReply={(comment) => {
+                  setReplyTarget(comment);
+                  inputRef.current?.focus();
+                }}
+              />
+            )}
             ListEmptyComponent={
               <View style={styles.stateWrap}>
                 <Text style={styles.emptyTitle}>No comments yet</Text>
@@ -336,11 +468,32 @@ export function ClipCommentsSheet({
           />
         )}
 
+        {replyTarget ? (
+          <View style={styles.replyContext}>
+            <Text style={styles.replyContextText} numberOfLines={1}>
+              Replying to @{replyTarget.profiles.username}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel reply"
+              onPress={() => setReplyTarget(null)}
+              hitSlop={8}
+              style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+            >
+              <Ionicons name="close" size={16} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+        ) : null}
         <View style={styles.composer}>
           <TextInput
+            ref={inputRef}
             value={draft}
             onChangeText={setDraft}
-            placeholder="Add a comment"
+            placeholder={
+              replyTarget
+                ? `Reply to @${replyTarget.profiles.username}`
+                : "Add a comment"
+            }
             placeholderTextColor={colors.textFaint}
             multiline
             maxLength={MAX_COMMENT_LENGTH}
@@ -456,6 +609,59 @@ const styles = StyleSheet.create({
     color: colors.mutedForeground,
     fontSize: 11,
     marginTop: 2,
+  },
+  // Left inset lines the actions and nested rows up with the comment's body
+  // text (32px avatar + row gap).
+  commentActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(4),
+    paddingLeft: spacing(10.5),
+    paddingBottom: spacing(2),
+  },
+  replyAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(1),
+  },
+  replyActionLabel: {
+    color: colors.mutedForeground,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  viewReplies: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  nestedList: {
+    marginLeft: spacing(10.5),
+    paddingLeft: spacing(3),
+    borderLeftWidth: 2,
+    borderLeftColor: colors.border,
+    marginBottom: spacing(2),
+  },
+  nestedLoading: {
+    paddingVertical: spacing(2),
+  },
+  nestedEmpty: {
+    color: colors.mutedForeground,
+    fontSize: 12.5,
+    paddingVertical: spacing(2),
+  },
+  replyContext: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing(2),
+    paddingVertical: spacing(2),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  replyContextText: {
+    color: colors.mutedForeground,
+    fontSize: 12.5,
+    flexShrink: 1,
   },
   stateWrap: {
     flexGrow: 1,

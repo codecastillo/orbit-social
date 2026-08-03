@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -32,6 +32,11 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
+  // The comment being replied to, or null for a comment on the clip itself.
+  const [replyTarget, setReplyTarget] = useState<PostWithAuthor | null>(null);
+  // Last comment a reply landed under; its thread auto-opens to show it.
+  const [expandSignal, setExpandSignal] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const filterComments = useCommentFilter();
 
@@ -102,7 +107,22 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
     if (!text) return;
     setPosting(true);
     try {
-      await createPost(user.id, { content: text }, [], { replyToId: postId });
+      if (replyTarget) {
+        await createPost(
+          user.id,
+          { content: text },
+          [],
+          { replyToId: replyTarget.id, parentPostId: postId },
+        );
+        // Open the target's thread so the fresh reply is visible.
+        setExpandSignal(replyTarget.id);
+        setReplyTarget(null);
+        queryClient.invalidateQueries({
+          queryKey: ["comment-replies", replyTarget.id],
+        });
+      } else {
+        await createPost(user.id, { content: text }, [], { replyToId: postId });
+      }
       setDraft("");
       queryClient.invalidateQueries({ queryKey: ["clip-comments", postId] });
       queryClient.invalidateQueries({ queryKey: ["clips"] });
@@ -159,17 +179,36 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
               <CommentRow
                 key={c.id}
                 comment={c}
-                postId={postId}
                 onClose={onClose}
                 initialLiked={likedSet?.has(c.id) ?? false}
+                expandSignal={expandSignal}
+                onStartReply={(comment) => {
+                  setReplyTarget(comment);
+                  inputRef.current?.focus();
+                }}
               />
             ))}
           </div>
         )}
       </div>
 
+      {replyTarget && (
+        <div className="flex items-center justify-between gap-2 px-4 py-1.5 shrink-0 border-t border-border text-[11.5px] text-muted-foreground">
+          <span className="truncate">
+            Replying to @{replyTarget.profiles.username}
+          </span>
+          <button
+            onClick={() => setReplyTarget(null)}
+            aria-label="Cancel reply"
+            className="grid h-5 w-5 shrink-0 cursor-pointer place-items-center rounded-full text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
       <div className="px-4 py-3 flex items-center gap-2 shrink-0 border-t border-border">
         <input
+          ref={inputRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -178,7 +217,11 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
               handleSend();
             }
           }}
-          placeholder="Add comment…"
+          placeholder={
+            replyTarget
+              ? `Reply to @${replyTarget.profiles.username}…`
+              : "Add comment…"
+          }
           disabled={!user || posting}
           className="flex-1 rounded-lg border border-input bg-background px-3.5 py-2 text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
         />
@@ -201,24 +244,24 @@ export function ClipCommentsSheet({ postId, onClose }: Props) {
 
 function CommentRow({
   comment,
-  postId,
   onClose,
   initialLiked,
+  expandSignal,
+  onStartReply,
 }: {
   comment: PostWithAuthor;
-  postId: string;
   onClose: () => void;
   initialLiked: boolean;
+  // Id of the comment the sheet just posted a reply under, so the thread
+  // opens itself and the fresh reply is visible without another click.
+  expandSignal: string | null;
+  onStartReply: (comment: PostWithAuthor) => void;
 }) {
   const { user } = useAuth();
   const requireAuth = useRequireAuth();
-  const queryClient = useQueryClient();
   const [liked, setLiked] = useState(initialLiked);
   const [likeCount, setLikeCount] = useState(comment.like_count ?? 0);
   const [repliesOpen, setRepliesOpen] = useState(false);
-  const [replying, setReplying] = useState(false);
-  const [replyDraft, setReplyDraft] = useState("");
-  const [sendingReply, setSendingReply] = useState(false);
 
   // Re-seed local state when the parent's authoritative values change
   // (realtime CDC on post_likes refetches the comments list, which
@@ -231,6 +274,15 @@ function CommentRow({
   useEffect(() => {
     setLiked(initialLiked);
   }, [initialLiked]);
+
+  // Render-time adjust: when the sheet reports a reply landed under this
+  // comment, the thread opens so the fresh reply is visible (the reply
+  // itself arrives via the comment-replies invalidation).
+  const [seenSignal, setSeenSignal] = useState(expandSignal);
+  if (seenSignal !== expandSignal) {
+    setSeenSignal(expandSignal);
+    if (expandSignal === comment.id) setRepliesOpen(true);
+  }
 
   const filterComments = useCommentFilter();
 
@@ -271,33 +323,6 @@ function CommentRow({
     }
   };
 
-  const handleReplySend = async () => {
-    if (!requireAuth() || !user) return;
-    const text = replyDraft.trim();
-    if (!text) return;
-    setSendingReply(true);
-    try {
-      await createPost(
-        user.id,
-        { content: text },
-        [],
-        { replyToId: comment.id, parentPostId: postId },
-      );
-      setReplyDraft("");
-      setReplying(false);
-      setRepliesOpen(true);
-      queryClient.invalidateQueries({
-        queryKey: ["comment-replies", comment.id],
-      });
-      queryClient.invalidateQueries({ queryKey: ["clip-comments", postId] });
-    } catch (err) {
-      console.error("Reply failed:", err);
-      toast.error("Couldn't send reply");
-    } finally {
-      setSendingReply(false);
-    }
-  };
-
   return (
     <div className="flex items-start gap-2.5">
       <Link href={`/${comment.profiles.username}`} onClick={onClose}>
@@ -326,7 +351,7 @@ function CommentRow({
         </p>
         <div className="flex items-center gap-4 mt-1.5">
           <button
-            onClick={() => setReplying((r) => !r)}
+            onClick={() => onStartReply(comment)}
             className="cursor-pointer text-[11px] text-muted-foreground"
           >
             Reply
@@ -351,38 +376,6 @@ function CommentRow({
             )}
           </button>
         </div>
-
-        {replying && (
-          <div
-            className="mt-2 flex items-center gap-2"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleReplySend();
-              }
-            }}
-          >
-            <input
-              value={replyDraft}
-              onChange={(e) => setReplyDraft(e.target.value)}
-              placeholder={`Reply to ${comment.profiles.username}…`}
-              autoFocus
-              disabled={sendingReply}
-              className="flex-1 rounded-lg border border-input bg-background px-3 py-1.5 text-[12.5px] text-foreground outline-none placeholder:text-muted-foreground"
-            />
-            <button
-              onClick={handleReplySend}
-              disabled={sendingReply || !replyDraft.trim()}
-              className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${
-                replyDraft.trim()
-                  ? "cursor-pointer bg-primary text-primary-foreground"
-                  : "bg-surface text-muted-foreground"
-              } ${sendingReply ? "opacity-60" : ""}`}
-            >
-              Send
-            </button>
-          </div>
-        )}
 
         {replyCount > 0 && (
           <button

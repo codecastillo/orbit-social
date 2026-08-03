@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "@/lib/supabase";
 
 export interface ConversationWithPreview {
@@ -24,6 +25,8 @@ export interface ConversationWithPreview {
   unread: boolean;
 }
 
+export type MessageMediaType = "image" | "video" | "gif";
+
 export interface Message {
   id: string;
   conversation_id: string;
@@ -33,6 +36,9 @@ export interface Message {
   media_type: string | null;
   reply_to_id: string | null;
   is_deleted: boolean;
+  is_pinned: boolean;
+  // Ships in a later migration; absent rows simply never show "(edited)".
+  updated_at?: string | null;
   created_at: string;
   sender?: {
     id: string;
@@ -54,13 +60,43 @@ const MESSAGE_SELECT = `
 export async function getConversations(
   userId: string,
 ): Promise<ConversationWithPreview[]> {
-  const { data: memberships, error: memberError } = await supabase
+  // hidden_at ships in a later migration (see closeConversation); until it
+  // lands, the select degrades and close timestamps come from AsyncStorage.
+  const hiddenByConv = new Map<string, string>();
+  let memberships: { conversation_id: string; last_read_at: string | null }[];
+
+  const withHidden = await supabase
     .from("conversation_members")
-    .select("conversation_id, last_read_at")
+    .select("conversation_id, last_read_at, hidden_at")
     .eq("user_id", userId);
 
-  if (memberError) throw memberError;
-  if (!memberships || memberships.length === 0) return [];
+  if (!withHidden.error) {
+    memberships = withHidden.data ?? [];
+    for (const m of withHidden.data ?? []) {
+      if (m.hidden_at) hiddenByConv.set(m.conversation_id, m.hidden_at);
+    }
+  } else if (isMissingHiddenAtColumn(withHidden.error)) {
+    const { data, error: memberError } = await supabase
+      .from("conversation_members")
+      .select("conversation_id, last_read_at")
+      .eq("user_id", userId);
+    if (memberError) throw memberError;
+    memberships = data ?? [];
+    if (memberships.length > 0) {
+      const entries = await AsyncStorage.multiGet(
+        memberships.map((m) => hiddenConversationKey(userId, m.conversation_id)),
+      );
+      // multiGet returns values in request order, so index i maps back to
+      // memberships[i].
+      entries.forEach(([, hiddenAt], i) => {
+        if (hiddenAt) hiddenByConv.set(memberships[i].conversation_id, hiddenAt);
+      });
+    }
+  } else {
+    throw withHidden.error;
+  }
+
+  if (memberships.length === 0) return [];
 
   const conversationIds = memberships.map((m) => m.conversation_id);
   const membershipByConv = new Map(
@@ -83,9 +119,19 @@ export async function getConversations(
   if (convError) throw convError;
   if (!conversations) return [];
 
+  // A closed conversation stays hidden until something newer than the close
+  // arrives: last_message_at moving past hidden_at resurfaces it.
+  const visible = conversations.filter((conv) => {
+    const hiddenAt = hiddenByConv.get(conv.id);
+    return (
+      !hiddenAt ||
+      new Date(conv.last_message_at).getTime() > new Date(hiddenAt).getTime()
+    );
+  });
+
   // Batch the DM counterpart lookups: all other members in one query,
   // their profiles in a second.
-  const dmIds = conversations.filter((c) => !c.is_group).map((c) => c.id);
+  const dmIds = visible.filter((c) => !c.is_group).map((c) => c.id);
   const otherMemberByConv = new Map<string, string>();
   const profileById = new Map<
     string,
@@ -115,7 +161,7 @@ export async function getConversations(
     }
   }
 
-  return conversations.map((conv) => {
+  return visible.map((conv) => {
     const { last_messages, ...rest } = conv;
     const membership = membershipByConv.get(conv.id);
     const lastMessage = last_messages?.[0] ?? null;
@@ -170,18 +216,35 @@ export async function getMessageById(
   return (data as unknown as Message) ?? null;
 }
 
+// The extensions the web client recognizes as audio in message-bubble.tsx.
+const AUDIO_EXTENSIONS = [".webm", ".mp3", ".ogg", ".m4a", ".wav"];
+
 export async function sendMessage(
   conversationId: string,
   senderId: string,
   content: string,
+  mediaUrl?: string,
+  mediaType?: MessageMediaType,
   replyToId?: string,
 ): Promise<Message> {
+  // Same fallback as the web sendMessage: audio extensions store as "video"
+  // because the media_type enum only knows image/video/gif.
+  let resolvedMediaType: MessageMediaType | null = mediaType ?? null;
+  if (mediaUrl && !resolvedMediaType) {
+    const lower = mediaUrl.toLowerCase();
+    resolvedMediaType = AUDIO_EXTENSIONS.some((ext) => lower.endsWith(ext))
+      ? "video"
+      : "image";
+  }
+
   const { data: message, error: msgError } = await supabase
     .from("messages")
     .insert({
       conversation_id: conversationId,
       sender_id: senderId,
       content,
+      media_url: mediaUrl ?? null,
+      media_type: resolvedMediaType,
       reply_to_id: replyToId ?? null,
     })
     .select(MESSAGE_SELECT)
@@ -198,9 +261,6 @@ export async function sendMessage(
 
   return message as unknown as Message;
 }
-
-// The extensions the web client recognizes as audio in message-bubble.tsx.
-const AUDIO_EXTENSIONS = [".webm", ".mp3", ".ogg", ".m4a", ".wav"];
 
 /**
  * The playable URL when a message is a voice clip, else null. Mirrors the web
@@ -248,6 +308,129 @@ export async function sendVoiceMessage(
     .from("message-media")
     .getPublicUrl(path).data;
   return sendMessage(conversationId, senderId, `[audio] ${publicUrl}`);
+}
+
+/**
+ * Upload a picked image or video into the message-media bucket, using the
+ * same {userId}/{timestamp}.{ext} path convention as the voice upload above.
+ * Returns the public URL to store on the message row.
+ */
+export async function uploadMessageMedia(
+  userId: string,
+  localUri: string,
+  mimeType: string,
+): Promise<string> {
+  const ext = mimeType.split("/")[1] ?? "jpg";
+  const path = `${userId}/${Date.now()}_media.${ext}`;
+  const body = await fetch(localUri).then((response) => response.arrayBuffer());
+  const { error } = await supabase.storage
+    .from("message-media")
+    .upload(path, body, { contentType: mimeType });
+  if (error) throw error;
+
+  return supabase.storage.from("message-media").getPublicUrl(path).data
+    .publicUrl;
+}
+
+/** Soft delete, same as the web deleteMessage: the row stays for both sides. */
+export async function deleteMessage(messageId: string): Promise<void> {
+  const { error } = await supabase
+    .from("messages")
+    .update({ is_deleted: true })
+    .eq("id", messageId);
+
+  if (error) throw error;
+}
+
+/**
+ * Rewrite a message's content. updated_at ships in a later migration; until
+ * it lands the edit still applies, it just cannot carry the edited marker.
+ */
+export async function editMessage(
+  messageId: string,
+  content: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("messages")
+    .update({ content, updated_at: new Date().toISOString() })
+    .eq("id", messageId);
+
+  if (!error) return;
+  if (
+    error.code !== MISSING_COLUMN_CODE &&
+    !(error.message ?? "").includes("updated_at")
+  ) {
+    throw error;
+  }
+
+  const { error: retryError } = await supabase
+    .from("messages")
+    .update({ content })
+    .eq("id", messageId);
+  if (retryError) throw retryError;
+}
+
+// ── Message pinning ─────────────────────────────────────────────────
+
+export async function pinMessage(messageId: string): Promise<void> {
+  const { error } = await supabase
+    .from("messages")
+    .update({ is_pinned: true })
+    .eq("id", messageId);
+
+  if (error) throw error;
+}
+
+export async function unpinMessage(messageId: string): Promise<void> {
+  const { error } = await supabase
+    .from("messages")
+    .update({ is_pinned: false })
+    .eq("id", messageId);
+
+  if (error) throw error;
+}
+
+export async function getPinnedMessages(
+  conversationId: string,
+): Promise<Message[]> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select(MESSAGE_SELECT)
+    .eq("conversation_id", conversationId)
+    .eq("is_pinned", true)
+    .eq("is_deleted", false)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as unknown as Message[];
+}
+
+/**
+ * Page of this conversation's media messages, newest first, for the gallery.
+ * Voice clips share the bucket but not the gallery; callers skip anything
+ * voiceMessageUrl recognizes.
+ */
+export async function getMediaMessages(
+  conversationId: string,
+  cursor?: string,
+  limit = MESSAGE_PAGE_SIZE,
+): Promise<Message[]> {
+  let query = supabase
+    .from("messages")
+    .select(MESSAGE_SELECT)
+    .eq("conversation_id", conversationId)
+    .not("media_url", "is", null)
+    .eq("is_deleted", false)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (cursor) {
+    query = query.lt("created_at", cursor);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as unknown as Message[];
 }
 
 // The web's MESSAGE_REACTIONS set (message-reaction-picker.tsx), copied
@@ -348,6 +531,55 @@ export async function markConversationRead(
   if (error) throw error;
 }
 
+// ── Closing conversations ───────────────────────────────────────────
+
+// conversation_members.hidden_at ships in a later migration; until it
+// lands, the close timestamp lives in AsyncStorage under this key and
+// getConversations filters against it client-side.
+function hiddenConversationKey(userId: string, conversationId: string) {
+  return `conversation-hidden:${userId}:${conversationId}`;
+}
+
+function isMissingHiddenAtColumn(error: {
+  code?: string;
+  message?: string;
+}): boolean {
+  return (
+    error.code === MISSING_COLUMN_CODE ||
+    (error.message ?? "").includes("hidden_at")
+  );
+}
+
+/**
+ * Hide a conversation from the viewer's list until a new message arrives.
+ * Archive semantics: the membership row stays, only the list filters it.
+ */
+export async function closeConversation(
+  conversationId: string,
+  userId: string,
+): Promise<void> {
+  const hiddenAt = new Date().toISOString();
+  const { error } = await supabase
+    .from("conversation_members")
+    .update({ hidden_at: hiddenAt })
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+
+  if (!error) {
+    // The column is authoritative once it exists; drop any shim entry so a
+    // stale local timestamp can't re-hide a resurfaced conversation.
+    await AsyncStorage.removeItem(
+      hiddenConversationKey(userId, conversationId),
+    ).catch(() => {});
+    return;
+  }
+  if (!isMissingHiddenAtColumn(error)) throw error;
+  await AsyncStorage.setItem(
+    hiddenConversationKey(userId, conversationId),
+    hiddenAt,
+  );
+}
+
 // ── Read receipts ───────────────────────────────────────────────────
 
 // The read_receipts_enabled column ships in a later migration; until it
@@ -434,4 +666,228 @@ export async function getDmSeenAt(
   if (restriction) return null;
 
   return other.last_read_at;
+}
+
+// ── Group conversations ─────────────────────────────────────────────
+// Mirrors the web's group functions in src/lib/queries/messages.ts so group
+// rows are interchangeable across clients.
+
+export interface ConversationInfo {
+  id: string;
+  is_group: boolean;
+  name: string | null;
+  avatar_url: string | null;
+  created_by: string;
+}
+
+export interface GroupMember {
+  user_id: string;
+  role: string;
+  joined_at: string;
+  profiles: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+  } | null;
+}
+
+export interface ConversationMembership {
+  role: "member" | "admin";
+  is_muted: boolean;
+}
+
+export async function createGroupConversation(
+  creatorId: string,
+  name: string,
+  memberIds: string[],
+): Promise<string> {
+  const { data: conv, error: convError } = await supabase
+    .from("conversations")
+    .insert({
+      is_group: true,
+      name,
+      created_by: creatorId,
+      last_message_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (convError) throw convError;
+
+  const allMembers = [
+    { conversation_id: conv.id, user_id: creatorId, role: "admin" },
+    ...memberIds.map((id) => ({
+      conversation_id: conv.id,
+      user_id: id,
+      role: "member" as const,
+    })),
+  ];
+
+  const { error: memberError } = await supabase
+    .from("conversation_members")
+    .insert(allMembers);
+
+  if (memberError) throw memberError;
+
+  return conv.id;
+}
+
+export async function getConversationInfo(
+  conversationId: string,
+): Promise<ConversationInfo | null> {
+  const { data, error } = await supabase
+    .from("conversations")
+    .select("id, is_group, name, avatar_url, created_by")
+    .eq("id", conversationId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as ConversationInfo) ?? null;
+}
+
+export async function getGroupMembers(
+  conversationId: string,
+): Promise<GroupMember[]> {
+  const { data, error } = await supabase
+    .from("conversation_members")
+    .select(
+      `
+      user_id,
+      role,
+      joined_at,
+      profiles:profiles!conversation_members_user_id_fkey (
+        id, username, display_name, avatar_url
+      )
+    `,
+    )
+    .eq("conversation_id", conversationId)
+    .order("joined_at", { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as unknown as GroupMember[];
+}
+
+export async function getConversationMembership(
+  conversationId: string,
+  userId: string,
+): Promise<ConversationMembership | null> {
+  const { data, error } = await supabase
+    .from("conversation_members")
+    .select("role, is_muted")
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    role: data.role === "admin" ? "admin" : "member",
+    is_muted: data.is_muted ?? false,
+  };
+}
+
+export async function addGroupMember(conversationId: string, userId: string) {
+  const { error } = await supabase
+    .from("conversation_members")
+    .insert({ conversation_id: conversationId, user_id: userId, role: "member" });
+
+  if (error) throw error;
+}
+
+export async function removeGroupMember(
+  conversationId: string,
+  userId: string,
+) {
+  const { error } = await supabase
+    .from("conversation_members")
+    .delete()
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
+export async function updateGroupName(conversationId: string, name: string) {
+  const { error } = await supabase
+    .from("conversations")
+    .update({ name })
+    .eq("id", conversationId);
+
+  if (error) throw error;
+}
+
+export async function setConversationMuted(
+  conversationId: string,
+  userId: string,
+  muted: boolean,
+) {
+  const { error } = await supabase
+    .from("conversation_members")
+    .update({ is_muted: muted })
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
+/** Delete the caller's own membership row. RLS allows deleting your own row. */
+export async function leaveConversation(
+  conversationId: string,
+  userId: string,
+) {
+  const { error } = await supabase
+    .from("conversation_members")
+    .delete()
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
+/**
+ * Promote or demote a member. RLS only lets a user UPDATE their own
+ * membership row, while admins may DELETE and INSERT rows, so a role change
+ * is a re-insert of the member with the new role, carrying over their read,
+ * mute, pin, and join state. On insert failure the original row is restored
+ * so the member is never dropped. Same mechanics as the web client.
+ */
+export async function setGroupMemberRole(
+  conversationId: string,
+  userId: string,
+  role: "member" | "admin",
+) {
+  const { data: existing, error: readError } = await supabase
+    .from("conversation_members")
+    .select("role, last_read_at, is_muted, is_pinned, joined_at")
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId)
+    .single();
+
+  if (readError) throw readError;
+  if (existing.role === role) return;
+
+  const { error: deleteError } = await supabase
+    .from("conversation_members")
+    .delete()
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+
+  if (deleteError) throw deleteError;
+
+  const { error: insertError } = await supabase
+    .from("conversation_members")
+    .insert({
+      conversation_id: conversationId,
+      user_id: userId,
+      ...existing,
+      role,
+    });
+
+  if (insertError) {
+    await supabase
+      .from("conversation_members")
+      .insert({ conversation_id: conversationId, user_id: userId, ...existing });
+    throw insertError;
+  }
 }

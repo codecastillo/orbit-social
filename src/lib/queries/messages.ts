@@ -39,6 +39,8 @@ export interface Message {
   is_deleted: boolean;
   is_pinned: boolean;
   created_at: string;
+  /** Set on edit; absent until the updated_at column ships (see editMessage). */
+  updated_at?: string | null;
   sender?: {
     id: string;
     username: string;
@@ -356,6 +358,64 @@ export async function getDmSeenAt(
   return other.last_read_at;
 }
 
+/**
+ * Sender-only content edit. Tries to stamp updated_at so bubbles can show
+ * the "(edited)" marker; the column ships in a later migration, so until it
+ * lands the edit degrades to content-only (same pattern as read receipts).
+ */
+export async function editMessage(messageId: string, content: string) {
+  const { error } = await supabase
+    .from("messages")
+    .update({ content, updated_at: new Date().toISOString() })
+    .eq("id", messageId);
+
+  if (!error) return;
+  const missingColumn =
+    error.code === MISSING_COLUMN_CODE ||
+    (error.message ?? "").includes("updated_at");
+  if (!missingColumn) throw error;
+
+  const { error: retryError } = await supabase
+    .from("messages")
+    .update({ content })
+    .eq("id", messageId);
+  if (retryError) throw retryError;
+}
+
+/**
+ * Media messages for the conversation gallery, newest first. Voice notes
+ * also live in media_url, so callers filter those out at display time.
+ */
+export async function getConversationMedia(
+  conversationId: string,
+  cursor?: string,
+  limit = 30
+): Promise<Message[]> {
+  let query = supabase
+    .from("messages")
+    .select(
+      `
+      *,
+      sender:profiles!messages_sender_id_fkey (
+        id, username, display_name, avatar_url
+      )
+    `
+    )
+    .eq("conversation_id", conversationId)
+    .not("media_url", "is", null)
+    .eq("is_deleted", false)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (cursor) {
+    query = query.lt("created_at", cursor);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data as Message[]) || [];
+}
+
 export async function deleteMessage(messageId: string) {
   const { error } = await supabase
     .from("messages")
@@ -598,4 +658,144 @@ export async function getPinnedMessages(
 
   if (error) throw error;
   return (data as Message[]) || [];
+}
+
+// ── Group Membership: roles, mute, leave, avatar ────────────────────
+
+export interface ConversationMembership {
+  role: "member" | "admin";
+  is_muted: boolean;
+}
+
+export async function getConversationMembership(
+  conversationId: string,
+  userId: string
+): Promise<ConversationMembership | null> {
+  const { data, error } = await supabase
+    .from("conversation_members")
+    .select("role, is_muted")
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    role: data.role === "admin" ? "admin" : "member",
+    is_muted: data.is_muted ?? false,
+  };
+}
+
+export async function setConversationMuted(
+  conversationId: string,
+  userId: string,
+  muted: boolean
+) {
+  const { error } = await supabase
+    .from("conversation_members")
+    .update({ is_muted: muted })
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
+/** Delete the caller's own membership row. RLS allows deleting your own row. */
+export async function leaveConversation(
+  conversationId: string,
+  userId: string
+) {
+  const { error } = await supabase
+    .from("conversation_members")
+    .delete()
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
+/**
+ * Promote or demote a member. RLS only lets a user UPDATE their own
+ * membership row, while admins may DELETE and INSERT rows, so a role change
+ * is a re-insert of the member with the new role, carrying over their read,
+ * mute, pin, and join state. On insert failure the original row is restored
+ * so the member is never dropped.
+ */
+export async function setGroupMemberRole(
+  conversationId: string,
+  userId: string,
+  role: "member" | "admin"
+) {
+  const { data: existing, error: readError } = await supabase
+    .from("conversation_members")
+    .select("role, last_read_at, is_muted, is_pinned, joined_at")
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId)
+    .single();
+
+  if (readError) throw readError;
+  if (existing.role === role) return;
+
+  const { error: deleteError } = await supabase
+    .from("conversation_members")
+    .delete()
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+
+  if (deleteError) throw deleteError;
+
+  const { error: insertError } = await supabase
+    .from("conversation_members")
+    .insert({
+      conversation_id: conversationId,
+      user_id: userId,
+      ...existing,
+      role,
+    });
+
+  if (insertError) {
+    await supabase
+      .from("conversation_members")
+      .insert({ conversation_id: conversationId, user_id: userId, ...existing });
+    throw insertError;
+  }
+}
+
+const GROUP_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const GROUP_AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Upload a group avatar and point the conversation at it. Uses the avatars
+ * bucket with the uploader's id as the first path segment, matching the
+ * storage RLS that gates writes by uid folder (same shape as community
+ * avatars).
+ */
+export async function uploadGroupAvatar(
+  userId: string,
+  conversationId: string,
+  file: File
+): Promise<string> {
+  if (!GROUP_AVATAR_TYPES.includes(file.type)) {
+    throw new Error("File must be JPEG, PNG, WebP, or GIF");
+  }
+  if (file.size > GROUP_AVATAR_MAX_BYTES) {
+    throw new Error("Image must be under 5MB");
+  }
+  const ext = file.name.split(".").pop() || "png";
+  const path = `${userId}/groups/${conversationId}/avatar.${ext}`;
+  const { error } = await supabase.storage
+    .from("avatars")
+    .upload(path, file, { upsert: true });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+  const url = `${data.publicUrl}?t=${Date.now()}`;
+
+  const { error: convError } = await supabase
+    .from("conversations")
+    .update({ avatar_url: url })
+    .eq("id", conversationId);
+  if (convError) throw convError;
+
+  return url;
 }

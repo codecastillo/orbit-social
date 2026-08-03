@@ -18,6 +18,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
+import { AvatarRing, avatarRingInnerSize } from "@/components/avatar-ring";
 import { PROFILE_ACCENTS } from "@/lib/accents";
 import {
   getOwnProfile,
@@ -36,6 +37,9 @@ const BIO_MAX_LENGTH = 160;
 // Same 200px-tall, full-width banner shape the web settings page crops to.
 const COVER_ASPECT: [number, number] = [3, 1];
 const COVER_PREVIEW_HEIGHT = 110;
+// Small avatar previews in the appearance pickers, sized so the ring reads
+// without dominating the form.
+const APPEARANCE_PREVIEW_SIZE = 48;
 
 const BORDER_OPTIONS: { value: AvatarBorderStyle; label: string }[] = [
   { value: "none", label: "None" },
@@ -400,7 +404,7 @@ function EditProfileForm({ profile }: { profile: Profile }) {
         <Text style={styles.sectionTitle}>Appearance</Text>
         <View style={styles.appearanceSection}>
           <Text style={styles.appearanceLabel}>Accent color</Text>
-          <View style={styles.swatchRow}>
+          <View style={styles.previewRow}>
             {PROFILE_ACCENTS.map((accent) => {
               const active = themeColor === accent.value;
               return (
@@ -413,22 +417,46 @@ function EditProfileForm({ profile }: { profile: Profile }) {
                     setThemeColor(accent.value);
                     setSaved(false);
                   }}
-                  style={[
-                    styles.swatch,
-                    { backgroundColor: accent.value ?? colors.primary },
-                    active && styles.swatchActive,
+                  style={({ pressed }) => [
+                    styles.previewOption,
+                    pressed && { opacity: 0.7 },
                   ]}
                 >
-                  {active ? (
-                    <Ionicons name="checkmark" size={16} color="#fff" />
-                  ) : null}
+                  <View
+                    style={[
+                      styles.previewOutline,
+                      active && styles.previewOutlineActive,
+                    ]}
+                  >
+                    <AvatarRing
+                      size={APPEARANCE_PREVIEW_SIZE}
+                      accent={accent.value}
+                      emphasized
+                    >
+                      <Avatar
+                        url={pickedAvatar?.uri ?? profile.avatar_url}
+                        name={profile.display_name}
+                        size={avatarRingInnerSize(APPEARANCE_PREVIEW_SIZE)}
+                      />
+                    </AvatarRing>
+                  </View>
+                  <Text
+                    style={[
+                      styles.previewLabel,
+                      // The selected label wears the accent, previewing the
+                      // display-name tint on the profile.
+                      active && { color: accent.value ?? colors.primary },
+                    ]}
+                  >
+                    {accent.label}
+                  </Text>
                 </Pressable>
               );
             })}
           </View>
 
           <Text style={styles.appearanceLabel}>Avatar border</Text>
-          <View style={styles.borderRow}>
+          <View style={styles.previewRow}>
             {BORDER_OPTIONS.map((option) => {
               const active = avatarBorder === option.value;
               return (
@@ -441,12 +469,32 @@ function EditProfileForm({ profile }: { profile: Profile }) {
                     setAvatarBorder(option.value);
                     setSaved(false);
                   }}
-                  style={[styles.borderChip, active && styles.borderChipActive]}
+                  style={({ pressed }) => [
+                    styles.previewOption,
+                    pressed && { opacity: 0.7 },
+                  ]}
                 >
+                  <View
+                    style={[
+                      styles.previewOutline,
+                      active && styles.previewOutlineActive,
+                    ]}
+                  >
+                    <AvatarRing
+                      size={APPEARANCE_PREVIEW_SIZE}
+                      border={option.value}
+                    >
+                      <Avatar
+                        url={pickedAvatar?.uri ?? profile.avatar_url}
+                        name={profile.display_name}
+                        size={avatarRingInnerSize(APPEARANCE_PREVIEW_SIZE)}
+                      />
+                    </AvatarRing>
+                  </View>
                   <Text
                     style={[
-                      styles.borderChipLabel,
-                      active && styles.borderChipLabelActive,
+                      styles.previewLabel,
+                      active && styles.previewLabelActive,
                     ]}
                   >
                     {option.label}
@@ -570,45 +618,31 @@ const styles = StyleSheet.create({
     color: colors.foreground,
     fontSize: 14,
   },
-  swatchRow: {
+  previewRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing(2.5),
+    gap: spacing(3),
   },
-  swatch: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.full,
+  previewOption: {
     alignItems: "center",
-    justifyContent: "center",
+    gap: spacing(1.5),
   },
-  swatchActive: {
+  // Transparent by default so previews do not shift when one is selected.
+  previewOutline: {
+    padding: 2,
     borderWidth: 2,
-    borderColor: colors.foreground,
-  },
-  borderRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing(2),
-  },
-  borderChip: {
-    paddingHorizontal: spacing(3.5),
-    paddingVertical: spacing(2),
+    borderColor: "transparent",
     borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
   },
-  borderChipActive: {
+  previewOutlineActive: {
     borderColor: colors.primary,
-    backgroundColor: colors.surfaceElevated,
   },
-  borderChipLabel: {
+  previewLabel: {
     color: colors.textSecondary,
-    fontSize: 13,
+    fontSize: 11.5,
     fontWeight: "600",
   },
-  borderChipLabelActive: {
+  previewLabelActive: {
     color: colors.primary,
   },
   bioCounter: {

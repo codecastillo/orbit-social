@@ -55,7 +55,7 @@ function getNotificationText(notification: NotificationWithActor): string {
     case "message":
       return `${name} sent you a message`;
     case "story_reaction":
-      return `${name} reacted to your story`;
+      return `${name} reacted to your moment`;
     case "live_started":
       return `${name} just went live`;
     case "community_invite":

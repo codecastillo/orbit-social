@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Tabs, useRouter, type Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +12,10 @@ import {
   ProfileHeader,
   ProfileHeaderSkeleton,
 } from "@/components/profile-header";
-import { ProfileContent } from "@/components/profile-tabs";
+import {
+  ProfileContent,
+  type ProfileGridShortcut,
+} from "@/components/profile-tabs";
 import { ProfileOnboarding } from "@/components/profile-onboarding";
 import { HighlightsRow } from "@/components/highlights-row";
 import { ProfileQrModal } from "@/components/profile-qr-modal";
@@ -20,6 +24,8 @@ import {
   getUserRecentPosts,
   hasPlaceholderUsername,
 } from "@/lib/queries/profiles";
+import { listDrafts } from "@/lib/queries/drafts";
+import { getScheduledPosts } from "@/lib/queries/posts";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const PROFILE_URL_BASE = "https://orbitsocial.net";
@@ -79,33 +85,53 @@ export default function OwnProfileScreen() {
     enabled: !!user && !!profile,
   });
 
-  const screenOptions = (
-    <Tabs.Screen
-      options={{
-        headerTitle: () => (
-          <Text style={styles.barTitle}>
-            {profile ? `@${profile.username}` : "Profile"}
-          </Text>
-        ),
-        headerTitleAlign: "left",
-        headerRight: () => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Profile options"
-            onPress={() => setMenuOpen(true)}
-            style={styles.barAction}
-            hitSlop={8}
-          >
-            <Ionicons
-              name="settings-outline"
-              size={22}
-              color={colors.foreground}
-            />
-          </Pressable>
-        ),
-      }}
-    />
-  );
+  // Counts for the Drafts/Scheduled grid shortcuts. Same keys as the drafts
+  // and scheduled screens so their mutations keep these tiles fresh.
+  const draftsQuery = useQuery({
+    queryKey: ["post-drafts", user?.id],
+    queryFn: () => listDrafts(user!.id),
+    enabled: !!user && !!profile,
+    staleTime: 1000 * 60 * 3,
+  });
+  const scheduledQuery = useQuery({
+    queryKey: ["scheduled-posts", user?.id],
+    queryFn: () => getScheduledPosts(user!.id),
+    enabled: !!user && !!profile,
+    staleTime: 1000 * 60 * 3,
+  });
+
+  const draftCount = draftsQuery.data?.length ?? 0;
+  const scheduledCount = scheduledQuery.data?.length ?? 0;
+  const gridShortcuts: ProfileGridShortcut[] = [
+    ...(draftCount > 0
+      ? [
+          {
+            id: "shortcut-drafts",
+            icon: "document-text-outline" as const,
+            label: "Drafts",
+            count: draftCount,
+            onPress: () => router.push("/drafts" as Href),
+          },
+        ]
+      : []),
+    ...(scheduledCount > 0
+      ? [
+          {
+            id: "shortcut-scheduled",
+            icon: "time-outline" as const,
+            label: "Scheduled",
+            count: scheduledCount,
+            onPress: () => router.push("/scheduled" as Href),
+          },
+        ]
+      : []),
+  ];
+
+  // No nav header: the identity block already carries the @username and the
+  // settings gear moved inline, so the bar only added a redundant black strip
+  // above the banner. The screen pads itself below the status bar instead.
+  const insets = useSafeAreaInsets();
+  const screenOptions = <Tabs.Screen options={{ headerShown: false }} />;
 
   function openEditProfile() {
     // Route file exists but typed routes only regenerate on the next
@@ -134,7 +160,7 @@ export default function OwnProfileScreen() {
 
   if (!user || isPending) {
     return (
-      <View style={styles.flex}>
+      <View style={[styles.flex, { paddingTop: insets.top }]}>
         {screenOptions}
         <ProfileHeaderSkeleton />
       </View>
@@ -143,7 +169,7 @@ export default function OwnProfileScreen() {
 
   if (isError || !profile) {
     return (
-      <View style={styles.flex}>
+      <View style={[styles.flex, { paddingTop: insets.top }]}>
         {screenOptions}
         <EmptyState
           title="Could not load your profile"
@@ -161,13 +187,31 @@ export default function OwnProfileScreen() {
   }
 
   return (
-    <View style={styles.flex}>
+    <View style={[styles.flex, { paddingTop: insets.top }]}>
       {screenOptions}
       <ProfileContent
         header={
           <>
             <ProfileHeader
               profile={profile}
+              topAction={
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Profile options"
+                  onPress={() => setMenuOpen(true)}
+                  hitSlop={8}
+                  style={({ pressed }) => [
+                    styles.gearButton,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Ionicons
+                    name="settings-outline"
+                    size={20}
+                    color={colors.mutedForeground}
+                  />
+                </Pressable>
+              }
               onPressFollowers={() => openFollowList("followers")}
               onPressFollowing={() => openFollowList("following")}
               actions={
@@ -193,6 +237,7 @@ export default function OwnProfileScreen() {
         userId={profile.id}
         username={profile.username}
         onPressPost={(postId) => router.push(`/post/${postId}`)}
+        shortcuts={gridShortcuts}
       />
 
       <ProfileQrModal
@@ -286,14 +331,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  barTitle: {
-    color: colors.foreground,
-    fontSize: 17,
-    fontWeight: "700",
-    letterSpacing: -0.2,
-  },
-  barAction: {
-    paddingHorizontal: spacing(4),
+  gearButton: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    alignItems: "center",
+    justifyContent: "center",
   },
   sheetContainer: {
     flex: 1,

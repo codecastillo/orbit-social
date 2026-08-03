@@ -60,8 +60,8 @@ const PREF_GROUPS: { title: string; prefs: PrefDef[] }[] = [
       },
       {
         key: "story_replies",
-        label: "Story replies",
-        description: "When someone reacts or replies to your story.",
+        label: "Moment replies",
+        description: "When someone reacts or replies to your moment.",
         icon: "arrow-undo-outline",
       },
       {

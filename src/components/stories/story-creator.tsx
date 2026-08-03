@@ -233,7 +233,7 @@ export function StoryCreator({ open, onOpenChange }: StoryCreatorProps) {
               ) : (
                 <img
                   src={preview}
-                  alt="Story preview"
+                  alt="Moment preview"
                   className="w-full h-full object-contain"
                 />
               )}

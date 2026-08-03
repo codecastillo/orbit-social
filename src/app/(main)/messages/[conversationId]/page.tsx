@@ -10,6 +10,7 @@ import {
   PinOff,
   Ban,
   ArrowLeft,
+  Images,
   Settings2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,6 +24,7 @@ import {
   pinMessage,
   unpinMessage,
   deleteMessage,
+  editMessage,
   type Message,
 } from "@/lib/queries/messages";
 import { blockUser } from "@/lib/queries/social";
@@ -31,7 +33,10 @@ import { ChatWindow, replySnippet } from "@/components/messages/chat-window";
 import {
   MessageInput,
   type MessageInputHandle,
+  type PendingAttachment,
 } from "@/components/messages/message-input";
+import { ForwardMessageDialog } from "@/components/messages/forward-message-dialog";
+import { ConversationMediaDialog } from "@/components/messages/conversation-media-dialog";
 import { useUndoableSend } from "@/lib/hooks/use-undoable-send";
 import {
   TypingIndicator,
@@ -65,6 +70,26 @@ interface ConversationInfo {
   created_by: string;
 }
 
+/** Same path shape the voice recorder uses in the message-media bucket. */
+async function uploadMessageMedia(userId: string, file: File): Promise<string> {
+  const supabase = createClient();
+  const ext =
+    file.name.split(".").pop()?.toLowerCase() ||
+    file.type.split("/")[1] ||
+    "bin";
+  const filePath = `${userId}/${Date.now()}_media.${ext}`;
+
+  const { error } = await supabase.storage
+    .from("message-media")
+    .upload(filePath, file, { contentType: file.type });
+  if (error) throw error;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("message-media").getPublicUrl(filePath);
+  return publicUrl;
+}
+
 export default function ChatPage({ params }: ChatPageProps) {
   const { conversationId } = use(params);
   const { user, loading: authLoading } = useAuth();
@@ -89,6 +114,8 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [blockConfirmOpen, setBlockConfirmOpen] = useState(false);
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [forwardMessage, setForwardMessage] = useState<Message | null>(null);
+  const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
   const [seenAt, setSeenAt] = useState<string | null>(null);
   const messageInputRef = useRef<MessageInputHandle>(null);
   const { schedule: scheduleUndoableSend, flush: flushUndoableSends } =
@@ -189,6 +216,8 @@ export default function ChatPage({ params }: ChatPageProps) {
   if (prevConversationId !== conversationId) {
     setPrevConversationId(conversationId);
     setReplyTo(null);
+    setForwardMessage(null);
+    setMediaDialogOpen(false);
     setSeenAt(null);
   }
 
@@ -236,45 +265,74 @@ export default function ChatPage({ params }: ChatPageProps) {
     };
   }, [user, conversationId, isGroupConversation]);
 
-  const handleSend = async (content: string) => {
+  const handleSend = async (content: string, attachments: PendingAttachment[]) => {
     if (!user) return;
+    if (!content && attachments.length === 0) return;
     const replyMessage = replyTo;
     const replyToId = replyMessage?.id;
     setReplyTo(null);
-    const tempId = `temp-${crypto.randomUUID()}`;
-    const optimistic = {
-      id: tempId,
+
+    // One message per attachment (the first carries the text), matching
+    // mainstream behavior; a plain text send stays a single message.
+    const outgoing =
+      attachments.length > 0
+        ? attachments.map((attachment, i) => ({
+            tempId: `temp-${crypto.randomUUID()}`,
+            content: i === 0 ? content : "",
+            attachment: attachment as PendingAttachment | null,
+          }))
+        : [
+            {
+              tempId: `temp-${crypto.randomUUID()}`,
+              content,
+              attachment: null as PendingAttachment | null,
+            },
+          ];
+
+    const sender = {
+      id: user.id,
+      username: user.user_metadata?.username ?? "",
+      display_name: user.user_metadata?.display_name ?? "",
+      avatar_url: user.user_metadata?.avatar_url ?? null,
+    };
+    const optimistic = outgoing.map((o, i) => ({
+      id: o.tempId,
       conversation_id: conversationId,
       sender_id: user.id,
-      content,
-      media_url: null,
-      media_type: null,
-      reply_to_id: replyToId ?? null,
+      content: o.content,
+      // The local object URL renders in the bubble until the real upload
+      // replaces it at commit time.
+      media_url: o.attachment?.previewUrl ?? null,
+      media_type: o.attachment?.kind ?? null,
+      reply_to_id: i === 0 ? (replyToId ?? null) : null,
       is_deleted: false,
+      is_pinned: false,
       created_at: new Date().toISOString(),
-      sender: {
-        id: user.id,
-        username: user.user_metadata?.username ?? "",
-        display_name: user.user_metadata?.display_name ?? "",
-        avatar_url: user.user_metadata?.avatar_url ?? null,
-      },
-    };
+      sender,
+    }));
     queryClient.setQueryData(
       ["messages", conversationId],
       (old: { pages: { messages: unknown[]; nextCursor: string | null }[] } | undefined) => {
         if (!old) return old;
         const firstPage = old.pages[0];
         if (!firstPage) return old;
+        // Pages hold newest-first, so reverse to keep the send order on screen.
         return {
           ...old,
           pages: [
-            { ...firstPage, messages: [optimistic, ...firstPage.messages] },
+            {
+              ...firstPage,
+              messages: [
+                ...[...optimistic].reverse(),
+                ...firstPage.messages,
+              ],
+            },
             ...old.pages.slice(1),
           ],
         };
       }
     );
-    const removeOptimistic = () =>
+    const removeOptimistic = (tempIds: string[]) =>
       queryClient.setQueryData(
         ["messages", conversationId],
         (old: { pages: { messages: { id: string }[]; nextCursor: string | null }[] } | undefined) => {
@@ -283,57 +341,117 @@ export default function ChatPage({ params }: ChatPageProps) {
             ...old,
             pages: old.pages.map((p) => ({
               ...p,
-              messages: p.messages.filter((m) => m.id !== tempId),
+              messages: p.messages.filter((m) => !tempIds.includes(m.id)),
             })),
           };
         }
       );
 
+    // Uploads happen here, after the undo window, so an Undo costs nothing.
     const commit = async () => {
-      try {
-        const real = await sendMessage(
-          conversationId,
-          user.id,
-          content,
-          undefined,
-          undefined,
-          replyToId
-        );
-        queryClient.setQueryData(
-          ["messages", conversationId],
-          (old: { pages: { messages: { id: string }[]; nextCursor: string | null }[] } | undefined) => {
-            if (!old) return old;
-            return {
-              ...old,
-              pages: old.pages.map((p) => ({
-                ...p,
-                messages: p.messages.map((m) => (m.id === tempId ? real : m)),
-              })),
-            };
+      for (let i = 0; i < outgoing.length; i++) {
+        const o = outgoing[i];
+        try {
+          let mediaUrl: string | undefined;
+          if (o.attachment) {
+            mediaUrl = await uploadMessageMedia(user.id, o.attachment.file);
           }
-        );
-      } catch (e) {
-        console.error("sendMessage failed", e);
-        removeOptimistic();
-        setReplyTo(replyMessage);
-        // The input cleared when the send was scheduled, so put the text
-        // back for a retry instead of rethrowing into MessageInput.
-        messageInputRef.current?.restoreDraft(content);
-        toast.error("Couldn't send message");
+          const real = await sendMessage(
+            conversationId,
+            user.id,
+            o.content,
+            mediaUrl,
+            o.attachment?.kind,
+            i === 0 ? replyToId : undefined
+          );
+          queryClient.setQueryData(
+            ["messages", conversationId],
+            (old: { pages: { messages: { id: string }[]; nextCursor: string | null }[] } | undefined) => {
+              if (!old) return old;
+              return {
+                ...old,
+                pages: old.pages.map((p) => ({
+                  ...p,
+                  messages: p.messages.map((m) =>
+                    m.id === o.tempId ? real : m
+                  ),
+                })),
+              };
+            }
+          );
+          if (o.attachment) URL.revokeObjectURL(o.attachment.previewUrl);
+        } catch (e) {
+          console.error("sendMessage failed", e);
+          // Drop this bubble and everything after it; hand the unsent part
+          // of the draft back for a retry instead of rethrowing.
+          const remaining = outgoing.slice(i);
+          removeOptimistic(remaining.map((r) => r.tempId));
+          if (i === 0) setReplyTo(replyMessage);
+          messageInputRef.current?.restoreDraft(
+            i === 0 ? content : "",
+            remaining
+              .map((r) => r.attachment)
+              .filter((a): a is PendingAttachment => a !== null)
+          );
+          toast.error("Couldn't send message");
+          return;
+        }
       }
     };
 
-    // The write commits after the undo window; the optimistic bubble is
+    // The write commits after the undo window; the optimistic bubbles are
     // already on screen, so the thread reads as sent immediately.
     scheduleUndoableSend({
       message: "Sent",
       commit: () => void commit(),
       onUndo: () => {
-        removeOptimistic();
+        removeOptimistic(outgoing.map((o) => o.tempId));
         setReplyTo(replyMessage);
-        messageInputRef.current?.restoreDraft(content);
+        messageInputRef.current?.restoreDraft(content, attachments);
       },
     });
+  };
+
+  const handleEditMessage = async (messageId: string, content: string) => {
+    type Cached = {
+      pages: { messages: Message[]; nextCursor: string | null }[];
+    };
+    const cached = queryClient.getQueryData<Cached>([
+      "messages",
+      conversationId,
+    ]);
+    const previous = cached?.pages
+      .flatMap((p) => p.messages)
+      .find((m) => m.id === messageId);
+
+    const apply = (patch: Partial<Message>) =>
+      queryClient.setQueryData(
+        ["messages", conversationId],
+        (old: Cached | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((p) => ({
+              ...p,
+              messages: p.messages.map((m) =>
+                m.id === messageId ? { ...m, ...patch } : m
+              ),
+            })),
+          };
+        }
+      );
+
+    apply({ content, updated_at: new Date().toISOString() });
+    try {
+      await editMessage(messageId, content);
+    } catch (e) {
+      console.error("editMessage failed", e);
+      apply({
+        content: previous?.content ?? content,
+        updated_at: previous?.updated_at ?? null,
+      });
+      toast.error("Couldn't edit message");
+    }
   };
 
   const togglePin = async () => {
@@ -495,6 +613,17 @@ export default function ChatPage({ params }: ChatPageProps) {
             </div>
           )}
 
+          {!loadingOther && (
+            <button
+              onClick={() => setMediaDialogOpen(true)}
+              aria-label="Conversation media"
+              className="h-10 w-10 rounded-lg bg-surface-elevated hover:bg-muted border border-border flex items-center justify-center text-muted-foreground transition-colors shrink-0"
+              title="Media"
+            >
+              <Images className="h-4 w-4" />
+            </button>
+          )}
+
           {isGroup && !loadingOther && (
             <button
               onClick={() => setGroupSettingsOpen(true)}
@@ -557,6 +686,8 @@ export default function ChatPage({ params }: ChatPageProps) {
           onPinMessage={handlePinMessage}
           onDeleteMessage={handleDeleteMessage}
           onReply={setReplyTo}
+          onEditMessage={handleEditMessage}
+          onForward={setForwardMessage}
           seenAt={seenAt}
           isGroup={isGroup}
         />
@@ -712,6 +843,20 @@ export default function ChatPage({ params }: ChatPageProps) {
           onChanged={() => setConvVersion((v) => v + 1)}
         />
       )}
+
+      <ForwardMessageDialog
+        open={!!forwardMessage}
+        onOpenChange={(val) => {
+          if (!val) setForwardMessage(null);
+        }}
+        message={forwardMessage}
+      />
+
+      <ConversationMediaDialog
+        open={mediaDialogOpen}
+        onOpenChange={setMediaDialogOpen}
+        conversationId={conversationId}
+      />
 
       {otherUser && (
         <ConfirmDialog

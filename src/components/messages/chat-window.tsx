@@ -14,6 +14,8 @@ interface ChatWindowProps {
   onPinMessage?: (messageId: string, isPinned: boolean) => void;
   onDeleteMessage?: (messageId: string) => void;
   onReply?: (message: Message) => void;
+  onEditMessage?: (messageId: string, content: string) => void;
+  onForward?: (message: Message) => void;
   /** Other member's last_read_at (1:1 only, already gated by preferences). */
   seenAt?: string | null;
   isGroup?: boolean;
@@ -73,6 +75,8 @@ export function ChatWindow({
   onPinMessage,
   onDeleteMessage,
   onReply,
+  onEditMessage,
+  onForward,
   seenAt,
   isGroup,
 }: ChatWindowProps) {
@@ -221,6 +225,8 @@ export function ChatWindow({
                 onPinMessage={onPinMessage}
                 onDeleteMessage={onDeleteMessage}
                 onReply={onReply}
+                onEditMessage={onEditMessage}
+                onForward={onForward}
                 replyPreview={resolveReply(message)}
               />
               {message.id === seenMessageId && (

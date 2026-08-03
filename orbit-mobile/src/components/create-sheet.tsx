@@ -151,13 +151,13 @@ export function CreateSheet({
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Create a story"
+          accessibilityLabel="Create a moment"
           onPress={() => go("/create-story")}
           style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
         >
           <Ionicons name="camera-outline" size={22} color={rowIconColor("story")} />
           <View style={styles.rowBody}>
-            <Text style={styles.rowLabel}>Story</Text>
+            <Text style={styles.rowLabel}>Moment</Text>
             <Text style={styles.rowHint}>Disappears after 24 hours</Text>
           </View>
         </Pressable>

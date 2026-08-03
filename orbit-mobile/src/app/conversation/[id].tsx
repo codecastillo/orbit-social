@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -7,15 +13,24 @@ import {
   Easing,
   FlatList,
   Keyboard,
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import {
+  Stack,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
+  type Href,
+} from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { Image } from "expo-image";
 import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
@@ -33,10 +48,14 @@ import { Avatar, Button, EmptyState } from "@/components/ui";
 import {
   MessageReactionBar,
   MessageReactionPills,
+  type ReactionBarAction,
   type ReactionBarAnchor,
   type ReactionPill,
 } from "@/components/message-reactions";
 import { LinkPreviewCard } from "@/components/link-preview-card";
+import { ForwardSheet } from "@/components/forward-sheet";
+import { MessageMedia } from "@/components/message-media";
+import { PinnedStrip } from "@/components/pinned-messages";
 import { ReportSheet } from "@/components/report-sheet";
 import { VoiceBubble } from "@/components/voice-bubble";
 import {
@@ -44,22 +63,29 @@ import {
   VoiceRecordingBar,
 } from "@/components/voice-recording-bar";
 import { prefetchVoice } from "@/lib/audio-cache";
+import { consumeConversationSearch } from "@/lib/conversation-search";
 import { extractFirstUrl } from "@/lib/queries/link-previews";
 import { safeBack } from "@/lib/nav";
 import {
   MESSAGE_PAGE_SIZE,
   addMessageReaction,
+  deleteMessage,
+  editMessage,
   getConversations,
   getDmSeenAt,
   getMessageById,
   getMessages,
   getMessagesReactions,
   markConversationRead,
+  pinMessage,
   removeMessageReaction,
   sendMessage,
   sendVoiceMessage,
+  unpinMessage,
+  uploadMessageMedia,
   voiceMessageUrl,
   type Message,
+  type MessageMediaType,
   type MessageReactionGroup,
 } from "@/lib/queries/messages";
 import { supabase } from "@/lib/supabase";
@@ -81,10 +107,27 @@ const TYPING_THROTTLE_MS = 2000;
 const TYPING_IDLE_MS = 3000;
 const TYPING_EXPIRE_MS = 4500;
 
+// Own text messages can be edited this long after sending, and a message
+// only shows "(edited)" when updated_at trails created_at by more than the
+// grace period (so the insert itself never reads as an edit).
+const EDIT_WINDOW_MS = 15 * 60 * 1000;
+const EDITED_GRACE_MS = 5000;
+
+// How far the thread slides left to reveal per-message timestamps,
+// iMessage-style: enough for a worst-case "12:59 PM" plus a comfortable gap
+// so an outgoing bubble fully clears its time.
+const TIMESTAMP_REVEAL = 96;
+
 interface TypingPayload {
   userId: string;
   name: string;
   typing: boolean;
+}
+
+interface PickedDmMedia {
+  uri: string;
+  kind: MessageMediaType;
+  mimeType: string;
 }
 
 interface QuotedReply {
@@ -96,8 +139,40 @@ interface QuotedReply {
 function replySnippet(message: Message): string {
   if (message.is_deleted) return "Message deleted";
   if (voiceMessageUrl(message)) return "Voice message";
+  if (message.media_url) return message.content || "Media";
   if (message.content) return message.content.slice(0, 80);
   return "Message";
+}
+
+/** Wraps case-insensitive matches of the search query in a highlight. */
+function highlightMatches(content: string, query: string): ReactNode {
+  const q = query.trim().toLowerCase();
+  if (!q) return content;
+  const lower = content.toLowerCase();
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  while (true) {
+    const idx = lower.indexOf(q, cursor);
+    if (idx === -1) break;
+    if (idx > cursor) parts.push(content.slice(cursor, idx));
+    parts.push(
+      <Text key={idx} style={styles.searchHit}>
+        {content.slice(idx, idx + q.length)}
+      </Text>,
+    );
+    cursor = idx + q.length;
+  }
+  if (parts.length === 0) return content;
+  parts.push(content.slice(cursor));
+  return parts;
+}
+
+/** Per-message time for the drag-reveal rail, h:mm a. */
+function dragTimeLabel(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function timeChipLabel(iso: string): string {
@@ -130,6 +205,9 @@ function MessageBubble({
   reactions,
   replyPreview,
   showSeen,
+  searchQuery,
+  revealX,
+  timestampOpacity,
   onLongPress,
   onToggleReaction,
 }: {
@@ -143,6 +221,9 @@ function MessageBubble({
   reactions: ReactionPill[];
   replyPreview: QuotedReply | null;
   showSeen: boolean;
+  searchQuery: string;
+  revealX: Animated.Value;
+  timestampOpacity: Animated.AnimatedInterpolation<number>;
   onLongPress: (message: Message, anchor: ReactionBarAnchor) => void;
   onToggleReaction: (messageId: string, emoji: string) => void;
 }) {
@@ -154,6 +235,10 @@ function MessageBubble({
     });
   };
   const voiceUrl = message.is_deleted ? null : voiceMessageUrl(message);
+  const isEdited =
+    !!message.updated_at &&
+    new Date(message.updated_at).getTime() >
+      new Date(message.created_at).getTime() + EDITED_GRACE_MS;
   const quote = replyPreview ? (
     <View style={[styles.quote, isMine ? styles.quoteMine : styles.quoteTheirs]}>
       <Text
@@ -190,75 +275,112 @@ function MessageBubble({
         { marginTop: showTimeChip ? 0 : firstOfRun ? 10 : 2 },
       ]}
     >
-      {showTimeChip ? (
-        <Text style={styles.timeChip}>{timeChipLabel(message.created_at)}</Text>
-      ) : null}
-      <View style={[styles.bubbleRow, isMine && styles.bubbleRowMine]}>
-        {!isMine ? (
-          <View style={styles.runAvatar}>
-            {lastOfRun ? (
-              <Avatar url={avatarUrl} name={senderName} size={RUN_AVATAR_SIZE} />
-            ) : null}
+      {/* Sits under the sliding content at the right edge; the drag fades it
+          in while revealX shifts the bubbles off it. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.dragTimestamp, { opacity: timestampOpacity }]}
+      >
+        <Text style={styles.dragTimestampText}>
+          {dragTimeLabel(message.created_at)}
+        </Text>
+      </Animated.View>
+      <Animated.View style={{ transform: [{ translateX: revealX }] }}>
+        {showTimeChip ? (
+          <Text style={styles.timeChip}>{timeChipLabel(message.created_at)}</Text>
+        ) : null}
+        <View style={[styles.bubbleRow, isMine && styles.bubbleRowMine]}>
+          {!isMine ? (
+            <View style={styles.runAvatar}>
+              {lastOfRun ? (
+                <Avatar url={avatarUrl} name={senderName} size={RUN_AVATAR_SIZE} />
+              ) : null}
+            </View>
+          ) : null}
+          {voiceUrl ? (
+            <Pressable
+              ref={bubbleRef}
+              onLongPress={handleLongPress}
+              style={[
+                styles.voiceWrap,
+                cornerStyle,
+                { backgroundColor: isMine ? colors.primary : colors.surfaceElevated },
+              ]}
+            >
+              {quote ? <View style={styles.voiceQuoteInset}>{quote}</View> : null}
+              <VoiceBubble url={voiceUrl} isMine={isMine} />
+            </Pressable>
+          ) : (
+            <Pressable
+              ref={bubbleRef}
+              onLongPress={handleLongPress}
+              style={[
+                styles.bubble,
+                isMine ? styles.bubbleMine : styles.bubbleTheirs,
+                cornerStyle,
+              ]}
+            >
+              {message.is_deleted ? (
+                <Text style={[styles.bubbleText, styles.deletedText]}>
+                  This message was deleted
+                </Text>
+              ) : (
+                <>
+                  {quote}
+                  {message.media_url ? (
+                    <View style={message.content ? styles.mediaWrap : null}>
+                      <MessageMedia
+                        url={message.media_url}
+                        mediaType={message.media_type}
+                        onLongPress={handleLongPress}
+                      />
+                    </View>
+                  ) : null}
+                  {message.content ? (
+                    <Text
+                      style={[styles.bubbleText, isMine && styles.bubbleTextMine]}
+                    >
+                      {searchQuery
+                        ? highlightMatches(message.content, searchQuery)
+                        : message.content}
+                      {isEdited ? (
+                        <Text
+                          style={[
+                            styles.editedTag,
+                            isMine && styles.editedTagMine,
+                          ]}
+                        >
+                          {" (edited)"}
+                        </Text>
+                      ) : null}
+                    </Text>
+                  ) : null}
+                  {(() => {
+                    const previewUrl = message.content
+                      ? extractFirstUrl(message.content)
+                      : null;
+                    return previewUrl ? (
+                      <View style={styles.linkPreviewWrap}>
+                        <LinkPreviewCard url={previewUrl} />
+                      </View>
+                    ) : null;
+                  })()}
+                </>
+              )}
+            </Pressable>
+          )}
+        </View>
+        {reactions.length > 0 ? (
+          <View style={!isMine ? styles.pillGutter : null}>
+            <MessageReactionPills
+              reactions={reactions}
+              isMine={isMine}
+              onToggle={(emoji) => onToggleReaction(message.id, emoji)}
+            />
           </View>
         ) : null}
-        {voiceUrl ? (
-          <Pressable
-            ref={bubbleRef}
-            onLongPress={handleLongPress}
-            style={[
-              styles.voiceWrap,
-              cornerStyle,
-              { backgroundColor: isMine ? colors.primary : colors.surfaceElevated },
-            ]}
-          >
-            {quote ? <View style={styles.voiceQuoteInset}>{quote}</View> : null}
-            <VoiceBubble url={voiceUrl} isMine={isMine} />
-          </Pressable>
-        ) : (
-          <Pressable
-            ref={bubbleRef}
-            onLongPress={handleLongPress}
-            style={[
-              styles.bubble,
-              isMine ? styles.bubbleMine : styles.bubbleTheirs,
-              cornerStyle,
-            ]}
-          >
-            {message.is_deleted ? (
-              <Text style={[styles.bubbleText, styles.deletedText]}>
-                Message deleted
-              </Text>
-            ) : (
-              <>
-                {quote}
-                <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>
-                  {message.content}
-                </Text>
-                {(() => {
-                  const previewUrl = message.content
-                    ? extractFirstUrl(message.content)
-                    : null;
-                  return previewUrl ? (
-                    <View style={styles.linkPreviewWrap}>
-                      <LinkPreviewCard url={previewUrl} />
-                    </View>
-                  ) : null;
-                })()}
-              </>
-            )}
-          </Pressable>
-        )}
-      </View>
-      {reactions.length > 0 ? (
-        <View style={!isMine ? styles.pillGutter : null}>
-          <MessageReactionPills
-            reactions={reactions}
-            isMine={isMine}
-            onToggle={(emoji) => onToggleReaction(message.id, emoji)}
-          />
-        </View>
-      ) : null}
-      {showSeen ? <Text style={styles.seenText}>Seen</Text> : null}
+        {showSeen ? <Text style={styles.seenText}>Seen</Text> : null}
+      </Animated.View>
     </View>
   );
 }
@@ -297,6 +419,57 @@ export default function ConversationScreen() {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [pickedMedia, setPickedMedia] = useState<PickedDmMedia | null>(null);
+  const [editing, setEditing] = useState<Message | null>(null);
+  // The draft in progress when Edit swapped the composer, restored on exit.
+  const [stashedDraft, setStashedDraft] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [forwardTarget, setForwardTarget] = useState<Message | null>(null);
+
+  // Settings' "Search in conversation" row stages a module-level flag (the
+  // draft-restore pattern) and pops back; consume it on focus to open the
+  // search bar.
+  useFocusEffect(
+    useCallback(() => {
+      if (consumeConversationSearch(conversationId)) setSearchOpen(true);
+    }, [conversationId]),
+  );
+
+  // Swipe the thread left to reveal per-message timestamps, iMessage-style
+  // (ported from mello's thread screen). The responder only claims clearly
+  // horizontal leftward drags, so vertical scrolling and bubble long-presses
+  // keep working. Lazy useState for the same stable-identity reason as
+  // kbSpace below.
+  const [revealX] = useState(() => new Animated.Value(0));
+  const timestampOpacity = revealX.interpolate({
+    inputRange: [-TIMESTAMP_REVEAL, 0],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+  const [timestampPan] = useState(() =>
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) =>
+        g.dx < -8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+      onPanResponderMove: (_, g) =>
+        revealX.setValue(Math.max(g.dx, -TIMESTAMP_REVEAL)),
+      onPanResponderRelease: () =>
+        Animated.spring(revealX, {
+          toValue: 0,
+          // JS-driven: the value is set imperatively on move and read by a
+          // JS opacity interpolation; mixing in the native driver detaches
+          // it and leaves timestamps stuck on screen (seen in mello).
+          useNativeDriver: false,
+          bounciness: 0,
+        }).start(),
+      onPanResponderTerminate: () =>
+        Animated.spring(revealX, {
+          toValue: 0,
+          useNativeDriver: false,
+          bounciness: 0,
+        }).start(),
+    }),
+  );
 
   // The conversations list is already cached from the Messages tab; reuse
   // it for the header name and avatar instead of a dedicated query.
@@ -489,6 +662,9 @@ export default function ConversationScreen() {
   const [picker, setPicker] = useState<{
     messageId: string;
     anchor: ReactionBarAnchor;
+    // Resolved when the bar opens: render-time Date.now is off-limits under
+    // the compiler purity rule, and the window barely moves while it's up.
+    canEdit: boolean;
   } | null>(null);
 
   // Message picked for reporting; there is no thread-level header menu, so
@@ -564,6 +740,29 @@ export default function ConversationScreen() {
     [user, reactionsQuery.data, reactionMutation],
   );
 
+  // Merge a realtime UPDATE into the cache, keeping the joined sender the
+  // payload lacks. Pin flips also refresh the strip.
+  const applyMessageUpdate = useCallback(
+    (incoming: Message) => {
+      queryClient.setQueryData<InfiniteData<Message[]>>(
+        ["messages", conversationId],
+        (old) =>
+          old && {
+            ...old,
+            pages: old.pages.map((page) =>
+              page.map((m) =>
+                m.id === incoming.id ? { ...m, ...incoming, sender: m.sender } : m,
+              ),
+            ),
+          },
+      );
+      queryClient.invalidateQueries({
+        queryKey: ["pinned-messages", conversationId],
+      });
+    },
+    [queryClient, conversationId],
+  );
+
   const appendMessage = useCallback(
     (incoming: Message) => {
       queryClient.setQueryData<InfiniteData<Message[]>>(
@@ -620,6 +819,19 @@ export default function ConversationScreen() {
         {
           event: "UPDATE",
           schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          // Unsends, edits, and pin flips land here for both members.
+          applyMessageUpdate(payload.new as Message);
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
           table: "conversation_members",
           filter: `conversation_id=eq.${conversationId}`,
         },
@@ -635,7 +847,7 @@ export default function ConversationScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, conversationId, appendMessage, queryClient]);
+  }, [user, conversationId, appendMessage, applyMessageUpdate, queryClient]);
 
   // Realtime drops silently while backgrounded and never replays, so catch
   // up whenever the app returns to the foreground. Reactions have no
@@ -759,10 +971,140 @@ export default function ConversationScreen() {
     }
   };
 
+  // Same picker caps as the compose screen; DMs attach one item per message.
+  const pickDmMedia = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images", "videos"],
+      quality: 0.85,
+    });
+    if (result.canceled || result.assets.length === 0) return;
+    const asset = result.assets[0];
+    const isVideo = asset.type === "video";
+    const mimeType = asset.mimeType ?? (isVideo ? "video/mp4" : "image/jpeg");
+    setPickedMedia({
+      uri: asset.uri,
+      kind: isVideo ? "video" : mimeType === "image/gif" ? "gif" : "image",
+      mimeType,
+    });
+  };
+
+  // Soft delete, immediately visible on both sides: the optimistic patch
+  // here and the realtime UPDATE for the counterpart.
+  const unsendMutation = useMutation({
+    mutationFn: (messageId: string) => deleteMessage(messageId),
+    onMutate: (messageId) => {
+      queryClient.setQueryData<InfiniteData<Message[]>>(
+        ["messages", conversationId],
+        (old) =>
+          old && {
+            ...old,
+            pages: old.pages.map((page) =>
+              page.map((m) =>
+                m.id === messageId ? { ...m, is_deleted: true } : m,
+              ),
+            ),
+          },
+      );
+    },
+    onError: () => {
+      void refetch();
+      Alert.alert("Message not unsent", "Check your connection and try again.");
+    },
+  });
+
+  const confirmUnsend = (message: Message) => {
+    Alert.alert("Unsend message?", "This removes it for everyone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Unsend",
+        style: "destructive",
+        onPress: () => unsendMutation.mutate(message.id),
+      },
+    ]);
+  };
+
+  const pinMutation = useMutation({
+    mutationFn: ({
+      messageId,
+      pinned,
+    }: {
+      messageId: string;
+      pinned: boolean;
+    }) => (pinned ? unpinMessage(messageId) : pinMessage(messageId)),
+    onMutate: ({ messageId, pinned }) => {
+      queryClient.setQueryData<InfiniteData<Message[]>>(
+        ["messages", conversationId],
+        (old) =>
+          old && {
+            ...old,
+            pages: old.pages.map((page) =>
+              page.map((m) =>
+                m.id === messageId ? { ...m, is_pinned: !pinned } : m,
+              ),
+            ),
+          },
+      );
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["pinned-messages", conversationId],
+      });
+    },
+    onError: () => {
+      void refetch();
+    },
+  });
+
+  const startEdit = (message: Message) => {
+    setStashedDraft(draft);
+    setEditing(message);
+    setReplyTo(null);
+    setPickedMedia(null);
+    setDraft(message.content ?? "");
+  };
+
+  const cancelEdit = () => {
+    setEditing(null);
+    setDraft(stashedDraft);
+    setStashedDraft("");
+  };
+
+  const editMutation = useMutation({
+    mutationFn: ({
+      messageId,
+      content,
+    }: {
+      messageId: string;
+      content: string;
+    }) => editMessage(messageId, content),
+    onError: () => {
+      void refetch();
+      Alert.alert("Edit not saved", "Check your connection and try again.");
+    },
+  });
+
+  const handleSaveEdit = () => {
+    const content = draft.trim();
+    const target = editing;
+    if (!target || !content) return;
+    if (content !== target.content) {
+      // Optimistic patch; the realtime UPDATE confirms with the server row.
+      applyMessageUpdate({
+        ...target,
+        content,
+        updated_at: new Date().toISOString(),
+      });
+      editMutation.mutate({ messageId: target.id, content });
+    }
+    cancelEdit();
+  };
+
   const handleSend = () => {
     const content = draft.trim();
-    if (!content || !user) return;
+    const media = pickedMedia;
+    if ((!content && !media) || !user) return;
     setDraft("");
+    setPickedMedia(null);
     notifyTyping(false);
     const replyMessage = replyTo;
     const replyToId = replyMessage?.id;
@@ -776,10 +1118,14 @@ export default function ConversationScreen() {
       conversation_id: conversationId,
       sender_id: user.id,
       content,
-      media_url: null,
-      media_type: null,
+      // The optimistic bubble shows the local file while the undo window
+      // runs; the upload only happens at commit time.
+      media_url: media?.uri ?? null,
+      media_type: media?.kind ?? null,
       reply_to_id: replyToId ?? null,
       is_deleted: false,
+      is_pinned: false,
+      updated_at: null,
       created_at: new Date().toISOString(),
       sender: {
         id: user.id,
@@ -802,18 +1148,26 @@ export default function ConversationScreen() {
       );
     };
 
-    const restoreDraft = () =>
-      setDraft((prev) => (prev ? `${content} ${prev}` : content));
+    const restoreDraft = () => {
+      if (content) setDraft((prev) => (prev ? `${content} ${prev}` : content));
+      if (media) setPickedMedia(media);
+    };
 
     // A plain closure instead of useMutation: the commit may fire from the
     // unmount flush, after mutation observers are gone, and setQueryData on
-    // the shared client still works then.
+    // the shared client still works then. The media upload also waits until
+    // here so an undone send never costs an upload.
     const commit = async () => {
       try {
+        const mediaUrl = media
+          ? await uploadMessageMedia(user.id, media.uri, media.mimeType)
+          : undefined;
         const message = await sendMessage(
           conversationId,
           user.id,
           content,
+          mediaUrl,
+          media?.kind,
           replyToId,
         );
         queryClient.setQueryData<InfiniteData<Message[]>>(
@@ -861,6 +1215,17 @@ export default function ConversationScreen() {
   const messages = data?.pages.flat() ?? [];
   const hasText = draft.trim().length > 0;
 
+  // Client-side filter over loaded pages; no server FTS. The run grouping
+  // recomputes over the filtered list, which is fine for a results view.
+  const activeSearch = searchOpen ? searchQuery.trim() : "";
+  const listMessages = activeSearch
+    ? messages.filter(
+        (m) =>
+          !m.is_deleted &&
+          (m.content ?? "").toLowerCase().includes(activeSearch.toLowerCase()),
+      )
+    : messages;
+
   const messageById = new Map(messages.map((m) => [m.id, m]));
   const resolveReply = (message: Message): QuotedReply | null => {
     if (!message.reply_to_id) return null;
@@ -899,8 +1264,8 @@ export default function ConversationScreen() {
   // Messages arrive newest-first: index + 1 is the older neighbor, index - 1
   // the newer one. A run breaks on a sender change or a long silence.
   const renderMessage = ({ item, index }: { item: Message; index: number }) => {
-    const older = messages[index + 1];
-    const newer = messages[index - 1];
+    const older = listMessages[index + 1];
+    const newer = listMessages[index - 1];
     const showTimeChip =
       !older ||
       new Date(item.created_at).getTime() - new Date(older.created_at).getTime() >
@@ -935,13 +1300,92 @@ export default function ConversationScreen() {
         reactions={reactions}
         replyPreview={resolveReply(item)}
         showSeen={item.id === seenMessageId}
+        searchQuery={activeSearch}
+        revealX={revealX}
+        timestampOpacity={timestampOpacity}
         onLongPress={(message, anchor) =>
-          setPicker({ messageId: message.id, anchor })
+          setPicker({
+            messageId: message.id,
+            anchor,
+            canEdit:
+              message.sender_id === user.id &&
+              !!message.content &&
+              !message.media_url &&
+              !voiceMessageUrl(message) &&
+              Date.now() - new Date(message.created_at).getTime() <=
+                EDIT_WINDOW_MS,
+          })
         }
         onToggleReaction={toggleReaction}
       />
     );
   };
+
+  // Long-press bar rows for the picked message. Optimistic temp bubbles only
+  // offer Reply; everything else needs the server row to exist.
+  const pickerTarget = picker
+    ? (messageById.get(picker.messageId) ?? null)
+    : null;
+  const barActions: ReactionBarAction[] = [];
+  if (pickerTarget && !pickerTarget.is_deleted) {
+    const isOwn = pickerTarget.sender_id === user.id;
+    const isTemp = pickerTarget.id.startsWith("temp-");
+    const closePicker = () => setPicker(null);
+    barActions.push({
+      label: "Reply",
+      onPress: () => {
+        setReplyTo(pickerTarget);
+        closePicker();
+      },
+    });
+    if (!isTemp) {
+      if (picker?.canEdit) {
+        barActions.push({
+          label: "Edit",
+          onPress: () => {
+            startEdit(pickerTarget);
+            closePicker();
+          },
+        });
+      }
+      barActions.push({
+        label: "Forward",
+        onPress: () => {
+          setForwardTarget(pickerTarget);
+          closePicker();
+        },
+      });
+      barActions.push({
+        label: pickerTarget.is_pinned ? "Unpin" : "Pin",
+        onPress: () => {
+          pinMutation.mutate({
+            messageId: pickerTarget.id,
+            pinned: pickerTarget.is_pinned,
+          });
+          closePicker();
+        },
+      });
+      if (isOwn) {
+        barActions.push({
+          label: "Unsend",
+          destructive: true,
+          onPress: () => {
+            confirmUnsend(pickerTarget);
+            closePicker();
+          },
+        });
+      } else {
+        barActions.push({
+          label: "Report",
+          destructive: true,
+          onPress: () => {
+            setReportTarget(pickerTarget);
+            closePicker();
+          },
+        });
+      }
+    }
+  }
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -967,7 +1411,70 @@ export default function ConversationScreen() {
         <Text style={styles.headerTitle} numberOfLines={1}>
           {title}
         </Text>
+        <View style={styles.headerActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Conversation settings"
+            onPress={() =>
+              router.push(`/conversation-settings/${conversationId}` as Href)
+            }
+            hitSlop={8}
+            style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+          >
+            <Ionicons
+              name="ellipsis-horizontal"
+              size={20}
+              color={colors.foreground}
+            />
+          </Pressable>
+        </View>
       </View>
+
+      {searchOpen ? (
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={15} color={colors.mutedForeground} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search in conversation"
+            placeholderTextColor={colors.textFaint}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoFocus
+            autoCapitalize="none"
+            autoCorrect={false}
+            accessibilityLabel="Search in conversation"
+          />
+          {searchQuery ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+              onPress={() => setSearchQuery("")}
+              hitSlop={8}
+              style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+            >
+              <Ionicons
+                name="close-circle"
+                size={16}
+                color={colors.mutedForeground}
+              />
+            </Pressable>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close conversation search"
+            onPress={() => {
+              setSearchQuery("");
+              setSearchOpen(false);
+            }}
+            hitSlop={8}
+            style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+          >
+            <Text style={styles.searchCancel}>Cancel</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      <PinnedStrip conversationId={conversationId} />
 
       <View style={styles.body}>
         {isPending ? (
@@ -983,34 +1490,61 @@ export default function ConversationScreen() {
             title="No messages yet"
             description="Say hello to start the conversation."
           />
-        ) : (
-          <FlatList
-            data={messages}
-            inverted
-            keyExtractor={(m) => m.id}
-            renderItem={renderMessage}
-            extraData={reactionsQuery.data}
-            contentContainerStyle={styles.messageList}
-            onEndReached={() => {
-              if (hasNextPage && !isFetchingNextPage) fetchNextPage();
-            }}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={
-              isFetchingNextPage ? (
-                <ActivityIndicator
-                  color={colors.mutedForeground}
-                  style={{ paddingVertical: spacing(3) }}
-                />
-              ) : null
-            }
+        ) : listMessages.length === 0 ? (
+          <EmptyState
+            title="No matches"
+            description="No loaded messages match your search."
           />
+        ) : (
+          <View style={styles.listArea} {...timestampPan.panHandlers}>
+            <FlatList
+              data={listMessages}
+              inverted
+              keyExtractor={(m) => m.id}
+              renderItem={renderMessage}
+              extraData={reactionsQuery.data}
+              contentContainerStyle={styles.messageList}
+              onEndReached={() => {
+                if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+              }}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={
+                isFetchingNextPage ? (
+                  <ActivityIndicator
+                    color={colors.mutedForeground}
+                    style={{ paddingVertical: spacing(3) }}
+                  />
+                ) : null
+              }
+            />
+          </View>
         )}
 
         {typingLabel ? (
           <Text style={styles.typingRow}>{typingLabel}</Text>
         ) : null}
 
-        {replyTo ? (
+        {editing ? (
+          <View style={styles.replyBar}>
+            <View style={styles.replyBarBody}>
+              <Text style={styles.replyBarName} numberOfLines={1}>
+                Editing message
+              </Text>
+              <Text style={styles.replyBarSnippet} numberOfLines={1}>
+                {editing.content}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel edit"
+              onPress={cancelEdit}
+              hitSlop={8}
+              style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+            >
+              <Ionicons name="close" size={18} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+        ) : replyTo ? (
           <View style={styles.replyBar}>
             <View style={styles.replyBarBody}>
               <Text style={styles.replyBarName} numberOfLines={1}>
@@ -1035,6 +1569,41 @@ export default function ConversationScreen() {
           </View>
         ) : null}
 
+        {pickedMedia && !editing ? (
+          <View style={styles.mediaChipRow}>
+            <View style={styles.mediaChip}>
+              {pickedMedia.kind === "video" ? (
+                <View style={styles.mediaChipVideo}>
+                  <Ionicons
+                    name="videocam"
+                    size={18}
+                    color={colors.textSecondary}
+                  />
+                </View>
+              ) : (
+                <Image
+                  source={{ uri: pickedMedia.uri }}
+                  style={styles.mediaChipImage}
+                  contentFit="cover"
+                  alt="Attached image"
+                />
+              )}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Remove attachment"
+                onPress={() => setPickedMedia(null)}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.mediaChipRemove,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Ionicons name="close" size={12} color={colors.foreground} />
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
         <View style={styles.composer}>
           {recording ? (
             <VoiceRecordingBar
@@ -1045,19 +1614,54 @@ export default function ConversationScreen() {
             />
           ) : (
             <>
+              {!editing ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Attach a photo or video"
+                  onPress={() => void pickDmMedia()}
+                  style={({ pressed }) => [
+                    styles.attachButton,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Ionicons
+                    name="image-outline"
+                    size={20}
+                    color={colors.primary}
+                  />
+                </Pressable>
+              ) : null}
               <TextInput
                 style={styles.composerInput}
-                placeholder="Message"
+                placeholder={editing ? "Edit message" : "Message"}
                 placeholderTextColor={colors.textFaint}
                 value={draft}
                 onChangeText={(text) => {
                   setDraft(text);
-                  notifyTyping(text.trim().length > 0);
+                  if (!editing) notifyTyping(text.trim().length > 0);
                 }}
                 multiline
                 accessibilityLabel="Message text"
               />
-              {hasText ? (
+              {editing ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Save edit"
+                  onPress={handleSaveEdit}
+                  disabled={!hasText || editMutation.isPending}
+                  style={({ pressed }) => [
+                    styles.sendButton,
+                    !hasText && { opacity: 0.4 },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Ionicons
+                    name="checkmark"
+                    size={20}
+                    color={colors.primaryForeground}
+                  />
+                </Pressable>
+              ) : hasText || pickedMedia ? (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Send message"
@@ -1108,24 +1712,7 @@ export default function ConversationScreen() {
           if (picker) toggleReaction(picker.messageId, emoji);
           setPicker(null);
         }}
-        onReply={() => {
-          const target = picker
-            ? (messageById.get(picker.messageId) ?? null)
-            : null;
-          if (target && !target.is_deleted) setReplyTo(target);
-          setPicker(null);
-        }}
-        onReport={
-          // Only others' messages can be reported.
-          picker &&
-          messageById.get(picker.messageId)?.sender_id !== user.id
-            ? () => {
-                const target = messageById.get(picker.messageId) ?? null;
-                if (target && !target.is_deleted) setReportTarget(target);
-                setPicker(null);
-              }
-            : undefined
-        }
+        actions={barActions}
         onClose={() => setPicker(null)}
       />
 
@@ -1138,6 +1725,12 @@ export default function ConversationScreen() {
           reportedUserId={reportTarget.sender_id}
         />
       ) : null}
+
+      <ForwardSheet
+        visible={forwardTarget !== null}
+        message={forwardTarget}
+        onClose={() => setForwardTarget(null)}
+      />
     </View>
   );
 }
@@ -1162,8 +1755,53 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     flexShrink: 1,
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(4),
+    marginLeft: "auto",
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    marginHorizontal: spacing(3),
+    marginTop: spacing(2),
+    paddingHorizontal: spacing(3),
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.foreground,
+    fontSize: 13.5,
+    paddingVertical: spacing(2),
+  },
+  searchCancel: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
   body: {
     flex: 1,
+  },
+  listArea: {
+    flex: 1,
+  },
+  // Right-edge rail behind the sliding bubbles, revealed by the drag.
+  dragTimestamp: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+  },
+  dragTimestampText: {
+    color: colors.textFaint,
+    fontSize: 11,
+    fontWeight: "600",
   },
   messageList: {
     paddingHorizontal: spacing(3),
@@ -1215,6 +1853,19 @@ const styles = StyleSheet.create({
   deletedText: {
     color: colors.mutedForeground,
     fontStyle: "italic",
+  },
+  editedTag: {
+    color: colors.mutedForeground,
+    fontSize: 11.5,
+  },
+  editedTagMine: {
+    color: "rgba(23, 17, 31, 0.6)",
+  },
+  searchHit: {
+    backgroundColor: "rgba(255, 178, 36, 0.35)",
+  },
+  mediaWrap: {
+    marginBottom: spacing(1.5),
   },
   linkPreviewWrap: {
     marginTop: spacing(1.5),
@@ -1340,6 +1991,51 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: radii.full,
     backgroundColor: colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  attachButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mediaChipRow: {
+    flexDirection: "row",
+    marginHorizontal: spacing(3),
+    marginBottom: spacing(1),
+  },
+  mediaChip: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    overflow: "visible",
+  },
+  mediaChipImage: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radii.sm,
+  },
+  mediaChipVideo: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radii.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mediaChipRemove: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -20,22 +20,33 @@ import {
   type ProfilePost,
 } from "@/lib/queries/profiles";
 import { useVideoFrame } from "@/lib/video-frame";
-import { colors, radii, spacing } from "@/lib/theme";
+import { colors, spacing } from "@/lib/theme";
 
-const GRID_GAP = 1;
+const GRID_GAP = 2;
 const GRID_COLUMNS = 3;
+// Small radius so the grid reads as cards on the dark surface instead of
+// flush squares.
+const TILE_RADIUS = 6;
 
 type ProfileTab = "posts" | "clips" | "mentions";
 
-const TABS: {
-  key: ProfileTab;
-  icon: "grid-outline" | "film-outline" | "at-outline";
-  label: string;
-}[] = [
-  { key: "posts", icon: "grid-outline", label: "Posts" },
-  { key: "clips", icon: "film-outline", label: "Clips" },
-  { key: "mentions", icon: "at-outline", label: "Mentions" },
+const TABS: { key: ProfileTab; label: string }[] = [
+  { key: "posts", label: "Posts" },
+  { key: "clips", label: "Clips" },
+  { key: "mentions", label: "Mentions" },
 ];
+
+/**
+ * Quick-access tile pinned to the front of the own-profile Posts grid
+ * (Drafts, Scheduled). Never shown on other users' profiles.
+ */
+export interface ProfileGridShortcut {
+  id: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  count: number;
+  onPress: () => void;
+}
 
 function ProfileTabBar({
   active,
@@ -55,17 +66,50 @@ function ProfileTabBar({
             accessibilityLabel={tab.label}
             accessibilityState={{ selected: isActive }}
             onPress={() => onChange(tab.key)}
-            style={[styles.tab, isActive && styles.tabActive]}
+            style={styles.tab}
           >
-            <Ionicons
-              name={tab.icon}
-              size={20}
-              color={isActive ? colors.foreground : colors.mutedForeground}
+            <Text
+              style={[styles.tabLabel, isActive && styles.tabLabelActive]}
+            >
+              {tab.label}
+            </Text>
+            <View
+              style={[
+                styles.tabUnderline,
+                isActive && styles.tabUnderlineActive,
+              ]}
             />
           </Pressable>
         );
       })}
     </View>
+  );
+}
+
+function ShortcutTile({
+  shortcut,
+  size,
+}: {
+  shortcut: ProfileGridShortcut;
+  size: number;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${shortcut.label}, ${shortcut.count}`}
+      onPress={shortcut.onPress}
+      style={({ pressed }) => [
+        styles.shortcutTile,
+        { width: size, height: size },
+        pressed && { opacity: 0.8 },
+      ]}
+    >
+      <Ionicons name={shortcut.icon} size={22} color={colors.mutedForeground} />
+      <Text style={styles.shortcutLabel}>{shortcut.label}</Text>
+      <View style={styles.shortcutCount}>
+        <Text style={styles.shortcutCountText}>{shortcut.count}</Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -90,6 +134,7 @@ function MediaTile({
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
+        styles.mediaTile,
         { width: size, height: size },
         pressed && { opacity: 0.8 },
       ]}
@@ -166,6 +211,7 @@ export function ProfileContent({
   userId,
   username,
   onPressPost,
+  shortcuts,
 }: {
   header: ReactNode;
   posts: ProfilePost[] | undefined;
@@ -175,6 +221,8 @@ export function ProfileContent({
   userId: string;
   username: string;
   onPressPost: (postId: string) => void;
+  /** Own-profile only: Drafts/Scheduled tiles pinned before the Posts grid. */
+  shortcuts?: ProfileGridShortcut[];
 }) {
   const [tab, setTab] = useState<ProfileTab>("posts");
   const { width } = useWindowDimensions();
@@ -226,8 +274,14 @@ export function ProfileContent({
       key={tab}
       data={
         (isGridTab
-          ? gridData
-          : (mentionsQuery.data ?? [])) as (ProfilePost | MentionPost)[]
+          ? tab === "posts" && shortcuts?.length
+            ? [...shortcuts, ...gridData]
+            : gridData
+          : (mentionsQuery.data ?? [])) as (
+          | ProfilePost
+          | MentionPost
+          | ProfileGridShortcut
+        )[]
       }
       numColumns={isGridTab ? GRID_COLUMNS : 1}
       columnWrapperStyle={isGridTab ? styles.gridRow : undefined}
@@ -249,6 +303,9 @@ export function ProfileContent({
               onPress={() => onPressPost(mention.id)}
             />
           );
+        }
+        if ("icon" in item) {
+          return <ShortcutTile shortcut={item} size={tileSize} />;
         }
         const post = item as ProfilePost;
         return post.post_media.length > 0 ? (
@@ -306,15 +363,65 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderBottomWidth: 1.5,
-    borderBottomColor: "transparent",
   },
-  tabActive: {
-    borderBottomColor: colors.primary,
+  tabLabel: {
+    color: colors.mutedForeground,
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  tabLabelActive: {
+    color: colors.foreground,
+  },
+  // Short accent underline, the mobile cousin of the web eyebrow labels.
+  tabUnderline: {
+    width: 16,
+    height: 2,
+    borderRadius: 1,
+    marginTop: spacing(1),
+    backgroundColor: "transparent",
+  },
+  tabUnderlineActive: {
+    backgroundColor: colors.primary,
   },
   gridRow: {
     gap: GRID_GAP,
     marginBottom: GRID_GAP,
+  },
+  mediaTile: {
+    borderRadius: TILE_RADIUS,
+    overflow: "hidden",
+  },
+  shortcutTile: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: TILE_RADIUS,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing(1.5),
+  },
+  shortcutLabel: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  shortcutCount: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shortcutCountText: {
+    color: colors.primaryForeground,
+    fontSize: 10,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
   },
   tileBadge: {
     position: "absolute",
@@ -341,7 +448,7 @@ const styles = StyleSheet.create({
   },
   textTile: {
     backgroundColor: colors.surface,
-    borderRadius: radii.sm,
+    borderRadius: TILE_RADIUS,
     padding: spacing(2.5),
     justifyContent: "center",
   },

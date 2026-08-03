@@ -1,4 +1,5 @@
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -8,88 +9,87 @@ import { getOwnProfile } from "@/lib/queries/profiles";
 import { useAuth } from "@/providers/auth-provider";
 import { colors, radii, spacing } from "@/lib/theme";
 
-const AVATAR_SIZE = 64;
-const RING_WIDTH = 2.5;
-const SATELLITE_SIZE = 14;
-const SATELLITE_ADD_SIZE = 20;
+const CARD_WIDTH = 72;
+const CARD_HEIGHT = 96;
+const CHIP_SIZE = 24;
+const DOT_SIZE = 10;
+const SEEN_OPACITY = 0.6;
 
 /**
- * Orbit's own ring motif, drawn like the OrbitMark in auth-shell: a circular
- * ring with a small filled satellite dot sitting on its edge at roughly the
- * 1-2 o'clock position. Unviewed rings are violet with the satellite; viewed
- * rings drop to the border color and lose the dot; the add-story variant puts
- * a plus glyph inside the satellite.
+ * Rounded-rectangle moment preview card, Orbit's replacement for the
+ * gradient-ringed avatar circle: the first unseen moment's media as the
+ * card face (video thumbnails, or a play glyph when a video has none), the
+ * author's avatar chip overlapping the top-left, the name on a bottom
+ * scrim, and a violet corner satellite-dot while unseen. Seen cards dim
+ * and lose the dot; close-friends groups tint the dot and border emerald.
  */
-function OrbitRing({
-  variant,
-  closeFriends = false,
-  children,
-}: {
-  variant: "unviewed" | "viewed" | "add";
-  closeFriends?: boolean;
-  children: React.ReactNode;
-}) {
-  // Close-friends rings trade the violet for the green success tone, the
-  // same signal the web story bar uses.
-  const activeColor = closeFriends ? colors.success : colors.primary;
-  return (
-    <View
-      style={[
-        styles.ring,
-        { borderColor: variant === "unviewed" ? activeColor : colors.border },
-      ]}
-    >
-      {children}
-      {variant === "unviewed" ? (
-        <View style={[styles.satellite, { backgroundColor: activeColor }]} />
-      ) : null}
-      {variant === "add" ? (
-        <View style={[styles.satellite, styles.satelliteAdd]}>
-          <Ionicons name="add" size={14} color={colors.primaryForeground} />
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function StoryRing({ group, isSelf }: { group: StoryGroup; isSelf: boolean }) {
+function StoryCard({ group, isSelf }: { group: StoryGroup; isSelf: boolean }) {
   const router = useRouter();
-  const name = isSelf ? "Your story" : group.user.display_name || group.user.username;
+  const name = isSelf ? "You" : group.user.display_name || group.user.username;
   // Only when everything visible from this author is close friends; a mixed
-  // set keeps the regular ring so public stories are not mislabeled.
+  // set keeps the violet dot so public stories are not mislabeled.
   const closeFriends =
     !isSelf && group.stories.every((s) => s.visibility === "close_friends");
+  const accent = closeFriends ? colors.success : colors.primary;
+  const unseen = group.hasUnviewed;
+
+  const face = group.stories.find((s) => !s.viewed) ?? group.stories[0];
+  const faceUri =
+    face.media_type === "image" ? face.media_url : face.thumbnail_url;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`View stories from ${name}`}
+      accessibilityLabel={`View moments from ${name}`}
       onPress={() => router.push(`/story/${group.user.id}`)}
       style={({ pressed }) => [styles.item, pressed && { opacity: 0.8 }]}
     >
-      <OrbitRing
-        variant={group.hasUnviewed ? "unviewed" : "viewed"}
-        closeFriends={closeFriends}
+      <View
+        style={[
+          styles.card,
+          closeFriends && { borderColor: colors.success },
+          !unseen && { opacity: SEEN_OPACITY },
+        ]}
       >
+        {faceUri ? (
+          <Image
+            source={{ uri: faceUri }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            transition={100}
+            alt=""
+          />
+        ) : (
+          <View style={styles.playFace}>
+            <Ionicons name="play" size={20} color="rgba(255, 255, 255, 0.7)" />
+          </View>
+        )}
+        <View style={styles.scrim}>
+          <Text style={styles.cardName} numberOfLines={1}>
+            {name}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.chip}>
         <Avatar
           url={group.user.avatar_url}
           name={group.user.display_name || group.user.username}
-          size={AVATAR_SIZE}
+          size={CHIP_SIZE}
         />
-      </OrbitRing>
-      <Text style={styles.name} numberOfLines={1}>
-        {name}
-      </Text>
+      </View>
+      {unseen ? (
+        <View style={[styles.satellite, { backgroundColor: accent }]} />
+      ) : null}
     </Pressable>
   );
 }
 
 /**
- * The viewer's own tile when they have no active story: their avatar inside
- * the ring with a plus inside the satellite dot, tapping anywhere on it
- * opens the story creator.
+ * The viewer's own tile when they have no active moment: a dashed card
+ * face with a plus glyph and their avatar chip, tapping anywhere on it
+ * opens the moment creator.
  */
-function AddStoryRing({
+function AddStoryCard({
   avatarUrl,
   name,
 }: {
@@ -101,25 +101,28 @@ function AddStoryRing({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Create a story"
+      accessibilityLabel="Create a moment"
       onPress={() => router.push("/create-story")}
       style={({ pressed }) => [styles.item, pressed && { opacity: 0.8 }]}
     >
-      <OrbitRing variant="add">
-        <Avatar url={avatarUrl} name={name} size={AVATAR_SIZE} />
-      </OrbitRing>
-      <Text style={styles.name} numberOfLines={1}>
-        Your story
-      </Text>
+      <View style={[styles.card, styles.addCard]}>
+        <View style={styles.addBadge}>
+          <Ionicons name="add" size={16} color={colors.primaryForeground} />
+        </View>
+        <Text style={styles.addLabel}>Add</Text>
+      </View>
+      <View style={styles.chip}>
+        <Avatar url={avatarUrl} name={name} size={CHIP_SIZE} />
+      </View>
     </Pressable>
   );
 }
 
 /**
- * IG-style horizontal strip of active story rings, one per author, the
- * viewer's own tile always first: their live ring when they have an active
- * story, otherwise an add tile that opens the story creator. Renders
- * nothing while loading so the feed above it does not jump.
+ * Horizontal strip of moment preview cards, one per author, the viewer's
+ * own tile always first: their live card when they have an active moment,
+ * otherwise an add tile that opens the moment creator. Renders nothing
+ * while loading so the feed above it does not jump.
  */
 export function StoriesBar() {
   const { user } = useAuth();
@@ -153,15 +156,15 @@ export function StoriesBar() {
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           ownGroup ? (
-            <StoryRing group={ownGroup} isSelf />
+            <StoryCard group={ownGroup} isSelf />
           ) : (
-            <AddStoryRing
+            <AddStoryCard
               avatarUrl={ownProfile?.avatar_url}
               name={ownProfile?.display_name || ownProfile?.username || "You"}
             />
           )
         }
-        renderItem={({ item }) => <StoryRing group={item} isSelf={false} />}
+        renderItem={({ item }) => <StoryCard group={item} isSelf={false} />}
       />
     </View>
   );
@@ -175,40 +178,79 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing(3),
     paddingVertical: spacing(2.5),
-    gap: spacing(3.5),
+    gap: spacing(2.5),
   },
   item: {
-    alignItems: "center",
-    width: AVATAR_SIZE + spacing(3),
+    width: CARD_WIDTH,
   },
-  ring: {
-    borderWidth: RING_WIDTH,
-    borderRadius: radii.full,
-    padding: 2.5,
+  card: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated,
+    overflow: "hidden",
   },
-  // Sits on the ring's edge at roughly 1-2 o'clock, matching the OrbitMark.
-  satellite: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: SATELLITE_SIZE,
-    height: SATELLITE_SIZE,
-    borderRadius: SATELLITE_SIZE / 2,
-    backgroundColor: colors.primary,
-  },
-  satelliteAdd: {
-    top: -3,
-    right: -3,
-    width: SATELLITE_ADD_SIZE,
-    height: SATELLITE_ADD_SIZE,
-    borderRadius: SATELLITE_ADD_SIZE / 2,
+  playFace: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
   },
-  name: {
+  scrim: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1),
+  },
+  cardName: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  // Overlaps the card's top-left corner; the background-colored ring keeps
+  // it legible over any media.
+  chip: {
+    position: "absolute",
+    top: -spacing(1),
+    left: -spacing(1),
+    borderRadius: radii.full,
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  // The corner satellite-dot carries the unseen signal the ring used to.
+  satellite: {
+    position: "absolute",
+    top: -3,
+    right: -3,
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: DOT_SIZE / 2,
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  addCard: {
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing(1),
+  },
+  addBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addLabel: {
     color: colors.mutedForeground,
-    fontSize: 11,
-    marginTop: spacing(1.5),
-    maxWidth: AVATAR_SIZE + spacing(3),
+    fontSize: 10,
+    fontWeight: "600",
   },
 });

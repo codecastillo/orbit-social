@@ -55,7 +55,7 @@ const INTERACTION_PREFS: NotificationPref[] = [
   { key: "comments", label: "Comments", description: "When someone comments on your post.", icon: MessageCircle, tileClass: "border-primary/20 bg-primary/10 text-primary" },
   { key: "reposts", label: "Reposts and quotes", description: "When someone reposts or quotes your post.", icon: Repeat2, tileClass: "border-primary/20 bg-primary/10 text-primary" },
   { key: "mentions", label: "Mentions", description: "When someone mentions you in a post.", icon: AtSign, tileClass: "border-warning/20 bg-warning/10 text-warning" },
-  { key: "story_replies", label: "Story replies", description: "When someone reacts or replies to your story.", icon: Reply, tileClass: "border-warning/20 bg-warning/10 text-warning" },
+  { key: "story_replies", label: "Moment replies", description: "When someone reacts or replies to your moment.", icon: Reply, tileClass: "border-warning/20 bg-warning/10 text-warning" },
   { key: "messages", label: "Direct messages", description: "When you receive a new DM.", icon: Mail, tileClass: "border-success/20 bg-success/10 text-success" },
 ];
 

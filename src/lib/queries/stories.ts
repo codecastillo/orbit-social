@@ -44,6 +44,9 @@ export interface StoryWithAuthor {
   view_count: number;
   expires_at: string;
   created_at: string;
+  // Set by getActiveStories so the strip can lead with the first unseen
+  // moment as a card face. Not a table column.
+  viewed?: boolean;
   profiles: {
     id: string;
     username: string;
@@ -180,8 +183,9 @@ export async function getActiveStories(
       });
     }
     const group = groupMap.get(uid)!;
+    story.viewed = viewedIds.has(story.id);
     group.stories.push(story);
-    if (!viewedIds.has(story.id)) {
+    if (!story.viewed) {
       group.hasUnviewed = true;
     }
   }
@@ -271,7 +275,7 @@ export async function sendStoryReaction(
   await sendMessage(
     conversationId,
     reactorId,
-    `Reacted ${emoji} to your story`
+    `Reacted ${emoji} to your moment`
   );
 
   const { error } = await supabase.from("notifications").insert({

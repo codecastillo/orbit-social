@@ -140,7 +140,7 @@ export default function CloseFriendsScreen() {
       <Stack.Screen options={{ title: "Close friends" }} />
 
       <Text style={styles.explainer}>
-        A smaller radius. Posts and stories marked close friends only reach
+        A smaller radius. Posts and moments marked close friends only reach
         this list.
       </Text>
 

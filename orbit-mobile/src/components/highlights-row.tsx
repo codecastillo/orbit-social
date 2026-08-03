@@ -62,7 +62,7 @@ export function HighlightsRow({
 
   const confirmDelete = (highlight: HighlightWithStories) => {
     if (!isOwner) return;
-    Alert.alert("Delete this highlight?", "The stories in it are not deleted.", [
+    Alert.alert("Delete this highlight?", "The moments in it are not deleted.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",

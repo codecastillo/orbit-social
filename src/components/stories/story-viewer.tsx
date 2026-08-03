@@ -232,7 +232,7 @@ export function StoryViewer({
       {groupIndex > 0 && (
         <button
           onClick={goToPrevGroup}
-          aria-label="Previous user's stories"
+          aria-label="Previous user's moments"
           className="absolute left-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition hidden md:flex"
         >
           <ChevronLeft className="h-6 w-6" />
@@ -243,7 +243,7 @@ export function StoryViewer({
       {groupIndex < storyGroups.length - 1 && (
         <button
           onClick={goToNextGroup}
-          aria-label="Next user's stories"
+          aria-label="Next user's moments"
           className="absolute right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition hidden md:flex"
         >
           <ChevronRight className="h-6 w-6" />
@@ -260,15 +260,16 @@ export function StoryViewer({
           transition={{ duration: 0.2 }}
           className="relative w-full max-w-md h-full max-h-[100dvh] md:max-h-[90dvh] md:rounded-xl overflow-hidden bg-black"
         >
-          {/* Progress bars */}
-          <div className="absolute top-0 left-0 right-0 z-20 flex gap-1 p-2 pt-3">
+          {/* Progress dashes: rounded segments with gaps and a violet fill,
+              Orbit's take on the usual continuous hairline bars */}
+          <div className="absolute top-0 left-0 right-0 z-20 flex gap-1.5 p-2 pt-3">
             {currentGroup.stories.map((_, i) => (
               <div
                 key={i}
-                className="flex-1 h-0.5 rounded-full bg-white/30 overflow-hidden"
+                className="flex-1 h-1 rounded-full bg-white/20 overflow-hidden"
               >
                 <div
-                  className="h-full bg-white rounded-full transition-none"
+                  className="h-full bg-primary rounded-full transition-none"
                   style={{
                     width:
                       i < storyIndex
@@ -291,6 +292,8 @@ export function StoryViewer({
                 size="sm"
               />
               <div className="flex items-center gap-2">
+                {/* Orbit satellite-dot, the brand mark's orbiting dot */}
+                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-primary" />
                 <span className="text-white text-sm font-medium">
                   {currentGroup.user.username}
                 </span>
@@ -311,7 +314,7 @@ export function StoryViewer({
               )}
               <button
                 onClick={onClose}
-                aria-label="Close stories"
+                aria-label="Close moments"
                 className="p-1.5 rounded-full hover:bg-white/10 text-white transition"
               >
                 <X className="h-5 w-5" />
@@ -324,7 +327,7 @@ export function StoryViewer({
             {currentStory.media_type === "image" ? (
               <Image
                 src={currentStory.media_url}
-                alt="Story"
+                alt="Moment"
                 fill
                 sizes="100vw"
                 className="object-contain"
@@ -365,7 +368,7 @@ export function StoryViewer({
               onMouseUp={() => setPaused(false)}
               onTouchStart={() => setPaused(true)}
               onTouchEnd={() => setPaused(false)}
-              aria-label="Previous story"
+              aria-label="Previous moment"
             />
             <button
               className="w-1/3 h-full"
@@ -373,7 +376,7 @@ export function StoryViewer({
               onMouseUp={() => setPaused(false)}
               onTouchStart={() => setPaused(true)}
               onTouchEnd={() => setPaused(false)}
-              aria-label="Pause story"
+              aria-label="Pause moment"
             />
             <button
               className="w-1/3 h-full"
@@ -382,7 +385,7 @@ export function StoryViewer({
               onMouseUp={() => setPaused(false)}
               onTouchStart={() => setPaused(true)}
               onTouchEnd={() => setPaused(false)}
-              aria-label="Next story"
+              aria-label="Next moment"
             />
           </div>
 

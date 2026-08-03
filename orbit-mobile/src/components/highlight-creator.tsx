@@ -47,7 +47,7 @@ function StoryTile({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={selected ? "Remove story" : "Add story"}
+      accessibilityLabel={selected ? "Remove moment" : "Add moment"}
       accessibilityState={{ selected }}
       onPress={onToggle}
       style={({ pressed }) => [
@@ -60,7 +60,7 @@ function StoryTile({
       {source ? (
         <Image
           source={{ uri: source }}
-          alt="Story"
+          alt="Moment"
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={0}
@@ -169,7 +169,7 @@ export function HighlightCreator({
             </Pressable>
           </View>
           <Text style={styles.subheading}>
-            Pick active stories to keep on your profile. The first one becomes
+            Pick active moments to keep on your profile. The first one becomes
             the cover.
           </Text>
 
@@ -187,8 +187,8 @@ export function HighlightCreator({
             </View>
           ) : stories.length === 0 ? (
             <Text style={styles.emptyText}>
-              No active stories to pick from. Post a story first; expired
-              stories can&apos;t be added.
+              No active moments to pick from. Post a moment first; expired
+              moments can&apos;t be added.
             </Text>
           ) : (
             <FlatList

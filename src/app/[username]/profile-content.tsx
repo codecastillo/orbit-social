@@ -728,10 +728,7 @@ export function ProfileContent({
             ]}
           />
           {profile.website && (
-            <div className="ml-auto flex items-center gap-2">
-              <span className="font-mono text-[11px] tracking-[0.08em] text-muted-foreground">
-                ALSO ON
-              </span>
+            <div className="ml-auto flex items-center">
               <a
                 href={profile.website}
                 target="_blank"

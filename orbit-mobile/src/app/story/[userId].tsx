@@ -35,7 +35,7 @@ const DEFAULT_IMAGE_DURATION_SECONDS = 5;
 // The story viewer is an always-dark media canvas, so the chrome uses
 // literal white/track values instead of theme tokens.
 const CHROME_TEXT = "#ffffff";
-const PROGRESS_TRACK = "rgba(255, 255, 255, 0.3)";
+const PROGRESS_TRACK = "rgba(255, 255, 255, 0.2)";
 
 function StoryVideo({ story }: { story: StoryWithAuthor }) {
   const player = useVideoPlayer(story.media_url, (p) => {
@@ -187,14 +187,14 @@ export default function StoryViewerScreen() {
         </Centered>
       ) : isError ? (
         <EmptyState
-          title="Stories did not load"
+          title="Moments did not load"
           description="Check your connection and try again."
           action={<Button label="Retry" variant="outline" onPress={() => refetch()} />}
         />
       ) : !current ? (
         <EmptyState
-          title="Story unavailable"
-          description="These stories may have expired."
+          title="Moment unavailable"
+          description="These moments may have expired."
           action={<Button label="Close" variant="outline" onPress={() => router.back()} />}
         />
       ) : (
@@ -207,19 +207,19 @@ export default function StoryViewerScreen() {
               style={StyleSheet.absoluteFill}
               contentFit="contain"
               transition={100}
-              alt={`Story from ${authorName}`}
+              alt={`Moment from ${authorName}`}
             />
           )}
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Previous story"
+            accessibilityLabel="Previous moment"
             style={styles.prevZone}
             onPress={goPrev}
           />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Next story"
+            accessibilityLabel="Next moment"
             style={styles.nextZone}
             onPress={goNext}
           />
@@ -244,7 +244,7 @@ export default function StoryViewerScreen() {
             >
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="See who viewed your story"
+                accessibilityLabel="See who viewed your moment"
                 onPress={() => setViewersOpen(true)}
                 style={({ pressed }) => [
                   styles.viewersButton,
@@ -319,13 +319,15 @@ export default function StoryViewerScreen() {
             </View>
 
             <View style={styles.headerRow}>
+              {/* Orbit satellite-dot, the brand mark's orbiting dot */}
+              <View style={styles.headerDot} />
               <Text style={styles.author} numberOfLines={1}>
                 {authorName}
               </Text>
               <Text style={styles.time}>{formatTimeAgo(current.created_at)}</Text>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Close stories"
+                accessibilityLabel="Close moments"
                 onPress={() => router.back()}
                 hitSlop={10}
                 style={({ pressed }) => [styles.closeButton, pressed && { opacity: 0.6 }]}
@@ -371,25 +373,33 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: spacing(3),
   },
+  // Dot-dash chrome: short rounded segments with real gaps and a violet
+  // fill instead of the usual continuous white hairline.
   progressRow: {
     flexDirection: "row",
-    gap: spacing(1),
+    gap: spacing(1.5),
   },
   progressTrack: {
     flex: 1,
-    height: 3,
+    height: 4,
     borderRadius: radii.full,
     backgroundColor: PROGRESS_TRACK,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    backgroundColor: CHROME_TEXT,
+    backgroundColor: colors.primary,
   },
   progressFillFull: {
     height: "100%",
     width: "100%",
-    backgroundColor: CHROME_TEXT,
+    backgroundColor: colors.primary,
+  },
+  headerDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
   },
   headerRow: {
     flexDirection: "row",

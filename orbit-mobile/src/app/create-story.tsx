@@ -457,9 +457,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   picker: {
-    aspectRatio: 9 / 16,
-    maxHeight: 420,
-    alignSelf: "center",
+    // A definite height: aspectRatio without a definite width collapses the
+    // box to its text's intrinsic width and the labels render vertically.
+    height: 380,
+    alignSelf: "stretch",
     margin: spacing(4),
     borderRadius: radii.lg,
     borderWidth: 1.5,

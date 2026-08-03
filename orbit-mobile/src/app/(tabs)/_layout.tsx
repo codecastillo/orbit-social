@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { CreateSheet } from "@/components/create-sheet";
 import { useUnreadCounts } from "@/lib/hooks/use-unread";
@@ -55,31 +55,6 @@ export default function TabsLayout() {
                     ) : null}
                   </View>
                 </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    unreadMessages > 0
-                      ? `Messages, ${unreadMessages} unread`
-                      : "Messages"
-                  }
-                  onPress={() => router.push("/messages")}
-                  hitSlop={8}
-                >
-                  <View>
-                    <Ionicons
-                      name="paper-plane-outline"
-                      size={22}
-                      color={colors.foreground}
-                    />
-                    {unreadMessages > 0 ? (
-                      <View style={styles.inboxBadge}>
-                        <Text style={styles.inboxBadgeText}>
-                          {unreadMessages > 99 ? "99+" : unreadMessages}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </Pressable>
               </View>
             ),
             tabBarIcon: ({ color, size }) => (
@@ -122,13 +97,33 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="messages"
+          options={{
+            title: "Messages",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="chatbubble-outline" size={size} color={color} />
+            ),
+            tabBarBadge:
+              unreadMessages > 0
+                ? unreadMessages > 99
+                  ? "99+"
+                  : unreadMessages
+                : undefined,
+            tabBarBadgeStyle: {
+              backgroundColor: colors.primary,
+              color: colors.primaryForeground,
+              fontSize: 10,
+              fontWeight: "700",
+            },
+          }}
+        />
+        <Tabs.Screen
           name="clips"
           options={{
-            title: "Clips",
+            // Hidden from the bar (Clips now lives as a Home lane) but the
+            // route stays registered so /(tabs)/clips deep links keep working.
+            href: null,
             headerShown: false,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="film-outline" size={size} color={color} />
-            ),
           }}
         />
         <Tabs.Screen
@@ -163,25 +158,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderWidth: 1.5,
     borderColor: colors.background,
-  },
-  inboxBadge: {
-    position: "absolute",
-    top: -5,
-    right: -7,
-    minWidth: 16,
-    height: 16,
-    paddingHorizontal: 4,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: colors.background,
-  },
-  inboxBadgeText: {
-    color: colors.primaryForeground,
-    fontSize: 10,
-    fontWeight: "700",
   },
   createSlot: {
     flex: 1,
