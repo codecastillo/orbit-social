@@ -50,6 +50,43 @@ export async function getStreamById(
   return data as unknown as LiveStreamWithProfile | null;
 }
 
+export interface LiveChatMessageRow {
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  profiles: {
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+  } | null;
+}
+
+const CHAT_SCROLLBACK_LIMIT = 50;
+
+// Last messages before join, returned oldest first so the chat list can
+// seed directly and append live broadcasts after. Mirrors the web helper
+// in src/lib/queries/live.ts.
+export async function getRecentChatMessages(
+  streamId: string,
+): Promise<LiveChatMessageRow[]> {
+  const { data, error } = await supabase
+    .from("live_chat_messages")
+    .select(
+      `
+      id, user_id, content, created_at,
+      profiles!live_chat_messages_user_id_fkey (
+        username, display_name, avatar_url
+      )
+    `,
+    )
+    .eq("stream_id", streamId)
+    .order("created_at", { ascending: false })
+    .limit(CHAT_SCROLLBACK_LIMIT);
+  if (error) throw error;
+  return ((data ?? []) as unknown as LiveChatMessageRow[]).reverse();
+}
+
 export function hlsUrl(playbackId: string): string {
   return `https://stream.mux.com/${playbackId}.m3u8`;
 }

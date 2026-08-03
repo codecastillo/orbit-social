@@ -169,6 +169,58 @@ export async function deleteListing(listingId: string) {
   if (error) throw error;
 }
 
+// websearch-mode FTS has no prefix matching, so a 1-2 char fragment
+// matches nothing; those stay on the ilike substring path.
+const FTS_MIN_QUERY_LENGTH = 3;
+
+// ── Saved searches ──────────────────────────────────────────────────
+// filters holds whatever the platform's filter UI supports (web: category;
+// mobile adds condition, price range, sort) so a search saved on one client
+// still applies the parts the other understands. No notification fanout yet.
+
+export interface SavedSearch {
+  id: string;
+  user_id: string;
+  query: string;
+  filters: Record<string, string>;
+  created_at: string;
+}
+
+export async function getSavedSearches(userId: string) {
+  const { data, error } = await supabase
+    .from("saved_searches")
+    .select("id, user_id, query, filters, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data as unknown as SavedSearch[];
+}
+
+export async function saveSearch(
+  userId: string,
+  query: string,
+  filters: Record<string, string>
+) {
+  const { data, error } = await supabase
+    .from("saved_searches")
+    .insert({ user_id: userId, query, filters })
+    .select("id, user_id, query, filters, created_at")
+    .single();
+
+  if (error) throw error;
+  return data as unknown as SavedSearch;
+}
+
+export async function deleteSavedSearch(searchId: string) {
+  const { error } = await supabase
+    .from("saved_searches")
+    .delete()
+    .eq("id", searchId);
+
+  if (error) throw error;
+}
+
 export async function searchListings(
   query: string,
   category?: string,
@@ -178,9 +230,22 @@ export async function searchListings(
     .from("listings")
     .select(LISTING_SELECT)
     .eq("status", "active")
-    .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
     .order("created_at", { ascending: false })
     .limit(limit);
+
+  if (query.length >= FTS_MIN_QUERY_LENGTH) {
+    // Generated listings.search_vector column over title + description
+    // (GIN-indexed). websearch mode gives quoted phrases, OR, and
+    // -exclusion. supabase-js cannot order by ts_rank without an RPC, so
+    // matches are ordered by recency rather than a faked relevance sort.
+    dbQuery = dbQuery.textSearch("search_vector", query, {
+      type: "websearch",
+    });
+  } else {
+    dbQuery = dbQuery.or(
+      `title.ilike.%${query}%,description.ilike.%${query}%`
+    );
+  }
 
   if (category) {
     dbQuery = dbQuery.eq("category", category);

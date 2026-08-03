@@ -36,6 +36,21 @@ export interface SearchPost {
   } | null;
 }
 
+// Mirrors the web isFtsQuery in src/lib/queries/social.ts. websearch-mode
+// FTS has no prefix matching, so a 1-2 char fragment matches nothing;
+// those stay on the ilike substring path. #tag and @mention queries stay
+// on ilike too: to_tsvector strips the sigil, which would turn "#run"
+// into a plain "run" search.
+const FTS_MIN_QUERY_LENGTH = 3;
+
+function isFtsQuery(query: string) {
+  return (
+    query.length >= FTS_MIN_QUERY_LENGTH &&
+    !query.startsWith("#") &&
+    !query.startsWith("@")
+  );
+}
+
 export async function searchUsers(
   query: string,
   limit = 20,
@@ -56,16 +71,25 @@ export async function searchPosts(
   query: string,
   limit = 20,
 ): Promise<SearchPost[]> {
-  const { data, error } = await supabase
+  let q = supabase
     .from("posts")
     .select(
       `id, content, created_at,
        profiles!posts_user_id_fkey (id, username, display_name, avatar_url, is_verified)`,
     )
-    .ilike("content", `%${query}%`)
     .eq("is_hidden", false)
     .order("created_at", { ascending: false })
     .limit(limit);
+  if (isFtsQuery(query)) {
+    // Generated posts.search_vector column (GIN-indexed). websearch mode
+    // gives quoted phrases, OR, and -exclusion. supabase-js cannot order
+    // by ts_rank without an RPC, so matches are ordered by recency rather
+    // than a faked relevance sort.
+    q = q.textSearch("search_vector", query, { type: "websearch" });
+  } else {
+    q = q.ilike("content", `%${query}%`);
+  }
+  const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as unknown as SearchPost[];
 }
@@ -85,22 +109,28 @@ export interface SearchClip {
 }
 
 // Reel-only variant of searchPosts, with media included so results can
-// render as a thumbnail grid. Limit fills seven 3-column rows.
+// render as a thumbnail grid. Limit fills seven 3-column rows. Shares the
+// post-content search path, so it follows the same FTS/ilike split.
 export async function searchClips(
   query: string,
   limit = 21,
 ): Promise<SearchClip[]> {
-  const { data, error } = await supabase
+  let q = supabase
     .from("posts")
     .select(
       `id, content, created_at, like_count,
        post_media (id, type, url, thumbnail_url, sort_order)`,
     )
-    .ilike("content", `%${query}%`)
     .eq("type", "reel")
     .eq("is_hidden", false)
     .order("created_at", { ascending: false })
     .limit(limit);
+  if (isFtsQuery(query)) {
+    q = q.textSearch("search_vector", query, { type: "websearch" });
+  } else {
+    q = q.ilike("content", `%${query}%`);
+  }
+  const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as unknown as SearchClip[];
 }

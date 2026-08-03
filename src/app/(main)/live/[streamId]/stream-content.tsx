@@ -13,7 +13,11 @@ import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { useStreamPresence } from "@/lib/hooks/use-stream-presence";
 import { useStreamHearts } from "@/lib/hooks/use-stream-hearts";
 import { createClient } from "@/lib/supabase/client";
-import { getStreamById, type LiveStreamWithProfile } from "@/lib/queries/live";
+import {
+  getRecentChatMessages,
+  getStreamById,
+  type LiveStreamWithProfile,
+} from "@/lib/queries/live";
 import { sendGift, giftByType, type SentGift } from "@/lib/queries/gifts";
 import {
   followUser,
@@ -85,11 +89,38 @@ function useLiveChat(streamId: string) {
     channel
       .on("broadcast", { event: "chat-message" }, (payload) => {
         const msg = payload.payload as ChatMessage;
-        setMessages((prev) => [...prev, msg]);
+        // A message can arrive via both scrollback and broadcast when a
+        // send races the initial fetch; the shared row id breaks the tie.
+        setMessages((prev) =>
+          prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
+        );
       })
       .subscribe();
 
+    let cancelled = false;
+    getRecentChatMessages(streamId)
+      .then((rows) => {
+        if (cancelled) return;
+        const history: ChatMessage[] = rows.map((r) => ({
+          id: r.id,
+          userId: r.user_id,
+          username: r.profiles?.username ?? "user",
+          displayName: r.profiles?.display_name ?? "User",
+          avatarUrl: r.profiles?.avatar_url ?? null,
+          content: r.content,
+          timestamp: new Date(r.created_at).getTime(),
+        }));
+        setMessages((prev) => {
+          const seen = new Set(history.map((m) => m.id));
+          return [...history, ...prev.filter((m) => !seen.has(m.id))];
+        });
+      })
+      .catch(() => {
+        // Scrollback is best-effort; live broadcasts still fill the list.
+      });
+
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
     };
   }, [streamId]);

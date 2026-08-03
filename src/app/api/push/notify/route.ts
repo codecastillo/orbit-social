@@ -41,6 +41,7 @@ const PREF_COLUMN: Record<string, string> = {
   community_invite: "communities",
   event_invite: "events",
   event_reminder: "events",
+  new_post: "new_followers_posts",
 };
 
 const MINUTES_PER_DAY = 24 * 60;
@@ -159,6 +160,8 @@ function describe(
       return { title: actorName, body: "reposted your post", url: postUrl };
     case "quote":
       return { title: actorName, body: "quoted your post", url: postUrl };
+    case "new_post":
+      return { title: actorName, body: "posted something new", url: postUrl };
     case "message":
       return {
         title: actorName,

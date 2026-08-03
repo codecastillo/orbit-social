@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { PlusIcon, SearchIcon, ShoppingBagIcon } from "lucide-react";
+import {
+  BookmarkPlusIcon,
+  PlusIcon,
+  SearchIcon,
+  ShoppingBagIcon,
+  XIcon,
+} from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -10,8 +17,13 @@ import { CreateListingDialog } from "@/components/marketplace/create-listing-dia
 import {
   getListings,
   searchListings,
+  getSavedSearches,
+  saveSearch,
+  deleteSavedSearch,
   type ListingWithSeller,
+  type SavedSearch,
 } from "@/lib/queries/marketplace";
+import { useAuth } from "@/lib/hooks/use-auth";
 import { Input } from "@/components/orbit/forms";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
 import { OrbitErrorState } from "@/components/orbit/error-state";
@@ -19,12 +31,68 @@ import { OrbitErrorState } from "@/components/orbit/error-state";
 const CATEGORIES = ["All", "Electronics", "Clothing", "Home", "Sports", "Other"];
 
 export default function MarketplacePage() {
+  const { user } = useAuth();
   const [listings, setListings] = useState<ListingWithSeller[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [savingSearch, setSavingSearch] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    getSavedSearches(user.id)
+      .then(setSavedSearches)
+      .catch((err) => console.error("Failed to load saved searches:", err));
+  }, [user]);
+
+  const canSaveSearch =
+    !!user && (searchQuery.trim().length > 0 || activeCategory !== "All");
+
+  const handleSaveSearch = async () => {
+    if (!user || !canSaveSearch) return;
+    const query = searchQuery.trim();
+    const filters: Record<string, string> =
+      activeCategory !== "All" ? { category: activeCategory } : {};
+    const duplicate = savedSearches.some(
+      (s) =>
+        s.query === query && (s.filters.category ?? "") === (filters.category ?? "")
+    );
+    if (duplicate) {
+      toast.info("Already saved");
+      return;
+    }
+    setSavingSearch(true);
+    try {
+      const saved = await saveSearch(user.id, query, filters);
+      setSavedSearches((prev) => [saved, ...prev]);
+      toast.success("Search saved");
+    } catch (err) {
+      console.error("Failed to save search:", err);
+      toast.error("Couldn't save this search");
+    } finally {
+      setSavingSearch(false);
+    }
+  };
+
+  const applySavedSearch = (saved: SavedSearch) => {
+    setSearchQuery(saved.query);
+    setActiveCategory(saved.filters.category ?? "All");
+  };
+
+  const handleDeleteSavedSearch = async (searchId: string) => {
+    const prev = savedSearches;
+    setSavedSearches((list) => list.filter((s) => s.id !== searchId));
+    try {
+      await deleteSavedSearch(searchId);
+    } catch (err) {
+      console.error("Failed to delete saved search:", err);
+      toast.error("Couldn't delete this saved search");
+      setSavedSearches(prev);
+    }
+  };
 
   const fetchListings = useCallback(async () => {
     setLoading(true);
@@ -72,12 +140,67 @@ export default function MarketplacePage() {
       </div>
 
       <div className="flex flex-col gap-3">
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search listings…"
-          prefix={<SearchIcon className="h-3.5 w-3.5" />}
-        />
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search listings…"
+                prefix={<SearchIcon className="h-3.5 w-3.5" />}
+              />
+            </div>
+            {canSaveSearch && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSaveSearch}
+                disabled={savingSearch}
+              >
+                <BookmarkPlusIcon className="h-3.5 w-3.5" />
+                Save search
+              </Button>
+            )}
+          </div>
+          <p className="px-2 text-[11px] text-muted-foreground">
+            Tips: &quot;exact phrase&quot;, bike OR scooter, -exclude
+          </p>
+        </div>
+
+        {savedSearches.length > 0 && (
+          <div className="scrollbar-hide flex gap-2 overflow-x-auto pb-0.5">
+            {savedSearches.map((saved) => {
+              const label = [
+                saved.query || null,
+                saved.filters.category ? `in ${saved.filters.category}` : null,
+              ]
+                .filter(Boolean)
+                .join(" ");
+              return (
+                <span
+                  key={saved.id}
+                  className="group flex shrink-0 items-center gap-1 rounded-full border border-border bg-surface text-[12px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                >
+                  <button
+                    onClick={() => applySavedSearch(saved)}
+                    className="cursor-pointer py-1.5 pl-3.5"
+                    title={`Search ${label}`}
+                  >
+                    {label}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteSavedSearch(saved.id)}
+                    className="cursor-pointer rounded-full py-1.5 pl-0.5 pr-2.5 opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
+                    aria-label={`Delete saved search ${label}`}
+                    title="Delete saved search"
+                  >
+                    <XIcon className="h-3 w-3" />
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        )}
 
         <div className="scrollbar-hide flex gap-2 overflow-x-auto pb-0.5">
           {CATEGORIES.map((cat) => {

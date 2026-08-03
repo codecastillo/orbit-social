@@ -42,14 +42,19 @@ export default function ExplorePage() {
   return (
     <div className="flex flex-col gap-[22px] text-foreground">
       {/* Search strip */}
-      <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface p-2.5">
-        <Search className="ml-2 h-4 w-4 text-muted-foreground" />
-        <BareInput
-          placeholder="Search people, posts, tags…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="flex-1 border-0 bg-transparent h-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-0"
-        />
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface p-2.5">
+          <Search className="ml-2 h-4 w-4 text-muted-foreground" />
+          <BareInput
+            placeholder="Search people, posts, tags…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="flex-1 border-0 bg-transparent h-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-0"
+          />
+        </div>
+        <p className="px-2 text-[11px] text-muted-foreground">
+          Tips: &quot;exact phrase&quot;, cats OR dogs, -exclude
+        </p>
       </div>
 
       {isSearching ? (

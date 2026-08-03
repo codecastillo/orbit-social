@@ -62,6 +62,9 @@ export interface ListingFilters {
   sort?: ListingSort;
 }
 
+// Mirrors the web FTS_MIN_QUERY_LENGTH in src/lib/queries/marketplace.ts.
+const FTS_MIN_QUERY_LENGTH = 3;
+
 const LISTING_SELECT = `
   *,
   profiles!listings_seller_id_fkey (
@@ -81,8 +84,17 @@ export async function getListings(filters: ListingFilters = {}, limit = 30) {
 
   const search = filters.search?.trim();
   if (search) {
-    // Same ilike pair as web searchListings so both clients match identically.
-    query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+    // Same split as web searchListings so both clients match identically.
+    // FTS runs on the generated listings.search_vector column over title +
+    // description (GIN-indexed); websearch mode gives quoted phrases, OR,
+    // and -exclusion, but has no prefix matching, so 1-2 char fragments
+    // stay on the ilike substring pair. supabase-js cannot order by
+    // ts_rank without an RPC, so the sort options below apply unchanged.
+    if (search.length >= FTS_MIN_QUERY_LENGTH) {
+      query = query.textSearch("search_vector", search, { type: "websearch" });
+    } else {
+      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+    }
   }
   if (filters.category) {
     query = query.eq("category", filters.category);
@@ -204,6 +216,55 @@ export async function deleteListing(listingId: string) {
     .from("listings")
     .delete()
     .eq("id", listingId);
+
+  if (error) throw error;
+}
+
+// ── Saved searches ──────────────────────────────────────────────────
+// Same table and shape as the web marketplace page. filters holds only the
+// keys the user actually set (category, condition, priceMin, priceMax, sort)
+// so a search saved here still applies its category on web. No notification
+// fanout yet.
+
+export interface SavedSearch {
+  id: string;
+  user_id: string;
+  query: string;
+  filters: Record<string, string>;
+  created_at: string;
+}
+
+export async function getSavedSearches(userId: string) {
+  const { data, error } = await supabase
+    .from("saved_searches")
+    .select("id, user_id, query, filters, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data as unknown as SavedSearch[];
+}
+
+export async function saveSearch(
+  userId: string,
+  query: string,
+  filters: Record<string, string>,
+) {
+  const { data, error } = await supabase
+    .from("saved_searches")
+    .insert({ user_id: userId, query, filters })
+    .select("id, user_id, query, filters, created_at")
+    .single();
+
+  if (error) throw error;
+  return data as unknown as SavedSearch;
+}
+
+export async function deleteSavedSearch(searchId: string) {
+  const { error } = await supabase
+    .from("saved_searches")
+    .delete()
+    .eq("id", searchId);
 
   if (error) throw error;
 }

@@ -12,7 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { File, Paths } from "expo-file-system";
@@ -23,6 +23,7 @@ import {
   deleteEventComment,
   getEventAttendees,
   getEventById,
+  getEventCohosts,
   getEventComments,
   getFriendsGoing,
   getUserRsvpStatus,
@@ -158,6 +159,7 @@ function CommentRow({
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
@@ -176,6 +178,13 @@ export default function EventDetailScreen() {
     queryFn: () => getEventAttendees(id),
     enabled: !!id,
   });
+
+  const cohostsQuery = useQuery({
+    queryKey: ["event-cohosts", id],
+    queryFn: () => getEventCohosts(id),
+    enabled: !!id,
+  });
+  const cohosts = cohostsQuery.data ?? [];
 
   const rsvpKey = ["event-rsvp", id, user?.id];
   const rsvpQuery = useQuery({
@@ -379,7 +388,59 @@ export default function EventDetailScreen() {
               <Text style={styles.hostLabel}>Hosted by</Text>
               <Text style={styles.hostName}>{event.profiles.display_name}</Text>
             </View>
+            {user?.id === event.creator_id ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Manage co-hosts"
+                onPress={() =>
+                  router.push({
+                    pathname: "/events/cohosts",
+                    params: { eventId: event.id },
+                  })
+                }
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.manageCohostsButton,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Text style={styles.manageCohostsLabel}>Manage co-hosts</Text>
+              </Pressable>
+            ) : null}
           </View>
+
+          {cohosts.length > 0 ? (
+            <>
+              <Text style={styles.cohostsLabel}>Co-hosted with</Text>
+              <View style={styles.cohostsRow}>
+                {cohosts.map((cohost) => (
+                  <Pressable
+                    key={cohost.user_id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View co-host @${cohost.profiles.username}`}
+                    onPress={() =>
+                      router.push(`/user/${cohost.profiles.username}`)
+                    }
+                    style={({ pressed }) => [
+                      styles.cohostChip,
+                      pressed && { opacity: 0.8 },
+                    ]}
+                  >
+                    <Avatar
+                      url={cohost.profiles.avatar_url}
+                      name={
+                        cohost.profiles.display_name || cohost.profiles.username
+                      }
+                      size={24}
+                    />
+                    <Text style={styles.cohostName} numberOfLines={1}>
+                      {cohost.profiles.display_name || cohost.profiles.username}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : null}
 
           {event.description ? (
             <Text style={styles.description}>{event.description}</Text>
@@ -623,6 +684,44 @@ const styles = StyleSheet.create({
     color: colors.foreground,
     fontSize: 13.5,
     fontWeight: "600",
+  },
+  manageCohostsButton: {
+    marginLeft: "auto",
+  },
+  manageCohostsLabel: {
+    color: colors.primary,
+    fontSize: 12.5,
+    fontWeight: "600",
+  },
+  cohostsLabel: {
+    color: colors.textFaint,
+    fontSize: 11.5,
+    marginTop: spacing(3),
+  },
+  cohostsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing(2),
+    marginTop: spacing(1.5),
+  },
+  cohostChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(1.5),
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingLeft: spacing(1),
+    paddingRight: spacing(2.5),
+    paddingVertical: spacing(1),
+    maxWidth: 200,
+  },
+  cohostName: {
+    color: colors.foreground,
+    fontSize: 12.5,
+    fontWeight: "600",
+    flexShrink: 1,
   },
   description: {
     color: colors.textSecondary,

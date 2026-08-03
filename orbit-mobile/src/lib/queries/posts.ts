@@ -595,6 +595,21 @@ export async function createPost(
     if (mediaError) throw mediaError;
   }
 
+  // Creator bell fanout: notify this author's bell subscribers. The RPC is a
+  // drafted migration (20260803130000_bell_fanout_fn.sql) awaiting approval;
+  // until it is applied the call errors and publishing proceeds unaffected.
+  const fansOut =
+    !options?.replyToId &&
+    !options?.scheduledAt &&
+    (options?.visibility ?? "public") === "public";
+  if (fansOut) {
+    try {
+      await supabase.rpc("fan_out_new_post", { p_post_id: post.id });
+    } catch {
+      // Missing function or transient failure; the post itself succeeded.
+    }
+  }
+
   return post as unknown as Post;
 }
 

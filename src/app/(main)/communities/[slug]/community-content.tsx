@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessageSquare, Pin, Shield } from "lucide-react";
+import { MessageSquare, Pin, Shield, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -24,6 +24,23 @@ import { checkUserInteractions, type PostWithAuthor } from "@/lib/queries/posts"
 // device-local flag keyed by user + room.
 const rulesAcceptedKey = (userId: string, communityId: string) =>
   `room-rules-accepted:${userId}:${communityId}`;
+
+// Compact duration for slowmode copy ("45s", "5m", "1h 30m").
+function formatSlowmode(totalSeconds: number) {
+  if (totalSeconds >= 3600) {
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    return minutes > 0
+      ? `${Math.floor(totalSeconds / 3600)}h ${minutes}m`
+      : `${Math.floor(totalSeconds / 3600)}h`;
+  }
+  if (totalSeconds >= 60) {
+    const seconds = totalSeconds % 60;
+    return seconds > 0
+      ? `${Math.floor(totalSeconds / 60)}m ${seconds}s`
+      : `${Math.floor(totalSeconds / 60)}m`;
+  }
+  return `${totalSeconds}s`;
+}
 
 export function CommunityContent({ slug }: { slug: string }) {
   const { user } = useAuth();
@@ -90,6 +107,53 @@ export function CommunityContent({ slug }: { slug: string }) {
     window.localStorage.setItem(rulesAcceptedKey(user.id, community.id), "1");
     setRulesAccepted(true);
   };
+
+  // Client-side slowmode v1: the member's most recent top-level post in this
+  // room comes from the loaded list (the compose dialog invalidates
+  // community-posts on send, so a fresh post lands here right away). Owners
+  // and moderators are exempt, standard slowmode semantics.
+  const slowmodeSeconds = community?.slowmode_seconds ?? 0;
+  const slowmodeExempt =
+    userRole === "owner" ||
+    userRole === "moderator" ||
+    (!!user && community?.created_by === user.id);
+  const lastOwnPostAt = useMemo(() => {
+    if (!user || !posts) return 0;
+    return posts.reduce(
+      (latest: number, p: PostWithAuthor) =>
+        p.user_id === user.id
+          ? Math.max(latest, new Date(p.created_at).getTime())
+          : latest,
+      0
+    );
+  }, [user, posts]);
+  const slowmodeUntil =
+    slowmodeSeconds > 0 && !slowmodeExempt && lastOwnPostAt > 0
+      ? lastOwnPostAt + slowmodeSeconds * 1000
+      : 0;
+  // The countdown lives in state and is only written from timer callbacks:
+  // render stays pure (no Date.now during render) and the effect body never
+  // calls setState synchronously, which the react-hooks lint rules require.
+  // The zero-delay leading tick seeds the value when the window opens.
+  const [slowmodeRemaining, setSlowmodeRemaining] = useState(0);
+  useEffect(() => {
+    const tick = () => {
+      const remaining = Math.max(
+        0,
+        Math.ceil((slowmodeUntil - Date.now()) / 1000)
+      );
+      setSlowmodeRemaining(remaining);
+      return remaining;
+    };
+    const seed = setTimeout(tick, 0);
+    const id = setInterval(() => {
+      if (tick() <= 0) clearInterval(id);
+    }, 1000);
+    return () => {
+      clearTimeout(seed);
+      clearInterval(id);
+    };
+  }, [slowmodeUntil]);
 
   const handleMembershipChange = () => {
     refetchRole();
@@ -187,11 +251,24 @@ export function CommunityContent({ slug }: { slug: string }) {
                 Accept and post
               </Button>
             </div>
+          ) : slowmodeRemaining > 0 ? (
+            <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-[18px] text-sm text-muted-foreground">
+              <Timer className="h-4 w-4 text-primary" />
+              <span>Slowmode: {formatSlowmode(slowmodeRemaining)}</span>
+            </div>
           ) : (
             <InlineComposer
               communityId={community.id}
               onSuccess={() => refetchPosts()}
             />
+          )}
+          {slowmodeSeconds > 0 && !slowmodeExempt && (
+            <div className="mt-2 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+              <Timer className="h-3 w-3" />
+              <span>
+                Slowmode is on: one post every {formatSlowmode(slowmodeSeconds)}
+              </span>
+            </div>
           )}
         </div>
       )}
@@ -244,6 +321,7 @@ export function CommunityContent({ slug }: { slug: string }) {
                 post={post}
                 isLiked={interactions?.likedPostIds?.has(post.id)}
                 isBookmarked={interactions?.bookmarkedPostIds?.has(post.id)}
+                communityRole={userRole}
                 onUpdate={() => refetchPosts()}
               />
             </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -26,6 +26,7 @@ import {
   getMyJoinRequestStatus,
   joinCommunity,
   setCommunityPostPinned,
+  setCommunitySlowmode,
   type Community,
   type CommunityPost,
   type CommunityRole,
@@ -35,6 +36,35 @@ import { colors, radii, spacing } from "@/lib/theme";
 
 const EXCERPT_LENGTH = 140;
 const MAX_POST_LENGTH = 500;
+
+// Discord-style slowmode steps, same presets as the web edit dialog.
+const SLOWMODE_PRESETS = [
+  { label: "Off", seconds: 0 },
+  { label: "5s", seconds: 5 },
+  { label: "10s", seconds: 10 },
+  { label: "30s", seconds: 30 },
+  { label: "1m", seconds: 60 },
+  { label: "5m", seconds: 300 },
+  { label: "15m", seconds: 900 },
+  { label: "1h", seconds: 3600 },
+];
+
+// Compact duration for slowmode copy ("45s", "5m", "1h 30m").
+function formatSlowmode(totalSeconds: number) {
+  if (totalSeconds >= 3600) {
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    return minutes > 0
+      ? `${Math.floor(totalSeconds / 3600)}h ${minutes}m`
+      : `${Math.floor(totalSeconds / 3600)}h`;
+  }
+  if (totalSeconds >= 60) {
+    const seconds = totalSeconds % 60;
+    return seconds > 0
+      ? `${Math.floor(totalSeconds / 60)}m ${seconds}s`
+      : `${Math.floor(totalSeconds / 60)}m`;
+  }
+  return `${totalSeconds}s`;
+}
 
 // No acceptance table exists, so first-post rules acknowledgement is a
 // device-local flag keyed by user + room. Same key shape as the web app.
@@ -235,13 +265,69 @@ export default function CommunityDetailScreen() {
   };
 
   const [draft, setDraft] = useState("");
+  // Client-side slowmode v1: the send timestamp is recorded locally so the
+  // countdown starts immediately, and the loaded posts list backs it up
+  // across remounts. Owners and moderators are exempt.
+  const [lastSentAt, setLastSentAt] = useState(0);
   const createPost = useMutation({
     mutationFn: () => createCommunityPost(user!.id, community!.id, draft.trim()),
     onSuccess: () => {
       setDraft("");
+      setLastSentAt(Date.now());
       queryClient.invalidateQueries({ queryKey: ["community-posts", community?.id] });
     },
     onError: () => Alert.alert("Couldn't post to this room"),
+  });
+
+  const slowmodeSeconds = community?.slowmode_seconds ?? 0;
+  const lastOwnPostAt = useMemo(() => {
+    const fromList = (postsQuery.data ?? []).reduce(
+      (latest, post) =>
+        user && post.user_id === user.id
+          ? Math.max(latest, new Date(post.created_at).getTime())
+          : latest,
+      0,
+    );
+    return Math.max(fromList, lastSentAt);
+  }, [postsQuery.data, user, lastSentAt]);
+  const slowmodeUntil =
+    slowmodeSeconds > 0 && !isOwnerOrMod && lastOwnPostAt > 0
+      ? lastOwnPostAt + slowmodeSeconds * 1000
+      : 0;
+  // The countdown lives in state and is only written from timer callbacks:
+  // render stays pure (no Date.now during render) and the effect body never
+  // calls setState synchronously, which the react-hooks lint rules require.
+  // The zero-delay leading tick seeds the value when the window opens.
+  const [slowmodeRemaining, setSlowmodeRemaining] = useState(0);
+  useEffect(() => {
+    const tick = () => {
+      const remaining = Math.max(
+        0,
+        Math.ceil((slowmodeUntil - Date.now()) / 1000),
+      );
+      setSlowmodeRemaining(remaining);
+      return remaining;
+    };
+    const seed = setTimeout(tick, 0);
+    const id = setInterval(() => {
+      if (tick() <= 0) clearInterval(id);
+    }, 1000);
+    return () => {
+      clearTimeout(seed);
+      clearInterval(id);
+    };
+  }, [slowmodeUntil]);
+
+  // Slowmode setting is owner-only: the communities UPDATE policy is
+  // creator-only, so a moderator's write would silently no-op under RLS.
+  const [slowmodeModalOpen, setSlowmodeModalOpen] = useState(false);
+  const saveSlowmode = useMutation({
+    mutationFn: (seconds: number) => setCommunitySlowmode(community!.id, seconds),
+    onSuccess: () => {
+      setSlowmodeModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["community", slug] });
+    },
+    onError: () => Alert.alert("Couldn't update slowmode"),
   });
 
   const togglePin = useMutation({
@@ -252,10 +338,12 @@ export default function CommunityDetailScreen() {
     onError: () => Alert.alert("Couldn't update the pin"),
   });
 
-  // Author-only: the posts UPDATE policy is owner-only and there is no
-  // moderator pin RPC, so anyone else's pin would silently no-op under RLS.
+  // Authors self-pin; owners and moderators can pin any top-level room post.
+  // The pin_community_post RPC re-checks the role server-side.
+  const canPinPost = (post: CommunityPost) =>
+    !!user && (post.user_id === user.id || isOwnerOrMod);
   const handlePostLongPress = (post: CommunityPost) => {
-    if (!user || post.user_id !== user.id) return;
+    if (!canPinPost(post)) return;
     Alert.alert(
       post.is_pinned ? "Unpin this post?" : "Pin this post?",
       post.is_pinned
@@ -354,6 +442,18 @@ export default function CommunityDetailScreen() {
           style={styles.moderationButton}
         />
       ) : null}
+      {role === "owner" ? (
+        <Button
+          label={
+            slowmodeSeconds > 0
+              ? `Slowmode: ${formatSlowmode(slowmodeSeconds)}`
+              : "Slowmode"
+          }
+          variant="outline"
+          onPress={() => setSlowmodeModalOpen(true)}
+          style={styles.moderationButton}
+        />
+      ) : null}
     </View>
   ) : null;
 
@@ -389,14 +489,23 @@ export default function CommunityDetailScreen() {
               style={styles.composerInput}
             />
             <Button
-              label="Post"
+              label={
+                slowmodeRemaining > 0
+                  ? `Slowmode: ${formatSlowmode(slowmodeRemaining)}`
+                  : "Post"
+              }
               loading={createPost.isPending}
-              disabled={draft.trim().length === 0}
+              disabled={draft.trim().length === 0 || slowmodeRemaining > 0}
               onPress={() => createPost.mutate()}
               style={styles.composerButton}
             />
           </View>
         )}
+        {slowmodeSeconds > 0 && !isOwnerOrMod ? (
+          <Text style={styles.slowmodeHint}>
+            Slowmode is on: one post every {formatSlowmode(slowmodeSeconds)}
+          </Text>
+        ) : null}
       </View>
     ) : null;
 
@@ -430,9 +539,7 @@ export default function CommunityDetailScreen() {
             post={item}
             onPress={() => router.push(`/post/${item.id}`)}
             onLongPress={
-              user && item.user_id === user.id
-                ? () => handlePostLongPress(item)
-                : undefined
+              canPinPost(item) ? () => handlePostLongPress(item) : undefined
             }
           />
         )}
@@ -491,6 +598,58 @@ export default function CommunityDetailScreen() {
               <Button
                 label="Accept"
                 onPress={acceptRules}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={slowmodeModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSlowmodeModalOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Slowmode</Text>
+            <Text style={styles.modalSub}>
+              Members wait this long between posts. Owners and moderators are
+              exempt.
+            </Text>
+            <View style={styles.slowmodeGrid}>
+              {SLOWMODE_PRESETS.map((preset) => {
+                const selected = slowmodeSeconds === preset.seconds;
+                return (
+                  <Pressable
+                    key={preset.seconds}
+                    accessibilityRole="button"
+                    disabled={saveSlowmode.isPending}
+                    onPress={() => saveSlowmode.mutate(preset.seconds)}
+                    style={({ pressed }) => [
+                      styles.slowmodeChip,
+                      selected && styles.slowmodeChipSelected,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.slowmodeChipLabel,
+                        selected && styles.slowmodeChipLabelSelected,
+                      ]}
+                    >
+                      {preset.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={styles.modalActions}>
+              <Button
+                label="Close"
+                variant="outline"
+                onPress={() => setSlowmodeModalOpen(false)}
                 style={styles.modalButton}
               />
             </View>
@@ -630,6 +789,36 @@ const styles = StyleSheet.create({
     minHeight: 40,
     borderRadius: 10,
     paddingHorizontal: spacing(4),
+  },
+  slowmodeHint: {
+    color: colors.mutedForeground,
+    fontSize: 11.5,
+    marginTop: spacing(2),
+  },
+  slowmodeGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing(2),
+    marginTop: spacing(1),
+  },
+  slowmodeChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.full,
+    paddingHorizontal: spacing(3.5),
+    paddingVertical: spacing(1.5),
+  },
+  slowmodeChipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: "rgba(172, 119, 250, 0.15)",
+  },
+  slowmodeChipLabel: {
+    color: colors.mutedForeground,
+    fontSize: 12.5,
+    fontWeight: "600",
+  },
+  slowmodeChipLabelSelected: {
+    color: colors.primary,
   },
   rulesGate: {
     backgroundColor: colors.surfaceElevated,

@@ -74,6 +74,59 @@ export async function getEventById(eventId: string) {
   return data as unknown as EventWithCreator;
 }
 
+// Display and credit only for v1: the events UPDATE policy is creator-only,
+// so co-hosts cannot edit the event. Rows are managed by the host (the
+// event_cohosts RLS checks events.creator_id).
+export interface EventCohost {
+  event_id: string;
+  user_id: string;
+  created_at: string;
+  profiles: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    is_verified: boolean;
+  };
+}
+
+export async function getEventCohosts(eventId: string) {
+  const { data, error } = await supabase
+    .from("event_cohosts")
+    .select(
+      `
+      event_id, user_id, created_at,
+      profiles!event_cohosts_user_id_fkey (
+        id, username, display_name, avatar_url, is_verified
+      )
+    `,
+    )
+    .eq("event_id", eventId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return data as unknown as EventCohost[];
+}
+
+export async function addEventCohost(eventId: string, userId: string) {
+  const { error } = await supabase
+    .from("event_cohosts")
+    .upsert(
+      { event_id: eventId, user_id: userId },
+      { onConflict: "event_id,user_id" },
+    );
+  if (error) throw error;
+}
+
+export async function removeEventCohost(eventId: string, userId: string) {
+  const { error } = await supabase
+    .from("event_cohosts")
+    .delete()
+    .eq("event_id", eventId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
 export async function createEvent(
   creatorId: string,
   data: {

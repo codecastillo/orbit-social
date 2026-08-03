@@ -264,6 +264,20 @@ export async function getSuggestedUsers(userId: string, limit = 10) {
 
 // ── Search ───────────────────────────────────────────────────────────
 
+// websearch-mode FTS has no prefix matching, so a 1-2 char fragment
+// matches nothing; those stay on the ilike substring path. #tag and
+// @mention queries stay on ilike too: to_tsvector strips the sigil, which
+// would turn "#run" into a plain "run" search.
+const FTS_MIN_QUERY_LENGTH = 3;
+
+function isFtsQuery(query: string) {
+  return (
+    query.length >= FTS_MIN_QUERY_LENGTH &&
+    !query.startsWith("#") &&
+    !query.startsWith("@")
+  );
+}
+
 export async function searchUsers(query: string, limit = 20) {
   const term = `%${query}%`;
 
@@ -296,10 +310,19 @@ export async function searchPosts(
   let q = supabase
     .from("posts")
     .select(POST_SELECT)
-    .ilike("content", `%${query}%`)
     .eq("is_hidden", false)
     .order("created_at", { ascending: false })
     .limit(limit);
+
+  if (isFtsQuery(query)) {
+    // Generated posts.search_vector column (GIN-indexed). websearch mode
+    // gives users quoted phrases, OR, and -exclusion for free. supabase-js
+    // cannot order by ts_rank without an RPC, so matches are ordered by
+    // recency rather than a faked relevance sort.
+    q = q.textSearch("search_vector", query, { type: "websearch" });
+  } else {
+    q = q.ilike("content", `%${query}%`);
+  }
 
   if (cursor) {
     q = q.lt("created_at", cursor);

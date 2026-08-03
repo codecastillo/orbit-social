@@ -21,7 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import { GiftSheet } from "@/components/gift-sheet";
 import { useAuth } from "@/providers/auth-provider";
-import { getStreamById, hlsUrl } from "@/lib/queries/live";
+import { getRecentChatMessages, getStreamById, hlsUrl } from "@/lib/queries/live";
 import { giftByType, type SentGift } from "@/lib/queries/gifts";
 import { supabase } from "@/lib/supabase";
 import { safeBack } from "@/lib/nav";
@@ -313,7 +313,9 @@ export default function LiveViewerScreen() {
   }, [id, user?.id, pushGift]);
 
   // Messages arrive via the broadcast the chat API emits, including our
-  // own sends, so a successful POST needs no local append.
+  // own sends, so a successful POST needs no local append. Scrollback
+  // seeds the list from live_chat_messages so mid-stream joins are not
+  // empty; the row id the API puts in the broadcast dedupes the overlap.
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   useEffect(() => {
     if (!id) return;
@@ -321,10 +323,37 @@ export default function LiveViewerScreen() {
     channel
       .on("broadcast", { event: "chat-message" }, ({ payload }) => {
         const msg = payload as ChatMessage;
-        setMessages((prev) => [...prev.slice(-CHAT_BUFFER), msg]);
+        setMessages((prev) =>
+          prev.some((m) => m.id === msg.id)
+            ? prev
+            : [...prev.slice(-CHAT_BUFFER), msg],
+        );
       })
       .subscribe();
+
+    let cancelled = false;
+    getRecentChatMessages(id)
+      .then((rows) => {
+        if (cancelled) return;
+        const history: ChatMessage[] = rows.map((r) => ({
+          id: r.id,
+          username: r.profiles?.username ?? "user",
+          displayName: r.profiles?.display_name ?? "User",
+          content: r.content,
+        }));
+        setMessages((prev) => {
+          const seen = new Set(history.map((m) => m.id));
+          return [...history, ...prev.filter((m) => !seen.has(m.id))].slice(
+            -CHAT_BUFFER,
+          );
+        });
+      })
+      .catch(() => {
+        // Scrollback is best-effort; live broadcasts still fill the list.
+      });
+
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
     };
   }, [id]);

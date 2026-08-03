@@ -124,14 +124,28 @@ export async function POST(
     .eq("id", user.id)
     .maybeSingle();
 
+  // Durable copy for scrollback. The user's client does the insert so RLS
+  // (auth.uid() = user_id) applies; the broadcast reuses the row id so
+  // clients can dedupe scrollback against live delivery.
+  const { data: inserted, error: insertErr } = await supabase
+    .from("live_chat_messages")
+    .insert({ stream_id: streamId, user_id: user.id, content })
+    .select("id, created_at")
+    .single();
+  if (insertErr) {
+    // Scrollback is best-effort: live delivery still goes out with a
+    // synthetic id so a storage hiccup never silences the chat.
+    console.error("chat insert failed", insertErr);
+  }
+
   const msg: ChatPayload = {
-    id: crypto.randomUUID(),
+    id: inserted?.id ?? crypto.randomUUID(),
     userId: user.id,
     username: profile?.username ?? "user",
     displayName: profile?.display_name ?? "User",
     avatarUrl: profile?.avatar_url ?? null,
     content,
-    timestamp: Date.now(),
+    timestamp: inserted ? new Date(inserted.created_at).getTime() : Date.now(),
   };
 
   try {

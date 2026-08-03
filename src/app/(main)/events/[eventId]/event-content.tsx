@@ -33,9 +33,11 @@ import { useCurrentProfile } from "@/lib/hooks/use-profile";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { AttendeesDialog } from "@/components/events/attendees-dialog";
+import { ManageCohostsDialog } from "@/components/events/manage-cohosts-dialog";
 import {
   getEventById,
   getEventAttendees,
+  getEventCohosts,
   getUserRsvpStatus,
   rsvpEvent,
   removeRsvp,
@@ -46,6 +48,7 @@ import {
   getFriendsGoing,
   type EventWithCreator,
   type EventAttendee,
+  type EventCohost,
   type EventComment,
   type FriendsGoing,
 } from "@/lib/queries/events";
@@ -115,6 +118,7 @@ export function EventContent({ eventId }: { eventId: string }) {
 
   const [event, setEvent] = useState<EventWithCreator | null>(null);
   const [attendees, setAttendees] = useState<EventAttendee[]>([]);
+  const [cohosts, setCohosts] = useState<EventCohost[]>([]);
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -126,6 +130,7 @@ export function EventContent({ eventId }: { eventId: string }) {
   const [commentSending, setCommentSending] = useState(false);
   const [replyTo, setReplyTo] = useState<EventComment | null>(null);
   const [attendeesOpen, setAttendeesOpen] = useState(false);
+  const [manageCohostsOpen, setManageCohostsOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const commentsEndRef = useRef<HTMLDivElement | null>(null);
   const commentInputRef = useRef<HTMLInputElement | null>(null);
@@ -139,19 +144,31 @@ export function EventContent({ eventId }: { eventId: string }) {
     }
   }, [eventId]);
 
+  const refetchCohosts = useCallback(async () => {
+    try {
+      const rows = await getEventCohosts(eventId);
+      setCohosts(rows);
+    } catch (err) {
+      console.error("Failed to refresh co-hosts:", err);
+    }
+  }, [eventId]);
+
   const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     async function load() {
       try {
-        const [eventData, attendeeData, commentData] = await Promise.all([
-          getEventById(eventId),
-          getEventAttendees(eventId, 30),
-          getEventComments(eventId, 50),
-        ]);
+        const [eventData, attendeeData, commentData, cohostData] =
+          await Promise.all([
+            getEventById(eventId),
+            getEventAttendees(eventId, 30),
+            getEventComments(eventId, 50),
+            getEventCohosts(eventId),
+          ]);
         setEvent(eventData);
         setAttendees(attendeeData);
         setComments(commentData);
+        setCohosts(cohostData);
         setLoadError(false);
 
         if (user) {
@@ -459,6 +476,13 @@ export function EventContent({ eventId }: { eventId: string }) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44 rounded-xl">
               <DropdownMenuItem
+                onClick={() => setManageCohostsOpen(true)}
+                className="cursor-pointer rounded-lg"
+              >
+                <UsersIcon className="mr-2 h-4 w-4" />
+                Manage co-hosts
+              </DropdownMenuItem>
+              <DropdownMenuItem
                 onClick={() => setConfirmDeleteOpen(true)}
                 className="text-destructive cursor-pointer rounded-lg"
               >
@@ -662,22 +686,47 @@ export function EventContent({ eventId }: { eventId: string }) {
           </div>
         )}
 
-        {/* Creator */}
-        <div className="flex items-center gap-3 pt-4 border-t border-white/5">
-          <UserAvatar
-            src={event.profiles.avatar_url}
-            fallback={event.profiles.display_name || event.profiles.username}
-            size="md"
-          />
-          <div>
-            <p className="text-xs text-muted-foreground">Hosted by</p>
-            <Link
-              href={`/${event.profiles.username}`}
-              className="font-medium text-sm hover:underline"
-            >
-              {event.profiles.display_name || event.profiles.username}
-            </Link>
+        {/* Creator and co-hosts */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-4 border-t border-white/5">
+          <div className="flex items-center gap-3">
+            <UserAvatar
+              src={event.profiles.avatar_url}
+              fallback={event.profiles.display_name || event.profiles.username}
+              size="md"
+            />
+            <div>
+              <p className="text-xs text-muted-foreground">Hosted by</p>
+              <Link
+                href={`/${event.profiles.username}`}
+                className="font-medium text-sm hover:underline"
+              >
+                {event.profiles.display_name || event.profiles.username}
+              </Link>
+            </div>
           </div>
+          {cohosts.map((cohost) => (
+            <Link
+              key={cohost.user_id}
+              href={`/${cohost.profiles.username}`}
+              className="flex items-center gap-2 rounded-full border border-border bg-surface py-1 pl-1 pr-3 transition-colors hover:border-primary/40"
+            >
+              <UserAvatar
+                src={cohost.profiles.avatar_url}
+                fallback={
+                  cohost.profiles.display_name || cohost.profiles.username
+                }
+                size="sm"
+              />
+              <span className="text-xs">
+                <span className="block text-[10px] text-muted-foreground">
+                  Co-host
+                </span>
+                <span className="font-medium">
+                  {cohost.profiles.display_name || cohost.profiles.username}
+                </span>
+              </span>
+            </Link>
+          ))}
         </div>
 
         {/* Comments */}
@@ -810,6 +859,16 @@ export function EventContent({ eventId }: { eventId: string }) {
         onOpenChange={setAttendeesOpen}
         eventId={event.id}
       />
+
+      {isHost && (
+        <ManageCohostsDialog
+          open={manageCohostsOpen}
+          onOpenChange={setManageCohostsOpen}
+          eventId={event.id}
+          cohosts={cohosts}
+          onChanged={refetchCohosts}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmDeleteOpen}

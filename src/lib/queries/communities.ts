@@ -16,6 +16,7 @@ export interface Community {
   member_count: number;
   created_by: string;
   rules: CommunityRule[] | null;
+  slowmode_seconds: number;
   created_at: string;
 }
 
@@ -40,7 +41,8 @@ export interface CommunityMember {
 
 const COMMUNITY_SELECT = `
   id, name, slug, description, avatar_url, cover_url,
-  is_private, join_policy, member_count, created_by, rules, created_at
+  is_private, join_policy, member_count, created_by, rules,
+  slowmode_seconds, created_at
 `;
 
 const POST_SELECT = `
@@ -147,6 +149,32 @@ export async function updateCommunity(
   });
   if (error) throw error;
   return data as Community;
+}
+
+export async function setCommunitySlowmode(
+  communityId: string,
+  seconds: number
+) {
+  // Direct update: the communities UPDATE policy is creator-only
+  // (auth.uid() = created_by) and the update_community RPC has no slowmode
+  // param, so only the room creator can change this. A moderator's update
+  // would silently match zero rows, which is why the setting UI is
+  // owner-only even though enforcement exempts moderators too.
+  const { error } = await supabase
+    .from("communities")
+    .update({ slowmode_seconds: seconds })
+    .eq("id", communityId);
+  if (error) throw error;
+}
+
+export async function pinCommunityPost(postId: string, pinned: boolean) {
+  // SECURITY DEFINER RPC: allows the room's owner or a moderator to pin any
+  // top-level room post (the post author self-pins through the same path).
+  const { error } = await supabase.rpc("pin_community_post", {
+    p_post_id: postId,
+    p_pinned: pinned,
+  });
+  if (error) throw error;
 }
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];

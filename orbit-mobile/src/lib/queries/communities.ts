@@ -21,6 +21,7 @@ export interface Community {
   member_count: number;
   created_by: string;
   rules: CommunityRule[] | null;
+  slowmode_seconds: number;
   created_at: string;
 }
 
@@ -70,7 +71,8 @@ export interface CommunityJoinRequest {
 
 const COMMUNITY_SELECT = `
   id, name, slug, description, avatar_url, cover_url,
-  is_private, join_policy, member_count, created_by, rules, created_at
+  is_private, join_policy, member_count, created_by, rules,
+  slowmode_seconds, created_at
 `;
 
 export async function getCommunities(limit = 40) {
@@ -257,12 +259,25 @@ export async function createCommunityPost(
 }
 
 export async function setCommunityPostPinned(postId: string, pinned: boolean) {
-  // Plain update: the posts UPDATE policy is owner-only, so only the post
-  // author can pin. Anyone else's update silently matches zero rows.
+  // SECURITY DEFINER RPC: the room's owner and moderators can pin any
+  // top-level room post, and the author self-pins through the same path.
+  const { error } = await supabase.rpc("pin_community_post", {
+    p_post_id: postId,
+    p_pinned: pinned,
+  });
+  if (error) throw error;
+}
+
+export async function setCommunitySlowmode(communityId: string, seconds: number) {
+  // Direct update: the communities UPDATE policy is creator-only
+  // (auth.uid() = created_by) and update_community has no slowmode param, so
+  // only the room creator can change this. A moderator's update would
+  // silently match zero rows, which is why the setting UI is owner-only
+  // even though enforcement exempts moderators too.
   const { error } = await supabase
-    .from("posts")
-    .update({ is_pinned: pinned })
-    .eq("id", postId);
+    .from("communities")
+    .update({ slowmode_seconds: seconds })
+    .eq("id", communityId);
   if (error) throw error;
 }
 

@@ -1,4 +1,5 @@
 import {
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -12,7 +13,7 @@ import { useEffect, useState } from "react";
 import { Stack, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, EmptyState } from "@/components/ui";
 import {
   countActiveFilters,
@@ -21,11 +22,17 @@ import {
   type MarketplaceFilters,
 } from "@/components/marketplace-filter-sheet";
 import {
+  deleteSavedSearch,
   getListings,
+  getSavedSearches,
   LISTING_CATEGORIES,
+  saveSearch,
   type ListingFilters,
+  type ListingSort,
   type ListingWithSeller,
+  type SavedSearch,
 } from "@/lib/queries/marketplace";
+import { useAuth } from "@/providers/auth-provider";
 import { colors, radii, spacing } from "@/lib/theme";
 
 // Same debounce the web marketplace page applies to its search input.
@@ -34,6 +41,39 @@ const SEARCH_DEBOUNCE_MS = 300;
 function parsePrice(text: string): number | undefined {
   const value = Number.parseFloat(text);
   return Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+// Only the keys the user actually set go into saved_searches.filters, so a
+// search saved here still applies its category on web (which only reads
+// query and category).
+function filtersToRecord(filters: MarketplaceFilters): Record<string, string> {
+  const record: Record<string, string> = {};
+  if (filters.category !== "All") record.category = filters.category;
+  if (filters.condition) record.condition = filters.condition;
+  if (filters.priceMin.trim()) record.priceMin = filters.priceMin.trim();
+  if (filters.priceMax.trim()) record.priceMax = filters.priceMax.trim();
+  if (filters.sort !== "newest") record.sort = filters.sort;
+  return record;
+}
+
+function recordToFilters(record: Record<string, string>): MarketplaceFilters {
+  return {
+    category: record.category ?? "All",
+    condition: record.condition ?? null,
+    priceMin: record.priceMin ?? "",
+    priceMax: record.priceMax ?? "",
+    sort: (record.sort as ListingSort | undefined) ?? "newest",
+  };
+}
+
+function savedSearchLabel(saved: SavedSearch): string {
+  const parts = [saved.query || null];
+  if (saved.filters.category) parts.push(`in ${saved.filters.category}`);
+  const extras = ["condition", "priceMin", "priceMax", "sort"].filter(
+    (key) => saved.filters[key],
+  ).length;
+  if (extras > 0) parts.push(`+${extras}`);
+  return parts.filter(Boolean).join(" ");
 }
 
 function formatPrice(price: number, currency = "USD") {
@@ -94,6 +134,8 @@ function ListingCard({
 
 export default function MarketplaceScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [filters, setFilters] = useState<MarketplaceFilters>(
     DEFAULT_MARKETPLACE_FILTERS,
   );
@@ -124,6 +166,63 @@ export default function MarketplaceScreen() {
   });
 
   const activeFilterCount = countActiveFilters(filters);
+
+  const savedSearchesKey = ["saved-searches", user?.id];
+  const savedSearchesQuery = useQuery({
+    queryKey: savedSearchesKey,
+    queryFn: () => getSavedSearches(user!.id),
+    enabled: !!user,
+  });
+  const savedSearches = savedSearchesQuery.data ?? [];
+
+  const canSaveSearch =
+    !!user && (debouncedSearch.length > 0 || activeFilterCount > 0);
+
+  const save = useMutation({
+    mutationFn: () =>
+      saveSearch(user!.id, debouncedSearch, filtersToRecord(filters)),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: savedSearchesKey }),
+    onError: () => Alert.alert("Couldn't save this search"),
+  });
+
+  const removeSaved = useMutation({
+    mutationFn: (searchId: string) => deleteSavedSearch(searchId),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: savedSearchesKey }),
+    onError: () => Alert.alert("Couldn't delete this saved search"),
+  });
+
+  const handleSaveSearch = () => {
+    if (!canSaveSearch || save.isPending) return;
+    const record = filtersToRecord(filters);
+    const duplicate = savedSearches.some(
+      (s) =>
+        s.query === debouncedSearch &&
+        JSON.stringify(s.filters) === JSON.stringify(record),
+    );
+    if (duplicate) {
+      Alert.alert("Already saved");
+      return;
+    }
+    save.mutate();
+  };
+
+  const applySavedSearch = (saved: SavedSearch) => {
+    setSearchText(saved.query);
+    setFilters(recordToFilters(saved.filters));
+  };
+
+  const confirmDeleteSaved = (saved: SavedSearch) => {
+    Alert.alert(`Delete "${savedSearchLabel(saved)}"?`, undefined, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => removeSaved.mutate(saved.id),
+      },
+    ]);
+  };
 
   const searchBar = (
     <View style={styles.searchRow}>
@@ -174,8 +273,60 @@ export default function MarketplaceScreen() {
           <Text style={styles.filterCount}>{activeFilterCount}</Text>
         ) : null}
       </Pressable>
+      {canSaveSearch ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Save this search"
+          onPress={handleSaveSearch}
+          disabled={save.isPending}
+          style={({ pressed }) => [
+            styles.filterButton,
+            (pressed || save.isPending) && { opacity: 0.8 },
+          ]}
+        >
+          <Ionicons
+            name="bookmark-outline"
+            size={18}
+            color={colors.foreground}
+          />
+        </Pressable>
+      ) : null}
     </View>
   );
+
+  const savedChips =
+    savedSearches.length > 0 ? (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.chipsBar}
+        contentContainerStyle={styles.savedChipsContent}
+      >
+        {savedSearches.map((saved) => (
+          <Pressable
+            key={saved.id}
+            accessibilityRole="button"
+            accessibilityLabel={`Apply saved search ${savedSearchLabel(saved)}`}
+            accessibilityHint="Long press to delete"
+            onPress={() => applySavedSearch(saved)}
+            onLongPress={() => confirmDeleteSaved(saved)}
+            style={({ pressed }) => [
+              styles.savedChip,
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <Ionicons
+              name="bookmark"
+              size={12}
+              color={colors.mutedForeground}
+            />
+            <Text style={styles.savedChipLabel} numberOfLines={1}>
+              {savedSearchLabel(saved)}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    ) : null;
 
   const chips = (
     <ScrollView
@@ -211,6 +362,10 @@ export default function MarketplaceScreen() {
         }}
       />
       {searchBar}
+      <Text style={styles.searchHint}>
+        Tips: &quot;exact phrase&quot;, bike OR scooter, -exclude
+      </Text>
+      {savedChips}
       {chips}
       {listingsQuery.isPending ? (
         <View style={styles.listContent}>
@@ -324,6 +479,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingVertical: spacing(2),
   },
+  searchHint: {
+    color: colors.textFaint,
+    fontSize: 11,
+    marginTop: spacing(1.5),
+    paddingHorizontal: spacing(4),
+  },
   filterButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -346,6 +507,29 @@ const styles = StyleSheet.create({
   },
   chipsBar: {
     flexGrow: 0,
+  },
+  savedChipsContent: {
+    paddingHorizontal: spacing(4),
+    paddingTop: spacing(3),
+    gap: spacing(2),
+  },
+  savedChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(1.5),
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(1.5),
+    maxWidth: 220,
+  },
+  savedChipLabel: {
+    color: colors.textSecondary,
+    fontSize: 12.5,
+    fontWeight: "600",
+    flexShrink: 1,
   },
   chipsContent: {
     paddingHorizontal: spacing(4),

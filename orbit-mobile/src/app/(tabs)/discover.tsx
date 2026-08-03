@@ -110,6 +110,9 @@ export default function DiscoverScreen() {
             </Pressable>
           ) : null}
         </View>
+        <Text style={styles.searchHint}>
+          Tips: &quot;exact phrase&quot;, cats OR dogs, -exclude
+        </Text>
       </View>
       {isSearching ? (
         <SearchResults
@@ -659,6 +662,12 @@ const styles = StyleSheet.create({
     color: colors.foreground,
     fontSize: 14,
     paddingVertical: spacing(2),
+  },
+  searchHint: {
+    color: colors.textFaint,
+    fontSize: 11,
+    marginTop: spacing(1.5),
+    paddingHorizontal: spacing(3),
   },
   tabs: {
     flexDirection: "row",

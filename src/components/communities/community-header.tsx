@@ -51,11 +51,25 @@ import {
   leaveCommunity,
   deleteCommunity,
   getMyJoinRequestStatus,
+  setCommunitySlowmode,
   updateCommunity,
   uploadCommunityImage,
   type Community,
   type CommunityMember,
 } from "@/lib/queries/communities";
+
+// Discord-style slowmode steps; the column accepts 0-21600 but presets keep
+// the picker one tap wide instead of a free-form number field.
+const SLOWMODE_PRESETS = [
+  { label: "Off", seconds: 0 },
+  { label: "5s", seconds: 5 },
+  { label: "10s", seconds: 10 },
+  { label: "30s", seconds: 30 },
+  { label: "1m", seconds: 60 },
+  { label: "5m", seconds: 300 },
+  { label: "15m", seconds: 900 },
+  { label: "1h", seconds: 3600 },
+];
 
 interface CommunityHeaderProps {
   community: Community;
@@ -87,6 +101,9 @@ export function CommunityHeader({
   const [editName, setEditName] = useState(community.name);
   const [editDescription, setEditDescription] = useState(
     community.description || "",
+  );
+  const [editSlowmode, setEditSlowmode] = useState(
+    community.slowmode_seconds ?? 0,
   );
   const [savingEdit, setSavingEdit] = useState(false);
   const [uploadingKind, setUploadingKind] = useState<"avatar" | "cover" | null>(
@@ -402,6 +419,7 @@ export function CommunityHeader({
                         onClick={() => {
                           setEditName(community.name);
                           setEditDescription(community.description || "");
+                          setEditSlowmode(community.slowmode_seconds ?? 0);
                           setEditOpen(true);
                         }}
                       >
@@ -623,6 +641,30 @@ export function CommunityHeader({
               rows={3}
               className="rounded-xl bg-surface border border-input focus:border-ring focus:outline-none px-3 py-2 text-sm resize-none"
             />
+            <label className="text-xs text-muted-foreground mt-2">
+              Slowmode
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {SLOWMODE_PRESETS.map((preset) => (
+                <button
+                  key={preset.seconds}
+                  type="button"
+                  onClick={() => setEditSlowmode(preset.seconds)}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs transition-colors",
+                    editSlowmode === preset.seconds
+                      ? "border-primary bg-primary/15 text-primary"
+                      : "border-border bg-surface text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Members wait this long between posts. Owners and moderators are
+              exempt.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditOpen(false)}>
@@ -637,8 +679,14 @@ export function CommunityHeader({
                     name: editName.trim(),
                     description: editDescription.trim(),
                   });
+                  if (editSlowmode !== (community.slowmode_seconds ?? 0)) {
+                    await setCommunitySlowmode(community.id, editSlowmode);
+                  }
                   await queryClient.invalidateQueries({
                     queryKey: ["community", community.id],
+                  });
+                  await queryClient.invalidateQueries({
+                    queryKey: ["community", community.slug],
                   });
                   await queryClient.invalidateQueries({
                     queryKey: ["communities"],

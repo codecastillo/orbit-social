@@ -56,6 +56,7 @@ import {
   type PostWithAuthor,
   type PollData,
 } from "@/lib/queries/posts";
+import { pinCommunityPost } from "@/lib/queries/communities";
 import {
   loadPostReactions,
   loadUserReaction,
@@ -102,6 +103,12 @@ interface PostCardProps {
    * isOwnPost.
    */
   onTogglePinComment?: () => void;
+  /**
+   * The viewer's role in the room this post belongs to, when the parent
+   * knows it (the community feed does). Owners and moderators can pin any
+   * top-level room post; the pin RPC re-checks the role server-side.
+   */
+  communityRole?: "owner" | "moderator" | "member" | null;
 }
 
 // Memoized: a feed renders dozens of these, each with its own state and
@@ -117,6 +124,7 @@ export const PostCard = memo(function PostCard({
   compact = false,
   allUserPosts,
   onTogglePinComment,
+  communityRole,
 }: PostCardProps) {
   // Caller-provided state wins; otherwise fall back to whatever the query
   // baked into the row (e.g. profile tabs enrich posts via
@@ -439,14 +447,20 @@ export const PostCard = memo(function PostCard({
   const handlePin = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      if (post.is_pinned) {
+      if (displayPost.community_id) {
+        // Room pins go through the pin_community_post RPC so the room's
+        // owner and moderators can pin any top-level post, not just their
+        // own (the posts UPDATE policy is author-only).
+        await pinCommunityPost(post.id, !post.is_pinned);
+        toast.success(
+          post.is_pinned ? "Post unpinned" : "Post pinned in room"
+        );
+      } else if (post.is_pinned) {
         await unpinPost(post.id);
         toast.success("Post unpinned");
       } else {
         await pinPost(post.id);
-        toast.success(
-          displayPost.community_id ? "Post pinned in room" : "Post pinned to profile"
-        );
+        toast.success("Post pinned to profile");
       }
       onUpdate?.();
     } catch {
@@ -621,24 +635,27 @@ export const PostCard = memo(function PostCard({
                       )}
                     </DropdownMenuItem>
                   )}
+                  {/* Room posts pin inside the room instead of the profile.
+                      Shown to the author plus room owners/moderators; the
+                      pin_community_post RPC enforces the role server-side. */}
+                  {displayPost.community_id &&
+                    !displayPost.reply_to_id &&
+                    (isOwnPost ||
+                      communityRole === "owner" ||
+                      communityRole === "moderator") && (
+                      <DropdownMenuItem onClick={handlePin}>
+                        {post.is_pinned ? (
+                          <><PinOff className="mr-2 h-4 w-4" /> Unpin from room</>
+                        ) : (
+                          <><Pin className="mr-2 h-4 w-4" /> Pin in room</>
+                        )}
+                      </DropdownMenuItem>
+                    )}
                   {isOwnPost ? (
                     <>
                       <DropdownMenuItem onClick={handleEdit}>
                         <Pencil className="mr-2 h-4 w-4" /> Edit
                       </DropdownMenuItem>
-                      {/* Room posts pin inside the room instead. Author-only:
-                          the posts UPDATE policy is owner-only and there is no
-                          moderator pin RPC, so a mod pinning someone else's
-                          post would silently no-op under RLS. */}
-                      {displayPost.community_id && !displayPost.reply_to_id && (
-                        <DropdownMenuItem onClick={handlePin}>
-                          {post.is_pinned ? (
-                            <><PinOff className="mr-2 h-4 w-4" /> Unpin from room</>
-                          ) : (
-                            <><Pin className="mr-2 h-4 w-4" /> Pin in room</>
-                          )}
-                        </DropdownMenuItem>
-                      )}
                       {/* Pin to Profile + Boost don't apply inside a
                           room, that's profile-level promotion that
                           would lift a private/scoped post out of its
