@@ -72,7 +72,7 @@ import {
   type ReactionCount,
 } from "@/lib/queries/reactions";
 import { boostPost, removeBoost } from "@/lib/queries/boost";
-import { markNotInterested } from "@/lib/queries/content-safety";
+import { getRankingSignals, markNotInterested } from "@/lib/queries/content-safety";
 import { ShareDialog } from "@/components/shared/share-dialog";
 import { BlockMuteDialog } from "@/components/shared/block-mute-dialog";
 import { ReportDialog } from "@/components/shared/report-dialog";
@@ -254,6 +254,19 @@ export const PostCard = memo(function PostCard({
 
   // For reposts, display the original post content
   const displayPost = isRepostType && originalPost ? originalPost : post;
+
+  // Viewers who set sensitive_content_level "more" skip the spoiler tap.
+  // getRankingSignals is module-cached, so cards share one fetch.
+  useEffect(() => {
+    if (!user?.id || !displayPost.content_warning) return;
+    let cancelled = false;
+    getRankingSignals(user.id).then((signals) => {
+      if (!cancelled && signals.autoRevealSensitive) setSpoilerRevealed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, displayPost.content_warning]);
   const displayProfile = isRepostType && originalPost ? originalPost.profiles : profile;
   const displayHasMedia = isRepostType && originalPost
     ? originalPost.post_media && originalPost.post_media.length > 0
@@ -600,6 +613,16 @@ export const PostCard = memo(function PostCard({
                 <span>@{displayProfile.username}</span>
                 <span className="text-text-faint">·</span>
                 <span>{formatTimeAgo(post.created_at)}</span>
+                {/* 60s grace: updated_at moves on counters too, only a real
+                    edit drifts it this far from created_at. */}
+                {new Date(displayPost.updated_at).getTime() -
+                  new Date(displayPost.created_at).getTime() >
+                  60_000 && (
+                  <>
+                    <span className="text-text-faint">·</span>
+                    <span className="text-text-faint">Edited</span>
+                  </>
+                )}
                 {displayPost.location && (
                   <>
                     <span className="text-text-faint">·</span>
@@ -867,7 +890,7 @@ export const PostCard = memo(function PostCard({
                       ) : (
                         <Image
                           src={m.url}
-                          alt=""
+                          alt={m.alt_text ?? ""}
                           fill
                           sizes={
                             isMulti

@@ -18,7 +18,8 @@ export interface NotificationWithActor {
     | "live_started"
     | "community_invite"
     | "event_invite"
-    | "event_reminder";
+    | "event_reminder"
+    | "new_post";
   entity_type: string | null;
   entity_id: string | null;
   is_read: boolean;

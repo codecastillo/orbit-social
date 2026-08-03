@@ -141,6 +141,8 @@ export interface RankingSignals {
   seeMoreTopics: Set<string>;
   seeLessTopics: Set<string>;
   demoteSensitive: boolean;
+  // Level "more": content-warning gates skip the reveal tap for this viewer.
+  autoRevealSensitive: boolean;
 }
 
 const SIGNALS_TTL_MS = 5 * 60_000;
@@ -195,6 +197,9 @@ export async function getRankingSignals(
       demoteSensitive:
         (profileResult.data as { sensitive_content_level?: string } | null)
           ?.sensitive_content_level === "less",
+      autoRevealSensitive:
+        (profileResult.data as { sensitive_content_level?: string } | null)
+          ?.sensitive_content_level === "more",
     };
 
     if (!prefsResult.error && !profileResult.error) {
@@ -207,6 +212,7 @@ export async function getRankingSignals(
       seeMoreTopics: new Set(),
       seeLessTopics: new Set(),
       demoteSensitive: false,
+      autoRevealSensitive: false,
     };
   }
 }

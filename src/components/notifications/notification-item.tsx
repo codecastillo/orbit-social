@@ -50,6 +50,8 @@ function getNotificationText(notification: NotificationWithActor): string {
       return `${name} mentioned you`;
     case "repost":
       return `${name} reposted your ${postNoun(post)}`;
+    case "new_post":
+      return `${name} posted something new`;
     case "message":
       return `${name} sent you a message`;
     case "story_reaction":
@@ -80,6 +82,7 @@ function getNotificationHref(notification: NotificationWithActor): string {
     case "mention":
     case "repost":
     case "quote":
+    case "new_post":
       if (entity === "event" && notification.entity_id) {
         return `/events/${notification.entity_id}`;
       }

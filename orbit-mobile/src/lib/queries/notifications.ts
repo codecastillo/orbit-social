@@ -12,7 +12,8 @@ export type NotificationType =
   | "live_started"
   | "community_invite"
   | "event_invite"
-  | "event_reminder";
+  | "event_reminder"
+  | "new_post";
 
 export interface NotificationWithActor {
   id: string;

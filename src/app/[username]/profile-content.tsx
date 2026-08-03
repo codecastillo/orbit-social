@@ -25,6 +25,7 @@ import { PostBellButton } from "@/components/profile/post-bell-button";
 import { HighlightsRow } from "@/components/stories/highlights-row";
 import { BlockMuteDialog } from "@/components/shared/block-mute-dialog";
 import { ReportDialog } from "@/components/shared/report-dialog";
+import { RichText } from "@/components/shared/rich-text";
 import { normalizeAccent } from "@/lib/design/accents";
 import { getOrCreateDMConversation } from "@/lib/queries/messages";
 import { restrictUser, unrestrictUser } from "@/lib/queries/content-safety";
@@ -577,9 +578,9 @@ export function ProfileContent({
               {joinedYear(profile.created_at)}
             </div>
             {profile.bio && (
-              <p className="mt-3 max-w-[580px] text-[14.5px] leading-[1.55] text-text-secondary">
+              <RichText className="mt-3 max-w-[580px] text-[14.5px] leading-[1.55] text-text-secondary">
                 {profile.bio}
-              </p>
+              </RichText>
             )}
           </div>
 

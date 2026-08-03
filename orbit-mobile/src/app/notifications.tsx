@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import {
@@ -44,6 +45,8 @@ function notificationPhrase(notification: NotificationWithActor): string {
       return "mentioned you";
     case "repost":
       return "reposted your post";
+    case "new_post":
+      return "posted something new";
     case "message":
       return "sent you a message";
     case "story_reaction":
@@ -133,6 +136,7 @@ function NotificationRow({
 
 export default function NotificationsScreen() {
   const { user } = useAuth();
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const {
@@ -167,8 +171,18 @@ export default function NotificationsScreen() {
       if (!notification.is_read) {
         readMutation.mutate(notification.id);
       }
+      // Only the destinations with a mobile screen navigate; the other
+      // types just mark read, as before.
+      if (notification.type === "new_post" && notification.entity_id) {
+        router.push(`/post/${notification.entity_id}`);
+      } else if (
+        notification.type === "event_reminder" &&
+        notification.entity_id
+      ) {
+        router.push(`/events/${notification.entity_id}`);
+      }
     },
-    [readMutation],
+    [readMutation, router],
   );
 
   const items = useMemo(

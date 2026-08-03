@@ -43,6 +43,11 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
   const [followOverride, setFollowOverride] = useState<boolean | null>(null);
   const [progress, setProgress] = useState(0); // 0 to 1
   const [commentsOpen, setCommentsOpen] = useState(false);
+  // Center glyph confirming a mute toggle; the key remounts the element so
+  // the CSS fade restarts on rapid toggles.
+  const [muteGlyph, setMuteGlyph] = useState<{ muted: boolean; key: number } | null>(
+    null,
+  );
   // Loop counting: the <video loop> attribute never fires "ended", so we
   // detect the wrap-around on timeupdate (currentTime jumps back to ~0
   // from near the end). Loops accumulate in a ref and flush in batches.
@@ -208,6 +213,7 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
     (e: React.MouseEvent) => {
       e.stopPropagation();
       setClipsMuted(!isMuted);
+      setMuteGlyph({ muted: !isMuted, key: Date.now() });
     },
     [isMuted, setClipsMuted],
   );
@@ -328,6 +334,22 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="grid h-20 w-20 place-items-center rounded-full border border-white/15 bg-black/60">
             <Play className="ml-[3px] h-[30px] w-[30px] fill-white text-white" />
+          </div>
+        </div>
+      )}
+
+      {/* Transient mute-toggle glyph, center, same chrome as the play glyph */}
+      {muteGlyph && (
+        <div
+          key={muteGlyph.key}
+          className="clip-glyph absolute inset-0 flex items-center justify-center pointer-events-none"
+        >
+          <div className="grid h-16 w-16 place-items-center rounded-full border border-white/15 bg-black/60 text-white">
+            {muteGlyph.muted ? (
+              <VolumeX className="h-6 w-6" strokeWidth={2} />
+            ) : (
+              <Volume2 className="h-6 w-6" strokeWidth={2} />
+            )}
           </div>
         </div>
       )}

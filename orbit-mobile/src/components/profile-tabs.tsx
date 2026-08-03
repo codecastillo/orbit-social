@@ -110,8 +110,18 @@ function MediaTile({
       ) : isVideo ? (
         <Ionicons name="play" size={14} color="#fff" style={styles.tileBadge} />
       ) : null}
+      {isVideo && media.duration_ms ? (
+        <Text style={styles.tileDuration}>{formatTileDuration(media.duration_ms)}</Text>
+      ) : null}
     </Pressable>
   );
+}
+
+function formatTileDuration(durationMs: number): string {
+  const total = Math.round(durationMs / 1000);
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
 // Text-only posts keep their spot in the grid as quote-style tiles, so the
@@ -312,6 +322,19 @@ const styles = StyleSheet.create({
     right: 6,
     textShadowColor: "rgba(0, 0, 0, 0.6)",
     textShadowRadius: 3,
+  },
+  tileDuration: {
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+    color: "#fff",
+    fontSize: 10,
+    fontVariant: ["tabular-nums"],
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    overflow: "hidden",
   },
   tilePlaceholder: {
     backgroundColor: colors.surfaceElevated,

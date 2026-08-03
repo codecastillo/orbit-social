@@ -19,6 +19,7 @@ import { getLiveStreams } from "@/lib/queries/live";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { FollowButton } from "@/components/shared/follow-button";
 import { cn } from "@/lib/utils";
+import { formatDuration } from "@/lib/utils/audio";
 import { toast } from "sonner";
 
 /* ─── helpers ────────────────────────────────────────────────────── */
@@ -225,6 +226,7 @@ function FeaturedTrend() {
             const isImage = image?.type === "image";
             const isVideo = image?.type === "video";
             const thumbSrc = image?.thumbnail_url || (isImage ? image?.url : null);
+            const durationMs = isVideo ? image?.duration_ms : null;
             return (
               <Link
                 key={i}
@@ -252,6 +254,11 @@ function FeaturedTrend() {
                     className="block h-full w-full object-cover"
                   />
                 ) : null}
+                {durationMs != null && durationMs > 0 && (
+                  <span className="absolute right-1.5 top-1.5 rounded-md bg-black/60 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-white">
+                    {formatDuration(Math.round(durationMs / 1000))}
+                  </span>
+                )}
                 {post?.profiles?.username && (
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2.5 pb-2 pt-5 font-mono text-[10px] text-white/85">
                     by @{post.profiles.username}

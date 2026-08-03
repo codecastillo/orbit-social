@@ -30,6 +30,8 @@ export interface PostMediaItem {
   height: number | null;
   blurhash: string | null;
   sort_order: number;
+  duration_ms: number | null;
+  alt_text: string | null;
 }
 
 export interface Post {
@@ -52,8 +54,10 @@ export interface Post {
   // Optional because optimistic reply rows are built without it.
   content_warning?: string | null;
   boosted_until?: string | null;
+  location?: string | null;
   poll_data: PollData | null;
   created_at: string;
+  updated_at?: string | null;
   profiles: PostAuthor;
   post_media: PostMediaItem[];
 }
@@ -64,14 +68,15 @@ export interface Post {
 const POST_SELECT = `
   id, user_id, content, type, parent_post_id, reply_to_id, community_id,
   like_count, comment_count, repost_count, bookmark_count, view_count,
-  is_hidden, is_pinned, visibility, content_warning, boosted_until, poll_data,
-  created_at,
+  is_hidden, is_pinned, visibility, content_warning, boosted_until, location,
+  poll_data, created_at, updated_at,
   profiles!posts_user_id_fkey (
     id, username, display_name, avatar_url, is_verified,
     follower_count, post_count
   ),
   post_media (
-    id, type, url, thumbnail_url, width, height, blurhash, sort_order
+    id, type, url, thumbnail_url, width, height, blurhash, sort_order,
+    duration_ms, alt_text
   )
 `;
 
@@ -679,4 +684,31 @@ export async function uploadPostMedia(
     data: { publicUrl },
   } = supabase.storage.from("post-media").getPublicUrl(filePath);
   return publicUrl;
+}
+
+// --- Scheduled posts ---
+
+export interface ScheduledPost extends Post {
+  scheduled_at: string | null;
+}
+
+// Mirrors the web getScheduledPosts: scheduled rows sit behind is_hidden
+// until published, so they never leak into feeds. POST_SELECT does not carry
+// scheduled_at (feeds never show it), hence the widened select here.
+export async function getScheduledPosts(userId: string): Promise<ScheduledPost[]> {
+  const { data, error } = await supabase
+    .from("posts")
+    .select(`scheduled_at, ${POST_SELECT}`)
+    .eq("user_id", userId)
+    .eq("is_hidden", true)
+    .not("scheduled_at", "is", null)
+    .order("scheduled_at", { ascending: true });
+
+  if (error) throw error;
+  return data as unknown as ScheduledPost[];
+}
+
+export async function deletePost(postId: string) {
+  const { error } = await supabase.from("posts").delete().eq("id", postId);
+  if (error) throw error;
 }

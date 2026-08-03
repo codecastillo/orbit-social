@@ -47,23 +47,9 @@ export async function importMutedWords(userId: string, words: string[]) {
   if (error) throw error;
 }
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
- * Case-insensitive, word-boundary-ish matcher: "cat" hides "cat!" and
- * "CAT," but not "category". Multi-word phrases match as substrings with
- * the same boundary rule at each end.
- */
-export function buildMutedWordMatcher(
-  words: string[]
-): (text: string | null) => boolean {
-  if (words.length === 0) return () => false;
-  const pattern = words.map(escapeRegex).join("|");
-  const boundary = new RegExp(`(^|\\W)(${pattern})(\\W|$)`, "i");
-  return (text) => !!text && boundary.test(text);
-}
+// The matcher itself lives in lib/utils/muted-words so the server-side push
+// route can use it without dragging in this module's browser client.
+export { buildMutedWordMatcher } from "@/lib/utils/muted-words";
 
 // ── Restricted accounts ──────────────────────────────────────────────
 
@@ -201,6 +187,8 @@ export async function getRankingSignals(
           .map((p) => p.topic.toLowerCase())
       ),
       demoteSensitive: profileResult.data?.sensitive_content_level === "less",
+      autoRevealSensitive:
+        profileResult.data?.sensitive_content_level === "more",
     };
 
     if (!prefsResult.error && !profileResult.error) {
@@ -213,6 +201,7 @@ export async function getRankingSignals(
       seeMoreTopics: new Set(),
       seeLessTopics: new Set(),
       demoteSensitive: false,
+      autoRevealSensitive: false,
     };
   }
 }

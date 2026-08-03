@@ -45,11 +45,14 @@ const ALLOWED_IMAGE_TYPES = [
 const MAX_IMAGES = 4;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB for images
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB for videos
+// Matches the mobile composer's limit so alt text is consistent everywhere.
+const ALT_TEXT_MAX_LENGTH = 300;
 
 interface MediaPreview {
   file: File;
   preview: string;
   type: "image" | "video" | "gif";
+  altText: string;
 }
 
 interface ComposerRestore {
@@ -459,7 +462,7 @@ function ComposerForm({
           ? "gif"
           : "image";
 
-      setMedia((prev) => [...prev, { file, preview, type }]);
+      setMedia((prev) => [...prev, { file, preview, type, altText: "" }]);
 
       // Probe video aspect to seed the default destination.
       if (type === "video") {
@@ -477,10 +480,19 @@ function ComposerForm({
   };
 
   const removeMedia = (index: number) => {
+    // Indexes shift on removal, so any open alt editor would point at the
+    // wrong image; close it instead of guessing.
+    setAltEditingIndex(null);
     setMedia((prev) => {
       URL.revokeObjectURL(prev[index].preview);
       return prev.filter((_, i) => i !== index);
     });
+  };
+
+  const [altEditingIndex, setAltEditingIndex] = useState<number | null>(null);
+
+  const setAltText = (index: number, altText: string) => {
+    setMedia((prev) => prev.map((m, i) => (i === index ? { ...m, altText } : m)));
   };
 
   const [moderationWarning, setModerationWarning] = useState<string | null>(null);
@@ -611,8 +623,15 @@ function ComposerForm({
         : null);
 
     const publish = async () => {
-      const uploadedMedia = await Promise.all(
-        mediaToUpload.map((m) => uploadPostMedia(user.id, m.file))
+      const uploadedMedia: {
+        url: string;
+        type: "image" | "video" | "gif";
+        altText?: string;
+      }[] = await Promise.all(
+        mediaToUpload.map(async (m) => ({
+          ...(await uploadPostMedia(user.id, m.file)),
+          ...(m.altText.trim() ? { altText: m.altText.trim() } : {}),
+        }))
       );
       // Previews outlived the reset in case of an undo; the commit is the
       // point of no return, so release them here.
@@ -685,6 +704,7 @@ function ComposerForm({
     const resetForm = () => {
       setContent("");
       setMedia([]);
+      setAltEditingIndex(null);
       clearAudio();
       setShowPoll(false);
       setPollOptions(["", ""]);
@@ -802,7 +822,7 @@ function ComposerForm({
                     ) : (
                       <img
                         src={m.preview}
-                        alt=""
+                        alt={m.altText}
                         className={
                           media.length === 1
                             ? "w-full max-h-[520px] mx-auto block object-contain"
@@ -817,8 +837,61 @@ function ComposerForm({
                     >
                       <X className="h-3.5 w-3.5 text-white" />
                     </button>
+                    {m.type !== "video" && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAltEditingIndex(altEditingIndex === i ? null : i)
+                        }
+                        aria-label="Edit alt text"
+                        className={cn(
+                          "absolute bottom-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-[0.08em] transition-colors",
+                          m.altText.trim()
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-black/60 text-white hover:bg-black/80"
+                        )}
+                      >
+                        ALT
+                      </button>
+                    )}
                   </motion.div>
                 ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Alt text editor, opened from the ALT badge on an image preview */}
+          <AnimatePresence>
+            {altEditingIndex !== null && media[altEditingIndex] && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="mt-3"
+              >
+                <div className="rounded-xl border border-border bg-surface p-3 space-y-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[13px] font-medium text-text-secondary">
+                      Alt text
+                    </span>
+                    <button
+                      onClick={() => setAltEditingIndex(null)}
+                      className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Done
+                    </button>
+                  </div>
+                  <textarea
+                    value={media[altEditingIndex].altText}
+                    onChange={(e) => setAltText(altEditingIndex, e.target.value)}
+                    placeholder="Describe this image for people using screen readers"
+                    maxLength={ALT_TEXT_MAX_LENGTH}
+                    rows={2}
+                    autoFocus
+                    className="w-full px-3 py-2 rounded-lg text-[13px] resize-none bg-surface-elevated border border-input text-foreground placeholder:text-text-faint focus:outline-none focus:border-primary/50 transition-colors"
+                  />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

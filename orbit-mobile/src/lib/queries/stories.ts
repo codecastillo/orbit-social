@@ -258,6 +258,32 @@ export async function sendStoryReaction(
   if (error) throw error;
 }
 
+export interface StoryViewerRecord {
+  viewer_id: string;
+  viewed_at: string;
+  profiles: StoryWithAuthor["profiles"];
+}
+
+/**
+ * Who has seen a story, newest first. RLS on story_views limits the read to
+ * the story owner, same as the web getStoryViewers.
+ */
+export async function getStoryViewers(
+  storyId: string,
+): Promise<StoryViewerRecord[]> {
+  const { data, error } = await supabase
+    .from("story_views")
+    .select(
+      `viewer_id, viewed_at, profiles:viewer_id (id, username, display_name, avatar_url, is_verified)`,
+    )
+    .eq("story_id", storyId)
+    .order("viewed_at", { ascending: false });
+
+  if (error) throw error;
+  // Through unknown: same to-one join inference issue as above.
+  return data as unknown as StoryViewerRecord[];
+}
+
 export async function markStoryViewed(storyId: string, viewerId: string) {
   const { error } = await supabase
     .from("story_views")

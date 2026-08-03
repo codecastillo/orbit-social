@@ -410,9 +410,19 @@ function ClipResultTile({
       <View style={styles.clipTileScrim}>
         <Ionicons name="play" size={11} color="#fff" />
         <Text style={styles.clipTileLikes}>{formatNumber(clip.like_count)}</Text>
+        {media?.duration_ms ? (
+          <Text style={styles.clipTileDuration}>
+            {formatClipDuration(media.duration_ms)}
+          </Text>
+        ) : null}
       </View>
     </Pressable>
   );
+}
+
+function formatClipDuration(durationMs: number): string {
+  const total = Math.round(durationMs / 1000);
+  return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, "0")}`;
 }
 
 function DiscoverHome({ onTagPress }: { onTagPress: (name: string) => void }) {
@@ -787,6 +797,13 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 11,
     fontWeight: "600",
+  },
+  clipTileDuration: {
+    marginLeft: "auto",
+    color: "#fff",
+    fontSize: 10,
+    fontVariant: ["tabular-nums"],
+    opacity: 0.85,
   },
   homeContent: {
     paddingTop: spacing(1),

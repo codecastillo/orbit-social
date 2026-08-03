@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Centered, EmptyState } from "@/components/ui";
 import { StoryOverlayLayer } from "@/components/story-overlays";
+import { StoryViewersSheet } from "@/components/story-viewers-sheet";
 import {
   getActiveStories,
   markStoryViewed,
@@ -25,7 +26,7 @@ import {
 } from "@/lib/queries/stories";
 import { getHighlights } from "@/lib/queries/highlights";
 import { MESSAGE_REACTION_GLYPHS } from "@/lib/queries/messages";
-import { formatTimeAgo } from "@/lib/format";
+import { formatNumber, formatTimeAgo } from "@/lib/format";
 import { useAuth } from "@/providers/auth-provider";
 import { colors, radii, spacing } from "@/lib/theme";
 
@@ -69,6 +70,7 @@ export default function StoryViewerScreen() {
   const [reactionState, setReactionState] = useState<
     "idle" | "sending" | "sent" | "failed"
   >("idle");
+  const [viewersOpen, setViewersOpen] = useState(false);
   const reactionResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeQuery = useQuery({
@@ -133,9 +135,10 @@ export default function StoryViewerScreen() {
   }, []);
 
   // Auto-advance images on a timer; video stories advance by tap only in
-  // v1, so their bar stays empty while they play.
+  // v1, so their bar stays empty while they play. Paused while the viewers
+  // sheet is up so the story cannot advance out from under it.
   useEffect(() => {
-    if (!current) return;
+    if (!current || viewersOpen) return;
     progress.setValue(0);
     if (current.media_type !== "image") return;
 
@@ -152,7 +155,7 @@ export default function StoryViewerScreen() {
     });
     return () => animation.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.id]);
+  }, [current?.id, viewersOpen]);
 
   useEffect(() => {
     if (!user || !current) return;
@@ -233,6 +236,29 @@ export default function StoryViewerScreen() {
             }}
           />
 
+          {/* Own stories swap the reaction bar for the viewer count, which
+              opens the viewers sheet. */}
+          {current.user_id === user.id ? (
+            <View
+              style={[styles.reactionBar, { bottom: insets.bottom + spacing(4) }]}
+            >
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="See who viewed your story"
+                onPress={() => setViewersOpen(true)}
+                style={({ pressed }) => [
+                  styles.viewersButton,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Ionicons name="eye-outline" size={16} color={CHROME_TEXT} />
+                <Text style={styles.viewersCount}>
+                  {formatNumber(current.view_count)}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           {/* Quick reactions, other people's stories only. Sends a DM to
               the author and a story_reaction notification. */}
           {current.user_id !== user.id ? (
@@ -308,6 +334,12 @@ export default function StoryViewerScreen() {
               </Pressable>
             </View>
           </View>
+
+          <StoryViewersSheet
+            visible={viewersOpen}
+            onClose={() => setViewersOpen(false)}
+            storyId={current.id}
+          />
         </>
       )}
     </View>
@@ -408,5 +440,19 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: "600",
     paddingHorizontal: spacing(3),
+  },
+  viewersButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(1.5),
+    minHeight: 36,
+    borderRadius: radii.full,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingHorizontal: spacing(3.5),
+  },
+  viewersCount: {
+    color: CHROME_TEXT,
+    fontSize: 13.5,
+    fontWeight: "600",
   },
 });

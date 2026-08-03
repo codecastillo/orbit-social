@@ -9,8 +9,9 @@ import {
   Text,
   View,
 } from "react-native";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
+import { VideoView, useVideoPlayer } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, type Href } from "expo-router";
 import { Avatar } from "@/components/ui";
@@ -28,6 +29,7 @@ import {
   toggleLike,
   undoRepost,
   type Post,
+  type PostMediaItem,
 } from "@/lib/queries/posts";
 import {
   addReaction,
@@ -36,12 +38,23 @@ import {
   type ReactionType,
 } from "@/lib/queries/reactions";
 import { deletePost, pinPost, unpinPost } from "@/lib/queries/post-management";
-import { markNotInterested } from "@/lib/queries/content-safety";
+import { getRankingSignals, markNotInterested } from "@/lib/queries/content-safety";
+import { useVideoFrame } from "@/lib/video-frame";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const DEFAULT_MEDIA_ASPECT = 4 / 3;
 const WEB_POST_URL = "https://orbitsocial.net/post";
 const ACTION_ERROR_TTL_MS = 2500;
+// updated_at trails created_at by a moment on plain inserts; only a gap
+// past this marks a genuine edit, same rule as the web card.
+const EDITED_GAP_MS = 60_000;
+
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
 
 interface PostCardProps {
   post: Post;
@@ -96,12 +109,107 @@ function QuotedPostPreview({ post }: { post: Post }) {
       {media && media.type !== "video" ? (
         <Image
           source={{ uri: media.url }}
-          alt="Quoted post image"
+          alt={media.alt_text ?? "Quoted post image"}
           placeholder={media.blurhash ? { blurhash: media.blurhash } : undefined}
           style={styles.quoteMedia}
           contentFit="cover"
           transition={200}
         />
+      ) : null}
+    </Pressable>
+  );
+}
+
+// In-place feed video: poster frame until the first tap, then an expo-video
+// player that toggles play/pause on tap. Muted by default with an overlay
+// unmute toggle, mirroring the clips lane etiquette.
+function PostVideo({ media, inset }: { media: PostMediaItem; inset: boolean }) {
+  const [started, setStarted] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(true);
+  // Same fallback the clip tiles use when no cover frame was uploaded.
+  const frame = useVideoFrame(media.thumbnail_url ? null : media.url);
+  const poster = media.thumbnail_url ?? frame;
+  const aspectRatio =
+    media.width && media.height ? media.width / media.height : DEFAULT_MEDIA_ASPECT;
+
+  const player = useVideoPlayer(media.url, (p) => {
+    p.loop = true;
+    p.muted = true;
+  });
+
+  useEffect(() => {
+    // Assigning player properties is expo-video's documented API; the
+    // immutability rule cannot know the hook hands back a mutable native
+    // object, so this one line opts out.
+    // eslint-disable-next-line react-hooks/immutability
+    player.muted = muted;
+  }, [muted, player]);
+
+  const handleToggle = () => {
+    if (playing) {
+      player.pause();
+      setPlaying(false);
+      return;
+    }
+    setStarted(true);
+    setPlaying(true);
+    player.play();
+  };
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={
+        playing ? "Pause video" : (media.alt_text ?? "Play video")
+      }
+      onPress={handleToggle}
+      style={[inset ? styles.mediaInset : styles.mediaFullBleed, { aspectRatio }]}
+    >
+      {started ? (
+        <VideoView
+          player={player}
+          style={styles.mediaImage}
+          contentFit="cover"
+          nativeControls={false}
+        />
+      ) : (
+        <Image
+          source={poster ? { uri: poster } : undefined}
+          alt={media.alt_text ?? "Post video"}
+          style={styles.mediaImage}
+          contentFit="cover"
+          transition={200}
+        />
+      )}
+      {!playing ? (
+        <View style={styles.playOverlay} pointerEvents="none">
+          <View style={styles.playCircle}>
+            <Ionicons name="play" size={26} color="#fff" style={styles.playIcon} />
+          </View>
+        </View>
+      ) : null}
+      {!started && media.duration_ms ? (
+        <View style={styles.durationBadge} pointerEvents="none">
+          <Text style={styles.durationBadgeText}>
+            {formatDuration(media.duration_ms)}
+          </Text>
+        </View>
+      ) : null}
+      {started ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={muted ? "Unmute video" : "Mute video"}
+          onPress={() => setMuted((m) => !m)}
+          hitSlop={8}
+          style={({ pressed }) => [styles.muteToggle, pressed && { opacity: 0.7 }]}
+        >
+          <Ionicons
+            name={muted ? "volume-mute" : "volume-high"}
+            size={15}
+            color="#fff"
+          />
+        </Pressable>
       ) : null}
     </Pressable>
   );
@@ -143,6 +251,19 @@ export function PostCard({
   const [reactionCounts, setReactionCounts] = useState(reactionCountsProp);
   const [pickerAnchor, setPickerAnchor] = useState<ReactionAnchor | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
+  const [warningRevealed, setWarningRevealed] = useState(false);
+  // Viewers who set sensitive_content_level "more" skip the reveal tap.
+  // getRankingSignals is module-cached, so cards share one fetch.
+  const { data: rankingSignals } = useQuery({
+    queryKey: ["ranking-signals", currentUserId],
+    queryFn: () => getRankingSignals(currentUserId),
+    enabled: !!display.content_warning && !!currentUserId,
+    staleTime: 5 * 60_000,
+  });
+  const contentHidden =
+    !!display.content_warning &&
+    !warningRevealed &&
+    !(rankingSignals?.autoRevealSensitive ?? false);
   const [actionError, setActionError] = useState<string | null>(null);
   const actionErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [seed, setSeed] = useState({
@@ -443,6 +564,10 @@ export function PostCard({
   const media = [...display.post_media].sort((a, b) => a.sort_order - b.sort_order)[0];
   const aspectRatio =
     media?.width && media?.height ? media.width / media.height : DEFAULT_MEDIA_ASPECT;
+  const isEdited =
+    !!display.updated_at &&
+    new Date(display.updated_at).getTime() - new Date(display.created_at).getTime() >
+      EDITED_GAP_MS;
   // Link previews derive from content at render time, only for posts that
   // carry no media of their own.
   const previewUrl =
@@ -482,7 +607,10 @@ export function PostCard({
             {display.profiles.is_verified ? (
               <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
             ) : null}
-            <Text style={styles.time}>· {formatTimeAgo(display.created_at)}</Text>
+            <Text style={styles.time}>
+              · {formatTimeAgo(display.created_at)}
+              {isEdited ? " · Edited" : ""}
+            </Text>
           </View>
           <Text style={styles.handle} numberOfLines={1}>
             @{display.profiles.username}
@@ -505,13 +633,60 @@ export function PostCard({
         ) : null}
       </Pressable>
 
-      {display.content ? (
+      {display.visibility === "close_friends" ? (
+        <View style={styles.closeFriendsBadge}>
+          <Ionicons name="people" size={11} color={colors.success} />
+          <Text style={styles.closeFriendsText}>Close Friends</Text>
+        </View>
+      ) : null}
+
+      {contentHidden ? (
+        <View style={styles.warningBox}>
+          <View style={styles.warningHeader}>
+            <Ionicons name="warning-outline" size={16} color={colors.warning} />
+            <Text style={styles.warningText} numberOfLines={2}>
+              {display.content_warning}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Show hidden content"
+            onPress={() => setWarningRevealed(true)}
+            style={({ pressed }) => [styles.warningShow, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="eye-outline" size={14} color={colors.textSecondary} />
+            <Text style={styles.warningShowText}>Show Content</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {!contentHidden && display.content ? (
         <RichText style={[styles.content, detail && styles.contentDetail]}>
           {display.content}
         </RichText>
       ) : null}
 
-      {display.type === "poll" && display.poll_data ? (
+      {display.location ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Search posts from ${display.location}`}
+          onPress={() =>
+            router.push({
+              pathname: "/(tabs)/discover",
+              params: { q: display.location },
+            } as Href)
+          }
+          hitSlop={4}
+          style={styles.locationRow}
+        >
+          <Ionicons name="location-outline" size={12} color={colors.textFaint} />
+          <Text style={styles.locationText} numberOfLines={1}>
+            {display.location}
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {!contentHidden && display.type === "poll" && display.poll_data ? (
         <PollCard
           postId={display.id}
           pollData={display.poll_data}
@@ -519,14 +694,19 @@ export function PostCard({
         />
       ) : null}
 
-      {media && media.type !== "video" ? (
+      {!contentHidden && media && media.type === "video" ? (
+        <PostVideo media={media} inset={reply} />
+      ) : null}
+
+      {!contentHidden && media && media.type !== "video" ? (
         <Pressable
           onPress={handleMediaTap}
           style={[reply ? styles.mediaInset : styles.mediaFullBleed, { aspectRatio }]}
         >
           <Image
             source={{ uri: media.url }}
-            alt="Post image"
+            alt={media.alt_text ?? "Post image"}
+            accessibilityLabel={media.alt_text ?? "Post image"}
             placeholder={media.blurhash ? { blurhash: media.blurhash } : undefined}
             style={styles.mediaImage}
             contentFit="cover"
@@ -554,7 +734,7 @@ export function PostCard({
         </Pressable>
       ) : null}
 
-      {previewUrl ? (
+      {!contentHidden && previewUrl ? (
         <View style={styles.linkPreviewWrap}>
           <LinkPreviewCard url={previewUrl} />
         </View>
@@ -899,5 +1079,113 @@ const styles = StyleSheet.create({
     color: colors.destructive,
     fontSize: 12,
     marginTop: spacing(2),
+  },
+  closeFriendsBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+    marginTop: spacing(1.5),
+    paddingHorizontal: spacing(2),
+    paddingVertical: 2,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: "rgba(48, 164, 108, 0.2)",
+    backgroundColor: "rgba(48, 164, 108, 0.1)",
+  },
+  closeFriendsText: {
+    color: colors.success,
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  warningBox: {
+    marginTop: spacing(2),
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: "rgba(255, 178, 36, 0.2)",
+    backgroundColor: "rgba(255, 178, 36, 0.06)",
+    padding: spacing(3),
+  },
+  warningHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+  },
+  warningText: {
+    color: colors.warning,
+    fontSize: 13.5,
+    fontWeight: "500",
+    flexShrink: 1,
+  },
+  warningShow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    marginTop: spacing(2),
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(1.5),
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceElevated,
+  },
+  warningShowText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+    marginTop: spacing(1.5),
+  },
+  locationText: {
+    color: colors.textFaint,
+    fontSize: 12,
+    flexShrink: 1,
+  },
+  playOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  playCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.full,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  playIcon: {
+    // The triangle glyph sits optically left of center; nudge it back.
+    marginLeft: 3,
+  },
+  durationBadge: {
+    position: "absolute",
+    right: spacing(2),
+    bottom: spacing(2),
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+  },
+  durationBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
+  },
+  muteToggle: {
+    position: "absolute",
+    right: spacing(2),
+    bottom: spacing(2),
+    width: 28,
+    height: 28,
+    borderRadius: radii.full,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

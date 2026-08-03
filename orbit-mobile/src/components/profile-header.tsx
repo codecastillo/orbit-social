@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -8,11 +9,13 @@ import {
   type PressableProps,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { Avatar } from "@/components/ui";
 import { RichText } from "@/components/rich-text";
+import { normalizeAccent } from "@/lib/accents";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
-import type { Profile } from "@/lib/queries/profiles";
-import { colors, spacing } from "@/lib/theme";
+import type { AvatarBorderStyle, Profile } from "@/lib/queries/profiles";
+import { colors, radii, spacing } from "@/lib/theme";
 
 const EXCERPT_LENGTH = 140;
 
@@ -21,12 +24,37 @@ const AVATAR_RING_WIDTH = 2;
 const AVATAR_RING_INSET = 2;
 const AVATAR_SIZE =
   AVATAR_FRAME_SIZE - (AVATAR_RING_WIDTH + AVATAR_RING_INSET) * 2;
-// Frame ring at 30% primary. Once stories ship, an active-story ring goes
-// full primary; until then every avatar wears the muted frame.
-const AVATAR_RING_COLOR = `${colors.primary}4D`;
+// Frame ring at 30% alpha. Once stories ship, an active-story ring goes
+// full strength; until then every avatar wears the muted frame.
+const AVATAR_RING_ALPHA = "4D";
+const AVATAR_RING_COLOR = `${colors.primary}${AVATAR_RING_ALPHA}`;
+
+const COVER_HEIGHT = 120;
+
+// RN has no gradient primitive without a new dependency, so the web
+// UserAvatar's gradient borders flatten to a two-tone ring: the light
+// gradient stop fills the frame, the dark stop draws its outer rim.
+// gradient-rainbow and animated-glow are legacy stored values.
+const BORDER_TONES: Partial<
+  Record<AvatarBorderStyle, { fill: string; rim: string }>
+> = {
+  gold: { fill: "#fcd34d", rim: "#d97706" },
+  silver: { fill: "#d4d4d8", rim: "#71717a" },
+  diamond: { fill: "#a5f3fc", rim: "#818cf8" },
+  "gradient-rainbow": { fill: "#f472b6", rim: colors.primary },
+  "animated-glow": { fill: colors.primary, rim: colors.primary },
+};
 
 const ACTION_HEIGHT = 36;
 const ACTION_RADIUS = 10;
+
+function websiteHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
 
 function excerpt(content: string | null): string {
   if (!content) return "Shared a post";
@@ -126,10 +154,41 @@ export function ProfileHeader({
   onPressFollowers?: () => void;
   onPressFollowing?: () => void;
 }) {
+  const themeAccent = normalizeAccent(profile.theme_color);
+  const borderTones =
+    BORDER_TONES[(profile.avatar_border ?? "none") as AvatarBorderStyle];
+
   return (
-    <View style={styles.container}>
+    <View>
+      {profile.cover_url ? (
+        <Image
+          source={{ uri: profile.cover_url }}
+          style={styles.cover}
+          contentFit="cover"
+          transition={0}
+          alt=""
+        />
+      ) : null}
+      <View style={styles.container}>
       <View style={styles.topRow}>
-        <View style={styles.avatarFrame}>
+        {/* Decorative avatar_border and the accent ring are mutually
+            exclusive, same as the web profile hero: a decorative border
+            replaces the frame's fill and rim, otherwise the muted ring
+            picks up the profile accent when one is set. */}
+        <View
+          style={[
+            styles.avatarFrame,
+            profile.cover_url ? styles.avatarFrameOverCover : null,
+            borderTones
+              ? {
+                  backgroundColor: borderTones.fill,
+                  borderColor: borderTones.rim,
+                }
+              : themeAccent
+                ? { borderColor: `${themeAccent}${AVATAR_RING_ALPHA}` }
+                : null,
+          ]}
+        >
           <Avatar
             url={profile.avatar_url}
             name={profile.display_name}
@@ -151,7 +210,14 @@ export function ProfileHeader({
         </View>
       </View>
       <View style={styles.nameRow}>
-        <Text style={styles.displayName}>{profile.display_name}</Text>
+        <Text
+          style={[
+            styles.displayName,
+            themeAccent ? { color: themeAccent } : null,
+          ]}
+        >
+          {profile.display_name}
+        </Text>
         {profile.is_verified ? (
           <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
         ) : null}
@@ -168,7 +234,32 @@ export function ProfileHeader({
           <Text style={styles.location}>{profile.location}</Text>
         </View>
       ) : null}
+      {profile.website ? (
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={`Open website ${websiteHost(profile.website)}`}
+          onPress={() => {
+            Linking.openURL(profile.website!).catch(() => {
+              // Stored URLs are validated on save; nothing actionable.
+            });
+          }}
+          style={({ pressed }) => [styles.websiteRow, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={styles.websiteLabel}>ALSO ON</Text>
+          <View style={styles.websiteChip}>
+            <Ionicons
+              name="globe-outline"
+              size={12}
+              color={colors.textSecondary}
+            />
+            <Text style={styles.websiteChipText} numberOfLines={1}>
+              {websiteHost(profile.website)}
+            </Text>
+          </View>
+        </Pressable>
+      ) : null}
       {actions ? <View style={styles.actions}>{actions}</View> : null}
+      </View>
     </View>
   );
 }
@@ -242,14 +333,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+  cover: {
+    height: COVER_HEIGHT,
+    backgroundColor: colors.surfaceElevated,
+  },
   avatarFrame: {
     width: AVATAR_FRAME_SIZE,
     height: AVATAR_FRAME_SIZE,
     borderRadius: AVATAR_FRAME_SIZE / 2,
     borderWidth: AVATAR_RING_WIDTH,
     borderColor: AVATAR_RING_COLOR,
+    // Opaque so the banner cannot show through the ring inset when the
+    // avatar overlaps the cover.
+    backgroundColor: colors.background,
     alignItems: "center",
     justifyContent: "center",
+  },
+  // With a banner the avatar rides half over its bottom edge, like the web
+  // profile hero.
+  avatarFrameOverCover: {
+    marginTop: -(AVATAR_FRAME_SIZE / 2),
   },
   stats: {
     flex: 1,
@@ -303,6 +406,35 @@ const styles = StyleSheet.create({
   location: {
     color: colors.mutedForeground,
     fontSize: 12.5,
+  },
+  websiteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    marginTop: spacing(2),
+  },
+  websiteLabel: {
+    color: colors.mutedForeground,
+    fontSize: 10.5,
+    fontWeight: "500",
+    letterSpacing: 0.9,
+  },
+  websiteChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing(2.5),
+    paddingVertical: 5,
+  },
+  websiteChipText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "500",
+    flexShrink: 1,
   },
   actions: {
     flexDirection: "row",

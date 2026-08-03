@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Pressable,
   Share,
@@ -9,7 +10,12 @@ import {
   View,
   type ViewToken,
 } from "react-native";
-import { useRouter, type Href } from "expo-router";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
+import { useRouter } from "expo-router";
 import { useEvent } from "expo";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsFocused } from "@react-navigation/native";
@@ -46,6 +52,17 @@ const ACTION_ERROR_TTL_MS = 2500;
 // Loop completions batch locally and flush at this size (or when the clip
 // deactivates), keeping the RPC off the hot path of every wrap.
 const LOOP_FLUSH_THRESHOLD = 5;
+
+// Horizontal pan claims the touch only after this much dominant dx, so the
+// vertical pager keeps every ordinary swipe between clips.
+const SWIPE_CLAIM_DX = 40;
+const SWIPE_FAIL_DY = 30;
+
+// Press-and-hold 2x playback only arms in the outer quarter on each side;
+// the center stays inert so a resting thumb never speeds the clip up.
+const EDGE_HOLD_FRACTION = 0.25;
+const EDGE_HOLD_MIN_MS = 250;
+const FAST_RATE = 2.0;
 
 const LANE_LABELS: Record<ClipLane, string> = {
   all: "All",
@@ -108,22 +125,43 @@ function ClipItem({
   const actionErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingLoopsRef = useRef(0);
   const lastTimeRef = useRef(0);
+  // Gesture pause is user intent, separate from the pager's active/inactive
+  // play control. The ref mirrors the state for the stable gesture callbacks.
+  const [userPaused, setUserPaused] = useState(false);
+  const userPausedRef = useRef(false);
+  const [rateBoosted, setRateBoosted] = useState(false);
+  const boostRef = useRef(false);
+  const surfaceWidthRef = useRef(0);
+  const [muteGlyph, setMuteGlyph] = useState<"volume-off" | "volume-high">(
+    "volume-off",
+  );
+  const [muteGlyphOpacity] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
-    if (isActive) {
+    // The ref mirror lets the once-built gesture callbacks read the current
+    // pause intent without rebuilding.
+    userPausedRef.current = userPaused;
+    if (isActive && !userPaused) {
       player.play();
     } else {
       player.pause();
     }
-  }, [isActive, player]);
+  }, [isActive, userPaused, player]);
 
   // Preloaded neighbors mount before they scroll in, so each clip re-adopts
   // the shared mute choice the moment it becomes the active one. Adjusted
   // during render (the React-endorsed pattern) rather than in an effect.
+  // A gesture pause is also dropped on the way out, so scrolling back to the
+  // clip never lands on a mysteriously frozen frame.
   const [wasActive, setWasActive] = useState(isActive);
   if (isActive !== wasActive) {
     setWasActive(isActive);
-    if (isActive) setMuted(sessionMuted);
+    if (isActive) {
+      setMuted(sessionMuted);
+    } else {
+      // No-op re-set when already false; React bails out of the update.
+      setUserPaused(false);
+    }
   }
 
   useEffect(() => {
@@ -198,12 +236,100 @@ function ClipItem({
     likeMutation.mutate(wasLiked);
   };
 
-  const handleToggleMute = () => {
-    setMuted((m) => {
-      sessionMuted = !m;
-      return !m;
+  const showMuteGlyph = useCallback(
+    (nextMuted: boolean) => {
+      setMuteGlyph(nextMuted ? "volume-off" : "volume-high");
+      muteGlyphOpacity.setValue(0);
+      Animated.sequence([
+        Animated.timing(muteGlyphOpacity, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.delay(450),
+        Animated.timing(muteGlyphOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    },
+    [muteGlyphOpacity],
+  );
+
+  // Only the active clip receives taps, and the active clip keeps its muted
+  // state synced with sessionMuted, so the module flag is a safe read here
+  // and keeps this callback referentially stable for the gesture memo.
+  const handleSurfaceTap = useCallback(() => {
+    if (userPausedRef.current) {
+      userPausedRef.current = false;
+      setUserPaused(false);
+      return;
+    }
+    const next = !sessionMuted;
+    sessionMuted = next;
+    setMuted(next);
+    showMuteGlyph(next);
+  }, [showMuteGlyph]);
+
+  const handleTogglePause = useCallback(() => {
+    const next = !userPausedRef.current;
+    userPausedRef.current = next;
+    setUserPaused(next);
+  }, []);
+
+  const openAuthorProfile = useCallback(() => {
+    router.push(`/user/${clip.profiles.username}` as never);
+  }, [router, clip.profiles.username]);
+
+  // Lazy useState so the gestures are built once (player, router, and the
+  // handlers above are all referentially stable). Their callbacks fire only
+  // during native gestures, never during render; the refs rule cannot know
+  // RNGH defers them, so it is opted out here, same as clip-upload's trim
+  // handles.
+  // eslint-disable-next-line react-hooks/refs
+  const [surfaceGesture] = useState(() => {
+    const pan = Gesture.Pan()
+      .runOnJS(true)
+      // Claim only once dx is dominant, so the FlatList pager keeps every
+      // vertical swipe.
+      .activeOffsetX([-SWIPE_CLAIM_DX, SWIPE_CLAIM_DX])
+      .failOffsetY([-SWIPE_FAIL_DY, SWIPE_FAIL_DY])
+      .onEnd((e) => {
+        if (e.translationX < 0) {
+          handleTogglePause();
+        } else {
+          openAuthorProfile();
+        }
+      });
+    const edgeHold = Gesture.LongPress()
+      .runOnJS(true)
+      .minDuration(EDGE_HOLD_MIN_MS)
+      .onStart((e) => {
+        const width = surfaceWidthRef.current;
+        if (width === 0) return;
+        const edge = width * EDGE_HOLD_FRACTION;
+        // Center holds activate too but do nothing, which keeps them inert
+        // without a positional hit-test API.
+        if (e.x <= edge || e.x >= width - edge) {
+          boostRef.current = true;
+          setRateBoosted(true);
+          player.playbackRate = FAST_RATE;
+        }
+      })
+      .onFinalize(() => {
+        if (!boostRef.current) return;
+        boostRef.current = false;
+        setRateBoosted(false);
+        player.playbackRate = 1.0;
+      });
+    const tap = Gesture.Tap().runOnJS(true).onEnd((_e, success) => {
+      if (success) handleSurfaceTap();
     });
-  };
+    // Exclusive keeps a swipe or hold from also firing the tap; there is no
+    // double-tap gesture on this surface, so the tap stays immediate.
+    return Gesture.Exclusive(pan, edgeHold, tap);
+  });
 
   const handleBookmark = () => {
     const was = bookmarked;
@@ -253,19 +379,25 @@ function ClipItem({
   return (
     <View style={[styles.page, { height }]}>
       {video ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={muted ? "Unmute clip" : "Mute clip"}
-          style={StyleSheet.absoluteFill}
-          onPress={handleToggleMute}
-        >
-          <VideoView
-            player={player}
+        <GestureDetector gesture={surfaceGesture}>
+          <View
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={muted ? "Unmute clip" : "Mute clip"}
+            onAccessibilityTap={handleSurfaceTap}
             style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            nativeControls={false}
-          />
-        </Pressable>
+            onLayout={(e) => {
+              surfaceWidthRef.current = e.nativeEvent.layout.width;
+            }}
+          >
+            <VideoView
+              player={player}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              nativeControls={false}
+            />
+          </View>
+        </GestureDetector>
       ) : (
         <Centered>
           <Text style={{ color: colors.mutedForeground }}>
@@ -274,9 +406,28 @@ function ClipItem({
         </Centered>
       )}
 
-      {muted ? (
-        <View style={[styles.muteBadge, { top: insets.top + spacing(3) }]}>
-          <Ionicons name="volume-mute" size={16} color={OVERLAY_TEXT} />
+      <Animated.View
+        style={[styles.centerGlyph, { opacity: muteGlyphOpacity }]}
+        pointerEvents="none"
+      >
+        <Ionicons name={muteGlyph} size={26} color={OVERLAY_TEXT} />
+      </Animated.View>
+
+      {userPaused ? (
+        <View style={styles.centerGlyph} pointerEvents="none">
+          <Ionicons name="pause" size={26} color={OVERLAY_TEXT} />
+        </View>
+      ) : null}
+
+      {rateBoosted ? (
+        // Same band as the chip row: centered, clear of the lane tabs above.
+        <View
+          style={[styles.ratePillRow, { top: insets.top + spacing(14) }]}
+          pointerEvents="none"
+        >
+          <View style={styles.ratePill}>
+            <Text style={styles.ratePillText}>2x</Text>
+          </View>
         </View>
       ) : null}
 
@@ -519,7 +670,9 @@ export default function ClipsScreen() {
   if (!user) return null;
 
   return (
-    <View
+    // GestureHandlerRootView because the app root does not provide one;
+    // the per-clip GestureDetector needs it as an ancestor.
+    <GestureHandlerRootView
       style={styles.container}
       onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
     >
@@ -574,24 +727,8 @@ export default function ClipsScreen() {
         />
       )}
 
-      {/* Top-left so it never collides with the mute badge on the right. */}
+      {/* Capture entries moved to the central Create sheet; search stays. */}
       <View style={[styles.topLeftCluster, { top: insets.top + spacing(3) }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Record a clip"
-          onPress={() => router.push("/clip-camera" as Href)}
-          style={({ pressed }) => [styles.topButton, pressed && { opacity: 0.7 }]}
-        >
-          <Ionicons name="camera-outline" size={18} color={OVERLAY_TEXT} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Upload a clip from your gallery"
-          onPress={() => router.push("/clip-upload" as Href)}
-          style={({ pressed }) => [styles.topButton, pressed && { opacity: 0.7 }]}
-        >
-          <Ionicons name="images-outline" size={18} color={OVERLAY_TEXT} />
-        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Search clips"
@@ -603,7 +740,7 @@ export default function ClipsScreen() {
       </View>
 
       <LaneTabs lane={lane} onChange={setLane} top={insets.top + spacing(3)} />
-    </View>
+    </GestureHandlerRootView>
   );
 }
 
@@ -616,12 +753,36 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: "#000",
   },
-  muteBadge: {
+  // Shared chrome for the transient mute glyph and the persistent pause glyph.
+  centerGlyph: {
     position: "absolute",
-    right: spacing(4),
-    backgroundColor: OVERLAY_SCRIM,
+    top: "50%",
+    left: "50%",
+    marginTop: -28,
+    marginLeft: -28,
+    width: 56,
+    height: 56,
     borderRadius: 999,
-    padding: spacing(2),
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ratePillRow: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  ratePill: {
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: 999,
+    paddingHorizontal: spacing(2.5),
+    paddingVertical: spacing(1),
+  },
+  ratePillText: {
+    color: OVERLAY_TEXT,
+    fontSize: 12,
+    fontWeight: "700",
   },
   topLeftCluster: {
     position: "absolute",

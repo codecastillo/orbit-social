@@ -16,11 +16,14 @@ import * as ImagePicker from "expo-image-picker";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
+import { PROFILE_ACCENTS } from "@/lib/accents";
 import {
   getOwnProfile,
   updateOwnProfile,
   uploadAvatar,
+  uploadCover,
   type AvatarBorderStyle,
   type Profile,
   type ProfileUpdates,
@@ -30,18 +33,9 @@ import { colors, radii, spacing } from "@/lib/theme";
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
 const UNIQUE_VIOLATION = "23505";
 const BIO_MAX_LENGTH = 160;
-
-// Same curated palette the web settings profile page offers
-// (src/lib/design/accents.ts); null is the default violet brand accent.
-const PROFILE_ACCENTS: { value: string | null; label: string }[] = [
-  { value: null, label: "Default" },
-  { value: "#e5484d", label: "Red" },
-  { value: "#ffb224", label: "Amber" },
-  { value: "#30a46c", label: "Green" },
-  { value: "#0091ff", label: "Blue" },
-  { value: "#f76b15", label: "Orange" },
-  { value: "#d6409f", label: "Pink" },
-];
+// Same 200px-tall, full-width banner shape the web settings page crops to.
+const COVER_ASPECT: [number, number] = [3, 1];
+const COVER_PREVIEW_HEIGHT = 110;
 
 const BORDER_OPTIONS: { value: AvatarBorderStyle; label: string }[] = [
   { value: "none", label: "None" },
@@ -144,6 +138,10 @@ function EditProfileForm({ profile }: { profile: Profile }) {
     uri: string;
     mimeType?: string;
   } | null>(null);
+  const [pickedCover, setPickedCover] = useState<{
+    uri: string;
+    mimeType?: string;
+  } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -155,7 +153,8 @@ function EditProfileForm({ profile }: { profile: Profile }) {
     website.trim() !== (profile.website ?? "") ||
     themeColor !== profile.theme_color ||
     avatarBorder !== (profile.avatar_border ?? "none") ||
-    pickedAvatar !== null;
+    pickedAvatar !== null ||
+    pickedCover !== null;
 
   async function handlePickAvatar() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -167,6 +166,19 @@ function EditProfileForm({ profile }: { profile: Profile }) {
     if (result.canceled) return;
     const asset = result.assets[0];
     setPickedAvatar({ uri: asset.uri, mimeType: asset.mimeType ?? undefined });
+    setSaved(false);
+  }
+
+  async function handlePickCover() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: COVER_ASPECT,
+      quality: 0.8,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setPickedCover({ uri: asset.uri, mimeType: asset.mimeType ?? undefined });
     setSaved(false);
   }
 
@@ -190,6 +202,13 @@ function EditProfileForm({ profile }: { profile: Profile }) {
           pickedAvatar.mimeType,
         );
       }
+      if (pickedCover) {
+        updates.cover_url = await uploadCover(
+          profile.id,
+          pickedCover.uri,
+          pickedCover.mimeType,
+        );
+      }
       return updateOwnProfile(profile.id, updates);
     },
     onSuccess: (updated) => {
@@ -206,6 +225,7 @@ function EditProfileForm({ profile }: { profile: Profile }) {
       setThemeColor(updated.theme_color);
       setAvatarBorder((updated.avatar_border as AvatarBorderStyle) || "none");
       setPickedAvatar(null);
+      setPickedCover(null);
       setSaved(true);
     },
     onError: (error: { code?: string; message: string }) => {
@@ -284,6 +304,32 @@ function EditProfileForm({ profile }: { profile: Profile }) {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Change profile banner"
+          onPress={handlePickCover}
+          style={({ pressed }) => [styles.coverPicker, pressed && { opacity: 0.8 }]}
+        >
+          {pickedCover?.uri || profile.cover_url ? (
+            <Image
+              source={{ uri: pickedCover?.uri ?? profile.cover_url ?? undefined }}
+              style={styles.coverImage}
+              contentFit="cover"
+              transition={0}
+              alt=""
+            />
+          ) : (
+            <View style={styles.coverEmpty}>
+              <Ionicons
+                name="image-outline"
+                size={20}
+                color={colors.mutedForeground}
+              />
+            </View>
+          )}
+          <Text style={styles.changeCover}>Change banner</Text>
+        </Pressable>
+
         <View style={styles.avatarSection}>
           <Pressable
             accessibilityRole="button"
@@ -439,6 +485,31 @@ const styles = StyleSheet.create({
   },
   barSaveDisabled: {
     color: colors.textFaint,
+  },
+  coverPicker: {
+    alignItems: "center",
+    gap: spacing(2.5),
+    paddingTop: spacing(4),
+  },
+  coverImage: {
+    alignSelf: "stretch",
+    height: COVER_PREVIEW_HEIGHT,
+    marginHorizontal: spacing(4),
+    borderRadius: radii.md,
+  },
+  coverEmpty: {
+    alignSelf: "stretch",
+    height: COVER_PREVIEW_HEIGHT,
+    marginHorizontal: spacing(4),
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  changeCover: {
+    color: colors.primary,
+    fontSize: 13.5,
+    fontWeight: "600",
   },
   avatarSection: {
     alignItems: "center",

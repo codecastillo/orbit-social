@@ -105,6 +105,7 @@ export interface SearchClip {
     url: string;
     thumbnail_url: string | null;
     sort_order: number;
+    duration_ms: number | null;
   }[];
 }
 
@@ -119,7 +120,7 @@ export async function searchClips(
     .from("posts")
     .select(
       `id, content, created_at, like_count,
-       post_media (id, type, url, thumbnail_url, sort_order)`,
+       post_media (id, type, url, thumbnail_url, sort_order, duration_ms)`,
     )
     .eq("type", "reel")
     .eq("is_hidden", false)

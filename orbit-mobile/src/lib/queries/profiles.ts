@@ -1,8 +1,8 @@
 import { supabase } from "@/lib/supabase";
 
 const PROFILE_SELECT = `
-  id, username, display_name, avatar_url, bio, location, website, is_verified,
-  follower_count, following_count, post_count, created_at,
+  id, username, display_name, avatar_url, cover_url, bio, location, website,
+  is_verified, follower_count, following_count, post_count, created_at,
   theme_color, avatar_border
 `;
 
@@ -22,6 +22,7 @@ export interface Profile {
   username: string;
   display_name: string;
   avatar_url: string | null;
+  cover_url: string | null;
   bio: string | null;
   location: string | null;
   website: string | null;
@@ -42,6 +43,7 @@ export interface ProfilePostMedia {
   width: number | null;
   height: number | null;
   sort_order: number;
+  duration_ms: number | null;
 }
 
 export interface ProfilePost {
@@ -81,6 +83,7 @@ export interface ProfileUpdates {
   location?: string | null;
   website?: string | null;
   avatar_url?: string;
+  cover_url?: string;
   theme_color?: string | null;
   avatar_border?: AvatarBorderStyle;
 }
@@ -118,6 +121,27 @@ export async function uploadAvatar(
   });
   if (error) throw error;
   return supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
+}
+
+/**
+ * Banner counterpart of uploadAvatar: same bucket and `${userId}/cover.${ext}`
+ * path the web settings profile page writes, returning the public URL to
+ * store on profiles.cover_url.
+ */
+export async function uploadCover(
+  userId: string,
+  uri: string,
+  mimeType?: string,
+): Promise<string> {
+  const ext = mimeType?.split("/")[1] ?? uri.split(".").pop() ?? "jpg";
+  const path = `${userId}/cover.${ext}`;
+  const body = await fetch(uri).then((response) => response.arrayBuffer());
+  const { error } = await supabase.storage.from("covers").upload(path, body, {
+    contentType: mimeType ?? "image/jpeg",
+    upsert: true,
+  });
+  if (error) throw error;
+  return supabase.storage.from("covers").getPublicUrl(path).data.publicUrl;
 }
 
 /**
@@ -272,7 +296,7 @@ export async function getUserRecentPosts(
     .from("posts")
     .select(
       `id, content, type, created_at,
-       post_media ( id, type, url, thumbnail_url, width, height, sort_order )`,
+       post_media ( id, type, url, thumbnail_url, width, height, sort_order, duration_ms )`,
     )
     .eq("user_id", userId)
     .is("reply_to_id", null)
@@ -306,7 +330,7 @@ export async function getUserClips(
     .from("posts")
     .select(
       `id, content, type, created_at,
-       post_media ( id, type, url, thumbnail_url, width, height, sort_order )`,
+       post_media ( id, type, url, thumbnail_url, width, height, sort_order, duration_ms )`,
     )
     .eq("user_id", userId)
     .eq("type", "reel")

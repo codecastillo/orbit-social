@@ -56,6 +56,7 @@ export interface MediaItem {
   blurhash: string | null;
   sort_order: number;
   duration_ms?: number | null;
+  alt_text?: string | null;
 }
 
 export interface PollData {
@@ -76,14 +77,15 @@ const POST_SELECT = `
     follower_count, post_count
   ),
   post_media (
-    id, type, url, thumbnail_url, width, height, blurhash, sort_order
+    id, type, url, thumbnail_url, width, height, blurhash, sort_order,
+    duration_ms, alt_text
   )
 `;
 
 export async function createPost(
   userId: string,
   data: PostFormData,
-  mediaUrls: { url: string; type: "image" | "video" | "gif" }[] = [],
+  mediaUrls: { url: string; type: "image" | "video" | "gif"; altText?: string }[] = [],
   options?: {
     replyToId?: string;
     parentPostId?: string;
@@ -135,6 +137,7 @@ export async function createPost(
       type: m.type,
       url: m.url,
       sort_order: i,
+      ...(m.altText ? { alt_text: m.altText } : {}),
     }));
 
     const { error: mediaError } = await supabase

@@ -19,6 +19,11 @@ interface UserAvatarProps {
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
   hasStory?: boolean;
+  /**
+   * Green-toned ring for close-friends stories, matching the emerald
+   * Close Friends badge on posts. Only applies when hasStory is set.
+   */
+  storyTone?: "default" | "close-friends";
   avatarBorder?: AvatarBorderStyle;
 }
 
@@ -58,6 +63,7 @@ export function UserAvatar({
   size = "md",
   className,
   hasStory = false,
+  storyTone = "default",
   avatarBorder = "none",
 }: UserAvatarProps) {
   const hasBorderStyle = avatarBorder !== "none";
@@ -71,7 +77,9 @@ export function UserAvatar({
       className={cn(
         "relative rounded-full",
         hasStory && !hasBorderStyle &&
-          "p-[2px] bg-gradient-to-tr from-primary via-purple-500 to-pink-500",
+          (storyTone === "close-friends"
+            ? "p-[2px] bg-gradient-to-tr from-emerald-600 via-emerald-400 to-teal-300"
+            : "p-[2px] bg-gradient-to-tr from-primary via-purple-500 to-pink-500"),
         hasBorderStyle && borderClasses[avatarBorder]
       )}
     >

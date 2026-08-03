@@ -31,6 +31,13 @@ export function StoryBar() {
   );
   const hasOwnStory = !!currentUserGroup && currentUserGroup.stories.length > 0;
 
+  // Green ring when everything the viewer can see from this poster is
+  // close friends only; a mixed group keeps the default ring so public
+  // stories aren't mislabeled as restricted.
+  const isCloseFriendsGroup = (group: StoryGroup) =>
+    group.stories.length > 0 &&
+    group.stories.every((s) => s.visibility === "close_friends");
+
   function handleStoryClick(groupIndex: number) {
     setActiveGroupIndex(groupIndex);
     setViewerOpen(true);
@@ -68,6 +75,11 @@ export function StoryBar() {
               fallback={profile?.display_name || "U"}
               size="lg"
               hasStory={hasOwnStory && currentUserGroup?.hasUnviewed}
+              storyTone={
+                currentUserGroup && isCloseFriendsGroup(currentUserGroup)
+                  ? "close-friends"
+                  : "default"
+              }
             />
             {!hasOwnStory && (
               <div className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground border-2 border-background">
@@ -98,6 +110,9 @@ export function StoryBar() {
                   fallback={group.user.username}
                   size="lg"
                   hasStory={group.hasUnviewed}
+                  storyTone={
+                    isCloseFriendsGroup(group) ? "close-friends" : "default"
+                  }
                 />
                 <span
                   className={cn(

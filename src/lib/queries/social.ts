@@ -298,7 +298,8 @@ const POST_SELECT = `
     id, username, display_name, avatar_url, is_verified
   ),
   post_media (
-    id, type, url, thumbnail_url, width, height, blurhash, sort_order
+    id, type, url, thumbnail_url, width, height, blurhash, sort_order,
+    duration_ms
   )
 `;
 

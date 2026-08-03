@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPush, type PushPayload } from "@/lib/services/web-push";
 import { Email } from "@/lib/services/email";
+import { buildMutedWordMatcher } from "@/lib/utils/muted-words";
 
 export const runtime = "nodejs";
 
@@ -275,6 +276,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, skipped: "quiet hours" });
   }
 
+  let actorName = "Orbit";
+  if (record.actor_id) {
+    const { data: actor } = await admin
+      .from("profiles")
+      .select("display_name, username")
+      .eq("id", record.actor_id)
+      .maybeSingle();
+    if (actor) actorName = actor.display_name || `@${actor.username}`;
+  }
+
+  const { title, body: text, url } = describe(record, actorName);
+
+  // Muted words gate push the same way they hide content in-app: if the
+  // preview we would show matches, stay silent. muted_words is own-rows RLS,
+  // so only the service client can read them here. Checked before the budget
+  // so a muted push does not burn the weekly ambient allowance.
+  const { data: mutedRows } = await admin
+    .from("muted_words")
+    .select("word")
+    .eq("user_id", record.user_id);
+  const isMuted = buildMutedWordMatcher((mutedRows ?? []).map((r) => r.word));
+  if (isMuted(`${title} ${text}`)) {
+    return NextResponse.json({ ok: true, skipped: "muted words" });
+  }
+
   // In-app notification rows are untouched by the budget; only push
   // delivery is skipped.
   if (AMBIENT_TYPES.has(record.type)) {
@@ -291,18 +317,6 @@ export async function POST(req: Request) {
   if (!subs || subs.length === 0) {
     return NextResponse.json({ ok: true, skipped: "no subscriptions" });
   }
-
-  let actorName = "Orbit";
-  if (record.actor_id) {
-    const { data: actor } = await admin
-      .from("profiles")
-      .select("display_name, username")
-      .eq("id", record.actor_id)
-      .maybeSingle();
-    if (actor) actorName = actor.display_name || `@${actor.username}`;
-  }
-
-  const { title, body: text, url } = describe(record, actorName);
   const payload: PushPayload = {
     title,
     body: text,

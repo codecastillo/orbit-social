@@ -5,6 +5,7 @@ import { FadeInImage as Image } from "@/components/shared/fade-in-image";
 import Link from "next/link";
 import { Heart, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDuration } from "@/lib/utils/audio";
 import type { PostWithAuthor } from "@/lib/queries/posts";
 
 interface ProfileGridProps {
@@ -48,20 +49,27 @@ function GridItem({ post }: { post: PostWithAuthor }) {
       {hasImage && (
         <Image
           src={firstMedia.url}
-          alt=""
+          alt={firstMedia.alt_text ?? ""}
           fill
           sizes="(max-width: 768px) 33vw, 200px"
           className="object-cover"
         />
       )}
       {hasVideo && (
-        <Image
-          src={firstMedia.thumbnail_url || firstMedia.url}
-          alt=""
-          fill
-          sizes="(max-width: 768px) 33vw, 200px"
-          className="object-cover"
-        />
+        <>
+          <Image
+            src={firstMedia.thumbnail_url || firstMedia.url}
+            alt={firstMedia.alt_text ?? ""}
+            fill
+            sizes="(max-width: 768px) 33vw, 200px"
+            className="object-cover"
+          />
+          {firstMedia.duration_ms != null && firstMedia.duration_ms > 0 && (
+            <span className="absolute bottom-1.5 right-1.5 rounded-md bg-black/60 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-white">
+              {formatDuration(Math.round(firstMedia.duration_ms / 1000))}
+            </span>
+          )}
+        </>
       )}
       {!hasImage && !hasVideo && (
         <div className="h-full w-full flex items-center justify-center bg-muted/20 p-3">

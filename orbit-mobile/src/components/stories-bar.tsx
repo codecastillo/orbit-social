@@ -22,20 +22,27 @@ const SATELLITE_ADD_SIZE = 20;
  */
 function OrbitRing({
   variant,
+  closeFriends = false,
   children,
 }: {
   variant: "unviewed" | "viewed" | "add";
+  closeFriends?: boolean;
   children: React.ReactNode;
 }) {
+  // Close-friends rings trade the violet for the green success tone, the
+  // same signal the web story bar uses.
+  const activeColor = closeFriends ? colors.success : colors.primary;
   return (
     <View
       style={[
         styles.ring,
-        { borderColor: variant === "unviewed" ? colors.primary : colors.border },
+        { borderColor: variant === "unviewed" ? activeColor : colors.border },
       ]}
     >
       {children}
-      {variant === "unviewed" ? <View style={styles.satellite} /> : null}
+      {variant === "unviewed" ? (
+        <View style={[styles.satellite, { backgroundColor: activeColor }]} />
+      ) : null}
       {variant === "add" ? (
         <View style={[styles.satellite, styles.satelliteAdd]}>
           <Ionicons name="add" size={14} color={colors.primaryForeground} />
@@ -48,6 +55,10 @@ function OrbitRing({
 function StoryRing({ group, isSelf }: { group: StoryGroup; isSelf: boolean }) {
   const router = useRouter();
   const name = isSelf ? "Your story" : group.user.display_name || group.user.username;
+  // Only when everything visible from this author is close friends; a mixed
+  // set keeps the regular ring so public stories are not mislabeled.
+  const closeFriends =
+    !isSelf && group.stories.every((s) => s.visibility === "close_friends");
 
   return (
     <Pressable
@@ -56,7 +67,10 @@ function StoryRing({ group, isSelf }: { group: StoryGroup; isSelf: boolean }) {
       onPress={() => router.push(`/story/${group.user.id}`)}
       style={({ pressed }) => [styles.item, pressed && { opacity: 0.8 }]}
     >
-      <OrbitRing variant={group.hasUnviewed ? "unviewed" : "viewed"}>
+      <OrbitRing
+        variant={group.hasUnviewed ? "unviewed" : "viewed"}
+        closeFriends={closeFriends}
+      >
         <Avatar
           url={group.user.avatar_url}
           name={group.user.display_name || group.user.username}

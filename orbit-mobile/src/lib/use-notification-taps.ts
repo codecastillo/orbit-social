@@ -36,7 +36,8 @@ function toMobilePath(webPath: string): string {
   if (webPath.startsWith("/messages/")) {
     return webPath.replace("/messages/", "/conversation/");
   }
-  if (webPath === "/messages") return "/(tabs)/messages";
+  // Explicit so the profile fallback below never claims /messages.
+  if (webPath === "/messages") return "/messages";
   if (webPath === "/notifications") return "/notifications";
   if (webPath.startsWith("/post/") || webPath.startsWith("/clips/")) return webPath;
   if (webPath.startsWith("/events/") || webPath.startsWith("/communities/")) {

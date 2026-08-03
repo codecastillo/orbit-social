@@ -34,6 +34,8 @@ export interface RankingSignals {
   seeMoreTopics: Set<string>;
   seeLessTopics: Set<string>;
   demoteSensitive: boolean;
+  // Level "more": content-warning gates skip the reveal tap for this viewer.
+  autoRevealSensitive: boolean;
 }
 
 function ageHours(createdAt: string): number {

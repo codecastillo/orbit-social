@@ -223,6 +223,18 @@
   100% { background-position: 200% 0; }
 }
 
+/* Clip player: transient center glyph confirming a mute toggle. Fades in
+   fast, holds, fades out; ends hidden so no JS cleanup timer is needed. */
+@keyframes clip-glyph {
+  0% { opacity: 0; }
+  17% { opacity: 1; }
+  67% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.clip-glyph {
+  animation: clip-glyph 900ms ease-out both;
+}
+
 /* Landing page entrance animations. Entrance-only (not looping), so they
    survive the motion rules; the landing redesign will revisit them. */
 @keyframes landing-reveal {

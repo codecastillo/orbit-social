@@ -250,6 +250,14 @@ export default function OwnProfileScreen() {
               }}
             />
             <SheetRow
+              icon="time-outline"
+              label="Scheduled"
+              onPress={() => {
+                setMenuOpen(false);
+                router.push("/scheduled" as Href);
+              }}
+            />
+            <SheetRow
               icon="settings-outline"
               label="Settings"
               onPress={() => {
