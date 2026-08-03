@@ -16,6 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/communities",
     "/events",
     "/marketplace",
+    "/promises",
     "/signup",
     "/login",
   ];

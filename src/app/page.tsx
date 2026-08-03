@@ -514,6 +514,7 @@ const footerCols: { title: string; links: { label: string; href: string }[] }[] 
       { label: "Sign up", href: "/signup" },
       { label: "Sign in", href: "/login" },
       { label: "Explore", href: "/explore" },
+      { label: "Ten promises", href: "/promises" },
     ],
   },
 ];
