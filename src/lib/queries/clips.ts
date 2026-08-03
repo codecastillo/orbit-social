@@ -13,6 +13,9 @@ const CLIP_SELECT = `
   post_media (
     id, type, url, thumbnail_url, width, height, blurhash, sort_order,
     duration_ms
+  ),
+  sound:sounds (
+    id, name, artist
   )
 `;
 
@@ -51,7 +54,8 @@ export async function createClip(
   content: string,
   videoUrl: string,
   thumbnailUrl?: string,
-  durationMs?: number | null
+  durationMs?: number | null,
+  soundId?: string | null
 ) {
   const { data: post, error } = await supabase
     .from("posts")
@@ -76,7 +80,82 @@ export async function createClip(
 
   if (mediaError) throw mediaError;
 
-  return post as PostWithAuthor;
+  const created = post as unknown as PostWithAuthor;
+
+  // Sound attribution is metadata only: with no seeded sound the clip's own
+  // media becomes its original sound; with one, the existing sound is
+  // credited (audio mixing comes later). Best effort by design, a failed
+  // sound write must never cost the clip.
+  try {
+    let attachedSoundId = soundId ?? null;
+    if (!attachedSoundId) {
+      const { data: sound, error: soundError } = await supabase
+        .from("sounds")
+        .insert({
+          name: "Original sound",
+          artist: created.profiles.username,
+          audio_url: videoUrl,
+          duration_seconds: durationMs != null ? durationMs / 1000 : null,
+          cover_url: thumbnailUrl || null,
+          created_by: userId,
+        })
+        .select("id")
+        .single();
+      if (soundError) throw soundError;
+      attachedSoundId = sound.id;
+    }
+
+    const { error: linkError } = await supabase
+      .from("posts")
+      .update({ sound_id: attachedSoundId })
+      .eq("id", created.id);
+    if (linkError) throw linkError;
+
+    const { error: useError } = await supabase.rpc("increment_sound_use", {
+      p_sound_id: attachedSoundId,
+    });
+    if (useError) throw useError;
+  } catch (error) {
+    console.error("sound attribution failed", error);
+  }
+
+  return created;
+}
+
+// ── Sounds ───────────────────────────────────────────────────────────
+
+export interface SoundDetail {
+  id: string;
+  name: string;
+  artist: string | null;
+  cover_url: string | null;
+  use_count: number;
+  created_at: string;
+}
+
+export async function getSound(soundId: string): Promise<SoundDetail | null> {
+  const { data, error } = await supabase
+    .from("sounds")
+    .select("id, name, artist, cover_url, use_count, created_at")
+    .eq("id", soundId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as SoundDetail | null;
+}
+
+export async function getClipsBySound(soundId: string, limit = 30) {
+  const { data, error } = await supabase
+    .from("posts")
+    .select(CLIP_SELECT)
+    .eq("sound_id", soundId)
+    .eq("type", "reel")
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return data as unknown as PostWithAuthor[];
 }
 
 export async function uploadClipVideo(

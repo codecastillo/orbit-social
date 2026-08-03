@@ -40,6 +40,12 @@ export interface PostWithAuthor {
     post_count?: number;
   };
   post_media: MediaItem[];
+  // Attributed sound, embedded by the clip queries only (CLIP_SELECT).
+  sound?: {
+    id: string;
+    name: string;
+    artist: string | null;
+  } | null;
   user_has_liked?: boolean;
   user_has_bookmarked?: boolean;
   user_has_reposted?: boolean;

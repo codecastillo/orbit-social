@@ -152,7 +152,9 @@ export function CreateSheet({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Create a moment"
-          onPress={() => go("/create-story")}
+          // Camera-first dual capture; the camera screen's gallery button
+          // still reaches the pick-from-library flow (/create-story).
+          onPress={() => go("/moment-camera")}
           style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
         >
           <Ionicons name="camera-outline" size={22} color={rowIconColor("story")} />

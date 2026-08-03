@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Upload, X } from "lucide-react";
+import { Music, Upload, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -18,12 +18,16 @@ import { uploadClipVideo, createClip } from "@/lib/queries/clips";
 interface ClipCreatorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  // Existing sound to credit ("Use this sound" flow). Without it the new
+  // clip's own media becomes its original sound.
+  soundId?: string;
+  soundName?: string;
 }
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const MAX_CAPTION_LENGTH = 500;
 
-export function ClipCreator({ open, onOpenChange }: ClipCreatorProps) {
+export function ClipCreator({ open, onOpenChange, soundId, soundName }: ClipCreatorProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,7 +82,7 @@ export function ClipCreator({ open, onOpenChange }: ClipCreatorProps) {
       if (!user || !videoFile) throw new Error("Missing data");
 
       const videoUrl = await uploadClipVideo(user.id, videoFile);
-      return createClip(user.id, caption, videoUrl, undefined, durationMs);
+      return createClip(user.id, caption, videoUrl, undefined, durationMs, soundId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clips"] });
@@ -100,6 +104,19 @@ export function ClipCreator({ open, onOpenChange }: ClipCreatorProps) {
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
+          {soundId && (
+            <div className="rounded-lg border border-border bg-surface px-3.5 py-2.5">
+              <p className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
+                <Music className="size-3.5 text-primary" />
+                {soundName || "Using this sound"}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Your clip credits this sound and keeps its own audio. Audio
+                mixing comes later.
+              </p>
+            </div>
+          )}
+
           {/* Video upload / preview */}
           {!videoPreviewUrl ? (
             <button

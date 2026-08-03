@@ -1,7 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import type {
   StoryOverlayPosition,
+  StorySelfie,
   StorySticker,
   StoryTextOverlay,
 } from "@/lib/queries/stories";
@@ -12,14 +14,33 @@ import { colors, radii, spacing } from "@/lib/theme";
 const OVERLAY_TEXT = "#ffffff";
 const CHIP_BACKGROUND = "rgba(0, 0, 0, 0.6)";
 
+// Selfie picture-in-picture geometry, shared by the capture preview and the
+// viewer so the composite looks identical everywhere. Corner insets are
+// percentages so the PiP clears the viewer's progress chrome on top and the
+// reaction bar on the bottom.
+const SELFIE_WIDTH_PCT = "32%";
+const SELFIE_ASPECT = 3 / 4;
+const SELFIE_EDGE_PCT = "9%";
+
 const POSITIONS: StoryOverlayPosition[] = ["top", "center", "bottom"];
+
+const selfieCornerStyles: Record<StorySelfie["position"], object> = {
+  "top-left": { top: SELFIE_EDGE_PCT, left: spacing(3) },
+  "top-right": { top: SELFIE_EDGE_PCT, right: spacing(3) },
+  "bottom-left": { bottom: SELFIE_EDGE_PCT, left: spacing(3) },
+  "bottom-right": { bottom: SELFIE_EDGE_PCT, right: spacing(3) },
+};
 
 interface StoryOverlayLayerProps {
   textOverlay: StoryTextOverlay | null;
   stickers: StorySticker[];
+  /** Dual-capture front photo rendered as a corner PiP over the media. */
+  selfie?: StorySelfie | null;
   /** Omitted in the composer preview, where chips are inert. */
   onMentionPress?: (username: string) => void;
   onLinkPress?: (url: string) => void;
+  /** When set the PiP is tappable (the viewer swaps which image is big). */
+  onSelfiePress?: () => void;
 }
 
 /**
@@ -30,13 +51,38 @@ interface StoryOverlayLayerProps {
 export function StoryOverlayLayer({
   textOverlay,
   stickers,
+  selfie,
   onMentionPress,
   onLinkPress,
+  onSelfiePress,
 }: StoryOverlayLayerProps) {
   const interactive = !!onMentionPress || !!onLinkPress;
 
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+      {selfie ? (
+        <Pressable
+          accessibilityRole={onSelfiePress ? "button" : "image"}
+          accessibilityLabel={
+            onSelfiePress ? "Swap which photo is big" : "Selfie photo"
+          }
+          disabled={!onSelfiePress}
+          onPress={onSelfiePress}
+          style={({ pressed }) => [
+            styles.selfie,
+            selfieCornerStyles[selfie.position],
+            pressed && { opacity: 0.85 },
+          ]}
+        >
+          <Image
+            source={{ uri: selfie.url }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            transition={100}
+            alt=""
+          />
+        </Pressable>
+      ) : null}
       {POSITIONS.map((position) => {
         const text = textOverlay?.position === position ? textOverlay : null;
         const positionStickers = stickers.filter(
@@ -111,6 +157,16 @@ const zoneStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  selfie: {
+    position: "absolute",
+    width: SELFIE_WIDTH_PCT,
+    aspectRatio: SELFIE_ASPECT,
+    borderRadius: radii.md,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.9)",
+    overflow: "hidden",
+    backgroundColor: CHIP_BACKGROUND,
+  },
   zone: {
     position: "absolute",
     left: 0,

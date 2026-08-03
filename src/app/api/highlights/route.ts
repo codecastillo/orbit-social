@@ -245,3 +245,152 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ highlight }, { status: 201, headers: noStore });
 }
+
+/**
+ * Append the caller's own active stories to one of their existing
+ * highlights. Same validation as POST (ownership plus the active-story
+ * check); items land after the current members in sort order. The mobile
+ * moment camera's "Save to collection" flow is the first caller.
+ */
+export async function PATCH(request: Request) {
+  const viewerId = await resolveViewer(request);
+  if (!viewerId) {
+    return NextResponse.json(
+      { error: "unauthorized" },
+      { status: 401, headers: noStore },
+    );
+  }
+
+  // Shares the create bucket: appends and creates are the same kind of
+  // write pressure on the same tables.
+  const { success } = rateLimit(
+    `highlights:${viewerId}`,
+    CREATE_LIMIT_PER_WINDOW,
+    CREATE_WINDOW_MS,
+  );
+  if (!success) {
+    return NextResponse.json(
+      { error: "rate_limited" },
+      { status: 429, headers: noStore },
+    );
+  }
+
+  const body = (await request.json().catch(() => ({}))) as Record<
+    string,
+    unknown
+  >;
+  const highlightId =
+    typeof body.highlightId === "string" ? body.highlightId : "";
+  const storyIds = Array.isArray(body.storyIds)
+    ? body.storyIds.filter((id): id is string => typeof id === "string")
+    : [];
+
+  if (!highlightId) {
+    return NextResponse.json(
+      { error: "validation_failed", detail: "highlightId" },
+      { status: 400, headers: noStore },
+    );
+  }
+  if (
+    storyIds.length === 0 ||
+    storyIds.length > MAX_STORIES_PER_HIGHLIGHT ||
+    new Set(storyIds).size !== storyIds.length
+  ) {
+    return NextResponse.json(
+      { error: "validation_failed", detail: "storyIds" },
+      { status: 400, headers: noStore },
+    );
+  }
+
+  const admin = createAdminClient();
+
+  const { data: highlight, error: highlightError } = await admin
+    .from("story_highlights")
+    .select("id, user_id")
+    .eq("id", highlightId)
+    .eq("user_id", viewerId)
+    .maybeSingle();
+
+  if (highlightError) {
+    console.error("highlight lookup failed", highlightError);
+    return NextResponse.json(
+      { error: "fetch_failed" },
+      { status: 500, headers: noStore },
+    );
+  }
+  if (!highlight) {
+    return NextResponse.json(
+      { error: "validation_failed", detail: "highlight_not_owned" },
+      { status: 400, headers: noStore },
+    );
+  }
+
+  const { data: existingItems, error: itemsFetchError } = await admin
+    .from("story_highlight_items")
+    .select("story_id, sort_order")
+    .eq("highlight_id", highlightId);
+
+  if (itemsFetchError) {
+    console.error("highlight items fetch failed", itemsFetchError);
+    return NextResponse.json(
+      { error: "fetch_failed" },
+      { status: 500, headers: noStore },
+    );
+  }
+
+  const memberIds = new Set((existingItems ?? []).map((i) => i.story_id));
+  const newIds = storyIds.filter((id) => !memberIds.has(id));
+  // Everything requested is already a member; nothing to do.
+  if (newIds.length === 0) {
+    return NextResponse.json({ ok: true }, { headers: noStore });
+  }
+  if (memberIds.size + newIds.length > MAX_STORIES_PER_HIGHLIGHT) {
+    return NextResponse.json(
+      { error: "validation_failed", detail: "highlight_full" },
+      { status: 400, headers: noStore },
+    );
+  }
+
+  const nowIso = new Date().toISOString();
+  const { data: stories, error: storiesError } = await admin
+    .from("stories")
+    .select("id")
+    .in("id", newIds)
+    .eq("user_id", viewerId)
+    .gt("expires_at", nowIso);
+
+  if (storiesError) {
+    console.error("highlight story check failed", storiesError);
+    return NextResponse.json(
+      { error: "fetch_failed" },
+      { status: 500, headers: noStore },
+    );
+  }
+  if (!stories || stories.length !== newIds.length) {
+    return NextResponse.json(
+      { error: "validation_failed", detail: "stories_not_owned_or_expired" },
+      { status: 400, headers: noStore },
+    );
+  }
+
+  const nextSortOrder =
+    (existingItems ?? []).reduce((max, i) => Math.max(max, i.sort_order), -1) +
+    1;
+  const { error: insertError } = await admin.from("story_highlight_items").insert(
+    newIds.map((storyId, index) => ({
+      highlight_id: highlightId,
+      story_id: storyId,
+      sort_order: nextSortOrder + index,
+    })),
+  );
+
+  if (insertError) {
+    console.error("highlight items append failed", insertError);
+    return NextResponse.json(
+      { error: "insert_failed" },
+      { status: 500, headers: noStore },
+    );
+  }
+
+  return NextResponse.json({ ok: true }, { headers: noStore });
+}

@@ -1,17 +1,19 @@
 import { supabase } from "@/lib/supabase";
 
-export type ReactionType = "love" | "fire" | "laugh" | "sad" | "wow" | "angry";
+// post_reactions.reaction_type is free text (16-char cap server-side):
+// any single emoji is a valid reaction. The quick row and grid live in
+// src/lib/reactions.ts.
+export type ReactionType = string;
 
 export interface ReactionCount {
   reaction_type: ReactionType;
   count: number;
 }
 
-export const REACTION_TYPES: ReactionType[] = ["love", "fire", "laugh", "sad", "wow", "angry"];
-
-// Same glyph set the web REACTION_EMOJI uses; these are reaction data,
-// not copy, and stay as escapes to match the web source byte for byte.
-export const REACTION_EMOJI: Record<ReactionType, string> = {
+// The pre-emoji rows stored these six names; the backfill rewrote them to
+// glyphs, but cached pages and any row the backfill missed still render
+// through this fallback.
+export const LEGACY_REACTION_GLYPHS: Record<string, string> = {
   love: "\u2764\uFE0F",
   fire: "\uD83D\uDD25",
   laugh: "\uD83D\uDE02",
@@ -20,14 +22,11 @@ export const REACTION_EMOJI: Record<ReactionType, string> = {
   angry: "\uD83D\uDE21",
 };
 
-export const REACTION_LABELS: Record<ReactionType, string> = {
-  love: "Love",
-  fire: "Fire",
-  laugh: "Laugh",
-  sad: "Sad",
-  wow: "Wow",
-  angry: "Angry",
-};
+// Renders a stored reaction_type: the glyph itself, or the legacy name's
+// glyph for un-backfilled rows.
+export function reactionGlyph(type: ReactionType): string {
+  return LEGACY_REACTION_GLYPHS[type] ?? type;
+}
 
 // Upsert on (user_id, post_id): reacting again with a different type
 // replaces the previous reaction instead of stacking a second row.

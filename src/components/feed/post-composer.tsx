@@ -12,7 +12,13 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useCurrentProfile as useCurrentProfileHook } from "@/lib/hooks/use-profile";
 import { useUIStore } from "@/lib/stores/ui-store";
-import { createPost, uploadPostMedia, type PollData } from "@/lib/queries/posts";
+import {
+  createPost,
+  uploadPostMedia,
+  type PollData,
+  type PostWithAuthor,
+} from "@/lib/queries/posts";
+import { QuotedPostCard } from "@/components/feed/quoted-post-card";
 import { MAX_POST_LENGTH } from "@/lib/utils/constants";
 import { suggestCaptions, suggestCaptionsAI } from "@/lib/services/caption-suggestions";
 import { useAudioRecorder } from "@/lib/hooks/use-audio-recorder";
@@ -65,6 +71,7 @@ interface ComposerRestore {
   pollEndHours: number;
   visibility: "public" | "close_friends";
   contentWarning: string;
+  quotedPost: PostWithAuthor | null;
 }
 
 // Stashed when an undoable publish is cancelled after the dialog already
@@ -79,6 +86,7 @@ export function PostComposer() {
   const composeCommunityId = useUIStore((s) => s.composeCommunityId);
   const composeInitialContent = useUIStore((s) => s.composeInitialContent);
   const composeDraftId = useUIStore((s) => s.composeDraftId);
+  const composeQuotedPost = useUIStore((s) => s.composeQuotedPost);
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
   const draftsQuery = useQuery({
     queryKey: ["post-drafts", user?.id],
@@ -126,6 +134,7 @@ export function PostComposer() {
                 initialContent={editingDraft?.content ?? composeInitialContent}
                 initialDraftData={editingDraft?.draft_data}
                 draftId={composeDraftId}
+                initialQuotedPost={composeQuotedPost}
                 scheduleUndoableSend={scheduleUndoableSend}
                 onSuccess={() => {
                   setComposeOpen(false);
@@ -229,6 +238,7 @@ function ComposerForm({
   initialContent,
   initialDraftData,
   draftId,
+  initialQuotedPost,
   scheduleUndoableSend,
   onSuccess,
   inline = false,
@@ -239,6 +249,7 @@ function ComposerForm({
   initialContent?: string;
   initialDraftData?: DraftData;
   draftId?: string;
+  initialQuotedPost?: PostWithAuthor;
   scheduleUndoableSend: ScheduleUndoableSend;
   onSuccess?: () => void;
   inline?: boolean;
@@ -253,6 +264,10 @@ function ComposerForm({
   }, []);
   const [content, setContent] = useState(restore?.content ?? initialContent ?? "");
   const [media, setMedia] = useState<MediaPreview[]>(restore?.media ?? []);
+  // Removing the quoted post downgrades the submission to a plain post.
+  const [quotedPost, setQuotedPost] = useState<PostWithAuthor | null>(
+    restore?.quotedPost ?? initialQuotedPost ?? null
+  );
   const [posting, setPosting] = useState(false);
   const [location, setLocation] = useState(
     restore?.location ?? initialDraftData?.location ?? ""
@@ -330,7 +345,12 @@ function ComposerForm({
 
   const charCount = content.length;
   const isOverLimit = charCount > MAX_POST_LENGTH;
-  const canPost = (content.trim().length > 0 || media.length > 0 || hasAudio || (showPoll && isPollValid)) && !isOverLimit && isPollValid;
+  // A quote must say something; media or a poll alone doesn't qualify.
+  const canPost =
+    (content.trim().length > 0 || media.length > 0 || hasAudio || (showPoll && isPollValid)) &&
+    !isOverLimit &&
+    isPollValid &&
+    (!quotedPost || content.trim().length > 0);
 
   const addPollOption = () => {
     if (pollOptions.length < 4) setPollOptions([...pollOptions, ""]);
@@ -614,6 +634,7 @@ function ComposerForm({
     // the commit and the undo snapshot must not read state afterwards.
     const trimmedContent = content.trim();
     const mediaToUpload = media;
+    const quotedTarget = quotedPost;
     const audioUpload =
       audioFile ??
       (audioBlob
@@ -643,15 +664,21 @@ function ComposerForm({
       }
 
       // Single-video posts: if user picked Clip, force type='reel' so the
-      // post lands in /clips and stays out of the home feed.
+      // post lands in /clips and stays out of the home feed. A quote wins
+      // over both: the server triggers key on type='quote'.
       const isSingleVideo =
         uploadedMedia.length === 1 && uploadedMedia[0].type === "video";
-      const explicitType: "poll" | "reel" | undefined = pollData
-        ? "poll"
-        : isSingleVideo && videoDestination === "clip"
-          ? "reel"
-          : undefined;
+      const explicitType: "poll" | "reel" | "quote" | undefined = quotedTarget
+        ? "quote"
+        : pollData
+          ? "poll"
+          : isSingleVideo && videoDestination === "clip"
+            ? "reel"
+            : undefined;
 
+      // Quotes never call increment_post_reposts: the server trigger on
+      // type='quote' owns the parent's repost_count and the quote
+      // notification.
       const createdPost = await createPost(
         user.id,
         { content: trimmedContent },
@@ -659,6 +686,7 @@ function ComposerForm({
         {
           replyToId,
           type: explicitType,
+          parentPostId: quotedTarget?.id,
           pollData,
           scheduledAt: scheduledDate ? scheduledDate.toISOString() : undefined,
           location: location.trim() || undefined,
@@ -704,6 +732,7 @@ function ComposerForm({
     const resetForm = () => {
       setContent("");
       setMedia([]);
+      setQuotedPost(null);
       setAltEditingIndex(null);
       clearAudio();
       setShowPoll(false);
@@ -745,6 +774,7 @@ function ComposerForm({
       pollEndHours,
       visibility,
       contentWarning: showContentWarning ? contentWarning : "",
+      quotedPost: quotedTarget,
     };
 
     // Optimistic close: reset and dismiss now, commit after the undo window.
@@ -781,6 +811,20 @@ function ComposerForm({
             className="border-none bg-transparent resize-none p-0 pt-1.5 text-sm text-foreground placeholder:text-text-faint focus-visible:ring-0 focus-visible:border-none min-h-[60px]"
             rows={inline ? 2 : 3}
           />
+
+          {/* Quoted post preview, read-only; the X downgrades to a plain post */}
+          {quotedPost && (
+            <div className="relative mt-3">
+              <QuotedPostCard post={quotedPost} />
+              <button
+                onClick={() => setQuotedPost(null)}
+                aria-label="Remove quoted post"
+                className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center rounded-full bg-black/60 hover:bg-black/80 transition-colors"
+              >
+                <X className="h-3.5 w-3.5 text-white" />
+              </button>
+            </div>
+          )}
 
           {/* Media Previews */}
           <AnimatePresence>

@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Volume2, VolumeX, Play, ChevronUp, ChevronDown, Eye, Repeat } from "lucide-react";
+import { Volume2, VolumeX, Play, ChevronUp, ChevronDown, Eye, Music, Repeat } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatNumber, formatTimeAgo } from "@/lib/utils/format";
@@ -451,6 +451,19 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
               )}
             </p>
           </div>
+        )}
+        {clip.sound && (
+          <Link
+            href={`/sound/${clip.sound.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="mt-2.5 inline-flex max-w-full items-center gap-1.5 text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]"
+          >
+            <Music className="h-3.5 w-3.5 shrink-0" strokeWidth={2.2} />
+            <span className="truncate text-xs font-semibold">
+              {clip.sound.name}
+              {clip.sound.artist ? ` · ${clip.sound.artist}` : ""}
+            </span>
+          </Link>
         )}
       </div>
 

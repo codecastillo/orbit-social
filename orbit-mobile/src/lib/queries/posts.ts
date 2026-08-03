@@ -544,6 +544,10 @@ export async function createPost(
   options?: {
     replyToId?: string;
     type?: Post["type"];
+    // Quote posts: type "quote" plus the quoted post's id. Never call
+    // increment_post_reposts for quotes; server triggers own the quote
+    // repost_count bump and the repost/quote notifications.
+    parentPostId?: string;
     media?: NewPostMedia[];
     pollData?: PollData;
     scheduledAt?: string;
@@ -570,6 +574,7 @@ export async function createPost(
       user_id: userId,
       content,
       type: postType,
+      parent_post_id: options?.parentPostId || null,
       reply_to_id: options?.replyToId || null,
       poll_data: options?.pollData || null,
       visibility: options?.visibility || "public",

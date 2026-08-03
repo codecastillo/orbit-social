@@ -17,16 +17,33 @@ export interface StoryTextOverlay {
 // wrapper so later interactive elements (polls, questions) can sit beside
 // stickers without a shape migration:
 //   { "stickers": [ { "type": "mention" | "link", "value": "...",
-//                     "position": "top" | "center" | "bottom" } ] }
+//                     "position": "top" | "center" | "bottom" } ],
+//     "selfie": { "url": "...", "position": "top-left" | "top-right"
+//                                          | "bottom-left" | "bottom-right" } }
 // mention value is a username without the @; link value is an absolute URL.
+// selfie carries the dual-capture moment's front-camera photo: url is its
+// uploaded public URL (the back photo is media_url) and position the corner
+// the picture-in-picture renders in. Absent on gallery-picked moments.
 export interface StorySticker {
   type: "mention" | "link";
   value: string;
   position: StoryOverlayPosition;
 }
 
+export type StorySelfiePosition =
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
+
+export interface StorySelfie {
+  url: string;
+  position: StorySelfiePosition;
+}
+
 export interface StoryInteractiveData {
   stickers: StorySticker[];
+  selfie?: StorySelfie;
 }
 
 export interface StoryWithAuthor {

@@ -25,7 +25,8 @@ import {
   type StoryWithAuthor,
 } from "@/lib/queries/stories";
 import { getHighlights } from "@/lib/queries/highlights";
-import { MESSAGE_REACTION_GLYPHS } from "@/lib/queries/messages";
+import { EmojiPickerSheet } from "@/components/emoji-picker-sheet";
+import { REACTION_QUICK_ROW } from "@/lib/reactions";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
 import { useAuth } from "@/providers/auth-provider";
 import { colors, radii, spacing } from "@/lib/theme";
@@ -71,6 +72,10 @@ export default function StoryViewerScreen() {
     "idle" | "sending" | "sent" | "failed"
   >("idle");
   const [viewersOpen, setViewersOpen] = useState(false);
+  const [emojiSheetOpen, setEmojiSheetOpen] = useState(false);
+  // Dual-capture moments only: true when the selfie has been tapped big,
+  // putting the back photo in the corner PiP instead. Reset per story.
+  const [selfieSwapped, setSelfieSwapped] = useState(false);
   const reactionResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeQuery = useQuery({
@@ -102,6 +107,7 @@ export default function StoryViewerScreen() {
   const goNext = () => {
     if (index + 1 < stories.length) {
       setReactionState("idle");
+      setSelfieSwapped(false);
       setIndex(index + 1);
     } else {
       router.back();
@@ -111,6 +117,7 @@ export default function StoryViewerScreen() {
   const goPrev = () => {
     if (index > 0) {
       setReactionState("idle");
+      setSelfieSwapped(false);
       setIndex(index - 1);
     }
   };
@@ -136,9 +143,10 @@ export default function StoryViewerScreen() {
 
   // Auto-advance images on a timer; video stories advance by tap only in
   // v1, so their bar stays empty while they play. Paused while the viewers
-  // sheet is up so the story cannot advance out from under it.
+  // sheet or emoji picker is up so the story cannot advance out from
+  // under it.
   useEffect(() => {
-    if (!current || viewersOpen) return;
+    if (!current || viewersOpen || emojiSheetOpen) return;
     progress.setValue(0);
     if (current.media_type !== "image") return;
 
@@ -155,7 +163,7 @@ export default function StoryViewerScreen() {
     });
     return () => animation.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.id, viewersOpen]);
+  }, [current?.id, viewersOpen, emojiSheetOpen]);
 
   useEffect(() => {
     if (!user || !current) return;
@@ -203,7 +211,12 @@ export default function StoryViewerScreen() {
             <StoryVideo key={current.id} story={current} />
           ) : (
             <Image
-              source={{ uri: current.media_url }}
+              source={{
+                uri:
+                  selfieSwapped && current.interactive_data?.selfie
+                    ? current.interactive_data.selfie.url
+                    : current.media_url,
+              }}
               style={StyleSheet.absoluteFill}
               contentFit="contain"
               transition={100}
@@ -224,10 +237,27 @@ export default function StoryViewerScreen() {
             onPress={goNext}
           />
 
-          {/* Rendered after the tap zones so the sticker chips win the touch. */}
+          {/* Rendered after the tap zones so the sticker chips win the touch.
+              A dual-capture selfie renders as a tappable PiP; tapping swaps
+              which photo is big, so the PiP always shows the small one. */}
           <StoryOverlayLayer
             textOverlay={current.text_overlay}
             stickers={current.interactive_data?.stickers ?? []}
+            selfie={
+              current.interactive_data?.selfie
+                ? {
+                    ...current.interactive_data.selfie,
+                    url: selfieSwapped
+                      ? current.media_url
+                      : current.interactive_data.selfie.url,
+                  }
+                : null
+            }
+            onSelfiePress={
+              current.interactive_data?.selfie
+                ? () => setSelfieSwapped((s) => !s)
+                : undefined
+            }
             onMentionPress={(username) => router.push(`/user/${username}`)}
             onLinkPress={(url) => {
               Linking.openURL(url).catch(() => {
@@ -275,7 +305,7 @@ export default function StoryViewerScreen() {
                 </View>
               ) : (
                 <View style={styles.reactionRow}>
-                  {MESSAGE_REACTION_GLYPHS.map(({ emoji, label }) => (
+                  {REACTION_QUICK_ROW.map(({ emoji, label }) => (
                     <Pressable
                       key={emoji}
                       accessibilityRole="button"
@@ -290,6 +320,18 @@ export default function StoryViewerScreen() {
                       <Text style={styles.reactionGlyph}>{emoji}</Text>
                     </Pressable>
                   ))}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="React with any emoji"
+                    disabled={reactionState === "sending"}
+                    onPress={() => setEmojiSheetOpen(true)}
+                    style={({ pressed }) => [
+                      styles.reactionButton,
+                      (pressed || reactionState === "sending") && { opacity: 0.6 },
+                    ]}
+                  >
+                    <Ionicons name="add" size={22} color={CHROME_TEXT} />
+                  </Pressable>
                 </View>
               )}
             </View>
@@ -342,6 +384,17 @@ export default function StoryViewerScreen() {
             onClose={() => setViewersOpen(false)}
             storyId={current.id}
           />
+
+          {emojiSheetOpen ? (
+            <EmojiPickerSheet
+              visible
+              onSelect={(emoji) => {
+                setEmojiSheetOpen(false);
+                void react(current, emoji);
+              }}
+              onClose={() => setEmojiSheetOpen(false)}
+            />
+          ) : null}
         </>
       )}
     </View>

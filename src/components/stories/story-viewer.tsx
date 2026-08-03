@@ -6,12 +6,13 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { X, ChevronLeft, ChevronRight, Eye, Loader2, Trash2 } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Eye, Loader2, Plus, Trash2 } from "lucide-react";
 import { formatTimeAgo } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { ConfirmDialog } from "@/components/orbit/confirm-dialog";
 import { MESSAGE_REACTIONS } from "@/components/messages/message-reaction-picker";
+import { EmojiPickerPanel } from "@/components/shared/emoji-picker";
 import {
   deleteStory,
   getStoryViewers,
@@ -37,6 +38,7 @@ export function StoryViewer({
   const queryClient = useQueryClient();
   const [groupIndex, setGroupIndex] = useState(initialGroupIndex);
   const [sendingReaction, setSendingReaction] = useState(false);
+  const [emojiPanelOpen, setEmojiPanelOpen] = useState(false);
   const [storyIndex, setStoryIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -350,6 +352,7 @@ export function StoryViewer({
             className="z-20"
             textOverlay={currentStory.text_overlay}
             stickers={currentStory.interactive_data?.stickers ?? []}
+            selfie={currentStory.interactive_data?.selfie ?? null}
             onMentionClick={(username) => {
               onClose();
               router.push(`/${username}`);
@@ -393,7 +396,7 @@ export function StoryViewer({
               the author and a story_reaction notification. */}
           {!isOwnStory && (
             <div className="absolute bottom-4 inset-x-0 z-20 flex justify-center">
-              <div className="flex items-center gap-1 rounded-full bg-black/50 px-2 py-1.5 backdrop-blur-sm">
+              <div className="relative flex items-center gap-1 rounded-full bg-black/50 px-2 py-1.5 backdrop-blur-sm">
                 {MESSAGE_REACTIONS.map(({ emoji, label }) => (
                   <button
                     key={emoji}
@@ -405,6 +408,24 @@ export function StoryViewer({
                     {emoji}
                   </button>
                 ))}
+                <button
+                  onClick={() => setEmojiPanelOpen(true)}
+                  disabled={sendingReaction}
+                  aria-label="More reactions"
+                  className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white/15 disabled:opacity-50"
+                >
+                  <Plus className="h-4 w-4 text-white/80" />
+                </button>
+                <AnimatePresence>
+                  {emojiPanelOpen && (
+                    <div className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2">
+                      <EmojiPickerPanel
+                        onSelect={handleReact}
+                        onClose={() => setEmojiPanelOpen(false)}
+                      />
+                    </div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           )}

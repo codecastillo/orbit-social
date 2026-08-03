@@ -2,28 +2,28 @@
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Plus } from "lucide-react";
+import { EmojiPickerPanel } from "@/components/shared/emoji-picker";
+import { REACTION_QUICK_ROW } from "@/lib/reactions/emoji";
 
 interface MessageReactionPickerProps {
   onSelect: (emoji: string) => void;
   existingEmojis?: string[];
 }
 
-// Exported so the story viewer's quick-reaction row stays in lockstep with
-// the DM reaction set.
-export const MESSAGE_REACTIONS = [
-  { emoji: "\u2764\uFE0F", label: "Love" },
-  { emoji: "\uD83D\uDC4D", label: "Thumbs Up" },
-  { emoji: "\uD83D\uDE02", label: "Laugh" },
-  { emoji: "\uD83D\uDE2E", label: "Wow" },
-  { emoji: "\uD83D\uDE22", label: "Sad" },
-  { emoji: "\uD83D\uDD25", label: "Fire" },
-];
+// Re-exported so the story viewer's quick-reaction row stays in lockstep
+// with the shared DM reaction set.
+export const MESSAGE_REACTIONS = REACTION_QUICK_ROW;
+
+// Reaction pills shown inline under a bubble before collapsing into "+N".
+const MAX_VISIBLE_MESSAGE_PILLS = 6;
 
 export function MessageReactionPicker({
   onSelect,
   existingEmojis = [],
 }: MessageReactionPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = () => {
@@ -32,12 +32,15 @@ export function MessageReactionPicker({
   };
 
   const handleMouseLeave = () => {
+    // The full panel dismisses on outside click, not hover-away.
+    if (panelOpen) return;
     timeoutRef.current = setTimeout(() => setIsOpen(false), 300);
   };
 
   const handleSelect = (emoji: string) => {
     onSelect(emoji);
     setIsOpen(false);
+    setPanelOpen(false);
   };
 
   return (
@@ -70,7 +73,7 @@ export function MessageReactionPicker({
       </button>
 
       <AnimatePresence>
-        {isOpen && (
+        {isOpen && !panelOpen && (
           <motion.div
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -117,8 +120,41 @@ export function MessageReactionPicker({
                   </motion.button>
                 );
               })}
+              <motion.button
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{
+                  delay: MESSAGE_REACTIONS.length * 0.03,
+                  type: "spring",
+                  stiffness: 500,
+                  damping: 20,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPanelOpen(true);
+                }}
+                aria-label="More reactions"
+                title="More reactions"
+                className="flex items-center justify-center h-7 w-7 rounded-full transition-colors hover:bg-muted"
+              >
+                <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+              </motion.button>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {panelOpen && (
+          <div className="absolute bottom-full mb-1 z-50 left-1/2 -translate-x-1/2">
+            <EmojiPickerPanel
+              onSelect={handleSelect}
+              onClose={() => {
+                setPanelOpen(false);
+                setIsOpen(false);
+              }}
+            />
+          </div>
         )}
       </AnimatePresence>
     </div>
@@ -134,11 +170,17 @@ export function MessageReactionsDisplay({
   reactions,
   onToggle,
 }: MessageReactionsDisplayProps) {
+  const [expanded, setExpanded] = useState(false);
+
   if (!reactions || reactions.length === 0) return null;
+
+  const sorted = [...reactions].sort((a, b) => b.count - a.count);
+  const visible = expanded ? sorted : sorted.slice(0, MAX_VISIBLE_MESSAGE_PILLS);
+  const hiddenCount = sorted.length - visible.length;
 
   return (
     <div className="flex items-center gap-0.5 flex-wrap mt-1">
-      {reactions.map(({ emoji, count, hasReacted }) => (
+      {visible.map(({ emoji, count, hasReacted }) => (
         <button
           key={emoji}
           onClick={(e) => {
@@ -155,6 +197,18 @@ export function MessageReactionsDisplay({
           <span className="font-medium">{count}</span>
         </button>
       ))}
+      {hiddenCount > 0 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded(true);
+          }}
+          aria-label="Show all reactions"
+          className="flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-muted border border-border hover:bg-accent transition-colors"
+        >
+          +{hiddenCount}
+        </button>
+      )}
     </div>
   );
 }

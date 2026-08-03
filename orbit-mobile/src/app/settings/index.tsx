@@ -132,6 +132,11 @@ export default function SettingsScreen() {
           onPress={() => router.push("/settings/streaming" as Href)}
         />
         <SettingsRow
+          icon="play-back-outline"
+          label="Past streams"
+          onPress={() => router.push("/live/past" as Href)}
+        />
+        <SettingsRow
           icon="bar-chart-outline"
           label="Creator analytics"
           onPress={() => router.push("/settings/creator" as Href)}

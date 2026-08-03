@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { REACTION_EMOJI, type ReactionCount, type ReactionType } from "@/lib/queries/reactions";
+import { reactionGlyph, type ReactionCount, type ReactionType } from "@/lib/queries/reactions";
 import { formatNumber } from "@/lib/format";
 import { colors, radii } from "@/lib/theme";
 
@@ -7,6 +7,9 @@ import { colors, radii } from "@/lib/theme";
 // web ReactionCountsDisplay treatment for the viewer's own reaction.
 const OWN_REACTION_BG = `${colors.primary}26`;
 const OWN_REACTION_BORDER = `${colors.primary}4d`;
+// With free-emoji reactions a popular post can carry dozens of distinct
+// glyphs; show the leaders and fold the rest into one "+N" pill.
+const MAX_VISIBLE_PILLS = 3;
 
 interface ReactionCountsProps {
   reactions: ReactionCount[];
@@ -23,10 +26,16 @@ export function ReactionCounts({ reactions, userReaction, onPressReaction }: Rea
   if (visible.length === 0) return null;
 
   const sorted = [...visible].sort((a, b) => b.count - a.count);
+  // The viewer's own reaction always stays visible, even from the overflow.
+  const top = sorted.slice(0, MAX_VISIBLE_PILLS);
+  const overflow = sorted.slice(MAX_VISIBLE_PILLS);
+  const ownOverflow = overflow.find((r) => r.reaction_type === userReaction);
+  if (ownOverflow) top.push(ownOverflow);
+  const hiddenCount = overflow.length - (ownOverflow ? 1 : 0);
 
   return (
     <View style={styles.row}>
-      {sorted.map(({ reaction_type, count }) => {
+      {top.map(({ reaction_type, count }) => {
         const isOwn = userReaction === reaction_type;
         return (
           <Pressable
@@ -40,11 +49,16 @@ export function ReactionCounts({ reactions, userReaction, onPressReaction }: Rea
               pressed && { opacity: 0.7 },
             ]}
           >
-            <Text style={styles.glyph}>{REACTION_EMOJI[reaction_type]}</Text>
+            <Text style={styles.glyph}>{reactionGlyph(reaction_type)}</Text>
             <Text style={[styles.count, isOwn && styles.countOwn]}>{formatNumber(count)}</Text>
           </Pressable>
         );
       })}
+      {hiddenCount > 0 ? (
+        <View style={styles.pill}>
+          <Text style={styles.count}>+{hiddenCount}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }

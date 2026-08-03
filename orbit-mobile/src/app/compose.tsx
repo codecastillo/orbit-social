@@ -33,15 +33,19 @@ import {
   VOICE_MIN_MS,
 } from "@/components/voice-recording-bar";
 import { useAuth } from "@/providers/auth-provider";
+import { RichText } from "@/components/rich-text";
 import {
   createPost,
   uploadPostMedia,
   type NewPostMedia,
   type PollData,
+  type Post,
 } from "@/lib/queries/posts";
 import { getOwnProfile } from "@/lib/queries/profiles";
 import { deleteDraft } from "@/lib/queries/drafts";
 import { consumeDraftRestore } from "@/lib/draft-restore";
+import { consumeQuoteSeed } from "@/lib/quote-seed";
+import { formatTimeAgo } from "@/lib/format";
 import { scheduleUndoableSend } from "@/lib/undo-send";
 import { colors, radii, spacing } from "@/lib/theme";
 
@@ -93,6 +97,7 @@ interface ComposerSnapshot {
   visibility: "public" | "close_friends";
   contentWarning: string;
   showContentWarning: boolean;
+  quotedPost: Post | null;
 }
 
 // iOS gallery videos are .mov; Android's are .mp4. Same mapping the clip
@@ -139,6 +144,12 @@ export default function ComposeScreen() {
   // snapshot wins when both exist since it is the more recent state.
   const [draft] = useState(() => consumeDraftRestore());
   const draftData = draft?.draft_data;
+  // A quote staged by the post card's repost menu; the undo snapshot wins
+  // for the same recency reason as the draft seed.
+  const [quoteSeed] = useState(() => consumeQuoteSeed());
+  const [quotedPost, setQuotedPost] = useState<Post | null>(
+    restore?.quotedPost ?? quoteSeed,
+  );
   const [content, setContent] = useState(restore?.content ?? draft?.content ?? "");
   const [media, setMedia] = useState<PickedMedia[]>(restore?.media ?? []);
   // Single-video posts pick where they land: Feed (regular video post) or
@@ -302,6 +313,7 @@ export default function ComposeScreen() {
   };
 
   const togglePoll = () => {
+    if (quotedPost) return;
     if (showPoll) {
       setPollOptions(["", ""]);
       setPollEndHours(DEFAULT_POLL_HOURS);
@@ -342,6 +354,13 @@ export default function ComposeScreen() {
       Alert.alert("Pick a future time", "The scheduled time has already passed.");
       return;
     }
+    if (quotedPost && trimmed.length === 0) {
+      Alert.alert(
+        "Add your take",
+        "A quote needs some text. To share it as is, use Repost instead.",
+      );
+      return;
+    }
     const draftId = draft?.id;
 
     const pollData: PollData | undefined =
@@ -366,6 +385,7 @@ export default function ComposeScreen() {
       visibility,
       contentWarning,
       showContentWarning,
+      quotedPost,
     };
 
     const publish = async () => {
@@ -393,16 +413,24 @@ export default function ComposeScreen() {
         }
 
         // Single-video posts headed for Clips force type "reel" so they
-        // land in the clips surface and stay out of the home feed.
+        // land in the clips surface and stay out of the home feed. A quote
+        // outranks both; polls and the clip destination are disabled while
+        // quoting.
         const isSingleVideo = uploaded.length === 1 && uploaded[0].type === "video";
-        const explicitType = pollData
-          ? ("poll" as const)
-          : isSingleVideo && snapshot.videoDestination === "clip"
-            ? ("reel" as const)
-            : undefined;
+        const explicitType = snapshot.quotedPost
+          ? ("quote" as const)
+          : pollData
+            ? ("poll" as const)
+            : isSingleVideo && snapshot.videoDestination === "clip"
+              ? ("reel" as const)
+              : undefined;
 
+        // NEVER call increment_post_reposts for a quote: server triggers
+        // own the quote repost_count bump and the repost/quote
+        // notifications, so the insert below is the whole client job.
         await createPost(user.id, snapshot.content.trim(), {
           type: explicitType,
+          parentPostId: snapshot.quotedPost?.id,
           media: uploaded.length > 0 ? uploaded : undefined,
           pollData,
           scheduledAt: isScheduling ? scheduledDate.toISOString() : undefined,
@@ -511,6 +539,45 @@ export default function ComposeScreen() {
           />
         </View>
 
+        {quotedPost ? (
+          // Read-only echo of the post card's QuoteBox, with a remove X.
+          <View style={styles.quoteBox}>
+            <View style={styles.quoteAuthorRow}>
+              <Avatar
+                url={quotedPost.profiles.avatar_url}
+                name={quotedPost.profiles.display_name}
+                size={20}
+              />
+              <Text style={styles.quoteAuthorName} numberOfLines={1}>
+                {quotedPost.profiles.display_name}
+              </Text>
+              {quotedPost.profiles.is_verified ? (
+                <Ionicons name="checkmark-circle" size={12} color={colors.primary} />
+              ) : null}
+              <Text style={styles.quoteTime}>
+                · {formatTimeAgo(quotedPost.created_at)}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Remove quoted post"
+                onPress={() => setQuotedPost(null)}
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.quoteRemove,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Ionicons name="close" size={16} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+            {quotedPost.content ? (
+              <RichText style={styles.quoteContent} numberOfLines={4}>
+                {quotedPost.content}
+              </RichText>
+            ) : null}
+          </View>
+        ) : null}
+
         {media.length > 0 ? (
           <View style={styles.previewGrid}>
             {media.map((m) => (
@@ -597,7 +664,7 @@ export default function ComposeScreen() {
           </View>
         ) : null}
 
-        {singleVideo ? (
+        {singleVideo && !quotedPost ? (
           <View style={styles.destinationRow}>
             <View style={styles.destinationCopy}>
               <Text style={styles.sectionTitle}>Where does this go?</Text>
@@ -901,7 +968,11 @@ export default function ComposeScreen() {
               accessibilityRole="button"
               accessibilityLabel={showPoll ? "Remove poll" : "Add poll"}
               onPress={togglePoll}
-              style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+              disabled={!!quotedPost}
+              style={({ pressed }) => [
+                pressed && { opacity: 0.7 },
+                !!quotedPost && { opacity: 0.4 },
+              ]}
               hitSlop={8}
             >
               <Ionicons
@@ -1028,6 +1099,37 @@ const styles = StyleSheet.create({
     minHeight: 120,
     paddingTop: spacing(2),
     textAlignVertical: "top",
+  },
+  quoteBox: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    padding: spacing(3),
+  },
+  quoteAuthorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  quoteAuthorName: {
+    color: colors.foreground,
+    fontSize: 13,
+    fontWeight: "600",
+    flexShrink: 1,
+  },
+  quoteTime: {
+    color: colors.mutedForeground,
+    fontSize: 12,
+  },
+  quoteRemove: {
+    marginLeft: "auto",
+  },
+  quoteContent: {
+    color: colors.textSecondary,
+    fontSize: 13.5,
+    lineHeight: 19,
+    marginTop: spacing(1.5),
   },
   previewGrid: {
     flexDirection: "row",

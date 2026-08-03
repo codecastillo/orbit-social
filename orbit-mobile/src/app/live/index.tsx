@@ -1,42 +1,159 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, Stack } from "expo-router";
 import {
   ActivityIndicator,
-  Animated,
-  Easing,
   FlatList,
-  Modal,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
+  type ViewToken,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useEventListener } from "expo";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useIsFocused } from "@react-navigation/native";
+import { VideoView, useVideoPlayer } from "expo-video";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
-import { useAuth } from "@/providers/auth-provider";
-import { getLiveStreams, type LiveStreamWithProfile } from "@/lib/queries/live";
-import { getRecentVods, type VodWithProfile } from "@/lib/queries/vods";
-import { formatNumber, formatTimeAgo } from "@/lib/format";
-import { colors, radii, spacing } from "@/lib/theme";
+import { getLiveStreams, hlsUrl, type LiveStreamWithProfile } from "@/lib/queries/live";
+import { safeBack } from "@/lib/nav";
+import { formatNumber } from "@/lib/format";
+import { colors, spacing } from "@/lib/theme";
 
-function formatDuration(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  if (m >= 60) {
-    const h = Math.floor(m / 60);
-    return `${h}:${(m % 60).toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  }
-  return `${m}:${s.toString().padStart(2, "0")}`;
+// The pager is an always-dark video canvas like clips-feed, so its overlay
+// uses literal white/scrim values instead of theme tokens.
+const OVERLAY_TEXT = "#ffffff";
+const OVERLAY_TEXT_DIM = "rgba(255, 255, 255, 0.65)";
+
+const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60 };
+
+// One full-screen muted preview page. Deliberately touches nothing realtime:
+// no presence, chat, hearts, or gift channels and no view RPCs, so browsing
+// past a stream never counts anyone as a viewer. Only the full viewer
+// (live/[id].tsx) joins presence and shows up in viewer_count.
+function StreamPreviewPage({
+  stream,
+  height,
+  isActive,
+  onWatch,
+  onOpenProfile,
+}: {
+  stream: LiveStreamWithProfile;
+  height: number;
+  isActive: boolean;
+  onWatch: () => void;
+  onOpenProfile: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const playbackUrl = stream.mux_playback_id ? hlsUrl(stream.mux_playback_id) : null;
+  const player = useVideoPlayer(playbackUrl, (p) => {
+    p.loop = false;
+    p.muted = true;
+  });
+
+  // Most broadcasts come from OBS in landscape; cover-filling those into a
+  // portrait page leaves a center-cropped sliver. Once the track reports its
+  // size, landscape sources render as a full-width band centered vertically
+  // instead. Portrait (and unknown) sources keep the full-bleed cover fill.
+  const [sourceAspect, setSourceAspect] = useState<number | null>(null);
+  useEventListener(player, "videoTrackChange", ({ videoTrack }) => {
+    const size = videoTrack?.size;
+    if (size && size.width > 0 && size.height > 0) {
+      setSourceAspect(size.width / size.height);
+    }
+  });
+  const isLandscapeSource = sourceAspect !== null && sourceAspect > 1;
+
+  useEffect(() => {
+    if (isActive && playbackUrl) player.play();
+    else player.pause();
+  }, [isActive, playbackUrl, player]);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Watch ${stream.profiles.display_name} live`}
+      onPress={onWatch}
+      style={[styles.page, { height }]}
+    >
+      {playbackUrl ? (
+        <View style={styles.videoCenter}>
+          <VideoView
+            player={player}
+            style={
+              isLandscapeSource && sourceAspect
+                ? { width: "100%", aspectRatio: sourceAspect }
+                : StyleSheet.absoluteFill
+            }
+            contentFit="cover"
+            nativeControls={false}
+          />
+        </View>
+      ) : (
+        <Centered>
+          <Ionicons name="videocam-outline" size={32} color={OVERLAY_TEXT_DIM} />
+        </Centered>
+      )}
+
+      {/* Sits just below the floating pager header row. */}
+      <View
+        style={[styles.pageTopRight, { top: insets.top + spacing(14) }]}
+        pointerEvents="none"
+      >
+        <View style={styles.liveBadge}>
+          <Text style={styles.liveBadgeText}>LIVE</Text>
+        </View>
+        <View style={styles.viewersPill}>
+          <Ionicons name="eye-outline" size={13} color={OVERLAY_TEXT} />
+          <Text style={styles.viewersPillText}>
+            {formatNumber(stream.viewer_count)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={[styles.pageOverlay, { paddingBottom: insets.bottom + spacing(6) }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${stream.profiles.display_name}'s profile`}
+          onPress={onOpenProfile}
+          style={({ pressed }) => [styles.streamerRow, pressed && { opacity: 0.8 }]}
+        >
+          <Avatar
+            url={stream.profiles.avatar_url}
+            name={stream.profiles.display_name}
+            size={38}
+          />
+          <View style={{ flexShrink: 1, minWidth: 0 }}>
+            <Text style={styles.streamerName} numberOfLines={1}>
+              {stream.profiles.display_name}
+            </Text>
+            <Text style={styles.streamerHandle} numberOfLines={1}>
+              @{stream.profiles.username}
+            </Text>
+          </View>
+        </Pressable>
+        <Text style={styles.streamTitle} numberOfLines={2}>
+          {stream.title}
+        </Text>
+        {stream.category ? (
+          <Text style={styles.streamCategory} numberOfLines={1}>
+            {stream.category}
+          </Text>
+        ) : null}
+      </View>
+    </Pressable>
+  );
 }
 
 export default function LiveScreen() {
   const router = useRouter();
-  const { user } = useAuth();
-  const [goLiveOpen, setGoLiveOpen] = useState(false);
+  const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
+  const [pageHeight, setPageHeight] = useState(0);
+  const [activeStreamId, setActiveStreamId] = useState<string | null>(null);
   const {
     data: streams,
     isPending,
@@ -49,10 +166,78 @@ export default function LiveScreen() {
     refetchInterval: 30_000,
   });
 
-  const { data: vods } = useQuery({
-    queryKey: ["live-vods"],
-    queryFn: () => getRecentVods(),
-  });
+  const hasLive = !!streams && streams.length > 0;
+
+  // FlatList requires a referentially stable handler; empty deps keep it so.
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      const visible = viewableItems.find((v) => v.isViewable);
+      if (visible?.item) {
+        setActiveStreamId((visible.item as LiveStreamWithProfile).id);
+      }
+    },
+    [],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: LiveStreamWithProfile }) => (
+      <StreamPreviewPage
+        stream={item}
+        height={pageHeight}
+        isActive={isFocused && item.id === activeStreamId}
+        onWatch={() => router.push(`/live/${item.id}` as never)}
+        onOpenProfile={() => router.push(`/user/${item.profiles.username}` as never)}
+      />
+    ),
+    [pageHeight, isFocused, activeStreamId, router],
+  );
+
+  if (hasLive) {
+    return (
+      <View
+        style={styles.pagerRoot}
+        onLayout={(e) => {
+          const { height } = e.nativeEvent.layout;
+          if (height > 0) setPageHeight(height);
+        }}
+      >
+        <Stack.Screen options={{ headerShown: false }} />
+        {pageHeight > 0 ? (
+          <FlatList
+            data={streams}
+            keyExtractor={(s) => s.id}
+            renderItem={renderItem}
+            pagingEnabled
+            snapToInterval={pageHeight}
+            snapToAlignment="start"
+            decelerationRate="fast"
+            disableIntervalMomentum
+            showsVerticalScrollIndicator={false}
+            getItemLayout={(_, index) => ({
+              length: pageHeight,
+              offset: pageHeight * index,
+              index,
+            })}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={VIEWABILITY_CONFIG}
+            windowSize={3}
+          />
+        ) : null}
+
+        <View style={[styles.pagerHeader, { top: insets.top + spacing(2) }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            onPress={() => safeBack(router)}
+            style={styles.headerIconButton}
+            hitSlop={8}
+          >
+            <Ionicons name="chevron-back" size={22} color={OVERLAY_TEXT} />
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <>
@@ -68,11 +253,9 @@ export default function LiveScreen() {
           action={<Button label="Retry" variant="outline" onPress={() => refetch()} />}
         />
       ) : (
-        <FlatList
-          data={streams}
-          keyExtractor={(s) => s.id}
+        <ScrollView
           style={{ backgroundColor: colors.background }}
-          contentContainerStyle={{ padding: spacing(4), gap: spacing(3) }}
+          contentContainerStyle={styles.emptyWrap}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -80,265 +263,99 @@ export default function LiveScreen() {
               tintColor={colors.primary}
             />
           }
-          ListHeaderComponent={
-            user ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Go live"
-                onPress={() => setGoLiveOpen(true)}
-                style={({ pressed }) => [styles.goLiveRow, pressed && { opacity: 0.85 }]}
-              >
-                <View style={styles.goLiveIcon}>
-                  <Ionicons name="radio-outline" size={20} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.goLiveTitle}>Go live</Text>
-                  <Text style={styles.goLiveMeta}>
-                    Stream with OBS or from the web
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={18}
-                  color={colors.mutedForeground}
-                />
-              </Pressable>
-            ) : null
-          }
-          ListEmptyComponent={
-            <EmptyState
-              title="Nobody is live right now"
-              description="Streams from people you follow show up here the moment they go on air."
-            />
-          }
-          ListFooterComponent={
-            vods && vods.length > 0 ? (
-              <View style={styles.pastSection}>
-                <Text style={styles.pastHeading}>Past streams</Text>
-                {vods.map((vod) => (
-                  <VodRowItem
-                    key={vod.id}
-                    vod={vod}
-                    onPress={() => router.push(`/vod/${vod.id}` as never)}
-                  />
-                ))}
-              </View>
-            ) : null
-          }
-          renderItem={({ item }) => (
-            <StreamRow
-              stream={item}
-              onPress={() => router.push(`/live/${item.id}` as never)}
-            />
-          )}
-        />
+        >
+          <Ionicons name="videocam-outline" size={40} color={colors.mutedForeground} />
+          <EmptyState
+            title="Nobody is live right now"
+            description="Streams from people you follow show up here the moment they go on air. To start your own, head to Settings > Streaming."
+          />
+        </ScrollView>
       )}
-      <GoLiveSheet
-        visible={goLiveOpen}
-        onClose={() => setGoLiveOpen(false)}
-        onOpenSettings={() => {
-          setGoLiveOpen(false);
-          router.push("/settings/streaming" as never);
-        }}
-      />
     </>
   );
 }
 
-// Info-only for now: Expo Go has no native RTMP broadcasting, so this
-// points streamers at OBS or the web and at their stream key.
-function GoLiveSheet({
-  visible,
-  onClose,
-  onOpenSettings,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onOpenSettings: () => void;
-}) {
-  const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
-  const [fade] = useState(() => new Animated.Value(0));
-  const [slide] = useState(() => new Animated.Value(height));
-
-  // Same backdrop-fade plus RAF-kicked slide as ReportSheet.
-  useEffect(() => {
-    if (!visible) {
-      fade.setValue(0);
-      slide.setValue(height);
-      return;
-    }
-    slide.setValue(height);
-    const raf = requestAnimationFrame(() => {
-      Animated.parallel([
-        Animated.timing(fade, {
-          toValue: 1,
-          duration: 160,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slide, {
-          toValue: 0,
-          duration: 200,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [visible, height, fade, slide]);
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
-      <Animated.View style={[styles.backdrop, { opacity: fade }]}>
-        <Pressable
-          style={{ flex: 1 }}
-          onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel="Close go live"
-        />
-      </Animated.View>
-
-      <Animated.View
-        style={[
-          styles.sheetPanel,
-          {
-            paddingBottom: insets.bottom + spacing(4),
-            transform: [{ translateY: slide }],
-          },
-        ]}
-      >
-        <View style={styles.sheetHandleWrap}>
-          <View style={styles.sheetHandle} />
-        </View>
-
-        <Text style={styles.sheetTitle}>Go live</Text>
-        <Text style={styles.sheetBody}>
-          Broadcasting from the phone isn&apos;t supported yet. Go live with OBS
-          or any RTMP app using your stream key, or start the stream from the
-          web. Your broadcast shows up here for everyone the moment it starts.
-        </Text>
-
-        <View style={styles.sheetActions}>
-          <Button label="View stream key" onPress={onOpenSettings} />
-          <Button label="Close" variant="outline" onPress={onClose} />
-        </View>
-      </Animated.View>
-    </Modal>
-  );
-}
-
-function VodRowItem({
-  vod,
-  onPress,
-}: {
-  vod: VodWithProfile;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
-    >
-      <Avatar
-        url={vod.profile?.avatar_url ?? null}
-        name={vod.profile?.display_name ?? "?"}
-        size={48}
-      />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={styles.title} numberOfLines={1}>
-          {vod.title || "Past stream"}
-        </Text>
-        <Text style={styles.meta} numberOfLines={1}>
-          {vod.profile?.display_name ?? "Unknown"}
-          {"  ·  "}
-          {formatTimeAgo(vod.created_at)}
-        </Text>
-      </View>
-      <View style={styles.right}>
-        {vod.duration_seconds ? (
-          <Text style={styles.durationText}>
-            {formatDuration(vod.duration_seconds)}
-          </Text>
-        ) : null}
-        <View style={styles.viewers}>
-          <Ionicons name="eye-outline" size={12} color={colors.mutedForeground} />
-          <Text style={styles.viewersText}>{formatNumber(vod.view_count)}</Text>
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
-function StreamRow({
-  stream,
-  onPress,
-}: {
-  stream: LiveStreamWithProfile;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
-    >
-      <Avatar
-        url={stream.profiles.avatar_url}
-        name={stream.profiles.display_name}
-        size={48}
-      />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={styles.title} numberOfLines={1}>
-          {stream.title}
-        </Text>
-        <Text style={styles.meta} numberOfLines={1}>
-          {stream.profiles.display_name}
-          {stream.category ? `  ·  ${stream.category}` : ""}
-        </Text>
-      </View>
-      <View style={styles.right}>
-        <View style={styles.liveBadge}>
-          <Text style={styles.liveBadgeText}>LIVE</Text>
-        </View>
-        <View style={styles.viewers}>
-          <Ionicons name="eye-outline" size={12} color={colors.mutedForeground} />
-          <Text style={styles.viewersText}>{formatNumber(stream.viewer_count)}</Text>
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  row: {
+  pagerRoot: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  page: {
+    width: "100%",
+    backgroundColor: "#000",
+  },
+  videoCenter: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+  },
+  pagerHeader: {
+    position: "absolute",
+    left: spacing(3),
+    right: spacing(3),
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing(3),
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    padding: spacing(3.5),
   },
-  title: {
-    color: colors.foreground,
-    fontSize: 15,
+  headerIconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pageTopRight: {
+    position: "absolute",
+    right: spacing(3),
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+  },
+  viewersPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  viewersPillText: {
+    color: OVERLAY_TEXT,
+    fontSize: 12,
     fontWeight: "600",
+  },
+  pageOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing(4),
+    gap: spacing(2),
+    backgroundColor: "transparent",
+  },
+  streamerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2.5),
+  },
+  streamerName: {
+    color: OVERLAY_TEXT,
+    fontSize: 14.5,
+    fontWeight: "600",
+  },
+  streamerHandle: {
+    color: OVERLAY_TEXT_DIM,
+    fontSize: 12.5,
+  },
+  streamTitle: {
+    color: OVERLAY_TEXT,
+    fontSize: 16,
+    fontWeight: "700",
     letterSpacing: -0.3,
   },
-  meta: {
-    color: colors.mutedForeground,
+  streamCategory: {
+    color: OVERLAY_TEXT_DIM,
     fontSize: 13,
-    marginTop: 2,
-  },
-  right: {
-    alignItems: "flex-end",
-    gap: 4,
   },
   liveBadge: {
     backgroundColor: colors.destructive,
@@ -352,101 +369,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.8,
   },
-  viewers: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  viewersText: {
-    color: colors.mutedForeground,
-    fontSize: 12,
-  },
-  durationText: {
-    color: colors.mutedForeground,
-    fontSize: 12,
-    fontVariant: ["tabular-nums"],
-  },
-  goLiveRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing(3),
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    padding: spacing(3.5),
-    marginBottom: spacing(1),
-  },
-  goLiveIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.full,
-    backgroundColor: colors.surfaceElevated,
+  emptyWrap: {
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
-  },
-  goLiveTitle: {
-    color: colors.foreground,
-    fontSize: 15,
-    fontWeight: "600",
-    letterSpacing: -0.3,
-  },
-  goLiveMeta: {
-    color: colors.mutedForeground,
-    fontSize: 13,
-    marginTop: 2,
-  },
-  pastSection: {
-    gap: spacing(3),
-    marginTop: spacing(3),
-  },
-  pastHeading: {
-    color: colors.mutedForeground,
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
-  },
-  sheetPanel: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.surfaceElevated,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    paddingHorizontal: spacing(4),
-    paddingTop: spacing(2),
-  },
-  sheetHandleWrap: {
-    alignItems: "center",
-    paddingBottom: spacing(2),
-  },
-  sheetHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-  },
-  sheetTitle: {
-    color: colors.foreground,
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  sheetBody: {
-    color: colors.mutedForeground,
-    fontSize: 13,
-    lineHeight: 19,
-    paddingTop: spacing(2),
-  },
-  sheetActions: {
-    gap: spacing(2),
-    paddingTop: spacing(4),
+    padding: spacing(6),
   },
 });

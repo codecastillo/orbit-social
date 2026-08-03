@@ -433,17 +433,6 @@ export async function getMediaMessages(
   return (data ?? []) as unknown as Message[];
 }
 
-// The web's MESSAGE_REACTIONS set (message-reaction-picker.tsx), copied
-// verbatim so reaction rows are interchangeable across clients.
-export const MESSAGE_REACTION_GLYPHS = [
-  { emoji: "\u2764\uFE0F", label: "Love" },
-  { emoji: "\uD83D\uDC4D", label: "Thumbs Up" },
-  { emoji: "\uD83D\uDE02", label: "Laugh" },
-  { emoji: "\uD83D\uDE2E", label: "Wow" },
-  { emoji: "\uD83D\uDE22", label: "Sad" },
-  { emoji: "\uD83D\uDD25", label: "Fire" },
-] as const;
-
 export interface MessageReactionGroup {
   emoji: string;
   count: number;

@@ -2,7 +2,10 @@ import { createClient } from "@/lib/supabase/client";
 
 const supabase = createClient();
 
-export type ReactionType = "love" | "fire" | "laugh" | "sad" | "wow" | "angry";
+// Free text since the emoji migration: the stored value is the emoji glyph
+// itself. Legacy name rows (love/fire/...) were backfilled to glyphs, and
+// rendering still resolves stragglers via LEGACY_REACTION_GLYPHS.
+export type ReactionType = string;
 
 export interface ReactionCount {
   reaction_type: ReactionType;
@@ -16,24 +19,6 @@ export interface PostReaction {
   reaction_type: ReactionType;
   created_at: string;
 }
-
-export const REACTION_EMOJI: Record<ReactionType, string> = {
-  love: "\u2764\uFE0F",
-  fire: "\uD83D\uDD25",
-  laugh: "\uD83D\uDE02",
-  sad: "\uD83D\uDE22",
-  wow: "\uD83D\uDE2E",
-  angry: "\uD83D\uDE21",
-};
-
-export const REACTION_LABELS: Record<ReactionType, string> = {
-  love: "Love",
-  fire: "Fire",
-  laugh: "Laugh",
-  sad: "Sad",
-  wow: "Wow",
-  angry: "Angry",
-};
 
 export async function addReaction(
   userId: string,

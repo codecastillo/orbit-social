@@ -15,6 +15,7 @@ import { VideoView, useVideoPlayer } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, type Href } from "expo-router";
 import { Avatar } from "@/components/ui";
+import { EmojiPickerSheet } from "@/components/emoji-picker-sheet";
 import { LinkPreviewCard } from "@/components/link-preview-card";
 import { PollCard } from "@/components/poll-card";
 import { ReactionCounts } from "@/components/reaction-counts";
@@ -38,6 +39,7 @@ import {
   type ReactionType,
 } from "@/lib/queries/reactions";
 import { deletePost, pinPost, unpinPost } from "@/lib/queries/post-management";
+import { stageQuoteSeed } from "@/lib/quote-seed";
 import { getRankingSignals, markNotInterested } from "@/lib/queries/content-safety";
 import { useVideoFrame } from "@/lib/video-frame";
 import { colors, radii, spacing } from "@/lib/theme";
@@ -251,6 +253,7 @@ export function PostCard({
   const [userReaction, setUserReaction] = useState(userReactionProp);
   const [reactionCounts, setReactionCounts] = useState(reactionCountsProp);
   const [pickerAnchor, setPickerAnchor] = useState<ReactionAnchor | null>(null);
+  const [emojiSheetOpen, setEmojiSheetOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [warningRevealed, setWarningRevealed] = useState(false);
   // Viewers who set sensitive_content_level "more" skip the reveal tap.
@@ -409,6 +412,25 @@ export function PostCard({
       setRepostCount((n) => Math.max(0, n + (wasReposted ? 1 : -1)));
       flashActionError(wasReposted ? "Could not undo the repost." : "Repost failed. Try again.");
     });
+  };
+
+  const handleQuote = () => {
+    // The composer reads the seed on mount, same handoff as draft restore.
+    stageQuoteSeed(display);
+    router.push("/compose");
+  };
+
+  // Repost is no longer a bare toggle: the tap offers plain repost (or
+  // undo) and quote, like the web's repost menu.
+  const openRepostMenu = () => {
+    Alert.alert("Repost", undefined, [
+      {
+        text: reposted ? "Undo repost" : "Repost",
+        onPress: handleRepost,
+      },
+      { text: "Quote", onPress: handleQuote },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
   const handleShare = () => {
@@ -748,7 +770,15 @@ export function PostCard({
         </View>
       ) : null}
 
-      {quoted ? <QuotedPostPreview post={quoted} /> : null}
+      {quoted ? (
+        <QuotedPostPreview post={quoted} />
+      ) : post.type === "quote" ? (
+        // parent_post_id is SET NULL when the quoted post is deleted, and
+        // RLS can hide a live parent; both read as "gone" here.
+        <View style={[styles.unavailableBox, styles.quoteUnavailable]}>
+          <Text style={styles.unavailableText}>This post is no longer available.</Text>
+        </View>
+      ) : null}
 
       {detail ? (
         <View style={styles.statsRow}>
@@ -809,7 +839,7 @@ export function PostCard({
             </Text>
           ) : null}
         </Pressable>
-        <Pressable onPress={handleRepost} style={styles.action} hitSlop={8}>
+        <Pressable onPress={openRepostMenu} style={styles.action} hitSlop={8}>
           <Ionicons
             name="repeat"
             size={22}
@@ -855,8 +885,25 @@ export function PostCard({
         anchor={pickerAnchor}
         currentReaction={userReaction}
         onSelect={applyReaction}
+        onOpenEmojiSheet={() => {
+          setPickerAnchor(null);
+          setEmojiSheetOpen(true);
+        }}
         onClose={() => setPickerAnchor(null)}
       />
+
+      {/* Mounted on demand for the same per-card Modal cost reason as the
+          report sheet below. */}
+      {emojiSheetOpen ? (
+        <EmojiPickerSheet
+          visible
+          onSelect={(emoji) => {
+            setEmojiSheetOpen(false);
+            applyReaction(emoji);
+          }}
+          onClose={() => setEmojiSheetOpen(false)}
+        />
+      ) : null}
 
       {/* Mounted on demand: feed lists render many cards, and an idle Modal
           per card would still cost a native host view each. */}
@@ -1044,6 +1091,9 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: radii.sm,
     backgroundColor: colors.surfaceElevated,
+  },
+  quoteUnavailable: {
+    marginTop: spacing(2.5),
   },
   actions: {
     flexDirection: "row",

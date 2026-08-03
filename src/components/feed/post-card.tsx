@@ -19,6 +19,7 @@ import {
   X,
   Pin,
   PinOff,
+  Quote,
   Rocket,
   Sparkles,
   MapPin,
@@ -67,16 +68,18 @@ import {
 import {
   addReaction,
   removeReaction,
-  REACTION_EMOJI,
   type ReactionType,
   type ReactionCount,
 } from "@/lib/queries/reactions";
+import { resolveReactionGlyph } from "@/lib/reactions/emoji";
+import { useUIStore } from "@/lib/stores/ui-store";
 import { boostPost, removeBoost } from "@/lib/queries/boost";
 import { getRankingSignals, markNotInterested } from "@/lib/queries/content-safety";
 import { ShareDialog } from "@/components/shared/share-dialog";
 import { BlockMuteDialog } from "@/components/shared/block-mute-dialog";
 import { ReportDialog } from "@/components/shared/report-dialog";
 import { ReactionPicker, ReactionCountsDisplay } from "./reaction-picker";
+import { QuotedPostCard, QuotedPostUnavailable } from "./quoted-post-card";
 import { PostInsights, computeUserAverages } from "./post-insights";
 import { AudioPlayer } from "@/components/feed/audio-player";
 import {
@@ -137,6 +140,7 @@ export const PostCard = memo(function PostCard({
   const requireAuth = useRequireAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const setComposeOpen = useUIStore((s) => s.setComposeOpen);
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked);
   const [isReposted, setIsReposted] = useState(initialIsReposted);
@@ -181,15 +185,18 @@ export const PostCard = memo(function PostCard({
   const [userReaction, setUserReaction] = useState<ReactionType | null>(null);
   const [reactionCounts, setReactionCounts] = useState<ReactionCount[]>([]);
 
-  // Repost: load original post if this is a repost
+  // Repost/quote: load the parent post. A repost swaps the whole card to
+  // the original; a quote keeps its own body and embeds the parent as an
+  // inset QuotedPostCard.
   const [originalPost, setOriginalPost] = useState<PostWithAuthor | null>(null);
   const isRepostType = post.type === "repost" && post.parent_post_id;
+  const isQuoteType = post.type === "quote";
 
   useEffect(() => {
-    if (isRepostType && post.parent_post_id) {
+    if ((isRepostType || isQuoteType) && post.parent_post_id) {
       loadPostById(post.parent_post_id).then(setOriginalPost).catch(() => {});
     }
-  }, [isRepostType, post.parent_post_id]);
+  }, [isRepostType, isQuoteType, post.parent_post_id]);
 
   // For reposts, the heart/bookmark and counts shown on the card belong to
   // the *original* post (that's what the viewer is reading). Re-derive
@@ -381,6 +388,14 @@ export const PostCard = memo(function PostCard({
         toast.error("Couldn't repost");
       }
     }
+  };
+
+  const handleQuote = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!requireAuth() || !user) return;
+    // Quoting a repost quotes its original; quoting a quote quotes the
+    // quote row itself, which is exactly what displayPost resolves to.
+    setComposeOpen(true, { quotedPost: displayPost });
   };
 
   const handleEdit = (e: React.MouseEvent) => {
@@ -907,6 +922,21 @@ export const PostCard = memo(function PostCard({
             );
           })()}
 
+          {/* Quoted post, one level deep: the inset card never renders its
+              own subject's parent */}
+          {isQuoteType && (
+            <div className="mt-3">
+              {!post.parent_post_id ? (
+                <QuotedPostUnavailable />
+              ) : originalPost ? (
+                <QuotedPostCard
+                  post={originalPost}
+                  onOpen={() => router.push(`/post/${post.parent_post_id}`)}
+                />
+              ) : null}
+            </div>
+          )}
+
           {/* Reaction counts */}
           {reactionCounts.length > 0 && (
             <div onClick={(e) => e.stopPropagation()}>
@@ -940,7 +970,7 @@ export const PostCard = memo(function PostCard({
               >
                 <motion.span animate={animateHeart ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.3 }}>
                   {userReaction ? (
-                    <span className="text-[15px] leading-none">{REACTION_EMOJI[userReaction]}</span>
+                    <span className="text-[15px] leading-none">{resolveReactionGlyph(userReaction)}</span>
                   ) : (
                     <Heart className={cn("h-[15px] w-[15px]", isLiked && "fill-current")} />
                   )}
@@ -963,17 +993,28 @@ export const PostCard = memo(function PostCard({
                 room posts are scoped to that room and shouldn't be
                 rebroadcast through repost or shared to outsiders. */}
             {!compact && !displayPost.community_id && (
-              <button
-                onClick={handleRepost}
-                aria-label="Repost"
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors",
-                  isReposted ? "text-emerald-400" : "hover:text-emerald-300 hover:bg-emerald-500/10"
-                )}
-              >
-                <Repeat2 className="h-[15px] w-[15px]" />
-                {repostCount > 0 && <span>{formatNumber(repostCount)}</span>}
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Repost or quote"
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors",
+                    isReposted ? "text-emerald-400" : "hover:text-emerald-300 hover:bg-emerald-500/10"
+                  )}
+                >
+                  <Repeat2 className="h-[15px] w-[15px]" />
+                  {repostCount > 0 && <span>{formatNumber(repostCount)}</span>}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={handleRepost}>
+                    <Repeat2 className="mr-2 h-4 w-4" />
+                    {isReposted ? "Undo repost" : "Repost"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleQuote}>
+                    <Quote className="mr-2 h-4 w-4" /> Quote
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
 
             {!compact && !displayPost.community_id && (

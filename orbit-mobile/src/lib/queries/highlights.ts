@@ -56,6 +56,28 @@ export async function createHighlight(
   if (!res.ok) throw new Error(`highlight create failed (${res.status})`);
 }
 
+/**
+ * Append the caller's own active stories to an existing highlight of
+ * theirs. The route enforces ownership of both sides and the active-story
+ * check, and silently skips ids already in the highlight.
+ */
+export async function addStoriesToHighlight(
+  highlightId: string,
+  storyIds: string[],
+): Promise<void> {
+  const token = await getAccessToken();
+  if (!token) throw new Error("Not signed in");
+  const res = await fetch(`${HIGHLIGHTS_API_BASE}/api/highlights`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ highlightId, storyIds }),
+  });
+  if (!res.ok) throw new Error(`highlight update failed (${res.status})`);
+}
+
 // Deleting only touches story_highlights, where the owner's FOR ALL policy
 // applies; items cascade at the database level.
 export async function deleteHighlight(highlightId: string): Promise<void> {

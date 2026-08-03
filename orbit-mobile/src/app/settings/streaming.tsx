@@ -95,12 +95,15 @@ export default function StreamingSettingsScreen() {
         </View>
       ) : null}
 
-      <Text style={styles.sectionTitle}>Broadcast credentials</Text>
+      <Text style={styles.sectionTitle}>Go live</Text>
       <Text style={styles.explainer}>
-        Plug these into OBS, Streamlabs, or your IRL backpack once. Whenever
-        you start streaming in your software, your stream automatically
-        appears in the Live feed.
+        Broadcasting runs through OBS, Streamlabs, or an IRL encoder for now,
+        so phone-native streaming is not available yet. Point your encoder at
+        the credentials below and your stream appears in the Live feed the
+        moment it starts.
       </Text>
+
+      <Text style={styles.sectionTitle}>Broadcast credentials</Text>
 
       <View style={styles.card}>
         <CredField label="OBS · Server URL (RTMPS)" value={creds.rtmpsUrl} />

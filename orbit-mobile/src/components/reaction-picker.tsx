@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
 import { Animated, Dimensions, Modal, Pressable, StyleSheet, Text } from "react-native";
-import {
-  REACTION_EMOJI,
-  REACTION_LABELS,
-  REACTION_TYPES,
-  type ReactionType,
-} from "@/lib/queries/reactions";
+import { Ionicons } from "@expo/vector-icons";
+import { REACTION_QUICK_ROW } from "@/lib/reactions";
+import type { ReactionType } from "@/lib/queries/reactions";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const BUTTON_SIZE = 44;
 const PICKER_PADDING = 6;
-const PICKER_WIDTH = REACTION_TYPES.length * BUTTON_SIZE + PICKER_PADDING * 2;
+// +1 slot for the "+" any-emoji button at the end of the row.
+const PICKER_WIDTH =
+  (REACTION_QUICK_ROW.length + 1) * BUTTON_SIZE + PICKER_PADDING * 2;
 const PICKER_HEIGHT = BUTTON_SIZE + PICKER_PADDING * 2;
 const SCREEN_GUTTER = 16;
 
@@ -24,12 +23,14 @@ interface ReactionPickerProps {
   visible: boolean;
   anchor: ReactionAnchor | null;
   currentReaction: ReactionType | null;
-  onSelect: (type: ReactionType) => void;
+  onSelect: (emoji: ReactionType) => void;
+  /** The trailing "+": the caller closes this bar and opens the full sheet. */
+  onOpenEmojiSheet: () => void;
   onClose: () => void;
 }
 
 /**
- * Long-press overlay with the six reaction glyphs, floated above the like
+ * Long-press overlay with the quick reaction glyphs, floated above the like
  * button. Rendered in a transparent Modal so it escapes list clipping;
  * tapping anywhere outside dismisses it.
  */
@@ -38,6 +39,7 @@ export function ReactionPicker({
   anchor,
   currentReaction,
   onSelect,
+  onOpenEmojiSheet,
   onClose,
 }: ReactionPickerProps) {
   // Lazy useState instead of useRef: the values are stable across renders
@@ -73,21 +75,29 @@ export function ReactionPicker({
           // Stop the backdrop press from swallowing taps on the row itself.
           onStartShouldSetResponder={() => true}
         >
-          {REACTION_TYPES.map((type) => (
+          {REACTION_QUICK_ROW.map(({ emoji, label }) => (
             <Pressable
-              key={type}
+              key={emoji}
               accessibilityRole="button"
-              accessibilityLabel={`React with ${REACTION_LABELS[type]}`}
-              onPress={() => onSelect(type)}
+              accessibilityLabel={`React with ${label}`}
+              onPress={() => onSelect(emoji)}
               style={({ pressed }) => [
                 styles.reaction,
-                currentReaction === type && styles.reactionActive,
+                currentReaction === emoji && styles.reactionActive,
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <Text style={styles.glyph}>{REACTION_EMOJI[type]}</Text>
+              <Text style={styles.glyph}>{emoji}</Text>
             </Pressable>
           ))}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="React with any emoji"
+            onPress={onOpenEmojiSheet}
+            style={({ pressed }) => [styles.reaction, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="add" size={22} color={colors.mutedForeground} />
+          </Pressable>
         </Animated.View>
       </Pressable>
     </Modal>

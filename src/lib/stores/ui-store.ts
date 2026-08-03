@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { PostWithAuthor } from "@/lib/queries/posts";
 
 export type ComposeAction = "photo" | "voice" | "event" | "place" | null;
 
@@ -12,6 +13,9 @@ interface UIStore {
   // Draft being edited: the composer seeds itself from this draft and, on
   // post, removes it so "Keep writing" round-trips instead of dead-ending.
   composeDraftId: string | undefined;
+  // Post being quoted: the composer renders it read-only below the textarea
+  // and submits a type "quote" post pointing at it.
+  composeQuotedPost: PostWithAuthor | undefined;
   setComposeOpen: (
     open: boolean,
     options?: {
@@ -19,6 +23,7 @@ interface UIStore {
       action?: ComposeAction;
       initialContent?: string;
       draftId?: string;
+      quotedPost?: PostWithAuthor;
     }
   ) => void;
   consumeComposeAction: () => ComposeAction;
@@ -39,6 +44,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   composeAction: null,
   composeInitialContent: undefined,
   composeDraftId: undefined,
+  composeQuotedPost: undefined,
   setComposeOpen: (open, options) =>
     set({
       composeOpen: open,
@@ -46,6 +52,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
       composeAction: open ? (options?.action ?? null) : null,
       composeInitialContent: open ? options?.initialContent : undefined,
       composeDraftId: open ? options?.draftId : undefined,
+      composeQuotedPost: open ? options?.quotedPost : undefined,
     }),
   consumeComposeAction: () => {
     const current = get().composeAction;

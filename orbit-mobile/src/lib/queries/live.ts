@@ -87,8 +87,19 @@ export async function getRecentChatMessages(
   return ((data ?? []) as unknown as LiveChatMessageRow[]).reverse();
 }
 
-export function hlsUrl(playbackId: string): string {
-  return `https://stream.mux.com/${playbackId}.m3u8`;
+// Mux playback modifier: capping max_resolution trims the rendition ladder
+// the player may pick from. "auto" leaves the URL unmodified so Mux ABR
+// runs unconstrained.
+export type MuxMaxResolution = "auto" | "1080p" | "720p" | "480p";
+
+export function hlsUrl(
+  playbackId: string,
+  maxResolution: MuxMaxResolution = "auto",
+): string {
+  const base = `https://stream.mux.com/${playbackId}.m3u8`;
+  return maxResolution === "auto"
+    ? base
+    : `${base}?max_resolution=${maxResolution}`;
 }
 
 export interface StreamCredentials {

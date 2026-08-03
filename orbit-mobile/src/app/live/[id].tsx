@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Animated,
   Easing,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -16,12 +17,18 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsFocused } from "@react-navigation/native";
 import { VideoView, useVideoPlayer } from "expo-video";
+import * as ScreenOrientation from "expo-screen-orientation";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import { GiftSheet } from "@/components/gift-sheet";
 import { useAuth } from "@/providers/auth-provider";
-import { getRecentChatMessages, getStreamById, hlsUrl } from "@/lib/queries/live";
+import {
+  getRecentChatMessages,
+  getStreamById,
+  hlsUrl,
+  type MuxMaxResolution,
+} from "@/lib/queries/live";
 import { giftByType, type SentGift } from "@/lib/queries/gifts";
 import { supabase } from "@/lib/supabase";
 import { safeBack } from "@/lib/nav";
@@ -38,6 +45,12 @@ interface ChatMessage {
 const CHAT_BUFFER = 60;
 const CHAT_MAX_LENGTH = 500;
 
+// Portrait presents the stream as a full-bleed video canvas with the chat
+// and stream info overlaid, so those elements use literal white values
+// instead of theme tokens, matching the preview pager in live/index.tsx.
+const OVERLAY_TEXT = "#ffffff";
+const OVERLAY_TEXT_DIM = "rgba(255, 255, 255, 0.65)";
+
 // Web rose-500, matching the heart tint in stream-content.tsx.
 const HEART_COLOR = "#f43f5e";
 const HEART_DURATION_MS = 1500;
@@ -51,6 +64,13 @@ const MAX_GIFT_BANNERS = 3;
 // mode, live status) apply to mobile too. The native client has no auth
 // cookies, so the session access token rides in the Authorization header.
 const CHAT_API_BASE = "https://orbitsocial.net";
+
+const QUALITY_OPTIONS: { value: MuxMaxResolution; label: string }[] = [
+  { value: "auto", label: "Auto" },
+  { value: "1080p", label: "1080p" },
+  { value: "720p", label: "720p" },
+  { value: "480p", label: "480p" },
+];
 
 // Minimal port of the web use-stream-presence hook: join the same presence
 // channel so mobile viewers show up in viewer_count, and read the live
@@ -408,7 +428,45 @@ export default function LiveViewerScreen() {
     }
   }, [draft, sending, id]);
 
-  const playbackUrl = stream?.mux_playback_id ? hlsUrl(stream.mux_playback_id) : null;
+  // Changing quality rebuilds the HLS URL with Mux's max_resolution playback
+  // modifier; useVideoPlayer keys the native player on its source, so the
+  // swap re-creates it. Losing position is fine for live.
+  const [quality, setQuality] = useState<MuxMaxResolution>("auto");
+  const [qualityOpen, setQualityOpen] = useState(false);
+
+  // The app is portrait-locked in app.json; this screen alone may override
+  // that for a fullscreen landscape watch mode.
+  const [landscape, setLandscape] = useState(false);
+  const toggleOrientation = useCallback(() => {
+    const next = !landscape;
+    setLandscape(next);
+    ScreenOrientation.lockAsync(
+      next
+        ? ScreenOrientation.OrientationLock.LANDSCAPE
+        : ScreenOrientation.OrientationLock.PORTRAIT_UP,
+    ).catch(() => {
+      // Some devices refuse the lock (e.g. rotation disabled); fall back to
+      // the layout the device actually shows.
+      setLandscape(!next);
+    });
+  }, [landscape]);
+
+  // Restore the app-wide portrait lock whenever this screen stops being the
+  // focused one: back navigation, pushing the streamer's profile, unmount.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setLandscape(false);
+        void ScreenOrientation.lockAsync(
+          ScreenOrientation.OrientationLock.PORTRAIT_UP,
+        ).catch(() => {});
+      };
+    }, []),
+  );
+
+  const playbackUrl = stream?.mux_playback_id
+    ? hlsUrl(stream.mux_playback_id, quality)
+    : null;
   const player = useVideoPlayer(playbackUrl, (p) => {
     p.loop = false;
   });
@@ -447,155 +505,218 @@ export default function LiveViewerScreen() {
   const live = stream.status === "live";
   const canSend = draft.trim().length > 0 && !sending;
 
+  // Quality and rotate share one markup in both orientations; only their
+  // container differs (absolute over the video in landscape, a row above the
+  // stream info in portrait).
+  const videoControls =
+    playbackUrl && live ? (
+      <>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Stream quality"
+          onPress={() => setQualityOpen(true)}
+          style={({ pressed }) => [
+            styles.videoControlButton,
+            pressed && { opacity: 0.7 },
+          ]}
+          hitSlop={8}
+        >
+          <Ionicons name="settings-outline" size={18} color="#fff" />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={landscape ? "Exit fullscreen" : "Fullscreen"}
+          onPress={toggleOrientation}
+          style={({ pressed }) => [
+            styles.videoControlButton,
+            pressed && { opacity: 0.7 },
+          ]}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={landscape ? "contract-outline" : "expand-outline"}
+            size={18}
+            color="#fff"
+          />
+        </Pressable>
+      </>
+    ) : null;
+
+  const giftBannerViews = activeGifts.map((sent) => (
+    <GiftBannerView key={sent.id} sent={sent} />
+  ));
+
   return (
     <KeyboardAvoidingView
-      style={[styles.root, { paddingTop: insets.top }]}
+      style={styles.root}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.videoWrap}>
-        {playbackUrl && live ? (
-          <VideoView
-            player={player}
-            style={StyleSheet.absoluteFill}
-            contentFit="contain"
-            nativeControls={false}
-          />
-        ) : (
-          <View style={styles.offline}>
-            <Ionicons name="videocam-off-outline" size={32} color={colors.mutedForeground} />
-            <Text style={styles.offlineText}>
-              {stream.status === "ended" ? "This stream has ended." : "Stream is starting soon."}
+      {/* The video is the backdrop for the whole screen: portrait cover-fills
+          it TikTok-style with chat and controls overlaid, landscape letterboxes
+          with contain so nothing is cropped in the dedicated watch mode. */}
+      {playbackUrl && live ? (
+        <VideoView
+          player={player}
+          style={StyleSheet.absoluteFill}
+          contentFit={landscape ? "contain" : "cover"}
+          nativeControls={false}
+        />
+      ) : (
+        <View style={styles.offline}>
+          <Ionicons name="videocam-off-outline" size={32} color={colors.mutedForeground} />
+          <Text style={styles.offlineText}>
+            {stream.status === "ended" ? "This stream has ended." : "Stream is starting soon."}
+          </Text>
+        </View>
+      )}
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+        onPress={() => safeBack(router)}
+        style={[styles.back, { top: insets.top + spacing(2) }]}
+        hitSlop={8}
+      >
+        <Ionicons name="chevron-back" size={22} color="#fff" />
+      </Pressable>
+
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        {hearts.map((h) => (
+          <FloatingHeartView key={h.id} heart={h} />
+        ))}
+      </View>
+
+      {live && (
+        <View style={[styles.overlayTop, { top: insets.top + spacing(2.5) }]}>
+          <View style={styles.liveBadge}>
+            <Text style={styles.liveBadgeText}>LIVE</Text>
+          </View>
+          <View style={styles.viewers}>
+            <Ionicons name="eye-outline" size={13} color="#fff" />
+            <Text style={styles.viewersText}>
+              {formatNumber(presenceCount > 0 ? presenceCount : stream.viewer_count)}
             </Text>
           </View>
-        )}
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          onPress={() => safeBack(router)}
-          style={[styles.back, { top: spacing(2) }]}
-          hitSlop={8}
-        >
-          <Ionicons name="chevron-back" size={22} color="#fff" />
-        </Pressable>
-
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          {hearts.map((h) => (
-            <FloatingHeartView key={h.id} heart={h} />
-          ))}
         </View>
+      )}
 
-        <View pointerEvents="none" style={styles.giftBanners}>
-          {activeGifts.map((sent) => (
-            <GiftBannerView key={sent.id} sent={sent} />
-          ))}
-        </View>
-
-        {live && (
-          <View style={styles.overlayTop}>
-            <View style={styles.liveBadge}>
-              <Text style={styles.liveBadgeText}>LIVE</Text>
-            </View>
-            <View style={styles.viewers}>
-              <Ionicons name="eye-outline" size={13} color="#fff" />
-              <Text style={styles.viewersText}>
-                {formatNumber(presenceCount > 0 ? presenceCount : stream.viewer_count)}
-              </Text>
-            </View>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.info}>
-        <Avatar
-          url={stream.profiles.avatar_url}
-          name={stream.profiles.display_name}
-          size={40}
-        />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={styles.title} numberOfLines={1}>
-            {stream.title}
-          </Text>
-          <Pressable
-            onPress={() => router.push(`/user/${stream.profiles.username}` as never)}
-          >
-            <Text style={styles.host}>{stream.profiles.display_name}</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <FlatList
-        data={[...messages].reverse()}
-        inverted
-        keyExtractor={(m) => m.id}
-        style={styles.chat}
-        contentContainerStyle={{ padding: spacing(3), gap: spacing(1.5) }}
-        ListEmptyComponent={
-          <Text style={styles.chatEmpty}>Chat appears here as people talk.</Text>
-        }
-        renderItem={({ item }) => (
-          <Text style={styles.chatLine} numberOfLines={3}>
-            <Text style={styles.chatName}>{item.displayName} </Text>
-            {item.content}
-          </Text>
-        )}
-      />
-      {live && user ? (
+      {/* Landscape is a video-only watch mode: chat and stream info stay in
+          portrait, the exit control above leaves fullscreen. */}
+      {landscape ? (
         <>
-          {chatError ? <Text style={styles.chatErrorText}>{chatError}</Text> : null}
-          <View style={styles.composer}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Send a gift"
-              onPress={() => setGiftOpen(true)}
-              style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}
+          <View pointerEvents="none" style={styles.giftBanners}>
+            {giftBannerViews}
+          </View>
+          {videoControls ? (
+            <View
+              style={[styles.videoControls, { bottom: insets.bottom + spacing(2) }]}
             >
-              <Ionicons name="gift-outline" size={20} color={colors.foreground} />
-            </Pressable>
-            <TextInput
-              style={styles.composerInput}
-              placeholder="Say something"
-              placeholderTextColor={colors.textFaint}
-              value={draft}
-              onChangeText={(text) => {
-                setDraft(text);
-                if (chatError) setChatError(null);
-              }}
-              maxLength={CHAT_MAX_LENGTH}
-              multiline
-              accessibilityLabel="Chat message"
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Send chat message"
-              onPress={() => void sendChat()}
-              disabled={!canSend}
-              style={({ pressed }) => [
-                styles.sendButton,
-                !canSend && { opacity: 0.4 },
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              {sending ? (
-                <ActivityIndicator size="small" color={colors.primaryForeground} />
-              ) : (
-                <Ionicons name="arrow-up" size={20} color={colors.primaryForeground} />
+              {videoControls}
+            </View>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <View style={{ flex: 1 }} pointerEvents="none" />
+          <View style={[styles.bottomOverlay, { paddingBottom: insets.bottom + spacing(2) }]}>
+            <View pointerEvents="none" style={styles.giftBannersPortrait}>
+              {giftBannerViews}
+            </View>
+            {videoControls ? (
+              <View style={styles.videoControlsPortrait}>{videoControls}</View>
+            ) : null}
+            <View style={styles.info}>
+              <Avatar
+                url={stream.profiles.avatar_url}
+                name={stream.profiles.display_name}
+                size={40}
+              />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.title} numberOfLines={1}>
+                  {stream.title}
+                </Text>
+                <Pressable
+                  onPress={() => router.push(`/user/${stream.profiles.username}` as never)}
+                >
+                  <Text style={styles.host}>{stream.profiles.display_name}</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <FlatList
+              data={[...messages].reverse()}
+              inverted
+              keyExtractor={(m) => m.id}
+              style={styles.chat}
+              contentContainerStyle={{ padding: spacing(3), gap: spacing(1.5) }}
+              ListEmptyComponent={
+                <Text style={styles.chatEmpty}>Chat appears here as people talk.</Text>
+              }
+              renderItem={({ item }) => (
+                <Text style={styles.chatLine} numberOfLines={3}>
+                  <Text style={styles.chatName}>{item.displayName} </Text>
+                  {item.content}
+                </Text>
               )}
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Send a heart"
-              onPress={sendHeart}
-              style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}
-            >
-              <Ionicons name="heart" size={20} color={HEART_COLOR} />
-            </Pressable>
+            />
+            {live && user ? (
+              <>
+                {chatError ? <Text style={styles.chatErrorText}>{chatError}</Text> : null}
+                <View style={styles.composer}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Send a gift"
+                    onPress={() => setGiftOpen(true)}
+                    style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}
+                  >
+                    <Ionicons name="gift-outline" size={20} color={colors.foreground} />
+                  </Pressable>
+                  <TextInput
+                    style={styles.composerInput}
+                    placeholder="Say something"
+                    placeholderTextColor={colors.textFaint}
+                    value={draft}
+                    onChangeText={(text) => {
+                      setDraft(text);
+                      if (chatError) setChatError(null);
+                    }}
+                    maxLength={CHAT_MAX_LENGTH}
+                    multiline
+                    accessibilityLabel="Chat message"
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Send chat message"
+                    onPress={() => void sendChat()}
+                    disabled={!canSend}
+                    style={({ pressed }) => [
+                      styles.sendButton,
+                      !canSend && { opacity: 0.4 },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    {sending ? (
+                      <ActivityIndicator size="small" color={colors.primaryForeground} />
+                    ) : (
+                      <Ionicons name="arrow-up" size={20} color={colors.primaryForeground} />
+                    )}
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Send a heart"
+                    onPress={sendHeart}
+                    style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}
+                  >
+                    <Ionicons name="heart" size={20} color={HEART_COLOR} />
+                  </Pressable>
+                </View>
+              </>
+            ) : null}
           </View>
         </>
-      ) : null}
-      <View style={{ height: insets.bottom }} />
+      )}
       {user && id ? (
         <GiftSheet
           visible={giftOpen}
@@ -604,18 +725,147 @@ export default function LiveViewerScreen() {
           onSent={pushGift}
         />
       ) : null}
+      <QualitySheet
+        visible={qualityOpen}
+        quality={quality}
+        onSelect={(next) => {
+          setQuality(next);
+          setQualityOpen(false);
+        }}
+        onClose={() => setQualityOpen(false)}
+      />
     </KeyboardAvoidingView>
+  );
+}
+
+function QualitySheet({
+  visible,
+  quality,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  quality: MuxMaxResolution;
+  onSelect: (next: MuxMaxResolution) => void;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      <Pressable
+        style={styles.qualityBackdrop}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close quality settings"
+      >
+        <View
+          style={[
+            styles.qualityPanel,
+            { marginBottom: insets.bottom + spacing(6) },
+          ]}
+        >
+          <Text style={styles.qualityHeading}>Quality</Text>
+          {QUALITY_OPTIONS.map((option) => {
+            const selected = option.value === quality;
+            return (
+              <Pressable
+                key={option.value}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => onSelect(option.value)}
+                style={({ pressed }) => [
+                  styles.qualityRow,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.qualityLabel,
+                    selected && { color: colors.primary },
+                  ]}
+                >
+                  {option.label}
+                </Text>
+                {selected ? (
+                  <Ionicons name="checkmark" size={18} color={colors.primary} />
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      </Pressable>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  videoWrap: {
-    aspectRatio: 16 / 9,
     backgroundColor: "#000",
+  },
+  bottomOverlay: {
+    backgroundColor: "transparent",
+  },
+  videoControls: {
+    position: "absolute",
+    right: spacing(3),
+    flexDirection: "row",
+    gap: spacing(2),
+  },
+  videoControlsPortrait: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: spacing(2),
+    paddingHorizontal: spacing(3),
+    paddingBottom: spacing(2),
+  },
+  videoControlButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  qualityBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    justifyContent: "flex-end",
+  },
+  qualityPanel: {
+    marginHorizontal: spacing(4),
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    paddingVertical: spacing(2),
+  },
+  qualityHeading: {
+    color: colors.mutedForeground,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(2),
+  },
+  qualityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(2.5),
+  },
+  qualityLabel: {
+    color: colors.foreground,
+    fontSize: 14.5,
+    fontWeight: "600",
   },
   offline: {
     ...StyleSheet.absoluteFillObject,
@@ -680,13 +930,13 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   title: {
-    color: colors.foreground,
+    color: OVERLAY_TEXT,
     fontSize: 15,
     fontWeight: "600",
     letterSpacing: -0.3,
   },
   host: {
-    color: colors.mutedForeground,
+    color: OVERLAY_TEXT_DIM,
     fontSize: 13,
     marginTop: 2,
   },
@@ -700,12 +950,12 @@ const styles = StyleSheet.create({
     transform: [{ scaleY: -1 }],
   },
   chatLine: {
-    color: colors.textSecondary,
+    color: OVERLAY_TEXT_DIM,
     fontSize: 13,
     lineHeight: 19,
   },
   chatName: {
-    color: colors.foreground,
+    color: OVERLAY_TEXT,
     fontWeight: "600",
   },
   chatErrorText: {
@@ -756,6 +1006,14 @@ const styles = StyleSheet.create({
     left: spacing(3),
     bottom: spacing(3),
     gap: spacing(1.5),
+  },
+  // Portrait stacks the banners in the bottom overlay's normal flow instead
+  // of pinning them, so they sit above the controls rather than over them.
+  giftBannersPortrait: {
+    alignItems: "flex-start",
+    gap: spacing(1.5),
+    paddingHorizontal: spacing(3),
+    paddingBottom: spacing(1.5),
   },
   giftBanner: {
     flexDirection: "row",

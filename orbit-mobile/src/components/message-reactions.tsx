@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { MESSAGE_REACTION_GLYPHS } from "@/lib/queries/messages";
+import { REACTION_QUICK_ROW, isSingleEmoji } from "@/lib/reactions";
 import { colors, radii, spacing } from "@/lib/theme";
 
 // Compact, iMessage-style card: small glyph targets and dense action rows
@@ -19,17 +19,14 @@ const BUTTON_SIZE = 36;
 const BAR_PADDING = 6;
 // +1 slot for the "+" any-emoji button at the end of the row.
 const BAR_WIDTH =
-  (MESSAGE_REACTION_GLYPHS.length + 1) * BUTTON_SIZE + BAR_PADDING * 2;
+  (REACTION_QUICK_ROW.length + 1) * BUTTON_SIZE + BAR_PADDING * 2;
 const BAR_HEIGHT = BUTTON_SIZE + BAR_PADDING * 2;
 // Extra height per action row shown under the glyphs.
 const ACTION_ROW_HEIGHT = 32;
 const SCREEN_GUTTER = 16;
-
-// One emoji grapheme: a pictographic base plus optional variation selector,
-// skin tone, and ZWJ-joined continuations. Hermes supports \p{...} property
-// escapes under the u flag.
-const SINGLE_EMOJI_RE =
-  /^\p{Extended_Pictographic}(?:\uFE0F|[\u{1F3FB}-\u{1F3FF}])*(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|[\u{1F3FB}-\u{1F3FF}])*)*$/u;
+// Free-emoji reactions can pile up distinct glyphs on one bubble; cap the
+// cluster and fold the rest into a "+N" pill.
+const MAX_VISIBLE_PILLS = 6;
 
 export interface ReactionBarAnchor {
   // Window coordinates of the long-pressed bubble, from measureInWindow.
@@ -113,7 +110,7 @@ export function MessageReactionBar({
   // grapheme at a time, so no confirm button is needed.
   const handleCustomChange = (text: string) => {
     const candidate = text.trim();
-    if (SINGLE_EMOJI_RE.test(candidate)) {
+    if (isSingleEmoji(candidate)) {
       onSelect(candidate);
       return;
     }
@@ -148,7 +145,7 @@ export function MessageReactionBar({
             </View>
           ) : (
             <View style={styles.glyphRow}>
-              {MESSAGE_REACTION_GLYPHS.map(({ emoji, label }) => (
+              {REACTION_QUICK_ROW.map(({ emoji, label }) => (
                 <Pressable
                   key={emoji}
                   accessibilityRole="button"
@@ -226,9 +223,12 @@ export function MessageReactionPills({
 }: MessageReactionPillsProps) {
   if (reactions.length === 0) return null;
 
+  const visible = reactions.slice(0, MAX_VISIBLE_PILLS);
+  const hiddenCount = reactions.length - visible.length;
+
   return (
     <View style={[styles.pillRow, isMine ? styles.pillRowMine : styles.pillRowTheirs]}>
-      {reactions.map(({ emoji, count, hasReacted }) => (
+      {visible.map(({ emoji, count, hasReacted }) => (
         <Pressable
           key={emoji}
           accessibilityRole="button"
@@ -246,6 +246,11 @@ export function MessageReactionPills({
           </Text>
         </Pressable>
       ))}
+      {hiddenCount > 0 ? (
+        <View style={styles.pill}>
+          <Text style={styles.pillCount}>+{hiddenCount}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }

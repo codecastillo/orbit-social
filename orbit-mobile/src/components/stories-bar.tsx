@@ -1,4 +1,12 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  Animated,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -87,33 +95,67 @@ function StoryCard({ group, isSelf }: { group: StoryGroup; isSelf: boolean }) {
 /**
  * The viewer's own tile when they have no active moment: a dashed card
  * face with a plus glyph and their avatar chip, tapping anywhere on it
- * opens the moment creator.
+ * opens the camera-first moment flow. With `nudge` (no moment posted
+ * today) the label turns into a violet "Today's moment" prompt and a
+ * pulsing satellite dot appears; a gentle daily reminder, never a lock.
  */
 function AddStoryCard({
   avatarUrl,
   name,
+  nudge,
 }: {
   avatarUrl: string | null | undefined;
   name: string;
+  nudge: boolean;
 }) {
   const router = useRouter();
+  // Lazy useState instead of useRef so reading the value in render does
+  // not trip the react-hooks/refs rule.
+  const [pulse] = useState(() => new Animated.Value(1));
+
+  useEffect(() => {
+    if (!nudge) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 0.35, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      pulse.setValue(1);
+    };
+  }, [nudge, pulse]);
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Create a moment"
-      onPress={() => router.push("/create-story")}
+      accessibilityLabel={
+        nudge ? "Capture today's moment" : "Create a moment"
+      }
+      onPress={() => router.push("/moment-camera")}
       style={({ pressed }) => [styles.item, pressed && { opacity: 0.8 }]}
     >
       <View style={[styles.card, styles.addCard]}>
         <View style={styles.addBadge}>
           <Ionicons name="add" size={16} color={colors.primaryForeground} />
         </View>
-        <Text style={styles.addLabel}>Add</Text>
+        <Text style={[styles.addLabel, nudge && styles.nudgeLabel]} numberOfLines={2}>
+          {nudge ? "Today's moment" : "Add"}
+        </Text>
       </View>
       <View style={styles.chip}>
         <Avatar url={avatarUrl} name={name} size={CHIP_SIZE} />
       </View>
+      {nudge ? (
+        <Animated.View
+          style={[
+            styles.satellite,
+            { backgroundColor: colors.primary, opacity: pulse },
+          ]}
+        />
+      ) : null}
     </Pressable>
   );
 }
@@ -146,6 +188,15 @@ export function StoriesBar() {
   const ownGroup = groups.find((group) => group.user.id === user.id);
   const otherGroups = groups.filter((group) => group.user.id !== user.id);
 
+  // Daily prompt: no own active story created since local midnight. Stories
+  // live 24h, so anything posted today would still be active and visible
+  // here; deletions are the only way this differs from "add card shown".
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const postedToday =
+    ownGroup?.stories.some((s) => new Date(s.created_at) >= todayStart) ??
+    false;
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -161,6 +212,7 @@ export function StoriesBar() {
             <AddStoryCard
               avatarUrl={ownProfile?.avatar_url}
               name={ownProfile?.display_name || ownProfile?.username || "You"}
+              nudge={!postedToday}
             />
           )
         }
@@ -252,5 +304,10 @@ const styles = StyleSheet.create({
     color: colors.mutedForeground,
     fontSize: 10,
     fontWeight: "600",
+  },
+  nudgeLabel: {
+    color: colors.primary,
+    textAlign: "center",
+    paddingHorizontal: spacing(1),
   },
 });
