@@ -4,7 +4,11 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bell, CheckCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { NotificationItem } from "@/components/notifications/notification-item";
+import {
+  NotificationItem,
+  groupNotifications,
+  type NotificationGroup,
+} from "@/components/notifications/notification-item";
 import { OrbitEmptyState } from "@/components/orbit/empty-state";
 import { OrbitErrorState } from "@/components/orbit/error-state";
 import { useNotifications, useUnreadCount } from "@/lib/hooks/use-notifications";
@@ -45,7 +49,9 @@ export default function NotificationsPage() {
     queryClient.invalidateQueries({ queryKey: ["unread-count", user.id] });
   };
 
-  const filtered = (notifications ?? []).filter((n) => isMatchingFilter(n, filter));
+  const groups = groupNotifications(
+    (notifications ?? []).filter((n) => isMatchingFilter(n, filter))
+  );
 
   return (
     <div className="flex flex-col gap-[18px] text-foreground">
@@ -110,7 +116,7 @@ export default function NotificationsPage() {
             </div>
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : groups.length === 0 ? (
         <OrbitEmptyState
           icon={Bell}
           accent="var(--warning)"
@@ -119,21 +125,22 @@ export default function NotificationsPage() {
           sub="No new signals in your orbit. Come back later, or go post something and give someone else a reason to show up here."
         />
       ) : (
-        <NotificationsList notifications={filtered} />
+        <NotificationsList groups={groups} />
       )}
     </div>
   );
 }
 
-function NotificationsList({ notifications }: { notifications: any[] }) {
-  // Group by NEW vs EARLIER (created within last 12h)
+function NotificationsList({ groups }: { groups: NotificationGroup[] }) {
+  // Group by NEW vs EARLIER (created within last 12h). A collapsed group sits
+  // where its newest member does.
   const cutoff = Date.now() - 1000 * 60 * 60 * 12;
-  const fresh: any[] = [];
-  const earlier: any[] = [];
-  notifications.forEach((n) => {
-    const t = new Date(n.created_at).getTime();
-    if (t >= cutoff && !n.is_read) fresh.push(n);
-    else earlier.push(n);
+  const fresh: NotificationGroup[] = [];
+  const earlier: NotificationGroup[] = [];
+  groups.forEach((g) => {
+    const t = new Date(g.lead.created_at).getTime();
+    if (t >= cutoff && g.isUnread) fresh.push(g);
+    else earlier.push(g);
   });
 
   return (
@@ -178,27 +185,24 @@ function Section({
   );
 }
 
-function NotificationsSection({ items }: { items: any[] }) {
+function NotificationsSection({ items }: { items: NotificationGroup[] }) {
   return (
     <>
-      {items.map((notification, i) => {
-        const isUnread = !notification.is_read;
-        return (
-          <div
-            key={notification.id}
-            className={cn(
-              "relative",
-              i > 0 && "border-t border-border",
-              isUnread && "bg-primary/[0.04]"
-            )}
-          >
-            {isUnread && (
-              <div className="absolute inset-y-0 left-0 w-[3px] bg-primary" />
-            )}
-            <NotificationItem notification={notification} />
-          </div>
-        );
-      })}
+      {items.map((group, i) => (
+        <div
+          key={group.key}
+          className={cn(
+            "relative",
+            i > 0 && "border-t border-border",
+            group.isUnread && "bg-primary/[0.04]"
+          )}
+        >
+          {group.isUnread && (
+            <div className="absolute inset-y-0 left-0 w-[3px] bg-primary" />
+          )}
+          <NotificationItem group={group} />
+        </div>
+      ))}
     </>
   );
 }

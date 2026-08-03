@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { reactionGlyph, type ReactionCount, type ReactionType } from "@/lib/queries/reactions";
+import type { ReactionCount, ReactionType } from "@/lib/queries/reactions";
+import { resolveReactionGlyph } from "@/lib/reactions";
 import { formatNumber } from "@/lib/format";
 import { colors, radii } from "@/lib/theme";
 
@@ -49,7 +50,7 @@ export function ReactionCounts({ reactions, userReaction, onPressReaction }: Rea
               pressed && { opacity: 0.7 },
             ]}
           >
-            <Text style={styles.glyph}>{reactionGlyph(reaction_type)}</Text>
+            <Text style={styles.glyph}>{resolveReactionGlyph(reaction_type)}</Text>
             <Text style={[styles.count, isOwn && styles.countOwn]}>{formatNumber(count)}</Text>
           </Pressable>
         );

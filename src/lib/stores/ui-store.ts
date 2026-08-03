@@ -28,6 +28,10 @@ interface UIStore {
   ) => void;
   consumeComposeAction: () => ComposeAction;
   consumeComposeInitialContent: () => string | undefined;
+  // Raised by the daily moment prompt notification, which navigates home and
+  // asks the story bar there to open its creator.
+  momentCreatorOpen: boolean;
+  setMomentCreatorOpen: (open: boolean) => void;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
   mobileMenuOpen: boolean;
@@ -64,6 +68,8 @@ export const useUIStore = create<UIStore>((set, get) => ({
     if (current !== undefined) set({ composeInitialContent: undefined });
     return current;
   },
+  momentCreatorOpen: false,
+  setMomentCreatorOpen: (open) => set({ momentCreatorOpen: open }),
   sidebarCollapsed: false,
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   mobileMenuOpen: false,

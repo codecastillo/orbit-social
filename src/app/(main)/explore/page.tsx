@@ -7,6 +7,7 @@ import { Search, TrendingUp, Radio } from "lucide-react";
 import { Input as BareInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SearchResults } from "@/components/explore/search-results";
+import { StarterPacksRail } from "@/components/explore/starter-packs-rail";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
@@ -93,6 +94,8 @@ function DiscoverBody() {
       </div>
 
       <FeaturedTrend />
+
+      <StarterPacksRail />
 
       <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2 xl:grid-cols-[1.1fr_1fr_1fr]">
         <TrendingRail />

@@ -20,6 +20,9 @@ interface UseWebRTCReturn {
   toggleVideo: () => void;
 }
 
+// Fallback config. /api/webrtc/ice-servers returns these plus short-lived TURN
+// credentials when a TURN key is configured, but a call must never wait on that
+// fetch or fail because it errored, so this stays the floor.
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -50,6 +53,8 @@ export function useWebRTC(
   const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
   // ICE candidates that arrive before the remote description is set.
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  // Filled by the prefetch below; ICE_SERVERS until it resolves.
+  const iceConfigRef = useRef<RTCConfiguration>(ICE_SERVERS);
 
   useEffect(() => {
     callStateRef.current = callState;
@@ -79,7 +84,7 @@ export function useWebRTC(
   }, [cleanup]);
 
   const createPeerConnection = useCallback(() => {
-    const pc = new RTCPeerConnection(ICE_SERVERS);
+    const pc = new RTCPeerConnection(iceConfigRef.current);
 
     const remote = new MediaStream();
     setRemoteStream(remote);
@@ -187,9 +192,25 @@ export function useWebRTC(
 
     channelRef.current = channel;
 
+    // Warm the ICE config while the screen is idle so a call that starts a
+    // moment later already has TURN. If this is slow or fails, createPeerConnection
+    // just uses the STUN-only fallback; a call is never blocked on it.
+    let cancelled = false;
+    fetch("/api/webrtc/ice-servers")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { iceServers?: RTCIceServer[] } | null) => {
+        if (cancelled || !data?.iceServers?.length) return;
+        iceConfigRef.current = { iceServers: data.iceServers };
+      })
+      .catch(() => {
+        // Fallback already in place.
+      });
+
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
       channelRef.current = null;
+      iceConfigRef.current = ICE_SERVERS;
     };
   }, [conversationId, userId, finishCall, flushPendingCandidates]);
 

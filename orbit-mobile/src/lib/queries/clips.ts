@@ -33,6 +33,9 @@ export interface ClipWithAuthor {
     is_verified: boolean;
   };
   post_media: ClipMedia[];
+  // Attributed sound, embedded by the clip selects below. Null until the
+  // clip's publish-time sound write lands (it is best effort).
+  sound: { id: string; name: string; artist: string | null } | null;
   user_has_liked: boolean;
   user_has_bookmarked: boolean;
   user_has_reposted: boolean;
@@ -53,7 +56,8 @@ const CLIP_SELECT = `
   profiles!posts_user_id_fkey (
     id, username, display_name, avatar_url, is_verified
   ),
-  post_media (${CLIP_MEDIA_COLUMNS})
+  post_media (${CLIP_MEDIA_COLUMNS}),
+  sound:sounds (id, name, artist)
 `;
 
 // Loops lane: !inner turns the embed into an inner join so the lte filter on
@@ -65,7 +69,8 @@ const LOOP_CLIP_SELECT = `
   profiles!posts_user_id_fkey (
     id, username, display_name, avatar_url, is_verified
   ),
-  post_media!inner (${CLIP_MEDIA_COLUMNS})
+  post_media!inner (${CLIP_MEDIA_COLUMNS}),
+  sound:sounds (id, name, artist)
 `;
 
 /** Marks each clip with whether the viewer liked, bookmarked, or looped it. */
@@ -211,6 +216,46 @@ export async function getCuratedClips(
   } catch {
     return [];
   }
+}
+
+export interface SoundDetail {
+  id: string;
+  name: string;
+  artist: string | null;
+  cover_url: string | null;
+  use_count: number;
+  created_at: string;
+}
+
+export async function getSound(soundId: string): Promise<SoundDetail | null> {
+  const { data, error } = await supabase
+    .from("sounds")
+    .select("id, name, artist, cover_url, use_count, created_at")
+    .eq("id", soundId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as SoundDetail | null;
+}
+
+/** Every clip attributed to one sound, newest first, for the sound page grid. */
+export async function getClipsBySound(
+  soundId: string,
+  userId: string,
+  limit = 30,
+): Promise<ClipWithAuthor[]> {
+  const { data, error } = await supabase
+    .from("posts")
+    .select(CLIP_SELECT)
+    .eq("sound_id", soundId)
+    .eq("type", "reel")
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  const clips = (data ?? []) as unknown as ClipWithAuthor[];
+  return attachViewerState(clips, userId);
 }
 
 /** Flushes a locally accumulated batch of loop completions to the server. */

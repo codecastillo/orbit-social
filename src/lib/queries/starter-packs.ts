@@ -72,6 +72,24 @@ export async function getActiveStarterPacks(): Promise<StarterPack[]> {
 }
 
 /**
+ * Which of the given members the viewer already follows, so the discover
+ * rail can drop packs that have nothing left to offer.
+ */
+export async function getFollowedMemberIds(
+  followerId: string,
+  memberIds: string[],
+): Promise<Set<string>> {
+  if (memberIds.length === 0) return new Set();
+  const { data, error } = await supabase
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", followerId)
+    .in("following_id", memberIds);
+  if (error) throw error;
+  return new Set((data ?? []).map((f) => f.following_id));
+}
+
+/**
  * Follows every pack member the user does not already follow. Skips
  * self-follows and existing rows so it is safe to call repeatedly.
  */

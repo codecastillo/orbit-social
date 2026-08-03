@@ -57,6 +57,24 @@ export const EMOJI_GRID = [
   "\uD83D\uDCAF", // hundred
 ] as const;
 
+// Reaction names stored before reaction_type became free text. The backfill
+// rewrote them to glyphs, but cached pages and any row it missed still need
+// this fallback. Same map as the web LEGACY_REACTION_GLYPHS.
+const LEGACY_REACTION_GLYPHS: Record<string, string> = {
+  love: "\u2764\uFE0F",
+  fire: "\uD83D\uDD25",
+  laugh: "\uD83D\uDE02",
+  sad: "\uD83D\uDE22",
+  wow: "\uD83D\uDE2E",
+  angry: "\uD83D\uDE21",
+};
+
+// Renders a stored reaction_type: the glyph itself, or the legacy name's
+// glyph for an un-backfilled row.
+export function resolveReactionGlyph(value: string): string {
+  return LEGACY_REACTION_GLYPHS[value] ?? value;
+}
+
 // One emoji grapheme: a pictographic base plus optional variation selector,
 // skin tone, and ZWJ-joined continuations. Hermes supports \p{...} property
 // escapes under the u flag. The single implementation for every reaction
@@ -76,7 +94,7 @@ export function isSingleEmoji(text: string): boolean {
   );
 }
 
-const RECENTS_KEY = "reaction-recents";
+const RECENTS_KEY = "orbit-reaction-recents";
 export const MAX_RECENT_EMOJI = 8;
 
 export async function getRecentEmoji(): Promise<string[]> {

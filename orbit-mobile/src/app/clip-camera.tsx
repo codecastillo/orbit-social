@@ -26,6 +26,7 @@ import {
 } from "@/components/mention-input";
 import { useAuth } from "@/providers/auth-provider";
 import { createReelPost, uploadPostMedia } from "@/lib/queries/posts";
+import { consumeSoundSeed } from "@/lib/sound-seed";
 import { safeBack } from "@/lib/nav";
 import { colors, radii, spacing } from "@/lib/theme";
 
@@ -142,6 +143,9 @@ export default function ClipCameraScreen() {
   const [previewMuted, setPreviewMuted] = useState(false);
   const [showCaption, setShowCaption] = useState(false);
   const [caption, setCaption] = useState("");
+  // Sound staged by the sound page's "Use this sound"; credits that sound
+  // rather than minting an original one for this clip.
+  const [soundSeed] = useState(() => consumeSoundSeed());
   const captionRef = useRef<MentionInputHandle>(null);
 
   // Lazy useState instead of useRef so reading the value in render does
@@ -182,6 +186,7 @@ export default function ClipCameraScreen() {
         width: null,
         height: null,
         durationMs: segmentsTotalMs(segments),
+        soundId: soundSeed?.id ?? null,
       });
     },
     onSuccess: () => {
@@ -425,6 +430,15 @@ export default function ClipCameraScreen() {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <View style={[styles.captionSheet, { paddingBottom: insets.bottom + spacing(4) }]}>
+            {soundSeed ? (
+              <View style={styles.soundNote}>
+                <Ionicons name="musical-notes" size={14} color={colors.primary} />
+                <Text style={styles.soundNoteText} numberOfLines={2}>
+                  {soundSeed.label}. Your clip credits this sound and keeps its
+                  own audio.
+                </Text>
+              </View>
+            ) : null}
             <MentionInput
               ref={captionRef}
               value={caption}
@@ -646,6 +660,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(4),
     paddingTop: spacing(4),
     gap: spacing(3),
+  },
+  soundNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(2),
+  },
+  soundNoteText: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
   },
   captionInput: {
     color: colors.foreground,

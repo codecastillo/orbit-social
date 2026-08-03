@@ -17,9 +17,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { Avatar, Button, EmptyState } from "@/components/ui";
 import {
+  checkFollowingMany,
   followUser,
   unfollowUser,
 } from "@/lib/queries/profiles";
+import {
+  followPackMembers,
+  getActiveStarterPacks,
+  type StarterPack,
+} from "@/lib/queries/starter-packs";
 import {
   getSuggestedUsers,
   getTrendingHashtags,
@@ -434,6 +440,7 @@ function DiscoverHome({ onTagPress }: { onTagPress: (name: string) => void }) {
     >
       <TrendingChips onTagPress={onTagPress} />
       <SuggestedPeople />
+      <StarterPacksRail />
       <SurfaceTiles />
     </ScrollView>
   );
@@ -599,6 +606,133 @@ function SuggestedPeople() {
           }}
         />
       )}
+    </View>
+  );
+}
+
+const PACK_AVATARS_SHOWN = 4;
+
+/**
+ * Curated follow bundles, the same ones the onboarding step offers, kept
+ * reachable afterwards for people who skipped them or joined before they
+ * existed. A pack drops out once the viewer follows everyone in it.
+ */
+function StarterPacksRail() {
+  const { user } = useAuth();
+  // Optimistic: a followed pack leaves the rail at once, restored on failure.
+  const [followedIds, setFollowedIds] = useState<ReadonlySet<string>>(new Set());
+  const [failed, setFailed] = useState(false);
+
+  // getActiveStarterPacks returns [] on any error, so a missing table just
+  // hides the rail.
+  const packsQuery = useQuery({
+    queryKey: ["starter-packs-active"],
+    queryFn: getActiveStarterPacks,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const memberIds = [
+    ...new Set(
+      (packsQuery.data ?? []).flatMap((pack) => pack.members.map((m) => m.id)),
+    ),
+  ];
+
+  const followsQuery = useQuery({
+    queryKey: ["starter-pack-follows", user?.id, memberIds.length],
+    queryFn: () => checkFollowingMany(user!.id, memberIds),
+    enabled: !!user && memberIds.length > 0,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  if (!user || memberIds.length === 0) return null;
+  // The follow graph decides which packs still have something to offer, so
+  // without it the rail stays hidden rather than pitching stale packs.
+  if (followsQuery.isPending || followsQuery.isError) return null;
+
+  const remaining = (pack: StarterPack) =>
+    pack.members
+      .map((m) => m.id)
+      .filter(
+        (id) =>
+          id !== user.id &&
+          !followedIds.has(id) &&
+          !(followsQuery.data?.has(id) ?? false),
+      );
+
+  const openPacks = (packsQuery.data ?? []).filter(
+    (pack) => remaining(pack).length > 0,
+  );
+  if (openPacks.length === 0) return null;
+
+  async function followAll(pack: StarterPack) {
+    if (!user) return;
+    const ids = remaining(pack);
+    if (ids.length === 0) return;
+    setFailed(false);
+    setFollowedIds((prev) => new Set([...prev, ...ids]));
+    try {
+      await followPackMembers(user.id, ids);
+    } catch {
+      setFollowedIds((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      });
+      setFailed(true);
+    }
+  }
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Starter packs</Text>
+      {failed ? (
+        <Text style={styles.sectionStateText}>
+          Couldn&apos;t follow right now. Try again.
+        </Text>
+      ) : null}
+      <FlatList
+        horizontal
+        data={openPacks}
+        keyExtractor={(pack) => pack.id}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.packsRow}
+        renderItem={({ item }) => (
+          <View style={styles.packCard}>
+            <Text style={styles.packTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+            {item.description ? (
+              <Text style={styles.packDescription} numberOfLines={2}>
+                {item.description}
+              </Text>
+            ) : null}
+            <View style={styles.packMembers}>
+              {item.members.slice(0, PACK_AVATARS_SHOWN).map((member) => (
+                <View key={member.id} style={styles.packAvatar}>
+                  <Avatar
+                    url={member.avatar_url}
+                    name={member.display_name}
+                    size={26}
+                  />
+                </View>
+              ))}
+              <Text style={styles.packCount}>{item.members.length}</Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Follow everyone in ${item.title}`}
+              onPress={() => followAll(item)}
+              style={({ pressed }) => [
+                styles.followButton,
+                styles.packFollowButton,
+                pressed && { opacity: 0.8 },
+              ]}
+            >
+              <Text style={styles.followLabel}>Follow all</Text>
+            </Pressable>
+          </View>
+        )}
+      />
     </View>
   );
 }
@@ -902,6 +1036,48 @@ const styles = StyleSheet.create({
   },
   followLabelSecondary: {
     color: colors.foreground,
+  },
+  packsRow: {
+    gap: spacing(2.5),
+  },
+  packCard: {
+    width: 220,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    padding: spacing(3),
+  },
+  packTitle: {
+    color: colors.foreground,
+    fontSize: 13.5,
+    fontWeight: "600",
+  },
+  packDescription: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  packMembers: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: spacing(2.5),
+  },
+  // Overlapping stack, with the card colour as the ring between avatars.
+  packAvatar: {
+    marginRight: -8,
+    borderRadius: radii.full,
+    borderWidth: 2,
+    borderColor: colors.surface,
+  },
+  packCount: {
+    color: colors.mutedForeground,
+    fontSize: 11.5,
+    marginLeft: spacing(3),
+  },
+  packFollowButton: {
+    paddingHorizontal: spacing(3),
   },
   tilesRow: {
     flexDirection: "row",

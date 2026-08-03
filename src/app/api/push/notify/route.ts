@@ -43,6 +43,7 @@ const PREF_COLUMN: Record<string, string> = {
   event_invite: "events",
   event_reminder: "events",
   new_post: "new_followers_posts",
+  moment_prompt: "moment_prompts",
 };
 
 const MINUTES_PER_DAY = 24 * 60;
@@ -80,7 +81,9 @@ function inQuietHours(prefs: QuietHoursPrefs, now: Date): boolean {
 // Person-to-person types (message, mention, comment, follow) always push:
 // someone deliberately reached out. Ambient activity is capped per recipient
 // per ISO week so push notifications stay scarce and welcome instead of
-// training people to disable them.
+// training people to disable them. moment_prompt stays out of the budget:
+// the cron already fires it once a day and its own preference column is the
+// off switch.
 const AMBIENT_TYPES = new Set([
   "like",
   "repost",
@@ -186,6 +189,12 @@ function describe(
         title: actorName,
         body: "invited you to an event",
         url: entity_id ? `/events/${entity_id}` : "/events",
+      };
+    case "moment_prompt":
+      return {
+        title: "Time for today's moment",
+        body: "Two minutes to post what you are doing right now",
+        url: "/",
       };
     case "event_reminder":
       return {

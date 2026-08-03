@@ -1,7 +1,8 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -14,19 +15,49 @@ import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import {
   NOTIFICATION_PAGE_SIZE,
   getNotifications,
-  markAsRead,
+  markManyAsRead,
   type NotificationWithActor,
 } from "@/lib/queries/notifications";
 import { formatTimeAgo } from "@/lib/format";
 import { useAuth } from "@/providers/auth-provider";
-import { colors, spacing } from "@/lib/theme";
+import { colors, radii, spacing } from "@/lib/theme";
 
 const DAYS_IN_WEEK_SECTION = 7;
+const MONO_FONT = Platform.select({ ios: "Menlo", default: "monospace" });
+const MAX_STACKED_AVATARS = 3;
+const STACKED_AVATAR_SIZE = 34;
+const STACKED_AVATAR_OVERLAP = 12;
+
+const FILTERS = [
+  { value: "all", label: "All" },
+  { value: "mentions", label: "Mentions" },
+  { value: "likes", label: "Likes" },
+  { value: "follows", label: "Follows" },
+] as const;
+
+type FilterValue = (typeof FILTERS)[number]["value"];
+
+// Buckets mirror the web activity page, aliases included, so a given row
+// lands under the same tab on both platforms.
+const FILTER_TYPES: Record<Exclude<FilterValue, "all">, readonly string[]> = {
+  mentions: ["mention", "reply"],
+  likes: ["like", "reaction"],
+  follows: ["follow"],
+};
+
+function matchesFilter(
+  notification: NotificationWithActor,
+  filter: FilterValue,
+): boolean {
+  if (filter === "all") return true;
+  return FILTER_TYPES[filter].includes(notification.type);
+}
 
 // Simplified from the web notification-item mapping: no post hydration on
 // mobile yet, so post-shaped notifications all read as "post". The actor
 // name renders separately in bold, so phrases start at the verb.
-// event_reminder is the one type with no meaningful actor.
+// event_reminder and moment_prompt are the types with no meaningful actor;
+// they render as a standalone sentence instead.
 function notificationPhrase(notification: NotificationWithActor): string {
   const entity = notification.entity_type;
 
@@ -62,6 +93,97 @@ function notificationPhrase(notification: NotificationWithActor): string {
   }
 }
 
+type Actor = NonNullable<NotificationWithActor["profiles"]>;
+
+/**
+ * One rendered row: either a single notification or several of the same kind
+ * collapsed into "Ana and 3 others liked your post".
+ */
+interface NotificationGroup {
+  key: string;
+  /** Newest member; drives the copy, the destination, and the timestamp. */
+  lead: NotificationWithActor;
+  members: NotificationWithActor[];
+  /** Distinct actors, newest first, for the overlapping avatar stack. */
+  actors: Actor[];
+  /** Distinct actors besides the lead's; 0 means render as a single row. */
+  othersCount: number;
+  isUnread: boolean;
+}
+
+// Only types where the individual actor stops mattering once there are
+// several collapse. Messages, mentions, quotes, invites, and the system rows
+// each carry detail that a count would throw away.
+const GROUPABLE_TYPES: ReadonlySet<string> = new Set(["like", "repost", "follow"]);
+
+// Follow rows store the follower as their entity, so keying on the entity
+// would never collapse two of them; they group on type alone.
+function groupKey(notification: NotificationWithActor): string | null {
+  if (!GROUPABLE_TYPES.has(notification.type)) return null;
+  if (notification.type === "follow") return "follow";
+  if (!notification.entity_id) return null;
+  return `${notification.type}:${notification.entity_type ?? ""}:${notification.entity_id}`;
+}
+
+/**
+ * Collapse a newest-first list of notifications into display rows. Grouping is
+ * client-side over the loaded pages, so a group grows as more pages arrive.
+ */
+function groupNotifications(
+  notifications: NotificationWithActor[],
+): NotificationGroup[] {
+  const rows: NotificationGroup[] = [];
+  const byKey = new Map<string, { group: NotificationGroup; actorIds: Set<string> }>();
+
+  for (const notification of notifications) {
+    const key = groupKey(notification);
+    const actor = notification.profiles;
+    if (!key) {
+      rows.push({
+        key: notification.id,
+        lead: notification,
+        members: [notification],
+        actors: actor ? [actor] : [],
+        othersCount: 0,
+        isUnread: !notification.is_read,
+      });
+      continue;
+    }
+
+    const existing = byKey.get(key);
+    if (!existing) {
+      const group: NotificationGroup = {
+        key,
+        lead: notification,
+        members: [notification],
+        actors: actor ? [actor] : [],
+        othersCount: 0,
+        isUnread: !notification.is_read,
+      };
+      // A system row has no actor, so fall back to its id to keep the count honest.
+      byKey.set(key, {
+        group,
+        actorIds: new Set([notification.actor_id ?? notification.id]),
+      });
+      rows.push(group);
+      continue;
+    }
+
+    existing.group.members.push(notification);
+    if (!notification.is_read) existing.group.isUnread = true;
+    const actorKey = notification.actor_id ?? notification.id;
+    if (!existing.actorIds.has(actorKey)) {
+      existing.actorIds.add(actorKey);
+      existing.group.othersCount = existing.actorIds.size - 1;
+      if (actor && existing.group.actors.length < MAX_STACKED_AVATARS) {
+        existing.group.actors.push(actor);
+      }
+    }
+  }
+
+  return rows;
+}
+
 type SectionLabel = "Today" | "This week" | "Earlier";
 
 function sectionLabel(iso: string): SectionLabel {
@@ -79,51 +201,85 @@ function sectionLabel(iso: string): SectionLabel {
 // rendering IG-style time section headers.
 type ActivityItem =
   | { kind: "header"; label: SectionLabel }
-  | { kind: "notification"; notification: NotificationWithActor };
+  | { kind: "notification"; group: NotificationGroup };
 
-function buildActivityItems(notifications: NotificationWithActor[]): ActivityItem[] {
+function buildActivityItems(groups: NotificationGroup[]): ActivityItem[] {
   const items: ActivityItem[] = [];
   let currentLabel: SectionLabel | null = null;
-  for (const notification of notifications) {
-    const label = sectionLabel(notification.created_at);
+  for (const group of groups) {
+    const label = sectionLabel(group.lead.created_at);
     if (label !== currentLabel) {
       items.push({ kind: "header", label });
       currentLabel = label;
     }
-    items.push({ kind: "notification", notification });
+    items.push({ kind: "notification", group });
   }
   return items;
 }
 
+function ActorStack({ actors }: { actors: Actor[] }) {
+  return (
+    <View style={styles.stack}>
+      {actors.map((actor, index) => (
+        <View
+          key={actor.id}
+          style={[
+            styles.stackAvatar,
+            index > 0 && { marginLeft: -STACKED_AVATAR_OVERLAP },
+          ]}
+        >
+          <Avatar
+            url={actor.avatar_url}
+            name={actor.display_name || actor.username}
+            size={STACKED_AVATAR_SIZE}
+          />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function NotificationRow({
-  notification,
+  group,
   onPress,
 }: {
-  notification: NotificationWithActor;
-  onPress: (notification: NotificationWithActor) => void;
+  group: NotificationGroup;
+  onPress: (group: NotificationGroup) => void;
 }) {
-  const actorName =
-    notification.profiles.display_name || notification.profiles.username;
-  const isReminder = notification.type === "event_reminder";
+  const notification = group.lead;
+  const actor = notification.profiles;
+  const actorName = actor ? actor.display_name || actor.username : "Orbit";
+  const others = group.othersCount;
+  const systemLine =
+    notification.type === "event_reminder"
+      ? "Heads up, your event starts soon"
+      : notification.type === "moment_prompt"
+        ? "Time for today's moment"
+        : null;
 
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={() => onPress(notification)}
+      onPress={() => onPress(group)}
       style={({ pressed }) => [
         styles.row,
-        !notification.is_read && styles.rowUnread,
+        group.isUnread && styles.rowUnread,
         pressed && { opacity: 0.75 },
       ]}
     >
-      <Avatar url={notification.profiles.avatar_url} name={actorName} size={44} />
+      {group.actors.length > 1 ? (
+        <ActorStack actors={group.actors} />
+      ) : (
+        <Avatar url={actor?.avatar_url ?? null} name={actorName} size={44} />
+      )}
       <View style={styles.rowBody}>
         <Text style={styles.rowText}>
-          {isReminder ? (
-            "Heads up, your event starts soon"
+          {systemLine ? (
+            systemLine
           ) : (
             <>
-              <Text style={styles.rowActor}>{actorName}</Text>{" "}
+              <Text style={styles.rowActor}>{actorName}</Text>
+              {others > 0 ? ` and ${others} ${others === 1 ? "other" : "others"}` : ""}{" "}
               {notificationPhrase(notification)}
             </>
           )}
@@ -134,10 +290,41 @@ function NotificationRow({
   );
 }
 
+function FilterTabs({
+  active,
+  onChange,
+}: {
+  active: FilterValue;
+  onChange: (filter: FilterValue) => void;
+}) {
+  return (
+    <View style={styles.tabBar}>
+      {FILTERS.map((filter) => {
+        const isActive = filter.value === active;
+        return (
+          <Pressable
+            key={filter.value}
+            accessibilityRole="tab"
+            accessibilityLabel={filter.label}
+            accessibilityState={{ selected: isActive }}
+            onPress={() => onChange(filter.value)}
+            style={[styles.tab, isActive && styles.tabActive]}
+          >
+            <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+              {filter.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function NotificationsScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<FilterValue>("all");
 
   const {
     data,
@@ -160,17 +347,19 @@ export default function NotificationsScreen() {
   });
 
   const readMutation = useMutation({
-    mutationFn: markAsRead,
+    mutationFn: markManyAsRead,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications", user?.id] });
     },
   });
 
   const handlePress = useCallback(
-    (notification: NotificationWithActor) => {
-      if (!notification.is_read) {
-        readMutation.mutate(notification.id);
+    (group: NotificationGroup) => {
+      const unreadIds = group.members.filter((m) => !m.is_read).map((m) => m.id);
+      if (unreadIds.length > 0) {
+        readMutation.mutate(unreadIds);
       }
+      const notification = group.lead;
       // Only the destinations with a mobile screen navigate; the other
       // types just mark read, as before.
       if (notification.type === "new_post" && notification.entity_id) {
@@ -180,14 +369,21 @@ export default function NotificationsScreen() {
         notification.entity_id
       ) {
         router.push(`/events/${notification.entity_id}`);
+      } else if (notification.type === "moment_prompt") {
+        router.push("/moment-camera");
       }
     },
     [readMutation, router],
   );
 
   const items = useMemo(
-    () => buildActivityItems(data?.pages.flat() ?? []),
-    [data],
+    () =>
+      buildActivityItems(
+        groupNotifications(
+          (data?.pages.flat() ?? []).filter((n) => matchesFilter(n, filter)),
+        ),
+      ),
+    [data, filter],
   );
 
   if (!user) return null;
@@ -215,15 +411,16 @@ export default function NotificationsScreen() {
       style={styles.list}
       data={items}
       keyExtractor={(item) =>
-        item.kind === "header" ? `header-${item.label}` : item.notification.id
+        item.kind === "header" ? `header-${item.label}` : item.group.key
       }
       renderItem={({ item }) =>
         item.kind === "header" ? (
           <Text style={styles.sectionHeader}>{item.label}</Text>
         ) : (
-          <NotificationRow notification={item.notification} onPress={handlePress} />
+          <NotificationRow group={item.group} onPress={handlePress} />
         )
       }
+      ListHeaderComponent={<FilterTabs active={filter} onChange={setFilter} />}
       refreshControl={
         <RefreshControl
           refreshing={isRefetching}
@@ -258,6 +455,48 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  tabBar: {
+    flexDirection: "row",
+    gap: spacing(1),
+    marginHorizontal: spacing(4),
+    marginTop: spacing(3),
+    padding: spacing(1),
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+  },
+  tab: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: spacing(2),
+    borderRadius: radii.sm,
+  },
+  // Violet wash rather than a solid fill, matching the web activity tabs.
+  tabActive: {
+    backgroundColor: colors.primary + "1f",
+  },
+  tabLabel: {
+    color: colors.mutedForeground,
+    fontFamily: MONO_FONT,
+    fontSize: 10,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  tabLabelActive: {
+    color: colors.foreground,
+  },
+  stack: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  stackAvatar: {
+    borderRadius: radii.full,
+    borderWidth: 2,
+    borderColor: colors.background,
+    overflow: "hidden",
   },
   sectionHeader: {
     color: colors.foreground,

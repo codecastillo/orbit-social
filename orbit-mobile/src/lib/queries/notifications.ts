@@ -13,12 +13,14 @@ export type NotificationType =
   | "community_invite"
   | "event_invite"
   | "event_reminder"
-  | "new_post";
+  | "new_post"
+  | "moment_prompt";
 
 export interface NotificationWithActor {
   id: string;
   user_id: string;
-  actor_id: string;
+  // Null on system-generated rows (moment_prompt), which have no actor.
+  actor_id: string | null;
   type: NotificationType;
   entity_type: string | null;
   entity_id: string | null;
@@ -31,7 +33,7 @@ export interface NotificationWithActor {
     display_name: string;
     avatar_url: string | null;
     is_verified: boolean;
-  };
+  } | null;
 }
 
 export const NOTIFICATION_PAGE_SIZE = 20;
@@ -66,11 +68,17 @@ export async function getNotifications(
   return (data ?? []) as unknown as NotificationWithActor[];
 }
 
-export async function markAsRead(notificationId: string) {
+/**
+ * Clears one row or a whole collapsed group ("Ana and 3 others liked your
+ * post") in a single request.
+ */
+export async function markManyAsRead(notificationIds: string[]) {
+  if (notificationIds.length === 0) return;
+
   const { error } = await supabase
     .from("notifications")
     .update({ is_read: true })
-    .eq("id", notificationId);
+    .in("id", notificationIds);
 
   if (error) throw error;
 }

@@ -123,6 +123,9 @@ Server (Production and Preview):
 - `VAPID_PUBLIC_KEY`
 - `VAPID_PRIVATE_KEY`
 - `VAPID_SUBJECT`
+- `TURN_TOKEN_ID` (optional; Cloudflare TURN key ID)
+- `TURN_TOKEN_SECRET` (optional; Cloudflare TURN key API token. Without the pair,
+  `/api/webrtc/ice-servers` serves STUN only and calls still connect for most peers)
 
 Public (`NEXT_PUBLIC_*`, exposed to the browser bundle):
 

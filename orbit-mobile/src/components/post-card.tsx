@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
-  Platform,
   Pressable,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -22,6 +20,7 @@ import { ReactionCounts } from "@/components/reaction-counts";
 import { RichText } from "@/components/rich-text";
 import { ReactionPicker, type ReactionAnchor } from "@/components/reaction-picker";
 import { ReportSheet } from "@/components/report-sheet";
+import { ShareSheet } from "@/components/share-sheet";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
 import { extractFirstUrl } from "@/lib/queries/link-previews";
 import {
@@ -255,6 +254,7 @@ export function PostCard({
   const [pickerAnchor, setPickerAnchor] = useState<ReactionAnchor | null>(null);
   const [emojiSheetOpen, setEmojiSheetOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [warningRevealed, setWarningRevealed] = useState(false);
   // Viewers who set sensitive_content_level "more" skip the reveal tap.
   // getRankingSignals is module-cached, so cards share one fetch.
@@ -433,10 +433,7 @@ export function PostCard({
     ]);
   };
 
-  const handleShare = () => {
-    const url = `${WEB_POST_URL}/${display.id}`;
-    Share.share(Platform.OS === "ios" ? { url } : { message: url }).catch(() => {});
-  };
+  const postUrl = `${WEB_POST_URL}/${display.id}`;
 
   const handleNotInterested = () => {
     // Optimistic: the feed screen filters against this cache, so the post
@@ -849,7 +846,7 @@ export function PostCard({
             <Text style={styles.actionCount}>{formatNumber(repostCount)}</Text>
           ) : null}
         </Pressable>
-        <Pressable onPress={handleShare} style={styles.action} hitSlop={8}>
+        <Pressable onPress={() => setShareOpen(true)} style={styles.action} hitSlop={8}>
           <Ionicons name="share-outline" size={21} color={colors.foreground} />
         </Pressable>
         <Pressable onPress={handleBookmark} style={[styles.action, styles.actionBookmark]} hitSlop={8}>
@@ -903,6 +900,10 @@ export function PostCard({
           }}
           onClose={() => setEmojiSheetOpen(false)}
         />
+      ) : null}
+
+      {shareOpen ? (
+        <ShareSheet visible onClose={() => setShareOpen(false)} url={postUrl} />
       ) : null}
 
       {/* Mounted on demand: feed lists render many cards, and an idle Modal

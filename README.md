@@ -13,7 +13,7 @@ Features:
 - **Clips** (short vertical video), uploaded to Supabase Storage and surfaced in a TikTok-style scroll feed
 - **Direct messages** (1:1 and group) with real-time delivery via Supabase Realtime, voice messages, emoji reactions, message pinning, and heuristic smart-reply suggestions
 - **Live streaming** via Mux (RTMPS or SRT ingest, low-latency HLS playback), with ephemeral chat, virtual gifts, and VOD recording
-- **P2P video and voice calls** inside DMs over WebRTC (STUN-only by default, TURN-relay path documented in `docs/PHASE_4_SETUP.md`)
+- **P2P video and voice calls** inside DMs over WebRTC, with TURN relay for peers behind symmetric NAT: `GET /api/webrtc/ice-servers` mints short-lived Cloudflare TURN credentials and falls back to public STUN whenever `TURN_TOKEN_ID` and `TURN_TOKEN_SECRET` are unset (see `docs/PHASE_4_SETUP.md`)
 - **Communities** with public/private join policies, moderation roles, and member management
 - **Events** with RSVP, attendees list, event-reminder emails, and a daily cron notification
 - **Marketplace** for user listings with image uploads
@@ -197,14 +197,12 @@ See `docs/PHASE_3_1_SETUP.md` for setup and sample-rate defaults.
 
 ### TURN relay for P2P calls (optional)
 
-WebRTC calls use Google public STUN by default. TURN is needed for users behind symmetric NAT (roughly 30% of mobile). See `docs/PHASE_4_SETUP.md` for two provider options (Cloudflare Calls or Twilio NTS).
+`GET /api/webrtc/ice-servers` ships with the app; it only needs credentials. With these two variables set it mints short-lived Cloudflare TURN credentials per request (the key secret never reaches the browser). Without them it returns the public STUN list, which is what calls used before, so nothing breaks. TURN is needed for users behind symmetric NAT (roughly 30% of mobile). See `docs/PHASE_4_SETUP.md` for account setup and how to confirm a relay candidate is in use.
 
 | Variable | Description |
 |---|---|
-| `TURN_TOKEN_ID` | Cloudflare Calls app token ID (if using Cloudflare) |
-| `TURN_TOKEN_SECRET` | Cloudflare Calls app token secret (if using Cloudflare) |
-| `TWILIO_ACCOUNT_SID` | Twilio account SID (if using Twilio NTS instead) |
-| `TWILIO_AUTH_TOKEN` | Twilio auth token (if using Twilio NTS instead) |
+| `TURN_TOKEN_ID` | Cloudflare TURN key ID |
+| `TURN_TOKEN_SECRET` | Cloudflare TURN key API token |
 
 ### Distributed rate limiting (optional, Upstash)
 

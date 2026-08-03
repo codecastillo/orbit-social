@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useCommentFilter } from "@/lib/hooks/use-content-safety";
 import { formatNumber, formatTimeAgo } from "@/lib/utils/format";
+import { cn } from "@/lib/utils";
 import {
   getPostById,
   getPostComments,
@@ -180,11 +181,64 @@ function CommentWithReplies({
 // and back-and-forth navigation must not count the same reader twice.
 const viewedPostIds = new Set<string>();
 
+type CommentSort = "top" | "newest";
+
+// Short threads read best in the order they happened; past this many
+// replies the best ones matter more than the latest, so Top leads.
+const TOP_SORT_MIN_COMMENTS = 6;
+
+/** Pinned always leads; the rest follow the chosen order. */
+function compareComments(
+  a: PostWithAuthor,
+  b: PostWithAuthor,
+  sort: CommentSort,
+): number {
+  if (a.is_pinned !== b.is_pinned) return Number(b.is_pinned) - Number(a.is_pinned);
+  if (sort === "top" && a.like_count !== b.like_count) {
+    return b.like_count - a.like_count;
+  }
+  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+}
+
+function CommentSortToggle({
+  sort,
+  onChange,
+}: {
+  sort: CommentSort;
+  onChange: (sort: CommentSort) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between border-b border-border px-4 py-2">
+      <span className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        Replies
+      </span>
+      <div className="flex gap-0.5 rounded-lg border border-border bg-surface p-0.5">
+        {(["top", "newest"] as const).map((value) => (
+          <button
+            key={value}
+            onClick={() => onChange(value)}
+            aria-pressed={sort === value}
+            className={cn(
+              "cursor-pointer rounded-md px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors",
+              sort === value
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {value}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function PostDetail({ postId }: { postId: string }) {
   const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const filterComments = useCommentFilter();
+  const [sortChoice, setSortChoice] = useState<CommentSort | null>(null);
 
   const {
     data: post,
@@ -271,11 +325,12 @@ export function PostDetail({ postId }: { postId: string }) {
     );
   }
 
-  // Stable sort: the pinned comment surfaces first, everything else keeps
-  // the query's created_at order.
-  const sortedComments = [...(comments ?? [])].sort(
-    (a, b) => Number(b.is_pinned) - Number(a.is_pinned),
-  );
+  // No explicit pick yet: fall back to the length-based default, which
+  // settles once the comments query resolves.
+  const commentList = comments ?? [];
+  const sort: CommentSort =
+    sortChoice ?? (commentList.length > TOP_SORT_MIN_COMMENTS ? "top" : "newest");
+  const sortedComments = [...commentList].sort((a, b) => compareComments(a, b, sort));
 
   return (
     <div className="border-x border-border min-h-screen">
@@ -323,15 +378,20 @@ export function PostDetail({ postId }: { postId: string }) {
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       ) : sortedComments.length > 0 ? (
-        sortedComments.map((comment) => (
-          <CommentWithReplies
-            key={comment.id}
-            comment={comment}
-            interactions={interactions}
-            onUpdate={() => refetchComments()}
-            canPin={user?.id === post.user_id}
-          />
-        ))
+        <>
+          {sortedComments.length > 1 && (
+            <CommentSortToggle sort={sort} onChange={setSortChoice} />
+          )}
+          {sortedComments.map((comment) => (
+            <CommentWithReplies
+              key={comment.id}
+              comment={comment}
+              interactions={interactions}
+              onUpdate={() => refetchComments()}
+              canPin={user?.id === post.user_id}
+            />
+          ))}
+        </>
       ) : (
         <div className="p-6 text-center text-sm text-muted-foreground">
           No replies yet. Be the first to reply.

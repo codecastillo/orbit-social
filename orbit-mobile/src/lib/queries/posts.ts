@@ -631,6 +631,9 @@ export interface NewReelMedia {
   // Cover frame uploaded by the gallery flow; the camera flow leaves it
   // unset and tiles fall back to on-device frame extraction.
   thumbnailUrl?: string | null;
+  // Set when the clip was started from a sound page: the existing sound is
+  // credited instead of a fresh "Original sound" row.
+  soundId?: string | null;
 }
 
 // Reel equivalent of createPost. The web composer forces type "reel" on a
@@ -662,7 +665,58 @@ export async function createReelPost(userId: string, content: string, media: New
   });
   if (mediaError) throw mediaError;
 
+  await attributeSound(userId, post.id as string, media);
+
   return post.id as string;
+}
+
+/**
+ * Credits the clip to a sound: the one it was started from, or a fresh
+ * "Original sound" row backed by the clip's own video. Attribution is
+ * metadata only for now (no audio is extracted or mixed), and it is best
+ * effort by design: a failure here must never cost a published clip.
+ */
+async function attributeSound(userId: string, postId: string, media: NewReelMedia) {
+  try {
+    let soundId = media.soundId ?? null;
+
+    if (!soundId) {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", userId)
+        .single();
+      if (profileError) throw profileError;
+
+      const { data: sound, error: soundError } = await supabase
+        .from("sounds")
+        .insert({
+          name: "Original sound",
+          artist: profile.username,
+          audio_url: media.url,
+          duration_seconds: media.durationMs / 1000,
+          cover_url: media.thumbnailUrl ?? null,
+          created_by: userId,
+        })
+        .select("id")
+        .single();
+      if (soundError) throw soundError;
+      soundId = sound.id as string;
+    }
+
+    const { error: linkError } = await supabase
+      .from("posts")
+      .update({ sound_id: soundId })
+      .eq("id", postId);
+    if (linkError) throw linkError;
+
+    const { error: useError } = await supabase.rpc("increment_sound_use", {
+      p_sound_id: soundId,
+    });
+    if (useError) throw useError;
+  } catch (error) {
+    console.error("sound attribution failed", error);
+  }
 }
 
 // Uploads into the same "post-media" bucket the web app uses, with the

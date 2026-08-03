@@ -6,6 +6,7 @@ import { Play, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useCurrentProfile } from "@/lib/hooks/use-profile";
+import { useUIStore } from "@/lib/stores/ui-store";
 import {
   getActiveStories,
   type StoryGroup,
@@ -120,6 +121,12 @@ export function StoryBar() {
   const [creatorOpen, setCreatorOpen] = useState(false);
   const [activeGroupIndex, setActiveGroupIndex] = useState(0);
 
+  // The daily moment prompt notification has no route of its own; it lands
+  // here and raises this flag, which opens the creator alongside the local
+  // "add moment" button.
+  const momentCreatorOpen = useUIStore((s) => s.momentCreatorOpen);
+  const setMomentCreatorOpen = useUIStore((s) => s.setMomentCreatorOpen);
+
   const { data: storyGroups = [] } = useQuery({
     queryKey: ["stories", user?.id],
     queryFn: () => getActiveStories(user!.id),
@@ -224,7 +231,13 @@ export function StoryBar() {
       )}
 
       {/* Story Creator */}
-      <StoryCreator open={creatorOpen} onOpenChange={setCreatorOpen} />
+      <StoryCreator
+        open={creatorOpen || momentCreatorOpen}
+        onOpenChange={(open) => {
+          setCreatorOpen(open);
+          if (!open) setMomentCreatorOpen(false);
+        }}
+      />
     </>
   );
 }

@@ -407,6 +407,7 @@ function ClipItem({
   };
 
   const authorName = clip.profiles.display_name || clip.profiles.username;
+  const sound = clip.sound;
 
   return (
     <View style={[styles.page, { height }]}>
@@ -509,6 +510,20 @@ function ClipItem({
             <Text style={styles.caption} numberOfLines={3}>
               {clip.content}
             </Text>
+          ) : null}
+          {sound ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open the sound ${sound.name}`}
+              onPress={() => router.push(`/sound/${sound.id}` as never)}
+              style={({ pressed }) => [styles.soundChip, pressed && { opacity: 0.8 }]}
+            >
+              <Ionicons name="musical-notes" size={13} color={OVERLAY_TEXT} />
+              <Text style={styles.soundChipText} numberOfLines={1}>
+                {sound.name}
+                {sound.artist ? ` · ${sound.artist}` : ""}
+              </Text>
+            </Pressable>
           ) : null}
         </View>
 
@@ -939,6 +954,21 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     lineHeight: 19,
     marginTop: spacing(2),
+  },
+  soundChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(1.5),
+    marginTop: spacing(2),
+    // Chip hugs its label rather than stretching across the overlay column.
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+  },
+  soundChipText: {
+    flexShrink: 1,
+    color: OVERLAY_TEXT,
+    fontSize: 12.5,
+    fontWeight: "500",
   },
   actions: {
     // Floating right rail above the caption block, mirroring the web layout.

@@ -38,6 +38,60 @@ import { supabase } from "@/lib/supabase";
 import { colors, spacing } from "@/lib/theme";
 
 const REPLY_MAX_LENGTH = 500;
+// iOS has no "monospace" alias, so pick its built-in mono face there.
+const MONO_FONT = Platform.select({ ios: "Menlo", default: "monospace" });
+
+type CommentSort = "top" | "newest";
+
+// Short threads read best in the order they happened; past this many
+// replies the best ones matter more than the latest, so Top leads.
+const TOP_SORT_MIN_COMMENTS = 6;
+
+/** Pinned always leads; the rest follow the chosen order. */
+function compareComments(a: Post, b: Post, sort: CommentSort): number {
+  if (a.is_pinned !== b.is_pinned) return Number(b.is_pinned) - Number(a.is_pinned);
+  if (sort === "top" && a.like_count !== b.like_count) {
+    return b.like_count - a.like_count;
+  }
+  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+}
+
+function CommentSortToggle({
+  sort,
+  onChange,
+}: {
+  sort: CommentSort;
+  onChange: (sort: CommentSort) => void;
+}) {
+  return (
+    <View style={styles.sortBar}>
+      <Text style={styles.sortEyebrow}>Replies</Text>
+      <View style={styles.sortSegments}>
+        {(["top", "newest"] as const).map((value) => {
+          const active = sort === value;
+          return (
+            <Pressable
+              key={value}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              onPress={() => onChange(value)}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.sortSegment,
+                active && styles.sortSegmentActive,
+                pressed && { opacity: 0.8 },
+              ]}
+            >
+              <Text style={[styles.sortLabel, active && styles.sortLabelActive]}>
+                {value}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
 
 // Once per post per app session: remounts and refetches of the same detail
 // screen must not count the same reader twice.
@@ -53,6 +107,7 @@ export default function PostDetailScreen() {
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
   // Last comment a reply landed under; its thread auto-opens to show it.
   const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
+  const [sortChoice, setSortChoice] = useState<CommentSort | null>(null);
   const replyInputRef = useRef<MentionInputHandle>(null);
 
   // Own avatar for the pinned reply composer; shares the profile cache key
@@ -182,11 +237,12 @@ export default function PostDetailScreen() {
   const post = postQuery.data;
   const postDisplayId = displayPostId(post);
 
-  // Stable sort: the pinned comment surfaces first, everything else keeps
-  // the query's created_at order.
-  const sortedReplies = [...(repliesQuery.data ?? [])].sort(
-    (a, b) => Number(b.is_pinned) - Number(a.is_pinned),
-  );
+  // No explicit pick yet: fall back to the length-based default, which
+  // settles once the replies query resolves.
+  const replies = repliesQuery.data ?? [];
+  const sort: CommentSort =
+    sortChoice ?? (replies.length > TOP_SORT_MIN_COMMENTS ? "top" : "newest");
+  const sortedReplies = [...replies].sort((a, b) => compareComments(a, b, sort));
 
   const mainCard = (
     <PostCard
@@ -252,6 +308,9 @@ export default function PostDetailScreen() {
                   onPress={() => repliesQuery.refetch()}
                 />
               </View>
+            ) : null}
+            {sortedReplies.length > 1 ? (
+              <CommentSortToggle sort={sort} onChange={setSortChoice} />
             ) : null}
           </View>
         }
@@ -341,6 +400,48 @@ const styles = StyleSheet.create({
   postWrap: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
+  },
+  sortBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(2),
+  },
+  sortEyebrow: {
+    color: colors.mutedForeground,
+    fontFamily: MONO_FONT,
+    fontSize: 10,
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+  },
+  sortSegments: {
+    flexDirection: "row",
+    gap: 2,
+    padding: 2,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  sortSegment: {
+    paddingHorizontal: spacing(2.5),
+    paddingVertical: spacing(1),
+    borderRadius: 8,
+  },
+  sortSegmentActive: {
+    backgroundColor: colors.surfaceElevated,
+  },
+  sortLabel: {
+    color: colors.mutedForeground,
+    fontFamily: MONO_FONT,
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  sortLabelActive: {
+    color: colors.primary,
   },
   repliesError: {
     padding: spacing(4),
