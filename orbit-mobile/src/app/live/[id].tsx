@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -14,11 +16,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsFocused } from "@react-navigation/native";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
+import { GiftSheet } from "@/components/gift-sheet";
 import { useAuth } from "@/providers/auth-provider";
 import { getStreamById, hlsUrl } from "@/lib/queries/live";
+import { giftByType, type SentGift } from "@/lib/queries/gifts";
 import { supabase } from "@/lib/supabase";
 import { safeBack } from "@/lib/nav";
 import { formatNumber } from "@/lib/format";
@@ -33,6 +37,15 @@ interface ChatMessage {
 
 const CHAT_BUFFER = 60;
 const CHAT_MAX_LENGTH = 500;
+
+// Web rose-500, matching the heart tint in stream-content.tsx.
+const HEART_COLOR = "#f43f5e";
+const HEART_DURATION_MS = 1500;
+// Broadcast storms stay cheap: extra hearts past the cap are dropped, not
+// queued, so the overlay never floods a small phone screen.
+const MAX_CONCURRENT_HEARTS = 8;
+const GIFT_BANNER_MS = 2400;
+const MAX_GIFT_BANNERS = 3;
 
 // Chat sends go through the web API so its checks (followers-only, slow
 // mode, live status) apply to mobile too. The native client has no auth
@@ -78,6 +91,156 @@ function useViewerPresence(
   return count;
 }
 
+interface FloatingHeart {
+  id: string;
+  xPct: number;
+  yPct: number;
+}
+
+// Hermes has no crypto.randomUUID; the id only keys removal and dedupe.
+function makeLocalId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+// Port of the web use-stream-hearts hook (src/lib/hooks/use-stream-hearts.ts)
+// minus the like-counter display: same channel name, event, and payload
+// shape, plus the increment_stream_likes rpc so mobile hearts count too.
+function useStreamHearts(streamId: string | undefined): {
+  hearts: FloatingHeart[];
+  sendHeart: () => void;
+} {
+  const [hearts, setHearts] = useState<FloatingHeart[]>([]);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  useEffect(() => {
+    if (!streamId) return;
+    const channel = supabase.channel(`hearts:live:${streamId}`, {
+      config: { broadcast: { self: true } },
+    });
+    channel
+      .on("broadcast", { event: "heart" }, ({ payload }) => {
+        const heart = payload as FloatingHeart;
+        setHearts((h) =>
+          h.length >= MAX_CONCURRENT_HEARTS ? h : [...h, heart],
+        );
+        setTimeout(() => {
+          setHearts((h) => h.filter((p) => p.id !== heart.id));
+        }, HEART_DURATION_MS);
+      })
+      .subscribe();
+    channelRef.current = channel;
+    return () => {
+      supabase.removeChannel(channel);
+      channelRef.current = null;
+    };
+  }, [streamId]);
+
+  const sendHeart = useCallback(() => {
+    if (!streamId || !channelRef.current) return;
+    const heart: FloatingHeart = {
+      id: makeLocalId(),
+      // Same drift zone the web desktop like button uses.
+      xPct: 0.6 + Math.random() * 0.3,
+      yPct: 0.5 + Math.random() * 0.3,
+    };
+    channelRef.current.send({
+      type: "broadcast",
+      event: "heart",
+      payload: heart,
+    });
+    void supabase
+      .rpc("increment_stream_likes", { p_stream_id: streamId })
+      .then(({ error }) => {
+        if (error) console.error("increment_stream_likes failed", error);
+      });
+  }, [streamId]);
+
+  return { hearts, sendHeart };
+}
+
+function FloatingHeartView({ heart }: { heart: FloatingHeart }) {
+  const [progress] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: HEART_DURATION_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [progress]);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        left: `${heart.xPct * 100}%`,
+        top: `${heart.yPct * 100}%`,
+        opacity: progress.interpolate({
+          inputRange: [0, 0.6, 1],
+          outputRange: [1, 1, 0],
+        }),
+        transform: [
+          {
+            translateY: progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, -140],
+            }),
+          },
+          {
+            scale: progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.6, 1.2],
+            }),
+          },
+        ],
+      }}
+    >
+      <Ionicons name="heart" size={26} color={HEART_COLOR} />
+    </Animated.View>
+  );
+}
+
+function GiftBannerView({ sent }: { sent: SentGift }) {
+  const [progress] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [progress]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.giftBanner,
+        {
+          opacity: progress,
+          transform: [
+            {
+              translateY: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [12, 0],
+              }),
+            },
+          ],
+        },
+      ]}
+    >
+      <MaterialCommunityIcons
+        name={sent.gift.icon}
+        size={18}
+        color={sent.gift.color}
+      />
+      <Text style={styles.giftBannerText}>{sent.gift.name}</Text>
+    </Animated.View>
+  );
+}
+
 export default function LiveViewerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -98,6 +261,56 @@ export default function LiveViewerScreen() {
 
   const isStreamer = !!user && stream?.user_id === user.id;
   const presenceCount = useViewerPresence(id, user?.id ?? null, isStreamer);
+
+  const { hearts, sendHeart } = useStreamHearts(id);
+
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [activeGifts, setActiveGifts] = useState<SentGift[]>([]);
+  const pushGift = useCallback((sent: SentGift) => {
+    setActiveGifts((g) => [...g.slice(-(MAX_GIFT_BANNERS - 1)), sent]);
+    setTimeout(() => {
+      setActiveGifts((g) => g.filter((x) => x.id !== sent.id));
+    }, GIFT_BANNER_MS);
+  }, []);
+
+  // Gifts persist to stream_gifts; this mirrors the web INSERT subscription
+  // in stream-content.tsx (the sender animates locally from the insert
+  // response, so own rows are skipped).
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`stream-gifts-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "stream_gifts",
+          filter: `stream_id=eq.${id}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            id: string;
+            sender_id: string;
+            gift_type: string;
+          };
+          if (row.sender_id === user?.id) return;
+          const gift = giftByType(row.gift_type);
+          if (!gift) return;
+          pushGift({
+            id: row.id,
+            streamId: id,
+            userId: row.sender_id,
+            gift,
+            timestamp: Date.now(),
+          });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, user?.id, pushGift]);
 
   // Messages arrive via the broadcast the chat API emits, including our
   // own sends, so a successful POST needs no local append.
@@ -239,6 +452,18 @@ export default function LiveViewerScreen() {
           <Ionicons name="chevron-back" size={22} color="#fff" />
         </Pressable>
 
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          {hearts.map((h) => (
+            <FloatingHeartView key={h.id} heart={h} />
+          ))}
+        </View>
+
+        <View pointerEvents="none" style={styles.giftBanners}>
+          {activeGifts.map((sent) => (
+            <GiftBannerView key={sent.id} sent={sent} />
+          ))}
+        </View>
+
         {live && (
           <View style={styles.overlayTop}>
             <View style={styles.liveBadge}>
@@ -292,6 +517,14 @@ export default function LiveViewerScreen() {
         <>
           {chatError ? <Text style={styles.chatErrorText}>{chatError}</Text> : null}
           <View style={styles.composer}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Send a gift"
+              onPress={() => setGiftOpen(true)}
+              style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}
+            >
+              <Ionicons name="gift-outline" size={20} color={colors.foreground} />
+            </Pressable>
             <TextInput
               style={styles.composerInput}
               placeholder="Say something"
@@ -322,10 +555,26 @@ export default function LiveViewerScreen() {
                 <Ionicons name="arrow-up" size={20} color={colors.primaryForeground} />
               )}
             </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Send a heart"
+              onPress={sendHeart}
+              style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}
+            >
+              <Ionicons name="heart" size={20} color={HEART_COLOR} />
+            </Pressable>
           </View>
         </>
       ) : null}
       <View style={{ height: insets.bottom }} />
+      {user && id ? (
+        <GiftSheet
+          visible={giftOpen}
+          streamId={id}
+          onClose={() => setGiftOpen(false)}
+          onSent={pushGift}
+        />
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
@@ -464,5 +713,34 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  giftBanners: {
+    position: "absolute",
+    left: spacing(3),
+    bottom: spacing(3),
+    gap: spacing(1.5),
+  },
+  giftBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(1.5),
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderRadius: radii.full,
+    paddingHorizontal: spacing(2.5),
+    paddingVertical: spacing(1.5),
+  },
+  giftBannerText: {
+    color: "#fff",
+    fontSize: 12.5,
+    fontWeight: "700",
   },
 });

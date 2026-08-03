@@ -158,6 +158,72 @@ export async function checkFollowing(
   return data !== null;
 }
 
+// Mirrors the web ProfileSummary in src/lib/queries/social.ts, minus the
+// counts the list rows never render.
+export interface ProfileSummary {
+  id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  bio: string | null;
+  is_verified: boolean;
+}
+
+const SUMMARY_SELECT = `
+  id, username, display_name, avatar_url, bio, is_verified
+`;
+
+const FOLLOW_LIST_LIMIT = 100;
+
+export async function getFollowers(
+  userId: string,
+  limit = FOLLOW_LIST_LIMIT,
+): Promise<ProfileSummary[]> {
+  const { data, error } = await supabase
+    .from("follows")
+    .select(`created_at, profiles!follows_follower_id_fkey (${SUMMARY_SELECT})`)
+    .eq("following_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return ((data ?? []) as unknown as { profiles: ProfileSummary | null }[])
+    .map((row) => row.profiles)
+    .filter((p): p is ProfileSummary => p !== null);
+}
+
+export async function getFollowing(
+  userId: string,
+  limit = FOLLOW_LIST_LIMIT,
+): Promise<ProfileSummary[]> {
+  const { data, error } = await supabase
+    .from("follows")
+    .select(
+      `created_at, profiles!follows_following_id_fkey (${SUMMARY_SELECT})`,
+    )
+    .eq("follower_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return ((data ?? []) as unknown as { profiles: ProfileSummary | null }[])
+    .map((row) => row.profiles)
+    .filter((p): p is ProfileSummary => p !== null);
+}
+
+/** Which of the given users the viewer follows, for list button state. */
+export async function checkFollowingMany(
+  followerId: string,
+  followingIds: string[],
+): Promise<Set<string>> {
+  if (followingIds.length === 0) return new Set();
+  const { data, error } = await supabase
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", followerId)
+    .in("following_id", followingIds);
+  if (error) throw error;
+  return new Set((data ?? []).map((f) => f.following_id));
+}
+
 // Mirrors the web bell queries in src/lib/queries/social.ts: subscribe to a
 // creator's new posts via post_notification_subscriptions.
 export async function checkPostNotificationSubscription(

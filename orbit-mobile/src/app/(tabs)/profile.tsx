@@ -1,12 +1,5 @@
 import { useState } from "react";
-import {
-  Modal,
-  Pressable,
-  Share,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { Tabs, useRouter, type Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +13,8 @@ import {
 } from "@/components/profile-header";
 import { ProfileContent } from "@/components/profile-tabs";
 import { ProfileOnboarding } from "@/components/profile-onboarding";
+import { HighlightsRow } from "@/components/highlights-row";
+import { ProfileQrModal } from "@/components/profile-qr-modal";
 import {
   getOwnProfile,
   getUserRecentPosts,
@@ -65,6 +60,7 @@ export default function OwnProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
 
   const {
     data: profile,
@@ -117,11 +113,16 @@ export default function OwnProfileScreen() {
     router.push("/edit-profile" as Href);
   }
 
-  async function handleShare() {
+  function handleShare() {
     if (!profile) return;
-    await Share.share({
-      message: `${PROFILE_URL_BASE}/${profile.username}`,
-    });
+    setQrOpen(true);
+  }
+
+  function openFollowList(tab: "followers" | "following") {
+    if (!profile) return;
+    router.push(
+      `/user/follows?userId=${profile.id}&username=${profile.username}&tab=${tab}`,
+    );
   }
 
   async function handleSignOut() {
@@ -164,21 +165,26 @@ export default function OwnProfileScreen() {
       {screenOptions}
       <ProfileContent
         header={
-          <ProfileHeader
-            profile={profile}
-            actions={
-              <>
-                <ProfileActionButton
-                  label="Edit profile"
-                  onPress={openEditProfile}
-                />
-                <ProfileActionButton
-                  label="Share profile"
-                  onPress={handleShare}
-                />
-              </>
-            }
-          />
+          <>
+            <ProfileHeader
+              profile={profile}
+              onPressFollowers={() => openFollowList("followers")}
+              onPressFollowing={() => openFollowList("following")}
+              actions={
+                <>
+                  <ProfileActionButton
+                    label="Edit profile"
+                    onPress={openEditProfile}
+                  />
+                  <ProfileActionButton
+                    label="Share profile"
+                    onPress={handleShare}
+                  />
+                </>
+              }
+            />
+            <HighlightsRow userId={profile.id} isOwner />
+          </>
         }
         posts={postsQuery.data}
         isPending={postsQuery.isPending}
@@ -187,6 +193,13 @@ export default function OwnProfileScreen() {
         userId={profile.id}
         username={profile.username}
         onPressPost={(postId) => router.push(`/post/${postId}`)}
+      />
+
+      <ProfileQrModal
+        visible={qrOpen}
+        onClose={() => setQrOpen(false)}
+        username={profile.username}
+        profileUrl={`${PROFILE_URL_BASE}/${profile.username}`}
       />
 
       <Modal

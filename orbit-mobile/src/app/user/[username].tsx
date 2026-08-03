@@ -14,6 +14,7 @@ import {
   ProfileHeaderSkeleton,
 } from "@/components/profile-header";
 import { ProfileContent } from "@/components/profile-tabs";
+import { HighlightsRow } from "@/components/highlights-row";
 import { PostBellButton } from "@/components/post-bell-button";
 import { ReportSheet } from "@/components/report-sheet";
 import { startDmConversation } from "@/lib/queries/marketplace";
@@ -212,7 +213,25 @@ export default function PublicProfileScreen() {
         }}
       />
       <ProfileContent
-        header={<ProfileHeader profile={profile} actions={actions} />}
+        header={
+          <>
+            <ProfileHeader
+              profile={profile}
+              actions={actions}
+              onPressFollowers={() =>
+                router.push(
+                  `/user/follows?userId=${profile.id}&username=${profile.username}&tab=followers`,
+                )
+              }
+              onPressFollowing={() =>
+                router.push(
+                  `/user/follows?userId=${profile.id}&username=${profile.username}&tab=following`,
+                )
+              }
+            />
+            <HighlightsRow userId={profile.id} isOwner={isOwnProfile} />
+          </>
+        }
         posts={postsQuery.data}
         isPending={postsQuery.isPending}
         isError={postsQuery.isError}

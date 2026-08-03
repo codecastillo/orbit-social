@@ -275,7 +275,8 @@ export function ListingContent({ listingId }: { listingId: string }) {
                   {listing.profiles.is_verified && <VerifiedStar size={12} />}
                 </div>
                 <p className="m-0 mt-0.5 font-mono text-[11.5px] text-muted-foreground">
-                  @{listing.profiles.username}
+                  @{listing.profiles.username} · Joined{" "}
+                  {new Date(listing.profiles.created_at).getFullYear()}
                 </p>
               </div>
             </div>

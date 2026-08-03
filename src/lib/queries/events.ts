@@ -271,6 +271,61 @@ export async function getUserRsvpStatus(eventId: string, userId: string) {
   return data?.status as "going" | "interested" | "not_going" | null;
 }
 
+// ── Friends going ────────────────────────────────────────────────────
+
+export interface FriendsGoing {
+  count: number;
+  profiles: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+  }[];
+}
+
+// Attendee ids are capped so a huge event can't blow up the follows .in()
+// filter; past that point "N people you follow" is an undercount, which is
+// fine for a social proof row.
+const FRIENDS_GOING_ATTENDEE_CAP = 500;
+
+export async function getFriendsGoing(
+  eventId: string,
+  viewerId: string,
+): Promise<FriendsGoing> {
+  const { data: rsvps, error } = await supabase
+    .from("event_rsvps")
+    .select("user_id")
+    .eq("event_id", eventId)
+    .eq("status", "going")
+    .neq("user_id", viewerId)
+    .limit(FRIENDS_GOING_ATTENDEE_CAP);
+  if (error) throw error;
+
+  const attendeeIds = (rsvps ?? []).map((r) => r.user_id);
+  if (!attendeeIds.length) return { count: 0, profiles: [] };
+
+  const { data: follows, error: followsError } = await supabase
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", viewerId)
+    .in("following_id", attendeeIds);
+  if (followsError) throw followsError;
+
+  const followedIds = (follows ?? []).map((f) => f.following_id);
+  if (!followedIds.length) return { count: 0, profiles: [] };
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, avatar_url")
+    .in("id", followedIds.slice(0, 3));
+  if (profilesError) throw profilesError;
+
+  return {
+    count: followedIds.length,
+    profiles: (profiles ?? []) as FriendsGoing["profiles"],
+  };
+}
+
 // Batch version: one query covering N events instead of N round-trips.
 // Returns a map keyed by event_id; events the user hasn't RSVP'd to are
 // absent (caller should treat missing as null).

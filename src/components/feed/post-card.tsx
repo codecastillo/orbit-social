@@ -444,7 +444,9 @@ export const PostCard = memo(function PostCard({
         toast.success("Post unpinned");
       } else {
         await pinPost(post.id);
-        toast.success("Post pinned to profile");
+        toast.success(
+          displayPost.community_id ? "Post pinned in room" : "Post pinned to profile"
+        );
       }
       onUpdate?.();
     } catch {
@@ -624,6 +626,19 @@ export const PostCard = memo(function PostCard({
                       <DropdownMenuItem onClick={handleEdit}>
                         <Pencil className="mr-2 h-4 w-4" /> Edit
                       </DropdownMenuItem>
+                      {/* Room posts pin inside the room instead. Author-only:
+                          the posts UPDATE policy is owner-only and there is no
+                          moderator pin RPC, so a mod pinning someone else's
+                          post would silently no-op under RLS. */}
+                      {displayPost.community_id && !displayPost.reply_to_id && (
+                        <DropdownMenuItem onClick={handlePin}>
+                          {post.is_pinned ? (
+                            <><PinOff className="mr-2 h-4 w-4" /> Unpin from room</>
+                          ) : (
+                            <><Pin className="mr-2 h-4 w-4" /> Pin in room</>
+                          )}
+                        </DropdownMenuItem>
+                      )}
                       {/* Pin to Profile + Boost don't apply inside a
                           room, that's profile-level promotion that
                           would lift a private/scoped post out of its

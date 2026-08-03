@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MoreHorizontal, ExternalLink, Copy, UserX, VolumeX, EyeOff, Eye, Flag, Trash2, Loader2, Lock } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, ExternalLink, Copy, QrCode, UserX, VolumeX, EyeOff, Eye, Flag, Trash2, Loader2, Lock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FollowListDialog } from "@/components/profile/follow-list-dialog";
+import { QRCodeDialog } from "@/components/profile/qr-code-dialog";
 import { PostBellButton } from "@/components/profile/post-bell-button";
+import { HighlightsRow } from "@/components/stories/highlights-row";
 import { BlockMuteDialog } from "@/components/shared/block-mute-dialog";
 import { ReportDialog } from "@/components/shared/report-dialog";
 import { normalizeAccent } from "@/lib/design/accents";
@@ -124,6 +126,7 @@ export function ProfileContent({
   const [followListOpen, setFollowListOpen] = useState<null | "followers" | "following">(null);
   const [blockMuteAction, setBlockMuteAction] = useState<null | "block" | "mute">(null);
   const [reportOpen, setReportOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const [openingDm, setOpeningDm] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
@@ -638,6 +641,13 @@ export function ProfileContent({
                   <Copy className="mr-2 h-4 w-4" />
                   Copy profile link
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer rounded-lg"
+                  onClick={() => setQrOpen(true)}
+                >
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Share profile
+                </DropdownMenuItem>
                 {!isOwnProfile && (
                   <>
                     <DropdownMenuSeparator />
@@ -740,6 +750,12 @@ export function ProfileContent({
           )}
         </div>
       </div>
+
+      {/* Story highlights, hidden behind the same private-account gate as
+          the tabs. The row renders nothing for visitors when empty. */}
+      {!(profile.is_private === true && !isOwnProfile && !isFollowing) && (
+        <HighlightsRow userId={profile.id} isOwner={isOwnProfile} />
+      )}
 
       {/* PRIVATE LOCK, Instagram-style. When the profile is private and the
           viewer isn't the owner or a follower, swap the entire tabs+content
@@ -907,6 +923,13 @@ export function ProfileContent({
           />
         </>
       )}
+
+      <QRCodeDialog
+        username={profile.username}
+        displayName={profile.display_name}
+        open={qrOpen}
+        onOpenChange={setQrOpen}
+      />
 
       <FollowListDialog
         open={

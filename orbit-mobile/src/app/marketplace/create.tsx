@@ -18,6 +18,7 @@ import { useAuth } from "@/providers/auth-provider";
 import {
   createListing,
   LISTING_CATEGORIES,
+  LISTING_CONDITIONS,
   uploadListingImage,
 } from "@/lib/queries/marketplace";
 import { colors, radii, spacing } from "@/lib/theme";
@@ -25,8 +26,7 @@ import { colors, radii, spacing } from "@/lib/theme";
 const MAX_IMAGES = 4;
 // "All" is the browse filter, not a real category.
 const CATEGORIES = LISTING_CATEGORIES.filter((category) => category !== "All");
-// Same condition set as the web create dialog.
-const CONDITIONS = ["New", "Like New", "Good", "Fair", "Poor"];
+const CONDITIONS = LISTING_CONDITIONS;
 
 interface PickedImage {
   uri: string;

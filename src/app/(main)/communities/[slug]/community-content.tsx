@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Pin, Shield } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { OrbitErrorState } from "@/components/orbit/error-state";
@@ -17,6 +19,11 @@ import {
   checkMembership,
 } from "@/lib/queries/communities";
 import { checkUserInteractions, type PostWithAuthor } from "@/lib/queries/posts";
+
+// No acceptance table exists, so first-post rules acknowledgement is a
+// device-local flag keyed by user + room.
+const rulesAcceptedKey = (userId: string, communityId: string) =>
+  `room-rules-accepted:${userId}:${communityId}`;
 
 export function CommunityContent({ slug }: { slug: string }) {
   const { user } = useAuth();
@@ -68,6 +75,21 @@ export function CommunityContent({ slug }: { slug: string }) {
       ),
     enabled: !!user && !!posts && posts.length > 0,
   });
+
+  const communityRules = community?.rules ?? [];
+  const [rulesAccepted, setRulesAccepted] = useState(false);
+  useEffect(() => {
+    if (!user || !community) return;
+    setRulesAccepted(
+      window.localStorage.getItem(rulesAcceptedKey(user.id, community.id)) === "1"
+    );
+  }, [user, community]);
+
+  const acceptRules = () => {
+    if (!user || !community) return;
+    window.localStorage.setItem(rulesAcceptedKey(user.id, community.id), "1");
+    setRulesAccepted(true);
+  };
 
   const handleMembershipChange = () => {
     refetchRole();
@@ -137,13 +159,40 @@ export function CommunityContent({ slug }: { slug: string }) {
         />
       )}
 
-      {/* Post composer for members */}
+      {/* Post composer for members. Rooms with rules gate the first post
+          behind a one-time acknowledgement stored on this device. */}
       {isMember && user && (
         <div className="border-b border-border p-4">
-          <InlineComposer
-            communityId={community.id}
-            onSuccess={() => refetchPosts()}
-          />
+          {communityRules.length > 0 && !rulesAccepted ? (
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Shield className="h-4 w-4 text-primary" />
+                <span>Before you post, agree to the room rules</span>
+              </div>
+              <div className="mt-3 space-y-2">
+                {communityRules.map((rule, i) => (
+                  <div key={i} className="rounded-lg bg-muted/50 p-3 text-sm">
+                    <p className="font-medium">
+                      {i + 1}. {rule.title}
+                    </p>
+                    {rule.description && (
+                      <p className="text-muted-foreground mt-0.5">
+                        {rule.description}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Button className="mt-3" size="sm" onClick={acceptRules}>
+                Accept and post
+              </Button>
+            </div>
+          ) : (
+            <InlineComposer
+              communityId={community.id}
+              onSuccess={() => refetchPosts()}
+            />
+          )}
         </div>
       )}
 
@@ -184,13 +233,20 @@ export function CommunityContent({ slug }: { slug: string }) {
           />
         ) : posts && posts.length > 0 ? (
           posts.map((post: PostWithAuthor) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              isLiked={interactions?.likedPostIds?.has(post.id)}
-              isBookmarked={interactions?.bookmarkedPostIds?.has(post.id)}
-              onUpdate={() => refetchPosts()}
-            />
+            <div key={post.id}>
+              {post.is_pinned && (
+                <div className="flex items-center gap-1.5 px-5 pt-3 font-mono text-[10.5px] tracking-[0.1em] text-primary">
+                  <Pin className="h-3 w-3" />
+                  <span>PINNED</span>
+                </div>
+              )}
+              <PostCard
+                post={post}
+                isLiked={interactions?.likedPostIds?.has(post.id)}
+                isBookmarked={interactions?.bookmarkedPostIds?.has(post.id)}
+                onUpdate={() => refetchPosts()}
+              />
+            </div>
           ))
         ) : (
           <EmptyState

@@ -23,6 +23,7 @@ import {
   sendStoryReaction,
   type StoryWithAuthor,
 } from "@/lib/queries/stories";
+import { getHighlights } from "@/lib/queries/highlights";
 import { MESSAGE_REACTION_GLYPHS } from "@/lib/queries/messages";
 import { formatTimeAgo } from "@/lib/format";
 import { useAuth } from "@/providers/auth-provider";
@@ -51,8 +52,12 @@ function StoryVideo({ story }: { story: StoryWithAuthor }) {
 }
 
 export default function StoryViewerScreen() {
-  const params = useLocalSearchParams<{ userId: string }>();
+  const params = useLocalSearchParams<{ userId: string; highlight?: string }>();
   const authorId = typeof params.userId === "string" ? params.userId : "";
+  // With a highlight id the screen plays that explicit story list instead
+  // of the author's active stories, so highlights outlive the 24h window.
+  const highlightId =
+    typeof params.highlight === "string" ? params.highlight : null;
   const { user } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -66,19 +71,30 @@ export default function StoryViewerScreen() {
   >("idle");
   const reactionResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const {
-    data: groups,
-    isPending,
-    isError,
-    refetch,
-  } = useQuery({
+  const activeQuery = useQuery({
     queryKey: ["stories", user?.id],
     queryFn: () => getActiveStories(user!.id),
-    enabled: !!user,
+    enabled: !!user && !highlightId,
   });
 
-  const group = groups?.find((g) => g.user.id === authorId);
-  const stories = group?.stories ?? [];
+  // Shares the cache key the profile highlights row populates.
+  const highlightsQuery = useQuery({
+    queryKey: ["story-highlights", authorId],
+    queryFn: () => getHighlights(authorId),
+    enabled: !!user && !!highlightId,
+  });
+
+  const { isPending, isError, refetch } = highlightId
+    ? highlightsQuery
+    : activeQuery;
+
+  const group = highlightId
+    ? undefined
+    : activeQuery.data?.find((g) => g.user.id === authorId);
+  const highlight = highlightId
+    ? highlightsQuery.data?.find((h) => h.id === highlightId)
+    : undefined;
+  const stories = highlightId ? (highlight?.stories ?? []) : (group?.stories ?? []);
   const current = stories[index];
 
   const goNext = () => {
@@ -155,9 +171,8 @@ export default function StoryViewerScreen() {
 
   if (!user) return null;
 
-  const authorName = group
-    ? group.user.display_name || group.user.username
-    : "";
+  const author = highlightId ? highlight?.stories[0]?.profiles : group?.user;
+  const authorName = author ? author.display_name || author.username : "";
 
   return (
     <View style={styles.screen}>
@@ -173,7 +188,7 @@ export default function StoryViewerScreen() {
           description="Check your connection and try again."
           action={<Button label="Retry" variant="outline" onPress={() => refetch()} />}
         />
-      ) : !group || !current ? (
+      ) : !current ? (
         <EmptyState
           title="Story unavailable"
           description="These stories may have expired."

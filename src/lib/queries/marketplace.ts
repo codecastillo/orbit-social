@@ -22,6 +22,7 @@ export interface ListingWithSeller {
     display_name: string;
     avatar_url: string | null;
     is_verified: boolean;
+    created_at: string;
   };
   listing_images: ListingImage[];
 }
@@ -36,7 +37,7 @@ export interface ListingImage {
 const LISTING_SELECT = `
   *,
   profiles!listings_seller_id_fkey (
-    id, username, display_name, avatar_url, is_verified
+    id, username, display_name, avatar_url, is_verified, created_at
   ),
   listing_images (
     id, listing_id, url, sort_order

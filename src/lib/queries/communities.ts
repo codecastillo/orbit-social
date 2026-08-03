@@ -308,6 +308,9 @@ export async function getCommunityPosts(
     .eq("community_id", communityId)
     .eq("is_hidden", false)
     .is("reply_to_id", null)
+    // Pinned room posts surface first; is_pinned is repurposed as the room
+    // pin for community posts (profile pin is hidden inside rooms).
+    .order("is_pinned", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(limit);
 

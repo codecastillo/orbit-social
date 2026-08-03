@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,10 +13,16 @@ import {
 import { useState } from "react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Image } from "expo-image";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
-import { getListingById, startDmConversation } from "@/lib/queries/marketplace";
+import {
+  deleteListing,
+  getListingById,
+  startDmConversation,
+  updateListingStatus,
+} from "@/lib/queries/marketplace";
+import { formatTimeAgo } from "@/lib/format";
 import { colors, radii, spacing } from "@/lib/theme";
 
 // Web listing URL, shared so a recipient without the app still lands somewhere.
@@ -32,6 +39,7 @@ function formatPrice(price: number, currency = "USD") {
 export default function ListingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { width } = useWindowDimensions();
   const [activeImage, setActiveImage] = useState(0);
@@ -49,6 +57,41 @@ export default function ListingDetailScreen() {
       router.push(`/conversation/${conversationId}`);
     },
   });
+
+  const toggleSold = useMutation({
+    mutationFn: () =>
+      updateListingStatus(
+        listing!.id,
+        listing!.status === "sold" ? "active" : "sold",
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["listing", id] });
+      queryClient.invalidateQueries({ queryKey: ["listings"] });
+    },
+  });
+
+  const removeListing = useMutation({
+    mutationFn: () => deleteListing(listing!.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["listings"] });
+      router.back();
+    },
+  });
+
+  const confirmDelete = () => {
+    Alert.alert(
+      "Delete this listing?",
+      "The listing and its photos will be removed for everyone. This can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => removeListing.mutate(),
+        },
+      ],
+    );
+  };
 
   if (listingQuery.isPending) {
     return (
@@ -158,6 +201,11 @@ export default function ListingDetailScreen() {
             </View>
           </View>
 
+          <Text style={styles.metaLine}>
+            {listing.location ? `${listing.location} · ` : ""}
+            Posted {formatTimeAgo(listing.created_at)}
+          </Text>
+
           {listing.description ? (
             <Text style={styles.description}>{listing.description}</Text>
           ) : null}
@@ -177,14 +225,29 @@ export default function ListingDetailScreen() {
                 {listing.profiles.display_name}
               </Text>
               <Text style={styles.sellerUsername}>
-                @{listing.profiles.username}
+                @{listing.profiles.username} · Joined{" "}
+                {new Date(listing.profiles.created_at).getFullYear()}
               </Text>
             </View>
           </Pressable>
 
           <View style={styles.actions}>
             <View style={styles.actionsRow}>
-              {!isOwnListing && user ? (
+              {isOwnListing ? (
+                <View style={styles.actionButton}>
+                  <Button
+                    label={
+                      listing.status === "sold"
+                        ? "Mark as available"
+                        : "Mark as sold"
+                    }
+                    variant="outline"
+                    loading={toggleSold.isPending}
+                    onPress={() => toggleSold.mutate()}
+                    style={styles.pairButton}
+                  />
+                </View>
+              ) : user ? (
                 <View style={styles.actionButton}>
                   <Button
                     label="Message seller"
@@ -207,9 +270,28 @@ export default function ListingDetailScreen() {
                 />
               </View>
             </View>
+            {isOwnListing ? (
+              <Button
+                label="Delete listing"
+                variant="destructive"
+                loading={removeListing.isPending}
+                onPress={confirmDelete}
+                style={[styles.pairButton, styles.deleteButton]}
+              />
+            ) : null}
             {messageSeller.isError ? (
               <Text style={styles.messageError}>
                 Could not open the conversation. Try again.
+              </Text>
+            ) : null}
+            {toggleSold.isError ? (
+              <Text style={styles.messageError}>
+                Could not update the listing. Try again.
+              </Text>
+            ) : null}
+            {removeListing.isError ? (
+              <Text style={styles.messageError}>
+                Could not delete the listing. Try again.
               </Text>
             ) : null}
           </View>
@@ -294,6 +376,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textTransform: "capitalize",
   },
+  metaLine: {
+    color: colors.mutedForeground,
+    fontSize: 12.5,
+    marginTop: spacing(2.5),
+  },
   description: {
     color: colors.textSecondary,
     fontSize: 14,
@@ -340,6 +427,9 @@ const styles = StyleSheet.create({
   pairButtonSecondary: {
     backgroundColor: colors.surfaceElevated,
     borderWidth: 0,
+  },
+  deleteButton: {
+    marginTop: spacing(2.5),
   },
   messageError: {
     color: colors.destructive,

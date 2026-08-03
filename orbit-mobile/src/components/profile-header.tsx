@@ -35,12 +35,33 @@ function excerpt(content: string | null): string {
     : content;
 }
 
-function Stat({ value, label }: { value: number; label: string }) {
+function Stat({
+  value,
+  label,
+  onPress,
+}: {
+  value: number;
+  label: string;
+  onPress?: () => void;
+}) {
+  if (!onPress) {
+    return (
+      <View style={styles.stat}>
+        <Text style={styles.statValue}>{formatNumber(value)}</Text>
+        <Text style={styles.statLabel}>{label}</Text>
+      </View>
+    );
+  }
   return (
-    <View style={styles.stat}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`View ${label.toLowerCase()}`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.stat, pressed && { opacity: 0.6 }]}
+    >
       <Text style={styles.statValue}>{formatNumber(value)}</Text>
       <Text style={styles.statLabel}>{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -97,9 +118,13 @@ export function ProfileActionButton({
 export function ProfileHeader({
   profile,
   actions,
+  onPressFollowers,
+  onPressFollowing,
 }: {
   profile: Profile;
   actions?: ReactNode;
+  onPressFollowers?: () => void;
+  onPressFollowing?: () => void;
 }) {
   return (
     <View style={styles.container}>
@@ -113,8 +138,16 @@ export function ProfileHeader({
         </View>
         <View style={styles.stats}>
           <Stat value={profile.post_count} label="Posts" />
-          <Stat value={profile.follower_count} label="Followers" />
-          <Stat value={profile.following_count} label="Following" />
+          <Stat
+            value={profile.follower_count}
+            label="Followers"
+            onPress={onPressFollowers}
+          />
+          <Stat
+            value={profile.following_count}
+            label="Following"
+            onPress={onPressFollowing}
+          />
         </View>
       </View>
       <View style={styles.nameRow}>

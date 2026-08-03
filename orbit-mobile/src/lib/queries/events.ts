@@ -192,3 +192,126 @@ export async function removeRsvp(eventId: string, userId: string) {
 
   if (error) throw error;
 }
+
+// ── Event comments ───────────────────────────────────────────────────
+// Mirrors src/lib/queries/events.ts on the web: flat list ordered oldest
+// first, one reply level via parent_id.
+
+export interface EventComment {
+  id: string;
+  event_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  parent_id: string | null;
+  profiles: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    is_verified: boolean;
+  };
+}
+
+const COMMENT_SELECT = `
+  id, event_id, user_id, content, created_at, parent_id,
+  profiles!event_comments_user_id_fkey (
+    id, username, display_name, avatar_url, is_verified
+  )
+`;
+
+export async function getEventComments(eventId: string, limit = 100) {
+  const { data, error } = await supabase
+    .from("event_comments")
+    .select(COMMENT_SELECT)
+    .eq("event_id", eventId)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+  return data as unknown as EventComment[];
+}
+
+export async function postEventComment(
+  eventId: string,
+  userId: string,
+  content: string,
+  parentId?: string | null,
+) {
+  const { data, error } = await supabase
+    .from("event_comments")
+    .insert({
+      event_id: eventId,
+      user_id: userId,
+      content,
+      parent_id: parentId ?? null,
+    })
+    .select(COMMENT_SELECT)
+    .single();
+
+  if (error) throw error;
+  return data as unknown as EventComment;
+}
+
+export async function deleteEventComment(commentId: string) {
+  const { error } = await supabase
+    .from("event_comments")
+    .delete()
+    .eq("id", commentId);
+  if (error) throw error;
+}
+
+// ── Friends going ────────────────────────────────────────────────────
+
+export interface FriendsGoing {
+  count: number;
+  profiles: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+  }[];
+}
+
+// Attendee ids are capped so a huge event can't blow up the follows .in()
+// filter; past that point "N people you follow" is an undercount, which is
+// fine for a social proof row.
+const FRIENDS_GOING_ATTENDEE_CAP = 500;
+
+export async function getFriendsGoing(
+  eventId: string,
+  viewerId: string,
+): Promise<FriendsGoing> {
+  const { data: rsvps, error } = await supabase
+    .from("event_rsvps")
+    .select("user_id")
+    .eq("event_id", eventId)
+    .eq("status", "going")
+    .neq("user_id", viewerId)
+    .limit(FRIENDS_GOING_ATTENDEE_CAP);
+  if (error) throw error;
+
+  const attendeeIds = (rsvps ?? []).map((r) => r.user_id);
+  if (!attendeeIds.length) return { count: 0, profiles: [] };
+
+  const { data: follows, error: followsError } = await supabase
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", viewerId)
+    .in("following_id", attendeeIds);
+  if (followsError) throw followsError;
+
+  const followedIds = (follows ?? []).map((f) => f.following_id);
+  if (!followedIds.length) return { count: 0, profiles: [] };
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, avatar_url")
+    .in("id", followedIds.slice(0, 3));
+  if (profilesError) throw profilesError;
+
+  return {
+    count: followedIds.length,
+    profiles: (profiles ?? []) as FriendsGoing["profiles"],
+  };
+}

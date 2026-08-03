@@ -5,20 +5,36 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Stack, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Button, EmptyState } from "@/components/ui";
 import {
+  countActiveFilters,
+  DEFAULT_MARKETPLACE_FILTERS,
+  MarketplaceFilterSheet,
+  type MarketplaceFilters,
+} from "@/components/marketplace-filter-sheet";
+import {
   getListings,
   LISTING_CATEGORIES,
+  type ListingFilters,
   type ListingWithSeller,
 } from "@/lib/queries/marketplace";
 import { colors, radii, spacing } from "@/lib/theme";
+
+// Same debounce the web marketplace page applies to its search input.
+const SEARCH_DEBOUNCE_MS = 300;
+
+function parsePrice(text: string): number | undefined {
+  const value = Number.parseFloat(text);
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
+}
 
 function formatPrice(price: number, currency = "USD") {
   return new Intl.NumberFormat("en-US", {
@@ -78,13 +94,88 @@ function ListingCard({
 
 export default function MarketplaceScreen() {
   const router = useRouter();
-  const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [filters, setFilters] = useState<MarketplaceFilters>(
+    DEFAULT_MARKETPLACE_FILTERS,
+  );
+  const [searchText, setSearchText] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    const timeout = setTimeout(
+      () => setDebouncedSearch(searchText.trim()),
+      searchText ? SEARCH_DEBOUNCE_MS : 0,
+    );
+    return () => clearTimeout(timeout);
+  }, [searchText]);
+
+  const queryFilters: ListingFilters = {
+    search: debouncedSearch || undefined,
+    category: filters.category === "All" ? undefined : filters.category,
+    condition: filters.condition ?? undefined,
+    priceMin: parsePrice(filters.priceMin),
+    priceMax: parsePrice(filters.priceMax),
+    sort: filters.sort,
+  };
 
   const listingsQuery = useQuery({
-    queryKey: ["listings", activeCategory],
-    queryFn: () =>
-      getListings(activeCategory === "All" ? undefined : activeCategory),
+    queryKey: ["listings", queryFilters],
+    queryFn: () => getListings(queryFilters),
   });
+
+  const activeFilterCount = countActiveFilters(filters);
+
+  const searchBar = (
+    <View style={styles.searchRow}>
+      <View style={styles.searchWrap}>
+        <Ionicons name="search" size={16} color={colors.mutedForeground} />
+        <TextInput
+          value={searchText}
+          onChangeText={setSearchText}
+          placeholder="Search listings"
+          placeholderTextColor={colors.textFaint}
+          returnKeyType="search"
+          autoCorrect={false}
+          style={styles.searchInput}
+        />
+        {searchText.length > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+            onPress={() => setSearchText("")}
+            hitSlop={8}
+          >
+            <Ionicons
+              name="close-circle"
+              size={16}
+              color={colors.mutedForeground}
+            />
+          </Pressable>
+        ) : null}
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open filters"
+        onPress={() => setFiltersOpen(true)}
+        style={({ pressed }) => [
+          styles.filterButton,
+          activeFilterCount > 0 && styles.filterButtonActive,
+          pressed && { opacity: 0.8 },
+        ]}
+      >
+        <Ionicons
+          name="options-outline"
+          size={18}
+          color={
+            activeFilterCount > 0 ? colors.primaryForeground : colors.foreground
+          }
+        />
+        {activeFilterCount > 0 ? (
+          <Text style={styles.filterCount}>{activeFilterCount}</Text>
+        ) : null}
+      </Pressable>
+    </View>
+  );
 
   const chips = (
     <ScrollView
@@ -94,12 +185,12 @@ export default function MarketplaceScreen() {
       contentContainerStyle={styles.chipsContent}
     >
       {LISTING_CATEGORIES.map((category) => {
-        const active = category === activeCategory;
+        const active = category === filters.category;
         return (
           <Pressable
             key={category}
             accessibilityRole="button"
-            onPress={() => setActiveCategory(category)}
+            onPress={() => setFilters((prev) => ({ ...prev, category }))}
             style={[styles.chip, active && styles.chipActive]}
           >
             <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
@@ -119,6 +210,7 @@ export default function MarketplaceScreen() {
           headerRight: () => <CreateListingHeaderButton />,
         }}
       />
+      {searchBar}
       {chips}
       {listingsQuery.isPending ? (
         <View style={styles.listContent}>
@@ -162,17 +254,27 @@ export default function MarketplaceScreen() {
           )}
           ListEmptyComponent={
             <EmptyState
-              title="No listings"
+              title={
+                debouncedSearch || activeFilterCount > 0
+                  ? "No matches"
+                  : "No listings"
+              }
               description={
-                activeCategory === "All"
-                  ? "Items for sale will show up here."
-                  : `Nothing in ${activeCategory} right now.`
+                debouncedSearch || activeFilterCount > 0
+                  ? "Try a different search term or filters."
+                  : "Items for sale will show up here."
               }
             />
           }
           contentContainerStyle={styles.listContent}
         />
       )}
+      <MarketplaceFilterSheet
+        visible={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        filters={filters}
+        onApply={setFilters}
+      />
     </View>
   );
 }
@@ -196,6 +298,51 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    paddingHorizontal: spacing(4),
+    paddingTop: spacing(3),
+  },
+  searchWrap: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    minHeight: 40,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing(3),
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.foreground,
+    fontSize: 14,
+    paddingVertical: spacing(2),
+  },
+  filterButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(1),
+    minHeight: 40,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing(2.5),
+  },
+  filterButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterCount: {
+    color: colors.primaryForeground,
+    fontSize: 12,
+    fontWeight: "700",
   },
   chipsBar: {
     flexGrow: 0,

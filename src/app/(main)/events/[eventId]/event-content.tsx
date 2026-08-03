@@ -13,6 +13,7 @@ import {
   GlobeIcon,
   LinkIcon,
   UsersIcon,
+  CalendarPlusIcon,
   CheckCircle2Icon,
   StarIcon,
   XCircleIcon,
@@ -42,9 +43,11 @@ import {
   postEventComment,
   deleteEventComment,
   deleteEvent,
+  getFriendsGoing,
   type EventWithCreator,
   type EventAttendee,
   type EventComment,
+  type FriendsGoing,
 } from "@/lib/queries/events";
 import {
   DropdownMenu,
@@ -57,6 +60,51 @@ import { OrbitErrorState } from "@/components/orbit/error-state";
 import { MoreHorizontal } from "lucide-react";
 
 type RsvpStatus = "going" | "interested" | "not_going" | null;
+
+// ICS TEXT values escape backslash, semicolon, comma, and newlines (RFC 5545).
+function escapeIcsText(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\r?\n/g, "\\n");
+}
+
+function toIcsUtc(date: Date): string {
+  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+}
+
+const DEFAULT_EVENT_DURATION_MS = 60 * 60 * 1000;
+
+function buildEventIcs(event: EventWithCreator): string {
+  const start = new Date(event.start_at);
+  // Calendar apps want a real end; fall back to one hour for open-ended events.
+  const end = event.end_at
+    ? new Date(event.end_at)
+    : new Date(start.getTime() + DEFAULT_EVENT_DURATION_MS);
+  const location = event.is_online
+    ? event.online_url || "Online"
+    : event.location || "";
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Orbit//Events//EN",
+    "BEGIN:VEVENT",
+    `UID:orbit-event-${event.id}`,
+    `DTSTAMP:${toIcsUtc(new Date())}`,
+    `DTSTART:${toIcsUtc(start)}`,
+    `DTEND:${toIcsUtc(end)}`,
+    `SUMMARY:${escapeIcsText(event.title)}`,
+    location ? `LOCATION:${escapeIcsText(location)}` : null,
+    event.description
+      ? `DESCRIPTION:${escapeIcsText(event.description)}`
+      : null,
+    `URL:${window.location.origin}/events/${event.id}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].filter((line): line is string => line !== null);
+  return lines.join("\r\n");
+}
 
 export function EventContent({ eventId }: { eventId: string }) {
   const router = useRouter();
@@ -71,6 +119,7 @@ export function EventContent({ eventId }: { eventId: string }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [rsvpLoading, setRsvpLoading] = useState(false);
+  const [friendsGoing, setFriendsGoing] = useState<FriendsGoing | null>(null);
 
   const [comments, setComments] = useState<EventComment[]>([]);
   const [commentInput, setCommentInput] = useState("");
@@ -106,8 +155,12 @@ export function EventContent({ eventId }: { eventId: string }) {
         setLoadError(false);
 
         if (user) {
-          const status = await getUserRsvpStatus(eventId, user.id);
+          const [status, friends] = await Promise.all([
+            getUserRsvpStatus(eventId, user.id),
+            getFriendsGoing(eventId, user.id),
+          ]);
           setRsvpStatus(status);
+          setFriendsGoing(friends);
         }
       } catch (err) {
         console.error("Failed to load event:", err);
@@ -287,6 +340,19 @@ export function EventContent({ eventId }: { eventId: string }) {
     } finally {
       setCommentSending(false);
     }
+  }
+
+  function handleAddToCalendar() {
+    if (!event) return;
+    const blob = new Blob([buildEventIcs(event)], {
+      type: "text/calendar;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${event.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "event"}.ics`;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
   function startReply(comment: EventComment) {
@@ -516,6 +582,32 @@ export function EventContent({ eventId }: { eventId: string }) {
           </span>
         </button>
 
+        {/* Friends going */}
+        {friendsGoing && friendsGoing.count > 0 && (
+          <div className="flex items-center gap-3">
+            <div className="flex -space-x-2">
+              {friendsGoing.profiles.map((profile) => (
+                <div
+                  key={profile.id}
+                  className="ring-2 ring-background rounded-full"
+                  title={profile.display_name || profile.username}
+                >
+                  <UserAvatar
+                    src={profile.avatar_url}
+                    fallback={profile.display_name || profile.username}
+                    size="sm"
+                  />
+                </div>
+              ))}
+            </div>
+            <span className="text-sm text-muted-foreground">
+              {friendsGoing.count === 1
+                ? "1 person you follow is going"
+                : `${formatNumber(friendsGoing.count)} people you follow are going`}
+            </span>
+          </div>
+        )}
+
         {/* RSVP buttons */}
         <div className="flex gap-2">
           <Button
@@ -549,6 +641,16 @@ export function EventContent({ eventId }: { eventId: string }) {
             Can&apos;t Go
           </Button>
         </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={handleAddToCalendar}
+        >
+          <CalendarPlusIcon className="h-4 w-4" />
+          Add to calendar
+        </Button>
 
         {/* Description */}
         {event.description && (

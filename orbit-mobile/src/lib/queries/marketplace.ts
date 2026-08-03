@@ -20,6 +20,7 @@ export interface ListingWithSeller {
     display_name: string;
     avatar_url: string | null;
     is_verified: boolean;
+    created_at: string;
   };
   listing_images: ListingImage[];
 }
@@ -41,26 +42,67 @@ export const LISTING_CATEGORIES = [
   "Other",
 ] as const;
 
+// Same condition set as the web create dialog.
+export const LISTING_CONDITIONS = [
+  "New",
+  "Like New",
+  "Good",
+  "Fair",
+  "Poor",
+] as const;
+
+export type ListingSort = "newest" | "price_asc" | "price_desc";
+
+export interface ListingFilters {
+  search?: string;
+  category?: string;
+  condition?: string;
+  priceMin?: number;
+  priceMax?: number;
+  sort?: ListingSort;
+}
+
 const LISTING_SELECT = `
   *,
   profiles!listings_seller_id_fkey (
-    id, username, display_name, avatar_url, is_verified
+    id, username, display_name, avatar_url, is_verified, created_at
   ),
   listing_images (
     id, listing_id, url, sort_order
   )
 `;
 
-export async function getListings(category?: string, limit = 30) {
+export async function getListings(filters: ListingFilters = {}, limit = 30) {
   let query = supabase
     .from("listings")
     .select(LISTING_SELECT)
     .eq("status", "active")
-    .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (category) {
-    query = query.eq("category", category);
+  const search = filters.search?.trim();
+  if (search) {
+    // Same ilike pair as web searchListings so both clients match identically.
+    query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+  }
+  if (filters.category) {
+    query = query.eq("category", filters.category);
+  }
+  if (filters.condition) {
+    query = query.eq("condition", filters.condition);
+  }
+  if (filters.priceMin != null) {
+    query = query.gte("price", filters.priceMin);
+  }
+  if (filters.priceMax != null) {
+    query = query.lte("price", filters.priceMax);
+  }
+
+  if (filters.sort === "price_asc") {
+    query = query.order("price", { ascending: true });
+  } else if (filters.sort === "price_desc") {
+    query = query.order("price", { ascending: false });
+  } else {
+    query = query.order("created_at", { ascending: false });
   }
 
   const { data, error } = await query;
@@ -143,6 +185,27 @@ export async function uploadListingImage(
     data: { publicUrl },
   } = supabase.storage.from("listing-images").getPublicUrl(filePath);
   return publicUrl;
+}
+
+export async function updateListingStatus(
+  listingId: string,
+  status: "active" | "sold" | "removed" | "draft",
+) {
+  const { error } = await supabase
+    .from("listings")
+    .update({ status })
+    .eq("id", listingId);
+
+  if (error) throw error;
+}
+
+export async function deleteListing(listingId: string) {
+  const { error } = await supabase
+    .from("listings")
+    .delete()
+    .eq("id", listingId);
+
+  if (error) throw error;
 }
 
 // Same RPC the web listing page uses for "Message seller": returns the

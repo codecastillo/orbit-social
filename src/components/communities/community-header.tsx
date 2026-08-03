@@ -17,6 +17,7 @@ import {
   Pencil,
   Link2,
   UsersRound,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -40,6 +41,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CommunityMembersDialog } from "@/components/communities/members-dialog";
+import { InviteMembersDialog } from "@/components/communities/invite-members-dialog";
 import { ImageCropper } from "@/components/shared/image-cropper";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
@@ -80,6 +82,7 @@ export function CommunityHeader({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState(community.name);
   const [editDescription, setEditDescription] = useState(
@@ -145,6 +148,8 @@ export function CommunityHeader({
   const isCreator = !!user && user.id === community.created_by;
   const isMember = userRole !== null || isCreator;
   const isOwner = userRole === "owner" || isCreator;
+  // Moderators get a reduced menu: invite + copy link, no destructive items.
+  const isMod = userRole === "moderator";
   const policy = community.join_policy ?? "public";
 
   // Realtime: live member_count + roster updates.
@@ -379,7 +384,7 @@ export function CommunityHeader({
               )}
               {buttonLabel}
             </Button>
-            {isOwner && (
+            {(isOwner || isMod) && (
               <DropdownMenu>
                 <DropdownMenuTrigger
                   aria-label="Room options"
@@ -390,23 +395,34 @@ export function CommunityHeader({
                   <MoreHorizontal className="h-4 w-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 rounded-2xl">
+                  {isOwner && (
+                    <>
+                      <DropdownMenuItem
+                        className="cursor-pointer rounded-lg"
+                        onClick={() => {
+                          setEditName(community.name);
+                          setEditDescription(community.description || "");
+                          setEditOpen(true);
+                        }}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="cursor-pointer rounded-lg"
+                        onClick={() => setMembersOpen(true)}
+                      >
+                        <UsersRound className="mr-2 h-4 w-4" />
+                        Manage members
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuItem
                     className="cursor-pointer rounded-lg"
-                    onClick={() => {
-                      setEditName(community.name);
-                      setEditDescription(community.description || "");
-                      setEditOpen(true);
-                    }}
+                    onClick={() => setInviteOpen(true)}
                   >
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Edit details
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="cursor-pointer rounded-lg"
-                    onClick={() => setMembersOpen(true)}
-                  >
-                    <UsersRound className="mr-2 h-4 w-4" />
-                    Manage members
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Invite people
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="cursor-pointer rounded-lg"
@@ -419,15 +435,19 @@ export function CommunityHeader({
                     <Link2 className="mr-2 h-4 w-4" />
                     Copy room link
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    variant="destructive"
-                    className="cursor-pointer rounded-lg"
-                    onClick={() => setConfirmDelete(true)}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete room
-                  </DropdownMenuItem>
+                  {isOwner && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant="destructive"
+                        className="cursor-pointer rounded-lg"
+                        onClick={() => setConfirmDelete(true)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete room
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -536,6 +556,13 @@ export function CommunityHeader({
         communityId={community.id}
         isOwner={isOwner}
         currentUserId={user?.id}
+      />
+
+      <InviteMembersDialog
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        communityId={community.id}
+        communityName={community.name}
       />
 
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
