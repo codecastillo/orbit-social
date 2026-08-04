@@ -106,6 +106,26 @@ export const WHO_CAN_COMMENT_LABELS: Record<WhoCanComment, string> = {
   nobody: "No one",
 };
 
+/**
+ * Local state seeded from `incoming` that the card can also mutate optimistically,
+ * reset whenever a fresh `incoming` arrives. Counts and interaction flags land
+ * after the first paint (a refetch on /post/:id, checkUserInteractions on the
+ * profile tabs), and without the reset the stale seed would win and the count
+ * would look like it disappeared. Adjusted during render per the React
+ * "adjusting state when a prop changes" pattern rather than in an effect.
+ */
+function useMirroredState<T>(
+  incoming: T
+): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [value, setValue] = useState(incoming);
+  const [prevIncoming, setPrevIncoming] = useState(incoming);
+  if (incoming !== prevIncoming) {
+    setPrevIncoming(incoming);
+    setValue(incoming);
+  }
+  return [value, setValue];
+}
+
 /** Owner-only chooser for posts.who_can_comment after publishing. */
 function CommentControlsDialog({
   post,
@@ -224,31 +244,47 @@ export const PostCard = memo(function PostCard({
   const router = useRouter();
   const queryClient = useQueryClient();
   const setComposeOpen = useUIStore((s) => s.setComposeOpen);
-  const [isLiked, setIsLiked] = useState(initialIsLiked);
-  const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked);
-  const [isReposted, setIsReposted] = useState(initialIsReposted);
-  const [likeCount, setLikeCount] = useState(post.like_count);
-  const [repostCount, setRepostCount] = useState(post.repost_count);
-  const [bookmarkCount, setBookmarkCount] = useState(post.bookmark_count);
-  const [shareCount, setShareCount] = useState(post.share_count ?? 0);
   const [animateHeart, setAnimateHeart] = useState(false);
 
-  // Sync interaction state when props change (e.g., when interactions load async)
-  useEffect(() => { setIsLiked(initialIsLiked); }, [initialIsLiked]);
-  useEffect(() => { setIsBookmarked(initialIsBookmarked); }, [initialIsBookmarked]);
-  useEffect(() => { setIsReposted(initialIsReposted); }, [initialIsReposted]);
-  // Keep local counts in sync when the post prop changes (e.g., refetch
-  // after navigating to /post/:id). Without this, a fresh authoritative
-  // count from the server would be ignored in favor of the initial
-  // useState value, making the count look like it "disappeared".
-  useEffect(() => { setLikeCount(post.like_count); }, [post.like_count]);
-  useEffect(() => { setRepostCount(post.repost_count); }, [post.repost_count]);
-  useEffect(() => { setBookmarkCount(post.bookmark_count); }, [post.bookmark_count]);
+  // Repost/quote: load the parent post. A repost swaps the whole card to
+  // the original; a quote keeps its own body and embeds the parent as an
+  // inset QuotedPostCard.
+  const [originalPost, setOriginalPost] = useState<PostWithAuthor | null>(null);
+  const isRepostType = post.type === "repost" && post.parent_post_id;
+  const isQuoteType = post.type === "quote";
+
+  // For reposts, the heart/bookmark and counts shown on the card belong to
+  // the *original* post (that's what the viewer is reading), so once it loads
+  // the counts track it instead of the empty repost row.
+  const countSource = isRepostType && originalPost ? originalPost : post;
+  // A signed-out viewer has no interaction of their own on the original, and
+  // the repost row's flags say nothing about it.
+  const repostViewedSignedOut = Boolean(isRepostType && originalPost && !user);
+
+  const [isLiked, setIsLiked] = useMirroredState(
+    repostViewedSignedOut ? false : initialIsLiked
+  );
+  const [isBookmarked, setIsBookmarked] = useMirroredState(
+    repostViewedSignedOut ? false : initialIsBookmarked
+  );
+  const [isReposted, setIsReposted] = useMirroredState(initialIsReposted);
+  const [likeCount, setLikeCount] = useMirroredState(countSource.like_count);
+  const [repostCount, setRepostCount] = useMirroredState(countSource.repost_count);
+  const [bookmarkCount, setBookmarkCount] = useMirroredState(
+    countSource.bookmark_count
+  );
+
   // Share count grows monotonically; never let a stale refetch clobber an
-  // optimistic local bump back to a smaller number.
-  useEffect(() => {
-    setShareCount((prev) => Math.max(prev, post.share_count ?? 0));
-  }, [post.share_count]);
+  // optimistic local bump back to a smaller number, so it mirrors by hand.
+  const incomingShareCount = post.share_count ?? 0;
+  const [shareCount, setShareCount] = useState(incomingShareCount);
+  const [prevIncomingShareCount, setPrevIncomingShareCount] =
+    useState(incomingShareCount);
+  if (incomingShareCount !== prevIncomingShareCount) {
+    setPrevIncomingShareCount(incomingShareCount);
+    setShareCount((prev) => Math.max(prev, incomingShareCount));
+  }
+
   const [shareOpen, setShareOpen] = useState(false);
   const [blockMuteOpen, setBlockMuteOpen] = useState(false);
   const [blockMuteAction, setBlockMuteAction] = useState<"block" | "mute">("block");
@@ -269,34 +305,17 @@ export const PostCard = memo(function PostCard({
   const [userReaction, setUserReaction] = useState<ReactionType | null>(null);
   const [reactionCounts, setReactionCounts] = useState<ReactionCount[]>([]);
 
-  // Repost/quote: load the parent post. A repost swaps the whole card to
-  // the original; a quote keeps its own body and embeds the parent as an
-  // inset QuotedPostCard.
-  const [originalPost, setOriginalPost] = useState<PostWithAuthor | null>(null);
-  const isRepostType = post.type === "repost" && post.parent_post_id;
-  const isQuoteType = post.type === "quote";
-
   useEffect(() => {
     if ((isRepostType || isQuoteType) && post.parent_post_id) {
       loadPostById(post.parent_post_id).then(setOriginalPost).catch(() => {});
     }
   }, [isRepostType, isQuoteType, post.parent_post_id]);
 
-  // For reposts, the heart/bookmark and counts shown on the card belong to
-  // the *original* post (that's what the viewer is reading). Re-derive
-  // viewer interaction state from the original once it loads, otherwise
-  // the icons reflect the empty repost row and look unliked even when the
-  // viewer has liked the original elsewhere.
+  // Re-derive viewer interaction state from the original once it loads,
+  // otherwise the icons reflect the empty repost row and look unliked even
+  // when the viewer has liked the original elsewhere.
   useEffect(() => {
-    if (!isRepostType || !originalPost) return;
-    setLikeCount(originalPost.like_count);
-    setBookmarkCount(originalPost.bookmark_count);
-    setRepostCount(originalPost.repost_count);
-    if (!user) {
-      setIsLiked(false);
-      setIsBookmarked(false);
-      return;
-    }
+    if (!isRepostType || !originalPost || !user) return;
     loadUserInteractions(user.id, originalPost.id)
       .then(({ liked, bookmarked, reposted }) => {
         setIsLiked(liked);
@@ -304,7 +323,7 @@ export const PostCard = memo(function PostCard({
         setIsReposted(reposted);
       })
       .catch(() => {});
-  }, [isRepostType, originalPost, user]);
+  }, [isRepostType, originalPost, user, setIsLiked, setIsBookmarked, setIsReposted]);
 
   // Load reactions (batched: every card mounting in the same tick shares
   // one query instead of two requests apiece)
@@ -467,10 +486,10 @@ export const PostCard = memo(function PostCard({
         toast.success("Reposted!");
       }
       onUpdate?.();
-    } catch (err: any) {
+    } catch (err) {
       setIsReposted(was);
       setRepostCount((c) => (was ? c + 1 : c - 1));
-      if (err?.message === "Already reposted") {
+      if (err instanceof Error && err.message === "Already reposted") {
         toast.error("You already reposted this");
       } else {
         toast.error("Couldn't repost");
@@ -626,8 +645,8 @@ export const PostCard = memo(function PostCard({
         setPollData(updated);
       }
       toast.success("Vote recorded!");
-    } catch (err: any) {
-      if (err?.message === "Already voted") {
+    } catch (err) {
+      if (err instanceof Error && err.message === "Already voted") {
         toast.error("You already voted on this poll");
       } else {
         toast.error("Couldn't vote");

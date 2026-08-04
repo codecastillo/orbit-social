@@ -271,12 +271,17 @@ function CommentRow({
   // updates comment.like_count, and refetches comment-likes which
   // updates initialLiked). Without this, comment heart counts only
   // reflect the local interaction and never see other users' likes.
-  useEffect(() => {
-    setLikeCount(comment.like_count ?? 0);
-  }, [comment.like_count]);
-  useEffect(() => {
+  const authoritativeLikeCount = comment.like_count ?? 0;
+  const [prevLikeCount, setPrevLikeCount] = useState(authoritativeLikeCount);
+  if (authoritativeLikeCount !== prevLikeCount) {
+    setPrevLikeCount(authoritativeLikeCount);
+    setLikeCount(authoritativeLikeCount);
+  }
+  const [prevInitialLiked, setPrevInitialLiked] = useState(initialLiked);
+  if (initialLiked !== prevInitialLiked) {
+    setPrevInitialLiked(initialLiked);
     setLiked(initialLiked);
-  }, [initialLiked]);
+  }
 
   // Render-time adjust: when the sheet reports a reply landed under this
   // comment, the thread opens so the fresh reply is visible (the reply
@@ -431,12 +436,17 @@ function ReplyRow({
   // Mirror the CommentRow re-seed: realtime CDC bumps reply.like_count
   // on the parent's refetch, but this child component otherwise sticks
   // to its first-render values.
-  useEffect(() => {
-    setLikeCount(reply.like_count ?? 0);
-  }, [reply.like_count]);
-  useEffect(() => {
+  const authoritativeLikeCount = reply.like_count ?? 0;
+  const [prevLikeCount, setPrevLikeCount] = useState(authoritativeLikeCount);
+  if (authoritativeLikeCount !== prevLikeCount) {
+    setPrevLikeCount(authoritativeLikeCount);
+    setLikeCount(authoritativeLikeCount);
+  }
+  const [prevInitialLiked, setPrevInitialLiked] = useState(initialLiked);
+  if (initialLiked !== prevInitialLiked) {
+    setPrevInitialLiked(initialLiked);
     setLiked(initialLiked);
-  }, [initialLiked]);
+  }
 
   const handleLike = async () => {
     if (!requireAuth() || !user) return;

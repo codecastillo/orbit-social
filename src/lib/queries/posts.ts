@@ -240,6 +240,10 @@ export async function createPost(
   return post;
 }
 
+// Past this many follows the Following tab needs a server-side join rather
+// than an IN list, so the graph is read in a bounded slice.
+const FOLLOWING_IDS_LIMIT = 1000;
+
 export async function getFeedPosts(
   userId: string,
   tab: "foryou" | "following",
@@ -263,14 +267,11 @@ export async function getFeedPosts(
   }
 
   if (tab === "following") {
-    // Get user's following list first. Bounded so a huge follow graph
-    // can't blow up every page load; past this the tab needs a
-    // server-side join instead of an IN list.
     const { data: following } = await supabase
       .from("follows")
       .select("following_id")
       .eq("follower_id", userId)
-      .limit(1000);
+      .limit(FOLLOWING_IDS_LIMIT);
 
     const followingIds = following?.map((f) => f.following_id) || [];
     followingIds.push(userId); // Include own posts
@@ -286,7 +287,7 @@ export async function getFeedPosts(
   // Filter close_friends posts: only show if the viewer is in the poster's close_friends list
   const posts = data as unknown as PostWithAuthor[];
   const closeFriendsPosts = posts.filter(
-    (p: any) => p.visibility === "close_friends" && p.user_id !== userId
+    (p) => p.visibility === "close_friends" && p.user_id !== userId
   );
 
   if (closeFriendsPosts.length > 0) {
@@ -302,7 +303,7 @@ export async function getFeedPosts(
       (cfData ?? []).map((cf) => cf.user_id)
     );
 
-    return posts.filter((p: any) => {
+    return posts.filter((p) => {
       if (p.visibility !== "close_friends") return true;
       if (p.user_id === userId) return true;
       return allowedPosterIds.has(p.user_id);
@@ -310,6 +311,51 @@ export async function getFeedPosts(
   }
 
   return posts;
+}
+
+/**
+ * created_at of the newest post this viewer's feed would show, or null when
+ * the feed is empty. Selected on its own so the freshness check behind the
+ * "New posts" pill costs one indexed row instead of a whole page.
+ *
+ * Close-friends filtering is deliberately skipped: it happens client-side
+ * after the fetch, and the worst case here is a pill that scrolls the user
+ * to a feed that looks unchanged.
+ */
+export async function getNewestFeedPostAt(
+  userId: string | null,
+  tab: "foryou" | "following"
+): Promise<string | null> {
+  let query = supabase
+    .from("posts")
+    .select("created_at")
+    .is("reply_to_id", null)
+    .is("community_id", null)
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (!userId) {
+    // Same shape as getPublicTimeline, which is what anon viewers read.
+    query = query.eq("visibility", "public").not("type", "in", "(reel,repost)");
+  } else {
+    query = query.not("type", "eq", "reel");
+    if (tab === "following") {
+      const { data: following } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", userId)
+        .limit(FOLLOWING_IDS_LIMIT);
+
+      const followingIds = following?.map((f) => f.following_id) ?? [];
+      followingIds.push(userId);
+      query = query.in("user_id", followingIds);
+    }
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return data?.created_at ?? null;
 }
 
 // Public timeline: newest non-private posts platform-wide. Used for anon

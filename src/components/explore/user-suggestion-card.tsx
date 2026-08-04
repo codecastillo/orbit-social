@@ -16,16 +16,28 @@ import { toast } from "sonner";
 interface UserSuggestionCardProps {
   profile: ProfileSummary;
   initialFollowState?: FollowState;
+  /** Fires when the viewer opens this profile from the row. */
+  onOpen?: () => void;
   className?: string;
 }
 
 export function UserSuggestionCard({
   profile,
   initialFollowState = "none",
+  onOpen,
   className,
 }: UserSuggestionCardProps) {
   const { user } = useAuth();
   const [followState, setFollowState] = useState(initialFollowState);
+  // Callers batch the real state and hand it down once it resolves. Adopting
+  // it during render (React's documented prop-change pattern) rather than in
+  // an effect keeps the button from flashing "Follow" at someone the viewer
+  // already follows.
+  const [seededState, setSeededState] = useState(initialFollowState);
+  if (initialFollowState !== seededState) {
+    setSeededState(initialFollowState);
+    setFollowState(initialFollowState);
+  }
   const isOwnProfile = user?.id === profile.id;
 
   const handleToggleFollow = async () => {
@@ -50,7 +62,7 @@ export function UserSuggestionCard({
         className
       )}
     >
-      <Link href={`/${profile.username}`} className="shrink-0">
+      <Link href={`/${profile.username}`} onClick={onOpen} className="shrink-0">
         <UserAvatar
           src={profile.avatar_url}
           fallback={profile.display_name}
@@ -59,7 +71,7 @@ export function UserSuggestionCard({
       </Link>
 
       <div className="flex-1 min-w-0">
-        <Link href={`/${profile.username}`} className="block">
+        <Link href={`/${profile.username}`} onClick={onOpen} className="block">
           <p className="font-semibold text-sm truncate hover:underline">
             {profile.display_name}
           </p>

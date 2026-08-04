@@ -237,6 +237,9 @@ export default function OwnProfileScreen() {
         userId={profile.id}
         username={profile.username}
         onPressPost={(postId) => router.push(`/post/${postId}`)}
+        onRefresh={() =>
+          Promise.all([refetch(), draftsQuery.refetch(), scheduledQuery.refetch()])
+        }
         shortcuts={gridShortcuts}
       />
 

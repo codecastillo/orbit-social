@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
   useMutation,
@@ -432,7 +439,21 @@ export default function PublicProfileScreen() {
         }}
       />
       {isLocked ? (
-        <ScrollView contentContainerStyle={styles.lockedBody}>
+        // A pull here is how someone finds out their follow request was
+        // approved without leaving and coming back.
+        <ScrollView
+          contentContainerStyle={styles.lockedBody}
+          refreshControl={
+            <RefreshControl
+              refreshing={followStateQuery.isRefetching}
+              onRefresh={() => {
+                profileQuery.refetch();
+                followStateQuery.refetch();
+              }}
+              tintColor={colors.mutedForeground}
+            />
+          }
+        >
           {profileHeader}
           <View style={styles.lockCard}>
             <Text style={styles.lockTitle}>This account is private.</Text>
@@ -453,6 +474,9 @@ export default function PublicProfileScreen() {
           userId={profile.id}
           username={profile.username}
           onPressPost={(postId) => router.push(`/post/${postId}`)}
+          onRefresh={() =>
+            Promise.all([profileQuery.refetch(), followStateQuery.refetch()])
+          }
         />
       )}
       {/* Same entity_type and target as the web profile report dialog. */}

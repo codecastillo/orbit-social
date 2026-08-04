@@ -42,15 +42,22 @@ export function QRCodeDialog({
     return `${window.location.origin}/${username}`;
   }, [username]);
 
+  // Clear the code once there is nothing to render it for, so a reopen never
+  // flashes the previous profile's QR. Adjusted during render per the React
+  // "adjusting state when a prop changes" pattern.
+  const qrTarget = open ? profileUrl : "";
+  const [prevQrTarget, setPrevQrTarget] = useState(qrTarget);
+  if (qrTarget !== prevQrTarget) {
+    setPrevQrTarget(qrTarget);
+    if (!qrTarget) setQrDataUrl(null);
+  }
+
   // Generate a real, scannable QR as a PNG data URL. Using toCanvas with a
   // ref had a race where the canvas wasn't mounted in time inside the
   // Dialog, so the box came up blank. toDataURL avoids the ref entirely.
   useEffect(() => {
     let cancelled = false;
-    if (!open || !profileUrl) {
-      setQrDataUrl(null);
-      return;
-    }
+    if (!open || !profileUrl) return;
     QRCode.toDataURL(profileUrl, {
       errorCorrectionLevel: "M",
       margin: 1,

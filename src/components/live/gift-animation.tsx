@@ -8,13 +8,21 @@ interface GiftAnimationProps {
   onComplete: (id: string) => void;
 }
 
+// Spread simultaneous gifts across 20% to 80% of the width. Derived from the
+// gift id rather than Math.random so render stays pure and a gift keeps its
+// lane if the list re-renders mid-flight.
+function laneFromId(id: string): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  return 20 + (Math.abs(hash) % 61);
+}
+
 export function GiftAnimation({ gifts, onComplete }: GiftAnimationProps) {
   return (
     <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
       <AnimatePresence>
         {gifts.map((sentGift) => {
-          // Randomize horizontal position so simultaneous gifts spread out
-          const xStart = 20 + Math.random() * 60; // 20% to 80% of width
+          const xStart = laneFromId(sentGift.id);
 
           return (
             <motion.div

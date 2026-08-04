@@ -299,7 +299,7 @@ export default function SecurityPage() {
                 </span>
               </div>
               <p className="mb-3.5 text-xs leading-normal text-muted-foreground">
-                Keep these in a safe place. You'll need one if you lose your authenticator.
+                Keep these in a safe place. You&rsquo;ll need one if you lose your authenticator.
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {recoveryCodes.map((code) => (

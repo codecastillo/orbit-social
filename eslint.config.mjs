@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Expo ships reset-project.js as a CommonJS template we do not maintain.
+    // The mobile app's own source is linted with this same config.
+    "orbit-mobile/scripts/**",
   ]),
   {
     // Editor-time nudge during the refined-dark migration; the blocking

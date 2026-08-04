@@ -95,8 +95,11 @@ export function CommunityContent({ slug }: { slug: string }) {
 
   const communityRules = community?.rules ?? [];
   const [rulesAccepted, setRulesAccepted] = useState(false);
+  // localStorage is unreadable during the server render, so the acceptance
+  // flag has to be pulled in after hydration rather than seeded in render.
   useEffect(() => {
     if (!user || !community) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRulesAccepted(
       window.localStorage.getItem(rulesAcceptedKey(user.id, community.id)) === "1"
     );

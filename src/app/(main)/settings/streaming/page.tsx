@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createElement, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Radio,
@@ -36,12 +36,18 @@ import { LanguagePicker } from "@/components/live/language-picker";
 const CATEGORY_BY_SLUG: Record<string, (typeof LIVE_CATEGORIES)[number]> =
   Object.fromEntries(LIVE_CATEGORIES.map((c) => [c.slug, c]));
 
-function resolveLucideIcon(name: string) {
-  const lookup = Icons as unknown as Record<
-    string,
-    React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>
-  >;
+type GlyphProps = { size?: number; className?: string; style?: React.CSSProperties };
+
+function resolveLucideIcon(name: string): React.ComponentType<GlyphProps> {
+  const lookup = Icons as unknown as Record<string, React.ComponentType<GlyphProps>>;
   return lookup[name] ?? Sparkles;
+}
+
+// The icon is picked from category data, so it can only be resolved once the
+// name is known. createElement keeps that out of JSX, where a locally bound
+// component reads as one defined during render.
+function LucideGlyph({ name, ...props }: GlyphProps & { name: string }) {
+  return createElement(resolveLucideIcon(name), props);
 }
 
 interface Credentials {
@@ -539,7 +545,6 @@ function CategoryPickerButton({
       </>
     );
   } else if (cat) {
-    const Icon = resolveLucideIcon(cat.iconName);
     inner = (
       <>
         <span
@@ -550,7 +555,7 @@ function CategoryPickerButton({
             color: `oklch(0.85 0.16 ${cat.hue})`,
           }}
         >
-          <Icon size={14} />
+          <LucideGlyph name={cat.iconName} size={14} />
         </span>
         <span className="text-[13px] font-bold text-foreground">{cat.label}</span>
       </>

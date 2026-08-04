@@ -14,7 +14,10 @@ import { OrbitEmptyState } from "@/components/orbit/empty-state";
 import { OrbitErrorState } from "@/components/orbit/error-state";
 import { useNotifications, useUnreadCount } from "@/lib/hooks/use-notifications";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { markAllAsRead } from "@/lib/queries/notifications";
+import {
+  markAllAsRead,
+  type NotificationWithActor,
+} from "@/lib/queries/notifications";
 import { getIncomingFollowRequests } from "@/lib/queries/social";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -28,9 +31,13 @@ const FILTERS = [
 
 type FilterValue = (typeof FILTERS)[number]["value"];
 
-function isMatchingFilter(notif: any, filter: FilterValue): boolean {
+const FRESH_WINDOW_MS = 12 * 60 * 60 * 1000;
+
+function isMatchingFilter(notif: NotificationWithActor, filter: FilterValue): boolean {
   if (filter === "all") return true;
-  const t = notif.type;
+  // Widened to string so the tabs keep matching legacy notification types that
+  // are no longer emitted but still sit on older rows.
+  const t: string = notif.type;
   if (filter === "mentions") return t === "mention" || t === "reply";
   if (filter === "likes") return t === "like" || t === "reaction";
   if (filter === "follows") return t === "follow" || t === "follow_request";
@@ -165,8 +172,9 @@ export default function NotificationsPage() {
 
 function NotificationsList({ groups }: { groups: NotificationGroup[] }) {
   // Group by NEW vs EARLIER (created within last 12h). A collapsed group sits
-  // where its newest member does.
-  const cutoff = Date.now() - 1000 * 60 * 60 * 12;
+  // where its newest member does. The cutoff is pinned at mount so render
+  // stays pure; the list refetches (and remounts the boundary) on its own.
+  const [cutoff] = useState(() => Date.now() - FRESH_WINDOW_MS);
   const fresh: NotificationGroup[] = [];
   const earlier: NotificationGroup[] = [];
   groups.forEach((g) => {

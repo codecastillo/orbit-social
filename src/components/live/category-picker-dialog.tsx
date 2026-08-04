@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import * as Icons from "lucide-react";
 import { Search, X, ChevronDown } from "lucide-react";
 import {
@@ -42,14 +42,27 @@ export function CategoryPickerDialog({ open, onOpenChange, value, onSave }: Prop
   const [localGame, setLocalGame] = useState<string | null>(value.gameSlug);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  // Re-seed the draft selection from the saved value, adjusted during render
+  // so the first frame of an open already shows it instead of the leftovers
+  // from the last time the dialog was open.
+  const [prevSeed, setPrevSeed] = useState({
+    open,
+    category: value.category,
+    gameSlug: value.gameSlug,
+  });
+  if (
+    prevSeed.open !== open ||
+    prevSeed.category !== value.category ||
+    prevSeed.gameSlug !== value.gameSlug
+  ) {
+    setPrevSeed({ open, category: value.category, gameSlug: value.gameSlug });
     if (open) {
       setTab(value.gameSlug ? "games" : "categories");
       setQuery("");
       setLocalCategory(value.category);
       setLocalGame(value.gameSlug);
     }
-  }, [open, value.category, value.gameSlug]);
+  }
 
   const filteredCategories = useMemo(() => {
     const q = query.trim().toLowerCase();

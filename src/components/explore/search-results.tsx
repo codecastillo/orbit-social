@@ -8,13 +8,21 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { OrbitErrorState } from "@/components/orbit/error-state";
 import { PostCard } from "@/components/feed/post-card";
 import { UserSuggestionCard } from "@/components/explore/user-suggestion-card";
-import { searchUsers, searchPosts } from "@/lib/queries/social";
+import { useAuth } from "@/lib/hooks/use-auth";
+import {
+  checkFollowStates,
+  searchUsers,
+  searchPosts,
+} from "@/lib/queries/social";
 
 interface SearchResultsProps {
   query: string;
+  /** Records a profile the viewer opened from these results. */
+  onOpenProfile?: (username: string) => void;
 }
 
-export function SearchResults({ query }: SearchResultsProps) {
+export function SearchResults({ query, onOpenProfile }: SearchResultsProps) {
+  const { user } = useAuth();
   const {
     data: users,
     isLoading: usersLoading,
@@ -35,6 +43,15 @@ export function SearchResults({ query }: SearchResultsProps) {
     queryKey: ["search-posts", query],
     queryFn: () => searchPosts(query),
     enabled: query.length > 0,
+  });
+
+  // One lookup for the whole result page, so every row can show the right
+  // Follow / Requested / Following label without a round trip of its own.
+  const resultIds = (users ?? []).map((u) => u.id);
+  const { data: followStates } = useQuery({
+    queryKey: ["search-follow-states", user?.id, resultIds],
+    queryFn: () => checkFollowStates(user!.id, resultIds),
+    enabled: !!user && resultIds.length > 0,
   });
 
   return (
@@ -72,7 +89,12 @@ export function SearchResults({ query }: SearchResultsProps) {
         ) : (
           <div>
             {users.map((profile) => (
-              <UserSuggestionCard key={profile.id} profile={profile} />
+              <UserSuggestionCard
+                key={profile.id}
+                profile={profile}
+                initialFollowState={followStates?.get(profile.id) ?? "none"}
+                onOpen={() => onOpenProfile?.(profile.username)}
+              />
             ))}
           </div>
         )}

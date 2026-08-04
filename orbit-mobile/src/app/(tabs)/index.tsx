@@ -1,4 +1,11 @@
-import { Component, useCallback, useMemo, useState, type ReactNode } from "react";
+import {
+  Component,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -8,6 +15,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -30,7 +38,8 @@ import {
   useMutedWords,
   useNotInterestedIds,
 } from "@/lib/hooks/use-content-safety";
-import { colors, spacing } from "@/lib/theme";
+import { useNewPosts } from "@/lib/hooks/use-new-posts";
+import { colors, radii, spacing } from "@/lib/theme";
 
 // Clips is a lane here, not a feed query: selecting it swaps the whole
 // content area for the clips pager instead of changing the feed fetch.
@@ -140,6 +149,18 @@ export default function FeedScreen() {
     enabled: !!userId && displayIds.length > 0,
   });
 
+  // Freshness pill. The check runs against the unfiltered top of the fetched
+  // page, so muting someone cannot make the pill claim posts that will never
+  // render.
+  const listRef = useRef<FlatList<Post>>(null);
+  const newestLoadedAt = data?.pages[0]?.posts[0]?.created_at ?? null;
+  const hasNewPosts = useNewPosts(userId, feedTab, newestLoadedAt);
+
+  const jumpToNewPosts = () => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    refetch();
+  };
+
   const renderItem = ({ item }: { item: Post }) => {
     const displayId = displayPostId(item);
     return (
@@ -242,6 +263,7 @@ export default function FeedScreen() {
   } else {
     body = (
       <FlatList
+        ref={listRef}
         data={posts}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
@@ -275,6 +297,12 @@ export default function FeedScreen() {
             <View style={styles.footerLoader}>
               <ActivityIndicator size="small" color={colors.mutedForeground} />
             </View>
+          ) : !hasNextPage && posts.length > 0 ? (
+            <View style={styles.caughtUp}>
+              <View style={styles.caughtUpRule} />
+              <Text style={styles.caughtUpText}>You&apos;re all caught up</Text>
+              <View style={styles.caughtUpRule} />
+            </View>
           ) : null
         }
         contentContainerStyle={posts.length === 0 ? styles.emptyContent : undefined}
@@ -285,6 +313,17 @@ export default function FeedScreen() {
   return (
     <View style={styles.fill}>
       {body}
+      {hasNewPosts && !clipsLaneUp ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Show new posts"
+          onPress={jumpToNewPosts}
+          style={({ pressed }) => [styles.newPostsPill, pressed && { opacity: 0.85 }]}
+        >
+          <Ionicons name="arrow-up" size={13} color={colors.primaryForeground} />
+          <Text style={styles.newPostsLabel}>New posts</Text>
+        </Pressable>
+      ) : null}
       {clipsMounted ? (
         // Covers the feed instead of replacing it, so the feed's scroll
         // offset is untouched when the user comes back from Clips. Hiding
@@ -377,5 +416,38 @@ const styles = StyleSheet.create({
   },
   footerLoader: {
     paddingVertical: spacing(5),
+  },
+  caughtUp: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(3),
+    paddingHorizontal: spacing(5),
+    paddingVertical: spacing(7),
+  },
+  caughtUpRule: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+  },
+  caughtUpText: {
+    color: colors.mutedForeground,
+    fontSize: 12,
+  },
+  newPostsPill: {
+    position: "absolute",
+    top: spacing(3),
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(1.5),
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(2),
+    borderRadius: radii.full,
+    backgroundColor: colors.primary,
+  },
+  newPostsLabel: {
+    color: colors.primaryForeground,
+    fontSize: 12.5,
+    fontWeight: "700",
   },
 });

@@ -5,7 +5,6 @@ import { Heart, MessageCircle, Share2, Bookmark, Repeat } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useEffect } from "react";
 import { formatNumber } from "@/lib/utils/format";
 import {
   toggleLike,
@@ -92,24 +91,31 @@ export function ClipActions({
   // Own clips keep their count; the setting only hides other people's.
   const countsHidden = hideLikeCounts && authorId !== user?.id;
 
-  // Sync local count state when authoritative props update (realtime
-  // refetch from the parent feed after another user's interaction). For
-  // share count we only adopt the prop when it grows, never let a stale
-  // refetch clobber an optimistic local bump back to a smaller number.
-  useEffect(() => setLocalLikeCount(likeCount), [likeCount]);
-  useEffect(() => setLocalBookmarkCount(bookmarkCount), [bookmarkCount]);
-
-  // Render-time adjustment (not an effect): adopt the authoritative
-  // repost count when the prop changes, keeping optimistic bumps between
-  // refetches.
+  // Render-time adjustments (not effects): adopt the authoritative counts
+  // when the props update (realtime refetch from the parent feed after
+  // another user's interaction), keeping optimistic bumps between refetches.
+  const [prevLikeCount, setPrevLikeCount] = useState(likeCount);
+  if (likeCount !== prevLikeCount) {
+    setPrevLikeCount(likeCount);
+    setLocalLikeCount(likeCount);
+  }
+  const [prevBookmarkCount, setPrevBookmarkCount] = useState(bookmarkCount);
+  if (bookmarkCount !== prevBookmarkCount) {
+    setPrevBookmarkCount(bookmarkCount);
+    setLocalBookmarkCount(bookmarkCount);
+  }
   const [prevRepostCount, setPrevRepostCount] = useState(repostCount);
   if (repostCount !== prevRepostCount) {
     setPrevRepostCount(repostCount);
     setLocalRepostCount(repostCount);
   }
-  useEffect(() => {
+  // Share count only ever grows, so a stale refetch can't clobber an
+  // optimistic local bump back to a smaller number.
+  const [prevShareCount, setPrevShareCount] = useState(shareCount);
+  if (shareCount !== prevShareCount) {
+    setPrevShareCount(shareCount);
     setLocalShareCount((prev) => Math.max(prev, shareCount));
-  }, [shareCount]);
+  }
 
   const handleLike = async () => {
     if (!requireAuth() || !user) return;

@@ -148,7 +148,7 @@ export default function TrendingPage() {
           </div>
         ) : posts && posts.length > 0 ? (
           <div className="divide-y divide-border/30">
-            {posts.map((post: any) => (
+            {posts.map((post) => (
               <PostCard key={post.id} post={post} />
             ))}
           </div>

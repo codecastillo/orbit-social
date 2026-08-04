@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/utils/audio";
+
+const WAVEFORM_BAR_COUNT = 64;
 
 interface AudioPlayerProps {
   src: string;
@@ -20,16 +22,18 @@ export function AudioPlayer({ src, className }: AudioPlayerProps) {
   const [totalDuration, setTotalDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
 
-  // Generate stable waveform bars
-  const waveformBars = useMemo(() => {
+  // Decorative waveform. Seeded once per mount rather than per render so the
+  // bars stay put, and via a lazy initializer so the randomness stays out of
+  // the render pass.
+  const [waveformBars] = useState(() => {
     const bars: number[] = [];
-    for (let i = 0; i < 64; i++) {
+    for (let i = 0; i < WAVEFORM_BAR_COUNT; i++) {
       const base = 0.25 + Math.random() * 0.55;
-      const wave = Math.sin((i / 64) * Math.PI) * 0.2;
+      const wave = Math.sin((i / WAVEFORM_BAR_COUNT) * Math.PI) * 0.2;
       bars.push(Math.min(1, Math.max(0.08, base + wave)));
     }
     return bars;
-  }, []);
+  });
 
   useEffect(() => {
     const audio = audioRef.current;

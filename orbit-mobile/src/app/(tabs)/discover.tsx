@@ -4,6 +4,7 @@ import {
   FlatList,
   Pressable,
   Alert,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,15 +15,25 @@ import {
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
 import { Avatar, Button, EmptyState } from "@/components/ui";
 import {
   checkFollowingMany,
+  checkFollowStates,
   toggleFollowState,
   type FollowState,
 } from "@/lib/queries/profiles";
+import {
+  clearRecentSearches,
+  getRecentSearches,
+  recentSearchLabel,
+  rememberSearchQuery,
+  rememberVisitedUser,
+  removeRecentSearch,
+  type RecentSearch,
+} from "@/lib/recent-searches";
 import {
   followPackMembers,
   getActiveStarterPacks,
@@ -72,10 +83,32 @@ function excerpt(content: string | null): string {
 }
 
 export default function DiscoverScreen() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [segment, setSegment] = useState<Segment>("people");
   const debouncedQuery = useDebounce(query.trim(), SEARCH_DEBOUNCE_MS);
   const isSearching = debouncedQuery.length > 0;
+
+  const [recents, setRecents] = useState<RecentSearch[]>([]);
+  useEffect(() => {
+    void getRecentSearches().then(setRecents);
+  }, []);
+
+  // Recording the debounced value, not every keystroke, keeps the list to
+  // searches the user actually settled on.
+  useEffect(() => {
+    if (debouncedQuery.length === 0) return;
+    void rememberSearchQuery(debouncedQuery).then(setRecents);
+  }, [debouncedQuery]);
+
+  function openRecent(entry: RecentSearch) {
+    if (entry.kind === "user") {
+      router.push(`/user/${entry.value}`);
+      return;
+    }
+    if (entry.kind === "hashtag") setSegment("posts");
+    setQuery(recentSearchLabel(entry));
+  }
 
   // Other tabs deep-link here with ?q= (hashtag taps in post bodies, the
   // clips search button); seed the box so results show immediately. State is
@@ -127,6 +160,9 @@ export default function DiscoverScreen() {
           query={debouncedQuery}
           segment={segment}
           onSegmentChange={setSegment}
+          onOpenPerson={(username) =>
+            void rememberVisitedUser(username).then(setRecents)
+          }
         />
       ) : (
         <DiscoverHome
@@ -134,6 +170,12 @@ export default function DiscoverScreen() {
             setSegment("posts");
             setQuery(`#${name}`);
           }}
+          recents={recents}
+          onSelectRecent={openRecent}
+          onRemoveRecent={(entry) =>
+            void removeRecentSearch(entry).then(setRecents)
+          }
+          onClearRecents={() => void clearRecentSearches().then(setRecents)}
         />
       )}
     </View>
@@ -177,12 +219,16 @@ function SearchResults({
   query,
   segment,
   onSegmentChange,
+  onOpenPerson,
 }: {
   query: string;
   segment: Segment;
   onSegmentChange: (segment: Segment) => void;
+  /** Records a profile the viewer opened from these results. */
+  onOpenPerson: (username: string) => void;
 }) {
   const router = useRouter();
+  const { user } = useAuth();
 
   const peopleQuery = useQuery({
     queryKey: ["search-users", query],
@@ -202,12 +248,44 @@ function SearchResults({
     enabled: segment === "clips",
   });
 
+  // One lookup for the whole result page, so every row shows the right
+  // Follow / Requested / Following label without a round trip of its own.
+  const peopleIds = (peopleQuery.data ?? []).map((person) => person.id);
+  const followStatesQuery = useQuery({
+    queryKey: ["search-follow-states", user?.id, peopleIds],
+    queryFn: () => checkFollowStates(user!.id, peopleIds),
+    enabled: !!user && peopleIds.length > 0,
+  });
+
+  // Rows the viewer has acted on this session; where a tap lands depends on
+  // whether the target is private, so it comes back from the write.
+  const [followEdits, setFollowEdits] = useState<
+    Readonly<Record<string, FollowState>>
+  >({});
+
+  async function toggleFollow(targetId: string, current: FollowState) {
+    if (!user) return;
+    try {
+      const next = await toggleFollowState(user.id, targetId, current);
+      setFollowEdits((prev) => ({ ...prev, [targetId]: next }));
+    } catch {
+      Alert.alert("Couldn't update follow");
+    }
+  }
+
   const active =
     segment === "people"
       ? peopleQuery
       : segment === "posts"
         ? postsQuery
         : clipsQuery;
+  const refreshControl = (
+    <RefreshControl
+      refreshing={active.isRefetching}
+      onRefresh={() => active.refetch()}
+      tintColor={colors.mutedForeground}
+    />
+  );
   const header = <SegmentedControl segment={segment} onChange={onSegmentChange} />;
 
   if (active.isPending) {
@@ -244,12 +322,25 @@ function SearchResults({
           data={peopleQuery.data ?? []}
           keyExtractor={(person) => person.id}
           keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => (
-            <PersonRow
-              person={item}
-              onPress={() => router.push(`/user/${item.username}`)}
-            />
-          )}
+          refreshControl={refreshControl}
+          renderItem={({ item }) => {
+            const followState =
+              followEdits[item.id] ??
+              followStatesQuery.data?.get(item.id) ??
+              "none";
+            return (
+              <PersonRow
+                person={item}
+                followState={followState}
+                canFollow={!!user && item.id !== user.id}
+                onToggleFollow={() => toggleFollow(item.id, followState)}
+                onPress={() => {
+                  onOpenPerson(item.username);
+                  router.push(`/user/${item.username}`);
+                }}
+              />
+            );
+          }}
           ListEmptyComponent={
             <EmptyState
               title="No people found"
@@ -272,6 +363,7 @@ function SearchResults({
           keyboardShouldPersistTaps="handled"
           numColumns={CLIP_GRID_COLUMNS}
           columnWrapperStyle={styles.clipGridRow}
+          refreshControl={refreshControl}
           renderItem={({ item }) => (
             <ClipResultTile
               clip={item}
@@ -298,6 +390,7 @@ function SearchResults({
         data={postsQuery.data ?? []}
         keyExtractor={(post) => post.id}
         keyboardShouldPersistTaps="handled"
+        refreshControl={refreshControl}
         renderItem={({ item }) => (
           <PostResultRow
             post={item}
@@ -318,11 +411,18 @@ function SearchResults({
 
 function PersonRow({
   person,
+  followState,
+  canFollow,
+  onToggleFollow,
   onPress,
 }: {
   person: ProfileSummary;
+  followState: FollowState;
+  canFollow: boolean;
+  onToggleFollow: () => void;
   onPress: () => void;
 }) {
+  const isActive = followState !== "none";
   return (
     <Pressable
       accessibilityRole="button"
@@ -345,7 +445,37 @@ function PersonRow({
           {formatNumber(person.follower_count)} followers
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+      {canFollow ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            followState === "following"
+              ? `Unfollow @${person.username}`
+              : followState === "requested"
+                ? `Cancel follow request to @${person.username}`
+                : `Follow @${person.username}`
+          }
+          onPress={onToggleFollow}
+          style={({ pressed }) => [
+            styles.followButton,
+            styles.rowFollowButton,
+            isActive && styles.followButtonSecondary,
+            pressed && { opacity: 0.8 },
+          ]}
+        >
+          <Text
+            style={[styles.followLabel, isActive && styles.followLabelSecondary]}
+          >
+            {followState === "following"
+              ? "Following"
+              : followState === "requested"
+                ? "Requested"
+                : "Follow"}
+          </Text>
+        </Pressable>
+      ) : (
+        <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+      )}
     </Pressable>
   );
 }
@@ -438,18 +568,119 @@ function formatClipDuration(durationMs: number): string {
   return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, "0")}`;
 }
 
-function DiscoverHome({ onTagPress }: { onTagPress: (name: string) => void }) {
+function DiscoverHome({
+  onTagPress,
+  recents,
+  onSelectRecent,
+  onRemoveRecent,
+  onClearRecents,
+}: {
+  onTagPress: (name: string) => void;
+  recents: RecentSearch[];
+  onSelectRecent: (entry: RecentSearch) => void;
+  onRemoveRecent: (entry: RecentSearch) => void;
+  onClearRecents: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  // The sections below own their own queries, so a pull refreshes them by
+  // key rather than by threading four refetch callbacks through here.
+  async function refreshSections() {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["trending-hashtags"] }),
+        queryClient.invalidateQueries({ queryKey: ["suggested-users"] }),
+        queryClient.invalidateQueries({ queryKey: ["starter-packs-active"] }),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   return (
     <ScrollView
       style={styles.flex}
       contentContainerStyle={styles.homeContent}
       keyboardShouldPersistTaps="handled"
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={refreshSections}
+          tintColor={colors.mutedForeground}
+        />
+      }
     >
+      <RecentSearchChips
+        recents={recents}
+        onSelect={onSelectRecent}
+        onRemove={onRemoveRecent}
+        onClearAll={onClearRecents}
+      />
       <TrendingChips onTagPress={onTagPress} />
       <SuggestedPeople />
       <StarterPacksRail />
       <SurfaceTiles />
     </ScrollView>
+  );
+}
+
+function RecentSearchChips({
+  recents,
+  onSelect,
+  onRemove,
+  onClearAll,
+}: {
+  recents: RecentSearch[];
+  onSelect: (entry: RecentSearch) => void;
+  onRemove: (entry: RecentSearch) => void;
+  onClearAll: () => void;
+}) {
+  if (recents.length === 0) return null;
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.recentHeader}>
+        <Text style={styles.sectionTitle}>Recent</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onClearAll}
+          hitSlop={8}
+          style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+        >
+          <Text style={styles.clearAllLabel}>Clear all</Text>
+        </Pressable>
+      </View>
+      <View style={styles.chipsRow}>
+        {recents.map((entry) => {
+          const label = recentSearchLabel(entry);
+          return (
+            <View key={`${entry.kind}:${entry.value}`} style={styles.recentChip}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Search ${label} again`}
+                onPress={() => onSelect(entry)}
+                style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+              >
+                <Text style={styles.recentChipLabel} numberOfLines={1}>
+                  {label}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${label} from recent searches`}
+                onPress={() => onRemove(entry)}
+                hitSlop={8}
+                style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+              >
+                <Ionicons name="close" size={13} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -1001,6 +1232,33 @@ const styles = StyleSheet.create({
     color: colors.mutedForeground,
     fontSize: 12,
   },
+  recentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  clearAllLabel: {
+    color: colors.mutedForeground,
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: spacing(2.5),
+  },
+  recentChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    maxWidth: "100%",
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radii.full,
+    paddingLeft: spacing(3),
+    paddingRight: spacing(2.5),
+    paddingVertical: spacing(2),
+  },
+  recentChipLabel: {
+    color: colors.foreground,
+    fontSize: 13,
+    maxWidth: 200,
+  },
   peopleRow: {
     gap: spacing(2.5),
   },
@@ -1038,6 +1296,11 @@ const styles = StyleSheet.create({
   },
   followButtonSecondary: {
     backgroundColor: colors.surfaceElevated,
+  },
+  // The card variant stacks under an avatar; in a search row it sits inline.
+  rowFollowButton: {
+    marginTop: 0,
+    paddingHorizontal: spacing(3.5),
   },
   followLabel: {
     color: colors.primaryForeground,

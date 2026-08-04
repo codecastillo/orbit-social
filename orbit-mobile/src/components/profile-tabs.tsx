@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
@@ -211,6 +212,7 @@ export function ProfileContent({
   userId,
   username,
   onPressPost,
+  onRefresh,
   shortcuts,
 }: {
   header: ReactNode;
@@ -221,6 +223,9 @@ export function ProfileContent({
   userId: string;
   username: string;
   onPressPost: (postId: string) => void;
+  /** Pull-to-refresh for whatever the caller renders in `header`; the
+   *  active tab's own query is refetched alongside it. */
+  onRefresh?: () => Promise<unknown> | void;
   /** Own-profile only: Drafts/Scheduled tiles pinned before the Posts grid. */
   shortcuts?: ProfileGridShortcut[];
 }) {
@@ -259,6 +264,17 @@ export function ProfileContent({
       : tab === "clips"
         ? clipsQuery.refetch
         : mentionsQuery.refetch;
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await Promise.all([onRefresh?.(), retry()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   const emptyCopy =
     tab === "posts"
@@ -338,6 +354,13 @@ export function ProfileContent({
             <Text style={styles.postsEmptyTitle}>{emptyCopy.text}</Text>
           </View>
         )
+      }
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor={colors.mutedForeground}
+        />
       }
       contentContainerStyle={styles.listContent}
       style={styles.flex}

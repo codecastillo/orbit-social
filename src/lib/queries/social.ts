@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import type { PostWithAuthor } from "@/lib/queries/posts";
 
 const supabase = createClient();
 
@@ -16,6 +17,16 @@ export interface ProfileSummary {
   is_verified: boolean;
   follower_count: number;
   following_count: number;
+}
+
+/**
+ * A row that embeds a single profile. Without generated DB types the
+ * literal-type query parser reads the to-one join as an array, so rows are
+ * asserted to this shape at the query boundary.
+ */
+interface ProfileJoinRow {
+  created_at: string;
+  profiles: ProfileSummary;
 }
 
 export interface TrendingHashtag {
@@ -390,10 +401,10 @@ export async function getFollowers(
   const { data, error } = await query;
   if (error) throw error;
 
-  return (data ?? []).map((row: any) => ({
-    ...(row.profiles as any),
+  return ((data ?? []) as unknown as ProfileJoinRow[]).map((row) => ({
+    ...row.profiles,
     followed_at: row.created_at,
-  })) as (ProfileSummary & { followed_at: string })[];
+  }));
 }
 
 /**
@@ -440,10 +451,10 @@ export async function getFollowing(
   const { data, error } = await query;
   if (error) throw error;
 
-  return (data ?? []).map((row: any) => ({
-    ...(row.profiles as any),
+  return ((data ?? []) as unknown as ProfileJoinRow[]).map((row) => ({
+    ...row.profiles,
     followed_at: row.created_at,
-  })) as (ProfileSummary & { followed_at: string })[];
+  }));
 }
 
 // ── Suggestions ──────────────────────────────────────────────────────
@@ -638,12 +649,12 @@ export async function getTrendingPosts(limit = 20) {
   if (error) throw error;
 
   // Re-rank by engagement score: likes + comments*2 + reposts*3
-  const ranked = (data ?? [])
-    .map((post: any) => ({
+  const ranked = ((data ?? []) as unknown as PostWithAuthor[])
+    .map((post) => ({
       ...post,
       _engagement: post.like_count + post.comment_count * 2 + post.repost_count * 3,
     }))
-    .sort((a: any, b: any) => b._engagement - a._engagement)
+    .sort((a, b) => b._engagement - a._engagement)
     .slice(0, limit);
 
   return ranked;
@@ -859,7 +870,7 @@ export async function getEngagementBasedSuggestions(
   if (error) throw error;
 
   // Score candidates: shared_interests * 3 + location * 2 + engagement_weight
-  const scored = (candidateProfiles ?? []).map((p: any) => {
+  const scored = ((candidateProfiles ?? []) as ProfileSummary[]).map((p) => {
     const interestScore = (sharedInterestMap.get(p.id) ?? 0) * 3;
     const locationScore = (locationMap.get(p.id) ?? 0) * 2;
     // Engagement weight: log of follower count to avoid pure popularity bias
@@ -894,7 +905,9 @@ export async function getCloseFriends(userId: string) {
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data ?? []).map((row: any) => row.profiles as ProfileSummary);
+  return ((data ?? []) as unknown as ProfileJoinRow[]).map(
+    (row) => row.profiles
+  );
 }
 
 export async function addCloseFriend(userId: string, friendId: string) {

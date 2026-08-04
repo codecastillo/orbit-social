@@ -60,12 +60,18 @@ export function CallOverlay({
     }
   }, [remoteStream]);
 
+  // Restart the elapsed counter on every connect. Adjusted during render per
+  // the React "adjusting state when a prop changes" pattern so a reconnect
+  // never shows the previous call's time.
+  const [prevCallState, setPrevCallState] = useState(callState);
+  if (callState !== prevCallState) {
+    setPrevCallState(callState);
+    if (callState !== "connected") setDuration(0);
+  }
+
   // Call duration timer
   useEffect(() => {
-    if (callState !== "connected") {
-      setDuration(0);
-      return;
-    }
+    if (callState !== "connected") return;
 
     const interval = setInterval(() => {
       setDuration((d) => d + 1);
@@ -209,9 +215,16 @@ export function CallOverlay({
       {/* Hidden audio for audio-only calls */}
       {!isVideo && (
         <>
-          <audio ref={remoteVideoRef as any} autoPlay playsInline />
+          {/* Audio-only calls reuse the video refs: the effects above only
+              touch srcObject, which both element types inherit from
+              HTMLMediaElement, and the two branches never mount together. */}
           <audio
-            ref={localVideoRef as any}
+            ref={remoteVideoRef as React.RefObject<HTMLAudioElement | null>}
+            autoPlay
+            playsInline
+          />
+          <audio
+            ref={localVideoRef as React.RefObject<HTMLAudioElement | null>}
             autoPlay
             playsInline
             muted

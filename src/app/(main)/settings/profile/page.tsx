@@ -555,9 +555,15 @@ export default function EditProfilePage() {
 }
 
 /* Inputs that work with react-hook-form's register(): must accept ref + use plain <input>/<textarea> */
+// The native prefix attribute is a string; here it is a leading adornment
+// (icon or sigil) rendered beside the field, so its type is widened.
+type RawInputProps = Omit<React.ComponentPropsWithRef<"input">, "prefix"> & {
+  prefix?: React.ReactNode;
+};
+
 const RawInput = (() => {
   // forwardRef wrapper around a styled native input that mirrors orbit Input look
-  return (function RawInputInner({ prefix, ...rest }: any) {
+  return (function RawInputInner({ prefix, ...rest }: RawInputProps) {
     return (
       <div className="flex items-center gap-2.5 rounded-lg border border-border bg-surface px-3.5 py-[11px] transition-all">
         {prefix && (
@@ -574,7 +580,10 @@ const RawInput = (() => {
   });
 })();
 
-const RawTextArea = (function RawTextAreaInner({ rows = 3, ...rest }: any) {
+const RawTextArea = (function RawTextAreaInner({
+  rows = 3,
+  ...rest
+}: React.ComponentPropsWithRef<"textarea">) {
   return (
     <div className="rounded-lg border border-border bg-surface px-3.5 py-[11px]">
       <textarea

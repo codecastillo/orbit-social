@@ -210,12 +210,19 @@ export function CommunityHeader({
     };
   }, [community.id, community.slug, queryClient]);
 
+  // Once a request can't apply any more (the user joined, signed out, or the
+  // room stopped gating on approval), drop the status so the join button
+  // never keeps showing "Pending approval". Adjusted during render.
+  const canRequestJoin = !!user && !isMember && policy === "approval";
+  const [prevCanRequestJoin, setPrevCanRequestJoin] = useState(canRequestJoin);
+  if (canRequestJoin !== prevCanRequestJoin) {
+    setPrevCanRequestJoin(canRequestJoin);
+    if (!canRequestJoin) setRequestStatus(null);
+  }
+
   // If the user has a pending request, show that state.
   useEffect(() => {
-    if (!user || isMember || policy !== "approval") {
-      setRequestStatus(null);
-      return;
-    }
+    if (!user || !canRequestJoin) return;
     let cancelled = false;
     getMyJoinRequestStatus(community.id, user.id)
       .then((s) => {
@@ -225,7 +232,7 @@ export function CommunityHeader({
     return () => {
       cancelled = true;
     };
-  }, [user, community.id, isMember, policy]);
+  }, [user, community.id, canRequestJoin]);
   const rules = community.rules as
     | { title: string; description: string }[]
     | null;

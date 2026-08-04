@@ -53,9 +53,11 @@ export function BottomNav({ initialHasUser = false }: { initialHasUser?: boolean
   }, [user]);
 
   // Close the sheet after any navigation so it never lingers over the new page.
-  useEffect(() => {
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
     setMoreOpen(false);
-  }, [pathname]);
+  }
 
   const profileHref = username ? `/${username}` : "/onboarding";
 

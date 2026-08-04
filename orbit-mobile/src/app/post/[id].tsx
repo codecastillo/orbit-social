@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
@@ -315,6 +316,16 @@ export default function PostDetailScreen() {
         initialNumToRender={8}
         windowSize={9}
         removeClippedSubviews
+        refreshControl={
+          <RefreshControl
+            refreshing={postQuery.isRefetching || repliesQuery.isRefetching}
+            onRefresh={() => {
+              postQuery.refetch();
+              repliesQuery.refetch();
+            }}
+            tintColor={colors.mutedForeground}
+          />
+        }
         ListHeaderComponent={
           <View style={styles.postWrap}>
             {mainCard}

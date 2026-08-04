@@ -109,6 +109,47 @@ export type FeedTab = "foryou" | "following";
 // server-side join instead of an IN list.
 const FOLLOWING_IDS_LIMIT = 1000;
 
+/**
+ * created_at of the newest post this feed would show, or null when it is
+ * empty. Selected on its own so the freshness check behind the "New posts"
+ * pill costs one indexed row instead of a whole page.
+ *
+ * Close-friends filtering is deliberately skipped: it happens after the
+ * fetch, and the worst case here is a pill that scrolls to a feed which
+ * looks unchanged.
+ */
+export async function getNewestFeedPostAt(
+  userId: string,
+  tab: FeedTab,
+): Promise<string | null> {
+  let query = supabase
+    .from("posts")
+    .select("created_at")
+    .is("reply_to_id", null)
+    .is("community_id", null)
+    .eq("is_hidden", false)
+    .not("type", "eq", "reel")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (tab === "following") {
+    const { data: following, error: followsError } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", userId)
+      .limit(FOLLOWING_IDS_LIMIT);
+    if (followsError) throw followsError;
+
+    const followingIds = following?.map((f) => f.following_id) ?? [];
+    if (followingIds.length === 0) return null;
+    query = query.in("user_id", followingIds);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return data?.created_at ?? null;
+}
+
 // Includes reposts and quotes; the card resolves their originals per
 // page. Reels stay in the clips tab. Close-friends visibility resolves
 // after the fetch, same as the web getFeedPosts.

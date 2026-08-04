@@ -2,7 +2,11 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import {
+  useForm,
+  type FieldErrors,
+  type UseFormRegister,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Camera,
@@ -278,19 +282,29 @@ export default function OnboardingPage() {
 
 /* Step 1: welcome + profile setup */
 
-function Step1Welcome(props: any) {
-  const {
-    avatarUrl,
-    uploading,
-    onAvatarClick,
-    onAvatarChange,
-    register,
-    errors,
-    displayName,
-    fileInputRef,
-    onSubmit,
-    saving,
-  } = props;
+function Step1Welcome({
+  avatarUrl,
+  uploading,
+  onAvatarClick,
+  onAvatarChange,
+  register,
+  errors,
+  displayName,
+  fileInputRef,
+  onSubmit,
+  saving,
+}: {
+  avatarUrl: string | null;
+  uploading: boolean;
+  onAvatarClick: () => void;
+  onAvatarChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  register: UseFormRegister<OnboardingFormData>;
+  errors: FieldErrors<OnboardingFormData>;
+  displayName: string;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  saving: boolean;
+}) {
 
   return (
     <div className="flex flex-1 flex-col px-6 pt-5">

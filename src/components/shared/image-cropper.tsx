@@ -34,16 +34,27 @@ export function ImageCropper({
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  // Reset the crop for whatever file comes next, adjusted during render so a
+  // reopen never shows the previous image or its pan and zoom.
+  const [prevFile, setPrevFile] = useState(file);
+  if (file !== prevFile) {
+    setPrevFile(file);
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
     if (!file) {
       setSrc(null);
       setImgSize(null);
-      return;
     }
+  }
+
+  // The preview source is an object URL, which only exists once it has been
+  // created here and has to be revoked on cleanup, so it can't be derived
+  // during render.
+  useEffect(() => {
+    if (!file) return;
     const url = URL.createObjectURL(file);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSrc(url);
-    setScale(1);
-    setOffset({ x: 0, y: 0 });
     return () => URL.revokeObjectURL(url);
   }, [file]);
 

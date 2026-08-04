@@ -29,9 +29,13 @@ function urlBase64ToUint8Array(base64: string) {
 export function usePushSubscribe() {
   const [status, setStatus] = useState<Status>("loading");
 
+  // Probes the browser's push capability and permission, neither of which
+  // exists during the server render, so the answer can only be read after
+  // mount.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !VAPID_PUBLIC) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus("unsupported");
       return;
     }

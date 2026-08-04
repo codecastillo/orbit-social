@@ -3,20 +3,32 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, TrendingUp, Radio } from "lucide-react";
 import { Input as BareInput } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SearchResults } from "@/components/explore/search-results";
+import { RecentSearches } from "@/components/explore/recent-searches";
 import { StarterPacksRail } from "@/components/explore/starter-packs-rail";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
+  checkFollowStates,
   getSuggestedUsers,
   getTrendingHashtags,
   getTrendingPosts,
   toggleFollowState,
   type FollowState,
 } from "@/lib/queries/social";
+import {
+  clearRecentSearches,
+  rememberSearchQuery,
+  rememberVisitedUser,
+  removeRecentSearch,
+  recentSearchLabel,
+  useRecentSearches,
+  type RecentSearch,
+} from "@/lib/recent-searches";
 import { getLiveStreams } from "@/lib/queries/live";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { FollowButton } from "@/components/shared/follow-button";
@@ -38,9 +50,26 @@ function useDebounce(value: string, delay: number) {
 /* ─── page ───────────────────────────────────────────────────────── */
 
 export default function ExplorePage() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query.trim(), 300);
   const isSearching = debouncedQuery.length > 0;
+
+  const recents = useRecentSearches();
+
+  // Recording the debounced value, not every keystroke, keeps the list to
+  // searches the user actually settled on.
+  useEffect(() => {
+    rememberSearchQuery(debouncedQuery);
+  }, [debouncedQuery]);
+
+  const openRecent = (entry: RecentSearch) => {
+    if (entry.kind === "user") {
+      router.push(`/${entry.value}`);
+      return;
+    }
+    setQuery(recentSearchLabel(entry));
+  };
 
   return (
     <div className="flex flex-col gap-[22px] text-foreground">
@@ -62,10 +91,18 @@ export default function ExplorePage() {
 
       {isSearching ? (
         <div>
-          <SearchResults query={debouncedQuery} />
+          <SearchResults query={debouncedQuery} onOpenProfile={rememberVisitedUser} />
         </div>
       ) : (
-        <DiscoverBody />
+        <>
+          <RecentSearches
+            items={recents}
+            onSelect={openRecent}
+            onRemove={removeRecentSearch}
+            onClearAll={clearRecentSearches}
+          />
+          <DiscoverBody />
+        </>
       )}
     </div>
   );
@@ -389,6 +426,16 @@ function PeopleRail() {
     staleTime: 1000 * 60 * 5,
   });
 
+  // One lookup for the whole rail: suggestions exclude accounts the viewer
+  // already follows, but a private account they have a pending request with
+  // still turns up here and must not read as "Follow".
+  const peopleIds = (people ?? []).map((p) => p.id);
+  const { data: knownStates } = useQuery({
+    queryKey: ["suggested-follow-states", user?.id, peopleIds],
+    queryFn: () => checkFollowStates(user!.id, peopleIds),
+    enabled: !!user?.id && peopleIds.length > 0,
+  });
+
   if (isError) {
     return (
       <RailError
@@ -441,16 +488,16 @@ function PeopleRail() {
                   </div>
                 </Link>
                 <FollowButton
-                  state={followStates[p.id] ?? "none"}
+                  state={
+                    followStates[p.id] ?? knownStates?.get(p.id) ?? "none"
+                  }
                   size="sm"
                   onToggle={async () => {
                     if (!user) return;
+                    const current =
+                      followStates[p.id] ?? knownStates?.get(p.id) ?? "none";
                     try {
-                      const next = await toggleFollowState(
-                        user.id,
-                        p.id,
-                        followStates[p.id] ?? "none"
-                      );
+                      const next = await toggleFollowState(user.id, p.id, current);
                       setFollowStates((s) => ({ ...s, [p.id]: next }));
                       queryClient.invalidateQueries({
                         queryKey: ["suggested-users", user.id],

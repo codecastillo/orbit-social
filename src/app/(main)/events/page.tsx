@@ -75,7 +75,11 @@ export default function EventsPage() {
     }
   }, [user]);
 
+  // The initial load has to run from an effect, and fetchEvents flips the
+  // loading flag before its first await, which is what the rule sees. The
+  // same function backs the retry button, so the flag can't move out of it.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchEvents();
   }, [fetchEvents]);
 

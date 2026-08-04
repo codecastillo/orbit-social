@@ -759,7 +759,14 @@ export function EventContent({ eventId }: { eventId: string }) {
                     <CommentRow
                       comment={c}
                       currentUserId={user?.id}
-                      onReply={() => startReply(c)}
+                      onReply={
+                        // startReply touches commentInputRef only inside a
+                        // requestAnimationFrame callback, and CommentRow calls
+                        // onReply from onClick, so the ref is never read
+                        // during render.
+                        // eslint-disable-next-line react-hooks/refs
+                        () => startReply(c)
+                      }
                       onDelete={() => handleDeleteComment(c.id)}
                     />
                     {(childMap.get(c.id) ?? []).map((reply) => (

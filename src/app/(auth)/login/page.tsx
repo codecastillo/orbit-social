@@ -112,7 +112,10 @@ export default function LoginPage() {
     }
   }, []);
 
+  // Lockout state lives in localStorage, which the server render cannot read.
+  // Hydrating from it has to happen after mount or the markup mismatches.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     checkLockout();
   }, [checkLockout]);
 
@@ -132,7 +135,7 @@ export default function LoginPage() {
     return () => clearInterval(interval);
   }, [isLocked]);
 
-  const recordFailedAttempt = () => {
+  const recordFailedAttempt = useCallback(() => {
     const data = getLockoutData();
     data.attempts += 1;
     if (data.attempts >= MAX_ATTEMPTS) {
@@ -142,7 +145,7 @@ export default function LoginPage() {
     }
     setLockoutData(data);
     setAttemptsLeft(MAX_ATTEMPTS - data.attempts);
-  };
+  }, []);
 
   const formatCountdown = (ms: number) => {
     const totalSeconds = Math.ceil(ms / 1000);
@@ -421,6 +424,10 @@ export default function LoginPage() {
       )}
 
       {/* Form */}
+      {/* react-hook-form's handleSubmit reads its internal control ref when
+          called, which the lint rule cannot tell apart from a render-time ref
+          read. The returned function only runs on submit. */}
+      {/* eslint-disable-next-line react-hooks/refs */}
       <form onSubmit={handleSubmit(onSubmit)} className="mt-6">
         <AuthField label="Email" error={errors.email?.message}>
           <AuthInput

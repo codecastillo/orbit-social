@@ -214,12 +214,23 @@ export function ProfileContent({
     followers: profile.follower_count,
     following: profile.following_count,
   });
-  useEffect(() => {
-    setLiveCounts({
+  // Adjusted during render per the React "adjusting state when a prop changes"
+  // pattern, so a server refetch reseeds the counters before the next paint.
+  const [prevServerCounts, setPrevServerCounts] = useState({
+    followers: profile.follower_count,
+    following: profile.following_count,
+  });
+  if (
+    profile.follower_count !== prevServerCounts.followers ||
+    profile.following_count !== prevServerCounts.following
+  ) {
+    const next = {
       followers: profile.follower_count,
       following: profile.following_count,
-    });
-  }, [profile.id, profile.follower_count, profile.following_count]);
+    };
+    setPrevServerCounts(next);
+    setLiveCounts(next);
+  }
 
   useEffect(() => {
     const channel = supabase
@@ -539,12 +550,11 @@ export function ProfileContent({
   }, [isOwnProfile, profile.private_likes, tabCounts]);
 
   // If the active tab gets hidden (e.g. someone toggles privacy mid-view),
-  // snap back to Posts so we never render a non-existent state.
-  useEffect(() => {
-    if (!visibleTabs.some((t) => t.value === activeTab)) {
-      setActiveTab("posts");
-    }
-  }, [visibleTabs, activeTab]);
+  // snap back to Posts so we never render a non-existent state. Adjusted
+  // during render; Posts is always visible, so this settles in one pass.
+  if (!visibleTabs.some((t) => t.value === activeTab)) {
+    setActiveTab("posts");
+  }
 
   const themeAccent = normalizeAccent(profile.theme_color);
   const accent = themeAccent || "var(--primary)";
@@ -914,7 +924,7 @@ export function ProfileContent({
                 <div className="pl-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-amber-300">
                   ◇&nbsp;&nbsp;Pinned
                 </div>
-                {pinnedPosts.map((p: any) => (
+                {pinnedPosts.map((p) => (
                   <PostCard key={p.id} post={p} />
                 ))}
               </div>
@@ -925,7 +935,7 @@ export function ProfileContent({
               <EmptyTab />
             ) : (
               <div className="flex flex-col gap-2">
-                {posts.map((p: any) => (
+                {posts.map((p) => (
                   <PostCard key={p.id} post={p} />
                 ))}
               </div>
@@ -953,7 +963,7 @@ export function ProfileContent({
             <EmptyTab />
           ) : (
             <div className="flex flex-col gap-2">
-              {likedPosts.map((p: any) => (
+              {likedPosts.map((p) => (
                 <PostCard key={p.id} post={p} />
               ))}
             </div>
@@ -968,7 +978,7 @@ export function ProfileContent({
             <EmptyTab />
           ) : (
             <div className="flex flex-col gap-2">
-              {repostedPosts.map((p: any) => (
+              {repostedPosts.map((p) => (
                 <PostCard key={p.id} post={p} />
               ))}
             </div>
@@ -983,7 +993,7 @@ export function ProfileContent({
             <EmptyTab />
           ) : (
             <div className="flex flex-col gap-2">
-              {taggedPosts.map((p: any) => (
+              {taggedPosts.map((p) => (
                 <PostCard key={p.id} post={p} />
               ))}
             </div>
@@ -999,7 +1009,7 @@ export function ProfileContent({
             <EmptyTab />
           ) : (
             <div className="flex flex-col gap-2">
-              {savedPosts.map((p: any) => (
+              {savedPosts.map((p) => (
                 <PostCard key={p.id} post={p} />
               ))}
             </div>

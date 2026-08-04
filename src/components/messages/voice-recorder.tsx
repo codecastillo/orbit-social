@@ -7,6 +7,11 @@ import { useAudioRecorder } from "@/lib/hooks/use-audio-recorder";
 import { formatDuration, generateWaveformBars, getAudioExtension } from "@/lib/utils/audio";
 import { createClient } from "@/lib/supabase/client";
 
+const WAVEFORM_BAR_COUNT = 32;
+// The live-recording indicator shows a subset of the bars so they stay legible
+// in the narrow composer row.
+const LIVE_BAR_COUNT = 24;
+
 interface VoiceRecorderProps {
   onSend: (audioUrl: string) => Promise<void>;
   onRecordingChange: (isRecording: boolean) => void;
@@ -34,18 +39,13 @@ export function VoiceRecorder({
   const [uploading, setUploading] = useState(false);
   const [playProgress, setPlayProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const waveformBars = useRef(generateWaveformBars(32));
+  const [waveformBars, setWaveformBars] = useState(() =>
+    generateWaveformBars(WAVEFORM_BAR_COUNT)
+  );
 
   useEffect(() => {
     onRecordingChange(isRecording || !!audioBlob);
   }, [isRecording, audioBlob, onRecordingChange]);
-
-  // Regenerate waveform when a new recording starts
-  useEffect(() => {
-    if (isRecording) {
-      waveformBars.current = generateWaveformBars(32);
-    }
-  }, [isRecording]);
 
   const togglePlayback = useCallback(() => {
     if (!audioRef.current || !audioUrl) return;
@@ -102,6 +102,9 @@ export function VoiceRecorder({
     } else if (audioBlob) {
       // Already have a recording, do nothing (user can send or delete)
     } else {
+      // Fresh bars per take, seeded here rather than in an effect so the
+      // randomness never runs during render.
+      setWaveformBars(generateWaveformBars(WAVEFORM_BAR_COUNT));
       startRecording();
     }
   };
@@ -149,13 +152,15 @@ export function VoiceRecorder({
 
           {/* Waveform animation */}
           <div className="flex items-center gap-[2px] flex-1 h-6">
-            {Array.from({ length: 24 }).map((_, i) => (
+            {waveformBars.slice(0, LIVE_BAR_COUNT).map((height, i) => (
               <div
                 key={i}
                 className="w-[3px] rounded-full bg-red-400/70"
                 style={{
-                  height: `${20 + Math.sin((Date.now() / 200 + i) * 0.5) * 40 + Math.random() * 20}%`,
-                  animation: `pulse ${0.5 + Math.random() * 0.5}s ease-in-out infinite alternate`,
+                  height: `${20 + height * 60}%`,
+                  // Staggered durations and delays give the row its uneven
+                  // bounce; CSS drives it so render stays pure.
+                  animation: `pulse ${0.5 + (i % 5) * 0.1}s ease-in-out infinite alternate`,
                   animationDelay: `${i * 30}ms`,
                 }}
               />
@@ -235,8 +240,8 @@ export function VoiceRecorder({
 
           {/* Waveform / Progress */}
           <div className="flex items-center gap-[2px] flex-1 h-6">
-            {waveformBars.current.map((height, i) => {
-              const progress = playProgress * waveformBars.current.length;
+            {waveformBars.map((height, i) => {
+              const progress = playProgress * waveformBars.length;
               const isActive = i < progress;
               return (
                 <div

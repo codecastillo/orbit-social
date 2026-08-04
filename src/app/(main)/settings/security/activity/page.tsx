@@ -25,11 +25,16 @@ import {
 import { SettingsHeader } from "@/components/settings/settings-header";
 import { formatDateTime } from "@/lib/utils/format";
 
+const CURRENT_SESSION_WINDOW_MS = 60 * 60 * 1000;
+
 export default function LoginActivityPage() {
   const { user } = useAuth();
   const [events, setEvents] = useState<LoginEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  // Read once at mount: the "this device" badge only needs to know the page
+  // was opened within an hour of the sign-in, and rendering must stay pure.
+  const [openedAt] = useState(() => Date.now());
 
   useEffect(() => {
     if (!user) return;
@@ -124,7 +129,7 @@ export default function LoginActivityPage() {
             const isCurrentSession =
               typeof navigator !== "undefined" &&
               event.user_agent === navigator.userAgent &&
-              new Date(event.created_at).getTime() > Date.now() - 60 * 60 * 1000;
+              new Date(event.created_at).getTime() > openedAt - CURRENT_SESSION_WINDOW_MS;
 
             const accentClass =
               event.status === "failed"

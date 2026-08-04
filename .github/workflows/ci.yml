@@ -18,11 +18,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      # Non-blocking until the pre-existing eslint backlog (95 errors, mostly
-      # no-explicit-any in lib/queries) is cleared. Flip to blocking after.
-      - run: npm run lint
-        continue-on-error: true
       - run: npm run typecheck
+      # One pass over the whole repo: web src, middleware, tests, scripts, and
+      # orbit-mobile, which shares this eslint config.
+      - run: npm run lint
       # Legacy-design ratchet: unmigrated files live in scripts/legacy-allowlist.txt,
       # which only ever shrinks. See scripts/check-legacy-design.sh.
       - run: bash scripts/check-legacy-design.sh

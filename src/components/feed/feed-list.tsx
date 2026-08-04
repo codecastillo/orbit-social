@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useCallback, useMemo, useState } from "react";
-import { Loader2, UserPlus, Compass } from "lucide-react";
+import { ArrowUp, Loader2, UserPlus, Compass } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { PostCard } from "./post-card";
@@ -12,9 +12,10 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { FollowButton } from "@/components/shared/follow-button";
 import { Button } from "@/components/ui/button";
 import { useFeed } from "@/lib/hooks/use-feed";
+import { useNewPosts } from "@/lib/hooks/use-new-posts";
 import { useAuth } from "@/lib/hooks/use-auth";
 import type { UserInteractions } from "@/lib/services/feed-algorithm";
-import { getSuggestedUsers } from "@/lib/queries/social";
+import { getSuggestedUsers, type ProfileSummary } from "@/lib/queries/social";
 import { toggleFollowState, type FollowState } from "@/lib/queries/social";
 import { toast } from "sonner";
 
@@ -83,6 +84,8 @@ export function FeedList({ tab }: FeedListProps) {
       .filter((p) => !p.reply_to_id);
   }, [data]);
 
+  const hasNewPosts = useNewPosts(tab, allPosts[0]?.created_at ?? null);
+
   if (isLoading) return <FeedSkeleton />;
 
   if (isError) {
@@ -105,6 +108,19 @@ export function FeedList({ tab }: FeedListProps) {
 
   return (
     <div className="space-y-0">
+      {hasNewPosts && (
+        <button
+          onClick={() => {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            refetch();
+          }}
+          className="fixed left-1/2 top-20 z-40 flex -translate-x-1/2 cursor-pointer items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground shadow-lg shadow-black/25 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <ArrowUp className="h-3.5 w-3.5" />
+          New posts
+        </button>
+      )}
+
       {allPosts.map((post, index) => (
         <div key={post.id}>
           <PostCard
@@ -126,6 +142,16 @@ export function FeedList({ tab }: FeedListProps) {
       {isFetchingNextPage && (
         <div className="flex justify-center py-6">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {!hasNextPage && !isFetchingNextPage && (
+        <div className="flex items-center gap-3 px-5 py-8">
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent to-border" />
+          <span className="text-xs text-muted-foreground">
+            You&apos;re all caught up
+          </span>
+          <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border" />
         </div>
       )}
     </div>
@@ -175,7 +201,7 @@ function EmptyFeedWithSuggestions({ tab, userId }: { tab: string; userId?: strin
             Suggested for you
           </h4>
           <div className="space-y-2">
-            {suggestions.map((profile: any) => (
+            {suggestions.map((profile) => (
               <SuggestionCard key={profile.id} profile={profile} />
             ))}
           </div>
@@ -194,7 +220,7 @@ function EmptyFeedWithSuggestions({ tab, userId }: { tab: string; userId?: strin
   );
 }
 
-function SuggestionCard({ profile }: { profile: any }) {
+function SuggestionCard({ profile }: { profile: ProfileSummary }) {
   const [followState, setFollowState] = useState<FollowState>("none");
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();

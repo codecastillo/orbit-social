@@ -74,6 +74,12 @@ interface MediaPreview {
   altText: string;
 }
 
+// File identity, so caption suggestions can be matched back to the attachment
+// they were generated for.
+function mediaFileKey({ file }: MediaPreview): string {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
 interface ComposerRestore {
   content: string;
   media: MediaPreview[];
@@ -166,6 +172,15 @@ export function PostComposer() {
       </DialogContent>
     </Dialog>
   );
+}
+
+// Clock reads live at module scope so nothing impure sits in a component body.
+function pollEndsAt(hours: number): string {
+  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+}
+
+function voiceClipFileName(): string {
+  return `audio_${Date.now()}.${getAudioExtension()}`;
 }
 
 export function InlineComposer({
@@ -431,25 +446,28 @@ function ComposerForm({
   // ask Claude Haiku (vision) to suggest 3 captions based on the actual
   // image/first-frame-of-video. Falls back to the local heuristic on
   // failure or when the AI gateway isn't configured.
-  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  // Tagged with the file it describes so a stale set never leaks onto the
+  // next attachment; that also keeps the reset out of the effect body.
+  const [aiSuggestions, setAiSuggestions] = useState<{
+    fileKey: string;
+    captions: string[];
+  } | null>(null);
   const lastSuggestedFor = useRef<string | null>(null);
 
+  const suggestionFileKey = media.length > 0 ? mediaFileKey(media[0]) : null;
+
   useEffect(() => {
-    if (content.length > 0 || media.length === 0) {
-      setAiSuggestions([]);
-      return;
-    }
+    if (content.length > 0 || !suggestionFileKey) return;
     const target = media[0];
     if (!target) return;
     // Key by file identity so we don't re-call the API on every render.
-    const key = `${target.file.name}:${target.file.size}:${target.file.lastModified}`;
-    if (lastSuggestedFor.current === key) return;
-    lastSuggestedFor.current = key;
+    if (lastSuggestedFor.current === suggestionFileKey) return;
+    lastSuggestedFor.current = suggestionFileKey;
 
     let cancelled = false;
     suggestCaptionsAI(target.file, target.type === "video")
       .then((captions) => {
-        if (!cancelled) setAiSuggestions(captions);
+        if (!cancelled) setAiSuggestions({ fileKey: suggestionFileKey, captions });
       })
       .catch(() => {
         // Silent fall-through to the heuristic pool below.
@@ -457,11 +475,16 @@ function ComposerForm({
     return () => {
       cancelled = true;
     };
-  }, [content.length, media]);
+  }, [content.length, media, suggestionFileKey]);
 
   const captionSuggestions = useMemo(() => {
     if (content.length > 0 || media.length === 0) return [];
-    if (aiSuggestions.length > 0) return aiSuggestions;
+    if (
+      aiSuggestions &&
+      aiSuggestions.fileKey === suggestionFileKey &&
+      aiSuggestions.captions.length > 0
+    )
+      return aiSuggestions.captions;
     const hasImage = media.some((m) => m.type === "image" || m.type === "gif");
     const hasVideo = media.some((m) => m.type === "video");
     return suggestCaptions({
@@ -469,7 +492,7 @@ function ComposerForm({
       hasVideo,
       time: new Date().toISOString(),
     });
-  }, [content.length, media, aiSuggestions]);
+  }, [content.length, media, aiSuggestions, suggestionFileKey]);
 
   const handleMediaSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -536,12 +559,16 @@ function ComposerForm({
   const [moderationConfirmed, setModerationConfirmed] = useState(false);
 
   const consumeComposeAction = useUIStore((s) => s.consumeComposeAction);
+  // Drains a one-shot intent the nav bar queued in the UI store before this
+  // composer mounted. It has to run on mount to open the right panel, and the
+  // read is destructive, so it cannot move into render or a handler.
   useEffect(() => {
     const action = consumeComposeAction();
     if (!action) return;
     if (action === "photo") {
       fileInputRef.current?.click();
     } else if (action === "event") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowSchedule(true);
     } else if (action === "place") {
       setShowLocation(true);
@@ -643,7 +670,7 @@ function ComposerForm({
     const pollData: PollData | undefined = showPoll && isPollValid
       ? {
           options: validPollOptions.map((text) => ({ text: text.trim(), votes: 0 })),
-          ends_at: new Date(Date.now() + pollEndHours * 60 * 60 * 1000).toISOString(),
+          ends_at: pollEndsAt(pollEndHours),
           multi_select: false,
         }
       : undefined;
@@ -656,9 +683,7 @@ function ComposerForm({
     const audioUpload =
       audioFile ??
       (audioBlob
-        ? new File([audioBlob], `audio_${Date.now()}.${getAudioExtension()}`, {
-            type: audioBlob.type,
-          })
+        ? new File([audioBlob], voiceClipFileName(), { type: audioBlob.type })
         : null);
 
     const publish = async () => {

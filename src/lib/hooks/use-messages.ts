@@ -5,6 +5,7 @@ import {
   useQuery,
   useInfiniteQuery,
   useQueryClient,
+  type InfiniteData,
 } from "@tanstack/react-query";
 import { useAuth } from "./use-auth";
 import { createClient } from "@/lib/supabase/client";
@@ -74,6 +75,14 @@ export function useConversations() {
   return query;
 }
 
+/** One page of the thread, oldest-first cursor over messages.created_at. */
+interface MessagePage {
+  messages: Message[];
+  nextCursor: string | null;
+}
+
+type MessagesCache = InfiniteData<MessagePage, string | undefined>;
+
 export function useMessages(conversationId: string) {
   const queryClient = useQueryClient();
   const supabase = createClient();
@@ -122,21 +131,21 @@ export function useMessages(conversationId: string) {
           // Add the new message to the query cache
           queryClient.setQueryData(
             ["messages", conversationId],
-            (old: any) => {
+            (old: MessagesCache | undefined) => {
               if (!old) return old;
               const firstPage = old.pages[0];
               if (!firstPage) return old;
 
-              const allMessages = old.pages.flatMap((p: any) => p.messages);
+              const allMessages = old.pages.flatMap((p) => p.messages);
               // Already present (dedupe by real id)
-              if (allMessages.some((m: any) => m.id === newMessage.id)) {
+              if (allMessages.some((m) => m.id === newMessage.id)) {
                 return old;
               }
               // Reconcile against an optimistic temp row from the same sender
               // with identical content. If we find one, swap it in place
               // instead of prepending a duplicate bubble.
               const tempMatch = allMessages.find(
-                (m: any) =>
+                (m) =>
                   typeof m.id === "string" &&
                   m.id.startsWith("temp-") &&
                   m.sender_id === newMessage.sender_id &&
@@ -145,9 +154,9 @@ export function useMessages(conversationId: string) {
               if (tempMatch) {
                 return {
                   ...old,
-                  pages: old.pages.map((page: any) => ({
+                  pages: old.pages.map((page) => ({
                     ...page,
-                    messages: page.messages.map((m: any) =>
+                    messages: page.messages.map((m) =>
                       m.id === tempMatch.id ? messageWithSender : m
                     ),
                   })),
@@ -181,13 +190,13 @@ export function useMessages(conversationId: string) {
 
           queryClient.setQueryData(
             ["messages", conversationId],
-            (old: any) => {
+            (old: MessagesCache | undefined) => {
               if (!old) return old;
               return {
                 ...old,
-                pages: old.pages.map((page: any) => ({
+                pages: old.pages.map((page) => ({
                   ...page,
-                  messages: page.messages.map((m: any) =>
+                  messages: page.messages.map((m) =>
                     m.id === updated.id ? { ...m, ...updated } : m
                   ),
                 })),

@@ -63,6 +63,7 @@ export function useCurrentProfile() {
   // and crash the route boundary.
   const [bootstrap, setBootstrap] = useState<CurrentProfile | null>(null);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setBootstrap(readLastCached());
   }, []);
 

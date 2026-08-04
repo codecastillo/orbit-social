@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createElement, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -56,12 +56,30 @@ function stripUndef<T extends Record<string, unknown>>(obj: T): Partial<T> {
   return out as Partial<T>;
 }
 
-function resolveLucideIcon(name: string) {
-  const lookup = Icons as unknown as Record<
-    string,
-    React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>
-  >;
+// Sideways drift for the floating hearts, bucketed off the item id so each one
+// takes a slightly different path without an impure read during render.
+const DRIFT_BUCKETS = 16;
+
+function driftPx(seed: string | number, spread: number): number {
+  const n =
+    typeof seed === "number"
+      ? seed
+      : Array.from(seed).reduce((hash, ch) => (hash * 31 + ch.charCodeAt(0)) | 0, 0);
+  return ((Math.abs(n) % DRIFT_BUCKETS) / (DRIFT_BUCKETS - 1) - 0.5) * spread;
+}
+
+type GlyphProps = { size?: number; className?: string; style?: React.CSSProperties };
+
+function resolveLucideIcon(name: string): React.ComponentType<GlyphProps> {
+  const lookup = Icons as unknown as Record<string, React.ComponentType<GlyphProps>>;
   return lookup[name] ?? Sparkles;
+}
+
+// The icon is picked from category data, so it can only be resolved once the
+// name is known. createElement keeps that out of JSX, where a locally bound
+// component reads as one defined during render.
+function LucideGlyph({ name, ...props }: GlyphProps & { name: string }) {
+  return createElement(resolveLucideIcon(name), props);
 }
 
 const MuxPlayer = dynamic(() => import("@mux/mux-player-react").then((m) => m.default), {
@@ -433,7 +451,7 @@ export function StreamContent({ streamId }: { streamId: string }) {
               <motion.div
                 key={h.id}
                 initial={{ opacity: 1, y: 0, scale: 0.5 }}
-                animate={{ opacity: 0, y: -200, scale: 1.2, x: (Math.random() - 0.5) * 80 }}
+                animate={{ opacity: 0, y: -200, scale: 1.2, x: driftPx(h.id, 80) }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 1.5, ease: "easeOut" }}
                 style={{
@@ -1033,9 +1051,13 @@ function InlineTitleField({
   const [draft, setDraft] = useState(title ?? "");
   const [savedFlash, setSavedFlash] = useState(false);
 
-  useEffect(() => {
+  // Adjusted during render per the React "adjusting state when a prop changes"
+  // pattern, so a title saved elsewhere lands in the field on the same frame.
+  const [prevTitle, setPrevTitle] = useState(title);
+  if (title !== prevTitle) {
+    setPrevTitle(title);
     setDraft(title ?? "");
-  }, [title]);
+  }
 
   const commit = async () => {
     const next = draft.trim().slice(0, 100);
@@ -1203,7 +1225,6 @@ function CategoryPill({
     );
   }
   if (cat) {
-    const Icon = resolveLucideIcon(cat.iconName);
     const Wrapper: React.ElementType = onClick ? "button" : "span";
     return (
       <Wrapper
@@ -1217,7 +1238,7 @@ function CategoryPill({
           borderColor: `oklch(0.65 0.18 ${cat.hue} / 0.4)`,
         }}
       >
-        <Icon size={11} />
+        <LucideGlyph name={cat.iconName} size={11} />
         {cat.label}
       </Wrapper>
     );
@@ -1256,7 +1277,6 @@ function MobileCategoryPill({
     );
   }
   if (!cat) return null;
-  const Icon = resolveLucideIcon(cat.iconName);
   return (
     <span
       className="inline-flex items-center gap-1 h-7 px-2.5 rounded-xl backdrop-blur-md text-[11px] font-bold text-white"
@@ -1265,7 +1285,7 @@ function MobileCategoryPill({
         border: `1px solid oklch(0.7 0.16 ${cat.hue} / 0.5)`,
       }}
     >
-      <Icon size={12} />
+      <LucideGlyph name={cat.iconName} size={12} />
       {cat.label}
     </span>
   );
@@ -1295,7 +1315,7 @@ function DesktopLikeButton({ onLike, count }: { onLike: () => void; count: numbe
           <motion.span
             key={id}
             initial={{ opacity: 1, y: 0, scale: 0.6 }}
-            animate={{ opacity: 0, y: -42, scale: 1.1, x: (Math.random() - 0.5) * 18 }}
+            animate={{ opacity: 0, y: -42, scale: 1.1, x: driftPx(id, 18) }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1, ease: "easeOut" }}
             className="absolute left-1/2 top-0 -translate-x-1/2 pointer-events-none"
