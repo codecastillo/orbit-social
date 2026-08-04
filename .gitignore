@@ -76,3 +76,6 @@ src/app/api/sentry-test/
 # Playwright
 test-results/
 playwright-report/
+
+# Expo export output
+orbit-mobile/dist/

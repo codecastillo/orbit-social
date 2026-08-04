@@ -267,6 +267,9 @@ export async function getFeedPosts(
   }
 
   if (tab === "following") {
+    // The `following_feed(p_limit, p_cursor)` RPC does this join server-side
+    // and removes the FOLLOWING_IDS_LIMIT truncation above. Switching is one
+    // line, held back so this commit changes no live surface.
     const { data: following } = await supabase
       .from("follows")
       .select("following_id")
@@ -284,8 +287,14 @@ export async function getFeedPosts(
   const { data, error } = await query;
   if (error) throw error;
 
-  // Filter close_friends posts: only show if the viewer is in the poster's close_friends list
-  const posts = data as unknown as PostWithAuthor[];
+  return filterCloseFriends(data as unknown as PostWithAuthor[], userId);
+}
+
+// Filter close_friends posts: only show if the viewer is in the poster's close_friends list
+async function filterCloseFriends(
+  posts: PostWithAuthor[],
+  userId: string
+): Promise<PostWithAuthor[]> {
   const closeFriendsPosts = posts.filter(
     (p) => p.visibility === "close_friends" && p.user_id !== userId
   );
@@ -311,6 +320,56 @@ export async function getFeedPosts(
   }
 
   return posts;
+}
+
+/**
+ * How many delivered ids ride along as `p_exclude`. The RPC only needs to
+ * know what is already on screen, and an unbounded array would grow into
+ * every request for the rest of the session.
+ */
+export const RANKED_EXCLUDE_CAP = 200;
+
+/**
+ * One page of the server-ranked For You feed, in the order `feed_for_you`
+ * returned, or null when the caller should use the chronological feed
+ * instead. Null covers every failure: RPC error, hydration error, and a page
+ * too thin to be worth showing (the ranker ran out of candidates).
+ *
+ * Only called for viewers inside the rollout, see isRankingEnabled.
+ */
+export async function getRankedFeedPosts(
+  userId: string,
+  excludeIds: string[] = [],
+  limit = 20
+): Promise<PostWithAuthor[] | null> {
+  try {
+    const { data, error } = await supabase.rpc("feed_for_you", {
+      p_limit: limit,
+      p_exclude: excludeIds,
+    });
+    if (error || !data) return null;
+
+    const ids = (data as { post_id: string }[]).map((row) => row.post_id);
+    if (ids.length * 2 < limit) return null;
+
+    const { data: rows, error: hydrateError } = await supabase
+      .from("posts")
+      .select(POST_SELECT)
+      .in("id", ids);
+    if (hydrateError || !rows) return null;
+
+    const byId = new Map(
+      (rows as unknown as PostWithAuthor[]).map((post) => [post.id, post])
+    );
+    // The hydration query has its own order; the RPC's is the ranking.
+    const ordered = ids
+      .map((id) => byId.get(id))
+      .filter((post): post is PostWithAuthor => post !== undefined);
+
+    return filterCloseFriends(ordered, userId);
+  } catch {
+    return null;
+  }
 }
 
 /**

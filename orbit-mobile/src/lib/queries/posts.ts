@@ -9,6 +9,7 @@ import {
   getRankingSignals,
   type RankingSignals,
 } from "@/lib/queries/content-safety";
+import { isRankingEnabled } from "@/lib/queries/feed-ranking";
 
 export interface PostAuthor {
   id: string;
@@ -169,6 +170,9 @@ export async function getFeedPosts(userId: string, tab: FeedTab, cursor?: string
   }
 
   if (tab === "following") {
+    // The `following_feed(p_limit, p_cursor)` RPC does this join server-side
+    // and removes the FOLLOWING_IDS_LIMIT truncation above. Switching is one
+    // line, held back so this commit changes no live surface.
     const { data: following, error: followsError } = await supabase
       .from("follows")
       .select("following_id")
@@ -185,9 +189,12 @@ export async function getFeedPosts(userId: string, tab: FeedTab, cursor?: string
   const { data, error } = await query;
   if (error) throw error;
 
-  // Filter close_friends posts: only show if the viewer is in the poster's
-  // close_friends list, mirroring the web getFeedPosts.
-  const posts = data as unknown as Post[];
+  return filterCloseFriends(data as unknown as Post[], userId);
+}
+
+// Filter close_friends posts: only show if the viewer is in the poster's
+// close_friends list, mirroring the web getFeedPosts.
+async function filterCloseFriends(posts: Post[], userId: string): Promise<Post[]> {
   const closeFriendsPosts = posts.filter(
     (p) => p.visibility === "close_friends" && p.user_id !== userId,
   );
@@ -221,6 +228,55 @@ export async function getPostsByIds(postIds: string[]): Promise<Map<string, Post
   return new Map(((data ?? []) as unknown as Post[]).map((p) => [p.id, p]));
 }
 
+/**
+ * How many delivered ids ride along as `p_exclude`. The RPC only needs to
+ * know what is already on screen, and an unbounded array would grow into
+ * every request for the rest of the session.
+ */
+export const RANKED_EXCLUDE_CAP = 200;
+
+/**
+ * One page of the server-ranked For You feed, in the order `feed_for_you`
+ * returned, or null when the caller should use the chronological feed
+ * instead. Null covers every failure: RPC error, hydration error, and a page
+ * too thin to be worth showing (the ranker ran out of candidates).
+ *
+ * Only called for viewers inside the rollout, see isRankingEnabled.
+ */
+export async function getRankedFeedPosts(
+  userId: string,
+  excludeIds: string[] = [],
+  limit = FEED_PAGE_SIZE,
+): Promise<Post[] | null> {
+  try {
+    const { data, error } = await supabase.rpc("feed_for_you", {
+      p_limit: limit,
+      p_exclude: excludeIds,
+    });
+    if (error || !data) return null;
+
+    const ids = (data as { post_id: string }[]).map((row) => row.post_id);
+    if (ids.length * 2 < limit) return null;
+
+    const byId = await getPostsByIds(ids);
+    // getPostsByIds has its own order; the RPC's is the ranking.
+    const ordered = ids
+      .map((id) => byId.get(id))
+      .filter((post): post is Post => post !== undefined);
+
+    return filterCloseFriends(ordered, userId);
+  } catch {
+    return null;
+  }
+}
+
+// The page param carries either the chronological created_at cursor or, in
+// ranked mode, the ids already delivered (the ranker has no cursor).
+export interface FeedPageParam {
+  cursor?: string;
+  excludeIds?: string[];
+}
+
 export interface FeedPage {
   posts: Post[];
   // Resolved parents for repost and quote rows, keyed by original post id.
@@ -232,10 +288,17 @@ export interface FeedPage {
   // page, so pagination stays a clean created_at walk. Null on the last
   // page.
   nextCursor: string | null;
+  // Ids delivered so far, handed back to feed_for_you as p_exclude. Null on
+  // every page that came from the chronological path.
+  nextExcludeIds: string[] | null;
 }
 
 // ---------------------------------------------------------------------------
-// For You ranking. Mirrors the web scorePost in
+// Client-side For You ranking, used only for viewers outside the
+// feed_for_you rollout. Delete this block once the rollout reaches everyone;
+// the ranked path in getFeedPage never touches it.
+//
+// Mirrors the web scorePost in
 // src/lib/services/feed-algorithm.ts (mobile cannot import web code): a
 // dominant recency decay, log-dampened engagement, a media bonus, an
 // additive boost while boosted_until is in the future, and an additive
@@ -333,22 +396,54 @@ export function displayPostId(post: Post): string {
 export async function getFeedPage(
   userId: string,
   tab: FeedTab,
-  cursor?: string,
+  pageParam?: FeedPageParam,
 ): Promise<FeedPage> {
-  const fetched = await getFeedPosts(userId, tab, cursor);
+  const cursor = pageParam?.cursor;
+  const excludeIds = pageParam?.excludeIds;
 
-  // Same page-exhaustion rule the screen used before ranking landed: a
-  // short page means the walk is done.
-  const nextCursor =
-    fetched.length < FEED_PAGE_SIZE ? null : fetched[fetched.length - 1].created_at;
+  // Server-side ranker, off for everyone outside the rollout. It returns
+  // null on any failure, which drops this page onto the chronological path
+  // below (including the client-side rankPage) with nothing surfaced to the
+  // viewer.
+  const rankedPosts =
+    tab === "foryou" && (await isRankingEnabled(userId))
+      ? await getRankedFeedPosts(userId, excludeIds ?? [])
+      : null;
 
-  // For You ranks within the fetched window; Following stays strictly
-  // chronological and complete. Topic preferences and sensitivity
-  // demotion ride along; the helper degrades to neutral on failure.
-  const posts =
-    tab === "foryou"
-      ? rankPage(fetched, await getRankingSignals(userId))
-      : fetched;
+  let posts: Post[];
+  let nextCursor: string | null;
+  let nextExcludeIds: string[] | null;
+
+  if (rankedPosts) {
+    posts = rankedPosts;
+    nextCursor = null;
+    nextExcludeIds = [...(excludeIds ?? []), ...rankedPosts.map((p) => p.id)].slice(
+      -RANKED_EXCLUDE_CAP,
+    );
+  } else {
+    const fetched = await getFeedPosts(userId, tab, cursor);
+
+    // Same page-exhaustion rule the screen used before ranking landed: a
+    // short page means the walk is done.
+    nextCursor =
+      fetched.length < FEED_PAGE_SIZE ? null : fetched[fetched.length - 1].created_at;
+    nextExcludeIds = null;
+
+    // For You ranks within the fetched window; Following stays strictly
+    // chronological and complete. Topic preferences and sensitivity
+    // demotion ride along; the helper degrades to neutral on failure.
+    const ordered =
+      tab === "foryou" ? rankPage(fetched, await getRankingSignals(userId)) : fetched;
+
+    // Dropping out of ranked mode mid-scroll restarts the chronological
+    // walk at the newest post, so skip what the ranked pages delivered.
+    if (excludeIds) {
+      const delivered = new Set(excludeIds);
+      posts = ordered.filter((p) => !delivered.has(p.id));
+    } else {
+      posts = ordered;
+    }
+  }
 
   const parentIds = [
     ...new Set(
@@ -363,7 +458,7 @@ export async function getFeedPage(
     ...new Set(posts.map((p) => displayPostId(p))),
   ]);
 
-  return { posts, originals, reactionCounts, nextCursor };
+  return { posts, originals, reactionCounts, nextCursor, nextExcludeIds };
 }
 
 // Null when the post does not exist or RLS hides it (a close-friends post

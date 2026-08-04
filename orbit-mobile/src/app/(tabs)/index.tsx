@@ -31,6 +31,7 @@ import {
   checkUserInteractions,
   displayPostId,
   getFeedPage,
+  type FeedPageParam,
   type FeedTab,
   type Post,
 } from "@/lib/queries/posts";
@@ -120,10 +121,14 @@ export default function FeedScreen() {
   } = useInfiniteQuery({
     queryKey: ["feed", userId, feedTab],
     queryFn: ({ pageParam }) => getFeedPage(userId, feedTab, pageParam),
-    initialPageParam: undefined as string | undefined,
-    // The page's chronological cursor, captured before For You ranking
-    // reorders posts; the last ranked item is no longer the oldest.
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    initialPageParam: undefined as FeedPageParam | undefined,
+    // Ranked pages paginate by excluding what they already delivered.
+    // Chronological pages use the page's created_at cursor, captured before
+    // For You ranking reorders posts; the last ranked item is not the oldest.
+    getNextPageParam: (lastPage): FeedPageParam | undefined => {
+      if (lastPage.nextExcludeIds) return { excludeIds: lastPage.nextExcludeIds };
+      return lastPage.nextCursor ? { cursor: lastPage.nextCursor } : undefined;
+    },
     enabled: !!userId,
   });
 
