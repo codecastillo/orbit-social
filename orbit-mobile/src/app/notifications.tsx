@@ -10,7 +10,12 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import {
   NOTIFICATION_PAGE_SIZE,
@@ -18,6 +23,7 @@ import {
   markManyAsRead,
   type NotificationWithActor,
 } from "@/lib/queries/notifications";
+import { getIncomingFollowRequests } from "@/lib/queries/profiles";
 import { formatTimeAgo } from "@/lib/format";
 import { useAuth } from "@/providers/auth-provider";
 import { colors, radii, spacing } from "@/lib/theme";
@@ -42,7 +48,7 @@ type FilterValue = (typeof FILTERS)[number]["value"];
 const FILTER_TYPES: Record<Exclude<FilterValue, "all">, readonly string[]> = {
   mentions: ["mention", "reply"],
   likes: ["like", "reaction"],
-  follows: ["follow"],
+  follows: ["follow", "follow_request"],
 };
 
 function matchesFilter(
@@ -72,6 +78,8 @@ function notificationPhrase(notification: NotificationWithActor): string {
       return "quoted your post";
     case "follow":
       return "followed you";
+    case "follow_request":
+      return "requested to follow you";
     case "mention":
       return "mentioned you";
     case "repost":
@@ -113,7 +121,9 @@ interface NotificationGroup {
 
 // Only types where the individual actor stops mattering once there are
 // several collapse. Messages, mentions, quotes, invites, and the system rows
-// each carry detail that a count would throw away.
+// each carry detail that a count would throw away. follow_request stays out
+// deliberately: every one of them is a separate approve-or-deny decision, so
+// collapsing them into "and 3 others" would hide the work.
 const GROUPABLE_TYPES: ReadonlySet<string> = new Set(["like", "repost", "follow"]);
 
 // Follow rows store the follower as their entity, so keying on the entity
@@ -346,6 +356,15 @@ export default function NotificationsScreen() {
     enabled: !!user,
   });
 
+  // Only private accounts ever have rows here, so the banner self-hides for
+  // everyone else without a separate is_private read.
+  const { data: followRequests } = useQuery({
+    queryKey: ["follow-requests", user?.id],
+    queryFn: () => getIncomingFollowRequests(user!.id),
+    enabled: !!user,
+  });
+  const pendingRequests = followRequests?.length ?? 0;
+
   const readMutation = useMutation({
     mutationFn: markManyAsRead,
     onSuccess: () => {
@@ -371,6 +390,8 @@ export default function NotificationsScreen() {
         router.push(`/events/${notification.entity_id}`);
       } else if (notification.type === "moment_prompt") {
         router.push("/moment-camera");
+      } else if (notification.type === "follow_request") {
+        router.push("/follow-requests");
       }
     },
     [readMutation, router],
@@ -420,7 +441,30 @@ export default function NotificationsScreen() {
           <NotificationRow group={item.group} onPress={handlePress} />
         )
       }
-      ListHeaderComponent={<FilterTabs active={filter} onChange={setFilter} />}
+      ListHeaderComponent={
+        <>
+          {pendingRequests > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Follow requests"
+              onPress={() => router.push("/follow-requests")}
+              style={styles.requestsBanner}
+            >
+              <View style={styles.requestsBody}>
+                <Text style={styles.requestsTitle}>
+                  {pendingRequests} follow{" "}
+                  {pendingRequests === 1 ? "request" : "requests"}
+                </Text>
+                <Text style={styles.requestsMeta}>
+                  Approve who gets to see your posts
+                </Text>
+              </View>
+              <Text style={styles.requestsChevron}>›</Text>
+            </Pressable>
+          ) : null}
+          <FilterTabs active={filter} onChange={setFilter} />
+        </>
+      }
       refreshControl={
         <RefreshControl
           refreshing={isRefetching}
@@ -455,6 +499,36 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  requestsBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    marginHorizontal: spacing(4),
+    marginTop: spacing(3),
+    padding: spacing(3),
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+  },
+  requestsBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  requestsTitle: {
+    color: colors.foreground,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  requestsMeta: {
+    color: colors.mutedForeground,
+    fontSize: 12.5,
+    marginTop: 1,
+  },
+  requestsChevron: {
+    color: colors.mutedForeground,
+    fontSize: 20,
   },
   tabBar: {
     flexDirection: "row",

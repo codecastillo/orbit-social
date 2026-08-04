@@ -15,7 +15,7 @@ import { useFeed } from "@/lib/hooks/use-feed";
 import { useAuth } from "@/lib/hooks/use-auth";
 import type { UserInteractions } from "@/lib/services/feed-algorithm";
 import { getSuggestedUsers } from "@/lib/queries/social";
-import { followUser, unfollowUser } from "@/lib/queries/social";
+import { toggleFollowState, type FollowState } from "@/lib/queries/social";
 import { toast } from "sonner";
 
 interface FeedListProps {
@@ -195,7 +195,7 @@ function EmptyFeedWithSuggestions({ tab, userId }: { tab: string; userId?: strin
 }
 
 function SuggestionCard({ profile }: { profile: any }) {
-  const [following, setFollowing] = useState(false);
+  const [followState, setFollowState] = useState<FollowState>("none");
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
@@ -203,14 +203,10 @@ function SuggestionCard({ profile }: { profile: any }) {
     if (!user) return;
     setLoading(true);
     try {
-      if (following) {
-        await unfollowUser(user.id, profile.id);
-        setFollowing(false);
-      } else {
-        await followUser(user.id, profile.id);
-        setFollowing(true);
-        toast.success(`Following @${profile.username}`);
-      }
+      const next = await toggleFollowState(user.id, profile.id, followState);
+      setFollowState(next);
+      if (next === "following") toast.success(`Following @${profile.username}`);
+      if (next === "requested") toast.success(`Requested to follow @${profile.username}`);
     } catch {
       toast.error("Couldn't update follow");
     } finally {
@@ -233,13 +229,21 @@ function SuggestionCard({ profile }: { profile: any }) {
         )}
       </div>
       <Button
-        variant={following ? "outline" : "default"}
+        variant={followState === "none" ? "default" : "outline"}
         size="sm"
         className="rounded-xl h-9 px-4 font-semibold cursor-pointer shrink-0"
         onClick={handleFollow}
         disabled={loading}
       >
-        {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : following ? "Following" : "Follow"}
+        {loading ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : followState === "following" ? (
+          "Following"
+        ) : followState === "requested" ? (
+          "Requested"
+        ) : (
+          "Follow"
+        )}
       </Button>
     </div>
   );

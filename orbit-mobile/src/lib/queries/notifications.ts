@@ -14,7 +14,8 @@ export type NotificationType =
   | "event_invite"
   | "event_reminder"
   | "new_post"
-  | "moment_prompt";
+  | "moment_prompt"
+  | "follow_request";
 
 export interface NotificationWithActor {
   id: string;

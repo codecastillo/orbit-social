@@ -40,7 +40,8 @@ type PrefKey =
   | "marketplace"
   | "communities"
   | "story_replies"
-  | "new_followers_posts";
+  | "new_followers_posts"
+  | "email_digest";
 
 interface NotificationPref {
   key: PrefKey;
@@ -71,10 +72,15 @@ const SURFACE_PREFS: NotificationPref[] = [
   { key: "communities", label: "Communities", description: "Room invites and community activity.", icon: Users, tileClass: "border-primary/20 bg-primary/10 text-primary" },
 ];
 
+const EMAIL_PREFS: NotificationPref[] = [
+  { key: "email_digest", label: "Daily digest", description: "One email a day summing up what you missed. Account email like password resets always sends.", icon: Mail, tileClass: "border-success/20 bg-success/10 text-success" },
+];
+
 const ALL_PREF_KEYS: PrefKey[] = [
   ...INTERACTION_PREFS,
   ...CONTENT_PREFS,
   ...SURFACE_PREFS,
+  ...EMAIL_PREFS,
 ].map((p) => p.key);
 
 const DEFAULTS = Object.fromEntries(
@@ -195,6 +201,10 @@ export default function NotificationSettingsPage() {
 
       <FormSection title="Surfaces">
         <PrefRows prefs={prefs} defs={SURFACE_PREFS} onToggle={togglePref} />
+      </FormSection>
+
+      <FormSection title="Email">
+        <PrefRows prefs={prefs} defs={EMAIL_PREFS} onToggle={togglePref} />
       </FormSection>
 
       <FormSection title="Quiet hours" hint="local time">

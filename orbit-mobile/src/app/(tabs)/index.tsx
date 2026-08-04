@@ -26,6 +26,7 @@ import {
 } from "@/lib/queries/posts";
 import { buildMutedWordMatcher } from "@/lib/queries/content-safety";
 import {
+  useMutedIds,
   useMutedWords,
   useNotInterestedIds,
 } from "@/lib/hooks/use-content-safety";
@@ -104,13 +105,15 @@ export default function FeedScreen() {
   });
 
   const { data: mutedWords } = useMutedWords();
+  const { data: mutedIds } = useMutedIds();
   const { data: notInterestedIds } = useNotInterestedIds();
 
   const { posts, originals, reactionCounts } = useMemo(() => {
     const pages = data?.pages ?? [];
     // Content-safety filtering happens after the fetch so pagination
     // cursors stay a clean created_at walk. Feedback on a repost row
-    // targets the original it displays, hence displayPostId.
+    // targets the original it displays, hence displayPostId. A muted
+    // account drops out of the feed; their profile stays visible.
     const matchesMutedWord = buildMutedWordMatcher(mutedWords ?? []);
     const merged = {
       posts: pages
@@ -118,13 +121,14 @@ export default function FeedScreen() {
         .filter(
           (post) =>
             !notInterestedIds?.has(displayPostId(post)) &&
+            !mutedIds?.has(post.user_id) &&
             !matchesMutedWord(post.content),
         ),
       originals: new Map(pages.flatMap((p) => [...p.originals])),
       reactionCounts: new Map(pages.flatMap((p) => [...p.reactionCounts])),
     };
     return merged;
-  }, [data, mutedWords, notInterestedIds]);
+  }, [data, mutedWords, mutedIds, notInterestedIds]);
 
   // Interactions are checked against the id each card acts on (the
   // original for reposts), so likes and reactions light up correctly.

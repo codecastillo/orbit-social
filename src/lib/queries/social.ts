@@ -26,11 +26,48 @@ export interface TrendingHashtag {
 
 // ── Follows ──────────────────────────────────────────────────────────
 
-export async function followUser(followerId: string, followingId: string) {
+/** What a Follow tap turned into: an immediate follow, or a pending request. */
+export type FollowOutcome = "following" | "requested";
+
+/** The three states the follow button can sit in. */
+export type FollowState = "none" | "requested" | "following";
+
+async function isPrivateAccount(userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("is_private")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.is_private === true;
+}
+
+/**
+ * Follows a public account outright; a private one only gets a request the
+ * target has to approve. The follows insert policy would happily accept a
+ * private target, so honoring privacy is the client's call to make, not
+ * something RLS will do for us.
+ *
+ * Pass `targetIsPrivate` when the caller already has the profile loaded to
+ * skip the extra lookup.
+ */
+export async function followUser(
+  followerId: string,
+  followingId: string,
+  targetIsPrivate?: boolean
+): Promise<FollowOutcome> {
+  const isPrivate = targetIsPrivate ?? (await isPrivateAccount(followingId));
+
+  if (isPrivate) {
+    await requestFollow(followerId, followingId);
+    return "requested";
+  }
+
   const { error } = await supabase
     .from("follows")
     .insert({ follower_id: followerId, following_id: followingId });
   if (error) throw error;
+  return "following";
 }
 
 export async function unfollowUser(followerId: string, followingId: string) {
@@ -53,6 +90,132 @@ export async function checkFollowing(
     .in("following_id", followingIds);
   if (error) throw error;
   return new Set(data?.map((f) => f.following_id) ?? []);
+}
+
+// ── Follow requests ──────────────────────────────────────────────────
+
+export interface FollowRequest {
+  requester: ProfileSummary;
+  created_at: string;
+}
+
+export async function requestFollow(requesterId: string, targetId: string) {
+  const { error } = await supabase
+    .from("follow_requests")
+    .insert({ requester_id: requesterId, target_id: targetId });
+  if (error) throw error;
+}
+
+/** Used both by the requester (cancel) and the target (deny). */
+export async function cancelFollowRequest(
+  requesterId: string,
+  targetId: string
+) {
+  const { error } = await supabase
+    .from("follow_requests")
+    .delete()
+    .eq("requester_id", requesterId)
+    .eq("target_id", targetId);
+  if (error) throw error;
+}
+
+export async function checkFollowRequests(
+  requesterId: string,
+  targetIds: string[]
+) {
+  if (targetIds.length === 0) return new Set<string>();
+  const { data, error } = await supabase
+    .from("follow_requests")
+    .select("target_id")
+    .eq("requester_id", requesterId)
+    .in("target_id", targetIds);
+  if (error) throw error;
+  return new Set((data ?? []).map((r) => r.target_id));
+}
+
+/** Resolves the button state for one target in a single round trip each way. */
+export async function getFollowState(
+  followerId: string,
+  targetId: string
+): Promise<FollowState> {
+  const [following, requested] = await Promise.all([
+    checkFollowing(followerId, [targetId]),
+    checkFollowRequests(followerId, [targetId]),
+  ]);
+  if (following.has(targetId)) return "following";
+  if (requested.has(targetId)) return "requested";
+  return "none";
+}
+
+/** Same as getFollowState, batched for a list of rows. */
+export async function checkFollowStates(
+  followerId: string,
+  targetIds: string[]
+): Promise<Map<string, FollowState>> {
+  const states = new Map<string, FollowState>();
+  if (targetIds.length === 0) return states;
+
+  const [following, requested] = await Promise.all([
+    checkFollowing(followerId, targetIds),
+    checkFollowRequests(followerId, targetIds),
+  ]);
+  for (const id of targetIds) {
+    if (following.has(id)) states.set(id, "following");
+    else if (requested.has(id)) states.set(id, "requested");
+    else states.set(id, "none");
+  }
+  return states;
+}
+
+/**
+ * Advances the Follow -> Requested/Following cycle by one tap and returns the
+ * state the button should land on. Every follow surface routes through here so
+ * the private-account branch cannot be forgotten in one of them.
+ */
+export async function toggleFollowState(
+  followerId: string,
+  targetId: string,
+  current: FollowState,
+  targetIsPrivate?: boolean
+): Promise<FollowState> {
+  if (current === "following") {
+    await unfollowUser(followerId, targetId);
+    return "none";
+  }
+  if (current === "requested") {
+    await cancelFollowRequest(followerId, targetId);
+    return "none";
+  }
+  return followUser(followerId, targetId, targetIsPrivate);
+}
+
+export async function getIncomingFollowRequests(
+  userId: string
+): Promise<FollowRequest[]> {
+  const { data, error } = await supabase
+    .from("follow_requests")
+    .select(`created_at, profiles!follow_requests_requester_id_fkey (${PROFILE_SELECT})`)
+    .eq("target_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+
+  return ((data ?? []) as unknown as {
+    created_at: string;
+    profiles: ProfileSummary | null;
+  }[])
+    .filter((row) => row.profiles !== null)
+    .map((row) => ({ requester: row.profiles!, created_at: row.created_at }));
+}
+
+/**
+ * Approving is target-only and has to delete the request and insert the follow
+ * together, so it runs as one SECURITY DEFINER call rather than two writes.
+ */
+export async function approveFollowRequest(requesterId: string) {
+  const { error } = await supabase.rpc("approve_follow_request", {
+    p_requester: requesterId,
+  });
+  if (error) throw error;
 }
 
 // ── Post notification bell ───────────────────────────────────────────
@@ -121,6 +284,42 @@ export async function getBlockedUsers(userId: string) {
     .filter((p): p is ProfileSummary => p !== null);
 }
 
+/**
+ * The blocks the viewer owns. Expiry is deliberately ignored so this matches
+ * `blocks_between`, which enforces every row regardless of `expires_at`; a
+ * client that hid expired rows would promise sends the server still refuses.
+ */
+export async function getBlockedIds(userId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("blocks")
+    .select("blocked_id")
+    .eq("blocker_id", userId);
+  if (error) throw error;
+  return new Set((data ?? []).map((row) => row.blocked_id));
+}
+
+/**
+ * Query keys that go stale the moment a block lands: the trigger severs
+ * follows and close friends in both directions, and the posts policy starts
+ * hiding content, so counts, lists, feeds, and suggestions all shift.
+ */
+export const BLOCK_INVALIDATION_KEYS: readonly string[][] = [
+  ["feed"],
+  ["feed-suggestions"],
+  ["suggested-users"],
+  ["follow-list"],
+  ["followers"],
+  ["following"],
+  ["check-following"],
+  ["viewer-follows"],
+  ["profile-meta"],
+  ["profile-tab-counts"],
+  ["follow-states"],
+  ["follow-state"],
+  ["blocked-ids"],
+  ["blocked-users"],
+];
+
 // ── Mutes ────────────────────────────────────────────────────────────
 
 export async function muteUser(userId: string, mutedId: string, expiresAt?: string) {
@@ -153,6 +352,20 @@ export async function getMutedUsers(userId: string) {
   return ((data ?? []) as unknown as { profiles: ProfileSummary | null }[])
     .map((row) => row.profiles)
     .filter((p): p is ProfileSummary => p !== null);
+}
+
+/**
+ * The accounts the viewer muted, for the feed and clip filters. Mutes are
+ * enforced entirely on the client, so timed mutes expire here.
+ */
+export async function getMutedIds(userId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("mutes")
+    .select("muted_id")
+    .eq("user_id", userId)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
+  if (error) throw error;
+  return new Set((data ?? []).map((row) => row.muted_id));
 }
 
 

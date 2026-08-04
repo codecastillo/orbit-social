@@ -36,7 +36,7 @@ import {
 } from "@/lib/queries/clips";
 import { createRepost, toggleBookmark, undoRepost } from "@/lib/queries/posts";
 import { buildMutedWordMatcher } from "@/lib/queries/content-safety";
-import { useMutedWords } from "@/lib/hooks/use-content-safety";
+import { useMutedIds, useMutedWords } from "@/lib/hooks/use-content-safety";
 import { formatNumber } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
@@ -693,6 +693,7 @@ export function ClipsFeed({
   });
 
   const { data: mutedWords } = useMutedWords();
+  const { data: mutedIds } = useMutedIds();
 
   // Curated picks lead the All lane; the Loops lane stays a pure duration
   // filter. Deduped so a curated clip does not repeat when its page arrives.
@@ -713,8 +714,12 @@ export function ClipsFeed({
       lane !== "all" || !curated || curated.length === 0
         ? pageClips
         : [...curated, ...pageClips.filter((c) => !curatedIds.has(c.id))];
-    return merged.filter((c) => !matchesMutedWord(c.content));
-  }, [data, curated, curatedIds, lane, matchesMutedWord]);
+    // A muted account drops out of the pager the same way a muted word
+    // does; their profile and clips stay reachable by visiting them.
+    return merged.filter(
+      (c) => !mutedIds?.has(c.user_id) && !matchesMutedWord(c.content),
+    );
+  }, [data, curated, curatedIds, lane, mutedIds, matchesMutedWord]);
 
   // FlatList requires a referentially stable handler; empty deps keep it so.
   const onViewableItemsChanged = useCallback(

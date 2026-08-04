@@ -29,7 +29,13 @@ import {
   editMessage,
   type Message,
 } from "@/lib/queries/messages";
-import { blockUser } from "@/lib/queries/social";
+import {
+  blockUser,
+  unblockUser,
+  BLOCK_INVALIDATION_KEYS,
+} from "@/lib/queries/social";
+import { useBlockedIds } from "@/lib/hooks/use-content-safety";
+import { BLOCKED_DM_MESSAGE, isBlockedDmError } from "@/lib/utils/blocked-error";
 import { createClient } from "@/lib/supabase/client";
 import { ChatWindow, replySnippet } from "@/components/messages/chat-window";
 import {
@@ -131,6 +137,11 @@ export default function ChatPage({ params }: ChatPageProps) {
   useEffect(() => {
     return () => flushUndoableSends();
   }, [conversationId, flushUndoableSends]);
+
+  // Only the viewer's own blocks are readable. If the other side blocked
+  // them the composer stays put and the send surfaces the server's refusal.
+  const { data: blockedIds } = useBlockedIds();
+  const blockedCounterpart = !!otherUser && (blockedIds?.has(otherUser.id) ?? false);
 
   const webrtc = useWebRTC(conversationId, user?.id ?? "");
 
@@ -397,7 +408,11 @@ export default function ChatPage({ params }: ChatPageProps) {
               .map((r) => r.attachment)
               .filter((a): a is PendingAttachment => a !== null)
           );
-          toast.error("Couldn't send message");
+          // The commit runs after the undo window, by which point the user
+          // may have left the thread, so the toast is the only surface left.
+          toast.error(
+            isBlockedDmError(e) ? BLOCKED_DM_MESSAGE : "Couldn't send message"
+          );
           return;
         }
       }
@@ -484,6 +499,11 @@ export default function ChatPage({ params }: ChatPageProps) {
     setBlockSaving(true);
     try {
       await blockUser(user.id, otherUser.id);
+      // The block trigger severs the follows both ways, so the follow graph
+      // caches behind the counts and lists are immediately wrong.
+      for (const queryKey of BLOCK_INVALIDATION_KEYS) {
+        queryClient.invalidateQueries({ queryKey });
+      }
       toast.success(`@${otherUser.username} blocked`);
       router.push("/messages");
     } catch (e) {
@@ -491,6 +511,18 @@ export default function ChatPage({ params }: ChatPageProps) {
       toast.error("Couldn't block user");
     } finally {
       setBlockSaving(false);
+    }
+  };
+
+  const handleUnblock = async () => {
+    if (!user || !otherUser) return;
+    try {
+      await unblockUser(user.id, otherUser.id);
+      queryClient.invalidateQueries({ queryKey: ["blocked-ids", user.id] });
+      toast.success(`@${otherUser.username} unblocked`);
+    } catch (e) {
+      console.error("unblock failed", e);
+      toast.error("Couldn't unblock user");
     }
   };
 
@@ -714,23 +746,34 @@ export default function ChatPage({ params }: ChatPageProps) {
       )}
 
         <TypingIndicator names={typingNames} isGroup={isGroup} />
-        <MessageInput
-          ref={messageInputRef}
-          onSend={handleSend}
-          onTypingActivity={notifyTyping}
-          replyTo={
-            replyTo
-              ? {
-                  name:
-                    replyTo.sender_id === user.id
-                      ? "yourself"
-                      : replyTo.sender?.display_name || "Message",
-                  snippet: replySnippet(replyTo),
-                }
-              : null
-          }
-          onCancelReply={() => setReplyTo(null)}
-        />
+        {blockedCounterpart ? (
+          <div className="flex flex-wrap items-center justify-center gap-3 border-t border-border bg-surface px-5 py-4 text-center">
+            <p className="m-0 text-[13px] text-text-secondary">
+              You blocked @{otherUser?.username}. Unblock them to send messages.
+            </p>
+            <Button variant="outline" size="sm" onClick={handleUnblock}>
+              Unblock
+            </Button>
+          </div>
+        ) : (
+          <MessageInput
+            ref={messageInputRef}
+            onSend={handleSend}
+            onTypingActivity={notifyTyping}
+            replyTo={
+              replyTo
+                ? {
+                    name:
+                      replyTo.sender_id === user.id
+                        ? "yourself"
+                        : replyTo.sender?.display_name || "Message",
+                    snippet: replySnippet(replyTo),
+                  }
+                : null
+            }
+            onCancelReply={() => setReplyTo(null)}
+          />
+        )}
       </div>{/* /chat panel */}
 
       {/* PROFILE RAIL */}
@@ -833,12 +876,19 @@ export default function ChatPage({ params }: ChatPageProps) {
               {!isGroup && otherUser && (
                 <button
                   type="button"
-                  onClick={() => setBlockConfirmOpen(true)}
+                  onClick={() =>
+                    blockedCounterpart
+                      ? void handleUnblock()
+                      : setBlockConfirmOpen(true)
+                  }
                   disabled={blockSaving}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] text-destructive transition-colors hover:bg-surface-elevated disabled:opacity-60"
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-surface-elevated disabled:opacity-60",
+                    blockedCounterpart ? "text-text-secondary" : "text-destructive"
+                  )}
                 >
                   <Ban className="h-3.5 w-3.5" strokeWidth={1.8} />
-                  Block @{otherUser.username}
+                  {blockedCounterpart ? "Unblock" : "Block"} @{otherUser.username}
                 </button>
               )}
             </div>

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileContent } from "./profile-content";
+import type { FollowState } from "@/lib/queries/social";
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -46,16 +47,27 @@ export default async function ProfilePage({ params }: Props) {
 
   const isOwnProfile = user?.id === profile.id;
 
-  let isFollowing = false;
+  // Private accounts can also be in the pending state, so resolve all three
+  // possibilities server-side and let the client render the right button.
+  let followState: FollowState = "none";
   if (user && !isOwnProfile) {
-    const { data: follow } = await supabase
-      .from("follows")
-      .select("follower_id")
-      .eq("follower_id", user.id)
-      .eq("following_id", profile.id)
-      .single();
+    const [{ data: follow }, { data: request }] = await Promise.all([
+      supabase
+        .from("follows")
+        .select("follower_id")
+        .eq("follower_id", user.id)
+        .eq("following_id", profile.id)
+        .maybeSingle(),
+      supabase
+        .from("follow_requests")
+        .select("requester_id")
+        .eq("requester_id", user.id)
+        .eq("target_id", profile.id)
+        .maybeSingle(),
+    ]);
 
-    isFollowing = !!follow;
+    if (follow) followState = "following";
+    else if (request) followState = "requested";
   }
 
   // Pre-compute the tab visibility counts server-side so the tab strip
@@ -122,7 +134,7 @@ export default async function ProfilePage({ params }: Props) {
       <ProfileContent
         profile={profile}
         isOwnProfile={isOwnProfile}
-        initialIsFollowing={isFollowing}
+        initialFollowState={followState}
         initialTabCounts={initialTabCounts}
       />
     </div>

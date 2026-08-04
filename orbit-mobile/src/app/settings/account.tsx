@@ -1,20 +1,29 @@
 import { useState } from "react";
 import {
   Linking,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { Stack } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button, Field } from "@/components/ui";
+import { deleteAccount } from "@/lib/queries/account";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
-import { colors, spacing } from "@/lib/theme";
+import { colors, radii, spacing } from "@/lib/theme";
 
 // Same password policy as the web account page's zod schema.
 const PASSWORD_MIN_LENGTH = 10;
-const WEB_ACCOUNT_URL = "https://orbitsocial.net/settings/account";
+// Export builds a zip on the server and hands back a download, which only
+// the browser can take delivery of, so the app links out for it.
+const WEB_EXPORT_URL = "https://orbitsocial.net/settings/export";
+const DELETE_CONFIRMATION = "DELETE";
+const BACKDROP = "rgba(0, 0, 0, 0.55)";
 
 function passwordError(password: string): string | null {
   if (password.length < PASSWORD_MIN_LENGTH) {
@@ -33,8 +42,108 @@ function passwordError(password: string): string | null {
   return null;
 }
 
+/**
+ * Typed-confirmation gate for deletion, mirroring the web ModalShell dialog.
+ * The copy states exactly what the API route removes so nobody taps through
+ * expecting a recoverable action.
+ */
+function DeleteAccountModal({
+  visible,
+  onClose,
+  onConfirm,
+  deleting,
+  error,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  deleting: boolean;
+  error: string | null;
+}) {
+  const [confirmation, setConfirmation] = useState("");
+
+  const close = () => {
+    setConfirmation("");
+    onClose();
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={close}
+    >
+      <View style={styles.modalContainer}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          style={styles.backdrop}
+          onPress={deleting ? undefined : close}
+        />
+        <View style={styles.modalCard}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Delete your account</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              onPress={close}
+              disabled={deleting}
+              hitSlop={8}
+            >
+              <Ionicons name="close" size={22} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+
+          <Text style={styles.modalBody}>
+            This permanently deletes your profile, posts, clips, stories,
+            comments, likes, follows, and messages on every device. It cannot
+            be undone.
+          </Text>
+          <Text style={styles.modalBody}>
+            Sounds you added to the shared audio library stay up, with no
+            creator attached. Download your data first if you want a copy.
+          </Text>
+
+          <Field
+            label={`Type ${DELETE_CONFIRMATION} to confirm`}
+            placeholder={DELETE_CONFIRMATION}
+            value={confirmation}
+            onChangeText={setConfirmation}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            editable={!deleting}
+          />
+
+          {error ? <Text style={styles.submitError}>{error}</Text> : null}
+
+          <Button
+            label="Delete forever"
+            variant="destructive"
+            loading={deleting}
+            disabled={confirmation !== DELETE_CONFIRMATION}
+            onPress={onConfirm}
+          />
+          <Button
+            label="Cancel"
+            variant="outline"
+            disabled={deleting}
+            onPress={close}
+            style={styles.modalCancel}
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function AccountSettingsScreen() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -70,6 +179,25 @@ export default function AccountSettingsScreen() {
     setNewPassword("");
     setConfirmPassword("");
     setSaved(true);
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteAccount();
+    } catch (error) {
+      setDeleting(false);
+      setDeleteError(
+        error instanceof Error ? error.message : "Couldn't delete account",
+      );
+      return;
+    }
+    setDeleteOpen(false);
+    // The account is gone; drop the dead session and every cached query so
+    // the AuthGate lands on the login screen with nothing left behind.
+    await supabase.auth.signOut();
+    queryClient.clear();
   };
 
   return (
@@ -123,19 +251,42 @@ export default function AccountSettingsScreen() {
         />
       </View>
 
+      <Text style={styles.sectionTitle}>Your data</Text>
+      <View style={styles.formSection}>
+        <Text style={styles.deleteExplainer}>
+          Export your posts, messages, and follows as a file. The export is
+          built and downloaded in a browser.
+        </Text>
+        <Button
+          label="Download your data"
+          variant="outline"
+          onPress={() => void Linking.openURL(WEB_EXPORT_URL)}
+        />
+      </View>
+
       <Text style={styles.sectionTitle}>Delete account</Text>
       <View style={styles.formSection}>
         <Text style={styles.deleteExplainer}>
-          Account deletion currently completes on the web. Open your account
-          settings at orbitsocial.net, confirm there, and everything is
-          removed for this app too.
+          Permanent. Your profile, posts, messages, and reactions all go with
+          you.
         </Text>
         <Button
-          label="Open account settings on the web"
+          label="Delete account"
           variant="destructive"
-          onPress={() => void Linking.openURL(WEB_ACCOUNT_URL)}
+          onPress={() => {
+            setDeleteError(null);
+            setDeleteOpen(true);
+          }}
         />
       </View>
+
+      <DeleteAccountModal
+        visible={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={() => void handleDeleteAccount()}
+        deleting={deleting}
+        error={deleteError}
+      />
     </ScrollView>
   );
 }
@@ -186,5 +337,43 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     marginBottom: spacing(3),
+  },
+  modalContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing(6),
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: BACKDROP,
+  },
+  modalCard: {
+    alignSelf: "stretch",
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.destructive,
+    padding: spacing(5),
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing(3),
+  },
+  modalTitle: {
+    color: colors.foreground,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  modalBody: {
+    color: colors.mutedForeground,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: spacing(3),
+  },
+  modalCancel: {
+    marginTop: spacing(2),
   },
 });

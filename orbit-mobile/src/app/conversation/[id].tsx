@@ -88,6 +88,9 @@ import {
   type MessageMediaType,
   type MessageReactionGroup,
 } from "@/lib/queries/messages";
+import { unblockUser } from "@/lib/queries/settings";
+import { useBlockedIds } from "@/lib/hooks/use-content-safety";
+import { BLOCKED_DM_MESSAGE, isBlockedDmError } from "@/lib/blocked-error";
 import { supabase } from "@/lib/supabase";
 import { flushUndoableSends, scheduleUndoableSend } from "@/lib/undo-send";
 import { useAuth } from "@/providers/auth-provider";
@@ -509,6 +512,13 @@ export default function ConversationScreen() {
   const messageIds = (data?.pages.flat() ?? []).map((m) => m.id);
   const isGroup = conversation?.is_group ?? false;
 
+  // Only the viewer's own blocks are readable. If the other side blocked
+  // them the composer stays put and the send surfaces the server's refusal.
+  const { data: blockedIds } = useBlockedIds();
+  const otherMemberId = conversation?.other_member?.id ?? null;
+  const blockedCounterpart =
+    !isGroup && !!otherMemberId && (blockedIds?.has(otherMemberId) ?? false);
+
   // Other member's read state for the "Seen" marker, gated inside
   // getDmSeenAt by the reciprocity rule. The newest message id keys the
   // query so it refreshes as messages land.
@@ -913,13 +923,25 @@ export default function ConversationScreen() {
     return () => flushUndoableSends(pendingIds);
   }, []);
 
+  const unblock = useMutation({
+    mutationFn: () => unblockUser(user!.id, otherMemberId!),
+    onError: () => Alert.alert("Couldn't unblock this account"),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["blocked-ids", user?.id] });
+    },
+  });
+
   const voiceMutation = useMutation({
     mutationFn: (uri: string) => sendVoiceMessage(conversationId, user!.id, uri),
     onSuccess: (message) => {
       appendMessage(message);
       queryClient.invalidateQueries({ queryKey: ["conversations", user?.id] });
     },
-    onError: () => {
+    onError: (error) => {
+      if (isBlockedDmError(error)) {
+        Alert.alert(BLOCKED_DM_MESSAGE);
+        return;
+      }
       Alert.alert(
         "Voice message not sent",
         "Check your connection and try again.",
@@ -1190,10 +1212,16 @@ export default function ConversationScreen() {
           },
         );
         queryClient.invalidateQueries({ queryKey: ["conversations", user.id] });
-      } catch {
+      } catch (error) {
         removeOptimistic();
         restoreDraft();
-        Alert.alert("Message not sent", "Check your connection and try again.");
+        // The commit can fire from the unmount flush, after this screen is
+        // gone, so the alert is the only surface left to report on.
+        if (isBlockedDmError(error)) {
+          Alert.alert(BLOCKED_DM_MESSAGE);
+        } else {
+          Alert.alert("Message not sent", "Check your connection and try again.");
+        }
       }
     };
 
@@ -1604,97 +1632,111 @@ export default function ConversationScreen() {
           </View>
         ) : null}
 
-        <View style={styles.composer}>
-          {recording ? (
-            <VoiceRecordingBar
-              recorder={recorder}
-              onCancel={() => void finishRecording(false)}
-              onSend={() => void finishRecording(true)}
-              onAutoStop={() => void finishRecording(true)}
+        {blockedCounterpart ? (
+          <View style={styles.blockedComposer}>
+            <Text style={styles.blockedComposerText}>
+              You blocked this account. Unblock to send messages.
+            </Text>
+            <Button
+              label="Unblock"
+              variant="outline"
+              loading={unblock.isPending}
+              onPress={() => unblock.mutate()}
             />
-          ) : (
-            <>
-              {!editing ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Attach a photo or video"
-                  onPress={() => void pickDmMedia()}
-                  style={({ pressed }) => [
-                    styles.attachButton,
-                    pressed && { opacity: 0.7 },
-                  ]}
-                >
-                  <Ionicons
-                    name="image-outline"
-                    size={20}
-                    color={colors.primary}
-                  />
-                </Pressable>
-              ) : null}
-              <TextInput
-                style={styles.composerInput}
-                placeholder={editing ? "Edit message" : "Message"}
-                placeholderTextColor={colors.textFaint}
-                value={draft}
-                onChangeText={(text) => {
-                  setDraft(text);
-                  if (!editing) notifyTyping(text.trim().length > 0);
-                }}
-                multiline
-                accessibilityLabel="Message text"
+          </View>
+        ) : (
+          <View style={styles.composer}>
+            {recording ? (
+              <VoiceRecordingBar
+                recorder={recorder}
+                onCancel={() => void finishRecording(false)}
+                onSend={() => void finishRecording(true)}
+                onAutoStop={() => void finishRecording(true)}
               />
-              {editing ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Save edit"
-                  onPress={handleSaveEdit}
-                  disabled={!hasText || editMutation.isPending}
-                  style={({ pressed }) => [
-                    styles.sendButton,
-                    !hasText && { opacity: 0.4 },
-                    pressed && { opacity: 0.7 },
-                  ]}
-                >
-                  <Ionicons
-                    name="checkmark"
-                    size={20}
-                    color={colors.primaryForeground}
-                  />
-                </Pressable>
-              ) : hasText || pickedMedia ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Send message"
-                  onPress={handleSend}
-                  style={({ pressed }) => [
-                    styles.sendButton,
-                    pressed && { opacity: 0.7 },
-                  ]}
-                >
-                  <Ionicons name="arrow-up" size={20} color={colors.primaryForeground} />
-                </Pressable>
-              ) : (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Record a voice message"
-                  onPress={() => void startRecording()}
-                  disabled={voiceMutation.isPending}
-                  style={({ pressed }) => [
-                    styles.micButton,
-                    voiceMutation.isPending && { opacity: 0.4 },
-                    pressed && { opacity: 0.7 },
-                  ]}
-                >
-                  {voiceMutation.isPending ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : (
-                    <Ionicons name="mic" size={20} color={colors.primary} />
-                  )}
-                </Pressable>
-              )}
-            </>
-          )}
-        </View>
+            ) : (
+              <>
+                {!editing ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Attach a photo or video"
+                    onPress={() => void pickDmMedia()}
+                    style={({ pressed }) => [
+                      styles.attachButton,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Ionicons
+                      name="image-outline"
+                      size={20}
+                      color={colors.primary}
+                    />
+                  </Pressable>
+                ) : null}
+                <TextInput
+                  style={styles.composerInput}
+                  placeholder={editing ? "Edit message" : "Message"}
+                  placeholderTextColor={colors.textFaint}
+                  value={draft}
+                  onChangeText={(text) => {
+                    setDraft(text);
+                    if (!editing) notifyTyping(text.trim().length > 0);
+                  }}
+                  multiline
+                  accessibilityLabel="Message text"
+                />
+                {editing ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Save edit"
+                    onPress={handleSaveEdit}
+                    disabled={!hasText || editMutation.isPending}
+                    style={({ pressed }) => [
+                      styles.sendButton,
+                      !hasText && { opacity: 0.4 },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Ionicons
+                      name="checkmark"
+                      size={20}
+                      color={colors.primaryForeground}
+                    />
+                  </Pressable>
+                ) : hasText || pickedMedia ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Send message"
+                    onPress={handleSend}
+                    style={({ pressed }) => [
+                      styles.sendButton,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Ionicons name="arrow-up" size={20} color={colors.primaryForeground} />
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Record a voice message"
+                    onPress={() => void startRecording()}
+                    disabled={voiceMutation.isPending}
+                    style={({ pressed }) => [
+                      styles.micButton,
+                      voiceMutation.isPending && { opacity: 0.4 },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    {voiceMutation.isPending ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <Ionicons name="mic" size={20} color={colors.primary} />
+                    )}
+                  </Pressable>
+                )}
+              </>
+            )}
+          </View>
+        )}
         <Animated.View style={{ height: kbSpace }} />
       </View>
 
@@ -1956,6 +1998,19 @@ const styles = StyleSheet.create({
   voiceWrap: {
     maxWidth: "75%",
     borderRadius: BUBBLE_RADIUS,
+  },
+  blockedComposer: {
+    alignItems: "center",
+    gap: spacing(3),
+    paddingHorizontal: spacing(5),
+    paddingVertical: spacing(4),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  blockedComposerText: {
+    color: colors.mutedForeground,
+    fontSize: 13,
+    textAlign: "center",
   },
   composer: {
     flexDirection: "row",

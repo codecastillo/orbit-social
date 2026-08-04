@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,8 +19,8 @@ import { useAuth } from "@/providers/auth-provider";
 import { Avatar, Button, EmptyState } from "@/components/ui";
 import {
   checkFollowingMany,
-  followUser,
-  unfollowUser,
+  toggleFollowState,
+  type FollowState,
 } from "@/lib/queries/profiles";
 import {
   followPackMembers,
@@ -500,8 +501,11 @@ function TrendingChips({ onTagPress }: { onTagPress: (name: string) => void }) {
 function SuggestedPeople() {
   const { user } = useAuth();
   const router = useRouter();
-  // Optimistic follow state, reverted if the write fails.
-  const [followedIds, setFollowedIds] = useState<ReadonlySet<string>>(new Set());
+  // Local follow state per card. Where a tap lands depends on whether the
+  // target is private, so it comes back from the write rather than a guess.
+  const [followStates, setFollowStates] = useState<
+    Readonly<Record<string, FollowState>>
+  >({});
 
   const suggestedQuery = useQuery({
     queryKey: ["suggested-users", user?.id],
@@ -510,24 +514,14 @@ function SuggestedPeople() {
     staleTime: 1000 * 60 * 5,
   });
 
-  function setFollowed(targetId: string, followed: boolean) {
-    setFollowedIds((prev) => {
-      const next = new Set(prev);
-      if (followed) next.add(targetId);
-      else next.delete(targetId);
-      return next;
-    });
-  }
-
   async function toggleFollow(targetId: string) {
     if (!user) return;
-    const wasFollowing = followedIds.has(targetId);
-    setFollowed(targetId, !wasFollowing);
+    const current = followStates[targetId] ?? "none";
     try {
-      if (wasFollowing) await unfollowUser(user.id, targetId);
-      else await followUser(user.id, targetId);
+      const next = await toggleFollowState(user.id, targetId, current);
+      setFollowStates((prev) => ({ ...prev, [targetId]: next }));
     } catch {
-      setFollowed(targetId, wasFollowing);
+      Alert.alert("Couldn't update follow");
     }
   }
 
@@ -564,7 +558,8 @@ function SuggestedPeople() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.peopleRow}
           renderItem={({ item }) => {
-            const following = followedIds.has(item.id);
+            const followState = followStates[item.id] ?? "none";
+            const isActive = followState !== "none";
             return (
               <View style={styles.personCard}>
                 <Pressable
@@ -588,17 +583,21 @@ function SuggestedPeople() {
                   onPress={() => toggleFollow(item.id)}
                   style={({ pressed }) => [
                     styles.followButton,
-                    following && styles.followButtonSecondary,
+                    isActive && styles.followButtonSecondary,
                     pressed && { opacity: 0.8 },
                   ]}
                 >
                   <Text
                     style={[
                       styles.followLabel,
-                      following && styles.followLabelSecondary,
+                      isActive && styles.followLabelSecondary,
                     ]}
                   >
-                    {following ? "Following" : "Follow"}
+                    {followState === "following"
+                      ? "Following"
+                      : followState === "requested"
+                        ? "Requested"
+                        : "Follow"}
                   </Text>
                 </Pressable>
               </View>
@@ -619,8 +618,10 @@ const PACK_AVATARS_SHOWN = 4;
  */
 function StarterPacksRail() {
   const { user } = useAuth();
-  // Optimistic: a followed pack leaves the rail at once, restored on failure.
-  const [followedIds, setFollowedIds] = useState<ReadonlySet<string>>(new Set());
+  // Members the viewer has dealt with this session: followed outright, or
+  // requested if the account is private. Either way the pack has nothing left
+  // to offer for them, but only the first kind counts as a follow.
+  const [handledIds, setHandledIds] = useState<ReadonlySet<string>>(new Set());
   const [failed, setFailed] = useState(false);
 
   // getActiveStarterPacks returns [] on any error, so a missing table just
@@ -655,7 +656,7 @@ function StarterPacksRail() {
       .filter(
         (id) =>
           id !== user.id &&
-          !followedIds.has(id) &&
+          !handledIds.has(id) &&
           !(followsQuery.data?.has(id) ?? false),
       );
 
@@ -669,15 +670,18 @@ function StarterPacksRail() {
     const ids = remaining(pack);
     if (ids.length === 0) return;
     setFailed(false);
-    setFollowedIds((prev) => new Set([...prev, ...ids]));
     try {
-      await followPackMembers(user.id, ids);
+      const result = await followPackMembers(user.id, ids);
+      setHandledIds(
+        (prev) => new Set([...prev, ...result.followed, ...result.requested]),
+      );
+      if (result.requested.length > 0) {
+        Alert.alert(
+          `Following ${result.followed.length} from ${pack.title}`,
+          `${result.requested.length} private ${result.requested.length === 1 ? "account is" : "accounts are"} pending approval.`,
+        );
+      }
     } catch {
-      setFollowedIds((prev) => {
-        const next = new Set(prev);
-        ids.forEach((id) => next.delete(id));
-        return next;
-      });
       setFailed(true);
     }
   }

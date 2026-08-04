@@ -11,11 +11,16 @@ import { FollowButton } from "@/components/shared/follow-button";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
   getFollowing,
-  followUser,
-  unfollowUser,
   checkFollowing,
+  checkFollowStates,
+  toggleFollowState,
+  type FollowState,
   type ProfileSummary,
 } from "@/lib/queries/social";
+import {
+  BLOCKED_FOLLOW_MESSAGE,
+  isBlockedFollowError,
+} from "@/lib/utils/blocked-error";
 import { toast } from "sonner";
 import { OrbitErrorState } from "@/components/orbit/error-state";
 
@@ -78,9 +83,9 @@ export default function FollowingPage({ params }: Props) {
   });
 
   const followingIds = following?.map((f) => f.id) ?? [];
-  const { data: followingSet } = useQuery({
-    queryKey: ["check-following", user?.id, followingIds],
-    queryFn: () => checkFollowing(user!.id, followingIds),
+  const { data: followStates } = useQuery({
+    queryKey: ["follow-states", user?.id, followingIds],
+    queryFn: () => checkFollowStates(user!.id, followingIds),
     enabled: !!user?.id && followingIds.length > 0,
   });
 
@@ -126,7 +131,7 @@ export default function FollowingPage({ params }: Props) {
             <FollowingItem
               key={profile.id}
               profile={profile}
-              isFollowing={followingSet?.has(profile.id) ?? false}
+              followState={followStates?.get(profile.id) ?? "none"}
               currentUserId={user?.id}
             />
           ))}
@@ -152,14 +157,17 @@ function PrivateLock({ username }: { username: string }) {
 
 function FollowingItem({
   profile,
-  isFollowing: initialIsFollowing,
+  followState,
   currentUserId,
 }: {
   profile: ProfileSummary;
-  isFollowing: boolean;
+  followState: FollowState;
   currentUserId?: string;
 }) {
-  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  // Local overlay so a toggle shows immediately without refetching the list,
+  // while the fetched state still wins until the viewer touches the row.
+  const [override, setOverride] = useState<FollowState | null>(null);
+  const state = override ?? followState;
   const isOwnProfile = currentUserId === profile.id;
 
   const handleToggle = useCallback(async () => {
@@ -167,19 +175,16 @@ function FollowingItem({
       toast.error("Sign in to follow people");
       return;
     }
-    const wasFollowing = isFollowing;
-    setIsFollowing(!wasFollowing);
     try {
-      if (wasFollowing) {
-        await unfollowUser(currentUserId, profile.id);
-      } else {
-        await followUser(currentUserId, profile.id);
-      }
-    } catch {
-      setIsFollowing(wasFollowing);
-      toast.error("Couldn't update follow");
+      setOverride(await toggleFollowState(currentUserId, profile.id, state));
+    } catch (err) {
+      toast.error(
+        isBlockedFollowError(err)
+          ? BLOCKED_FOLLOW_MESSAGE
+          : "Couldn't update follow"
+      );
     }
-  }, [currentUserId, isFollowing, profile.id]);
+  }, [currentUserId, state, profile.id]);
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-colors">
@@ -209,7 +214,7 @@ function FollowingItem({
 
       {!isOwnProfile && (
         <FollowButton
-          isFollowing={isFollowing}
+          state={state}
           onToggle={handleToggle}
           size="sm"
         />

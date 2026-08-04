@@ -145,6 +145,8 @@ export default function PrivacySettingsPage() {
     setBlocked((prev) => prev.filter((p) => p.id !== profile.id));
     try {
       await unblockUser(user.id, profile.id);
+      // Profiles and DM composers read this cache for enforcement.
+      queryClient.invalidateQueries({ queryKey: ["blocked-ids", user.id] });
       toast.success(`Unblocked @${profile.username}`);
     } catch {
       setBlocked((prev) => [profile, ...prev]);
@@ -157,6 +159,8 @@ export default function PrivacySettingsPage() {
     setMuted((prev) => prev.filter((p) => p.id !== profile.id));
     try {
       await unmuteUser(user.id, profile.id);
+      // The feed and clip filters read this cache for enforcement.
+      queryClient.invalidateQueries({ queryKey: ["muted-ids", user.id] });
       toast.success(`Unmuted @${profile.username}`);
     } catch {
       setMuted((prev) => [profile, ...prev]);

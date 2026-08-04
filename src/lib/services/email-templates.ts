@@ -22,6 +22,9 @@ export type TemplateVars = {
   "digest-daily": {
     name: string;
     counts: { likes: number; comments: number; follows: number; mentions: number; messages: number };
+    // profiles.email_unsubscribe_token. Required: the digest is bulk mail and
+    // must never go out without a working one-click opt-out.
+    unsubscribeToken: string;
     appUrl?: string; // overrides default
   };
   "event-reminder": {
@@ -188,6 +191,7 @@ ${hairline()}
 
 function digestDaily(vars: TemplateVars["digest-daily"], ctx: RenderCtx) {
   const url = vars.appUrl || ctx.appUrl;
+  const unsubscribeUrl = `${url}/unsubscribe?token=${encodeURIComponent(vars.unsubscribeToken)}`;
   const subject = `Your Orbit yesterday`;
   const total =
     vars.counts.likes +
@@ -218,7 +222,7 @@ ${paragraph(`Hey ${escapeHtml(vars.name.split(" ")[0])}, ${total} signals from y
 </table>
 ${primaryButton(`${url}/notifications`, "Open notifications")}
 ${hairline()}
-<p style="margin:0;font-size:12px;color:${COLORS.ink4};line-height:1.5;">Don't want these? <a href="${url}/settings/notifications" style="color:${COLORS.ink3};text-decoration:underline;">Mute the daily digest</a>.</p>
+<p style="margin:0;font-size:12px;color:${COLORS.ink4};line-height:1.5;">You get this because the daily digest is on for your account. <a href="${unsubscribeUrl}" style="color:${COLORS.ink3};text-decoration:underline;">Unsubscribe</a> to stop it in one click, or <a href="${url}/settings/notifications" style="color:${COLORS.ink3};text-decoration:underline;">change what Orbit emails you</a>.</p>
 `;
   const text = `Orbit daily: ${total} signals since yesterday.
 
@@ -228,7 +232,9 @@ Followers: ${vars.counts.follows}
 Mentions: ${vars.counts.mentions}
 Messages: ${vars.counts.messages}
 
-Open: ${url}/notifications`;
+Open: ${url}/notifications
+
+Unsubscribe from the daily digest: ${unsubscribeUrl}`;
   return { subject, html: shell({ preheader: `${total} signals, open Orbit to catch up.`, body }), text };
 }
 

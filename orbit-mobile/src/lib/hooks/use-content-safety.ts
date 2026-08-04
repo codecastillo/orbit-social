@@ -7,6 +7,7 @@ import {
   getNotInterestedPostIds,
   getRestrictedIds,
 } from "@/lib/queries/content-safety";
+import { getBlockedIds, getMutedIds } from "@/lib/queries/settings";
 import type { Post } from "@/lib/queries/posts";
 
 // Long staleTime: these lists only change through the viewer's own
@@ -28,6 +29,30 @@ export function useRestrictedIds() {
   return useQuery({
     queryKey: ["restricted-users", user?.id],
     queryFn: () => getRestrictedIds(user!.id),
+    enabled: !!user,
+    staleTime: CONTENT_SAFETY_STALE_MS,
+  });
+}
+
+/**
+ * Accounts the viewer blocked. Only the viewer's own rows are readable, so
+ * this answers "did I block them", never "did they block me".
+ */
+export function useBlockedIds() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["blocked-ids", user?.id],
+    queryFn: () => getBlockedIds(user!.id),
+    enabled: !!user,
+    staleTime: CONTENT_SAFETY_STALE_MS,
+  });
+}
+
+export function useMutedIds() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["muted-ids", user?.id],
+    queryFn: () => getMutedIds(user!.id),
     enabled: !!user,
     staleTime: CONTENT_SAFETY_STALE_MS,
   });

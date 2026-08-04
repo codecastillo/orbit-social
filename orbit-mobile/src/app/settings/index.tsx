@@ -1,19 +1,34 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Stack, useRouter, type Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { colors, spacing } from "@/lib/theme";
 
+// The legal documents live on the web app; the app links out rather than
+// shipping a second copy that can drift out of date.
+const WEB_TERMS_URL = "https://orbitsocial.net/terms";
+const WEB_PRIVACY_URL = "https://orbitsocial.net/privacy";
+const WEB_PROMISES_URL = "https://orbitsocial.net/promises";
+
 function SettingsRow({
   icon,
   label,
   destructive = false,
+  external = false,
   onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   destructive?: boolean;
+  external?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -31,7 +46,11 @@ function SettingsRow({
         {label}
       </Text>
       {destructive ? null : (
-        <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+        <Ionicons
+          name={external ? "open-outline" : "chevron-forward"}
+          size={16}
+          color={colors.textFaint}
+        />
       )}
     </Pressable>
   );
@@ -140,6 +159,28 @@ export default function SettingsScreen() {
           icon="bar-chart-outline"
           label="Creator analytics"
           onPress={() => router.push("/settings/creator" as Href)}
+        />
+      </View>
+
+      <Text style={styles.sectionTitle}>Legal</Text>
+      <View style={styles.section}>
+        <SettingsRow
+          icon="document-text-outline"
+          label="Terms of Service"
+          external
+          onPress={() => void Linking.openURL(WEB_TERMS_URL)}
+        />
+        <SettingsRow
+          icon="lock-closed-outline"
+          label="Privacy Policy"
+          external
+          onPress={() => void Linking.openURL(WEB_PRIVACY_URL)}
+        />
+        <SettingsRow
+          icon="ribbon-outline"
+          label="Ten promises"
+          external
+          onPress={() => void Linking.openURL(WEB_PROMISES_URL)}
         />
       </View>
 

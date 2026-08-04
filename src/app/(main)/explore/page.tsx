@@ -14,7 +14,8 @@ import {
   getSuggestedUsers,
   getTrendingHashtags,
   getTrendingPosts,
-  followUser,
+  toggleFollowState,
+  type FollowState,
 } from "@/lib/queries/social";
 import { getLiveStreams } from "@/lib/queries/live";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -378,6 +379,9 @@ function TrendingRail() {
 function PeopleRail() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [followStates, setFollowStates] = useState<Record<string, FollowState>>(
+    {}
+  );
   const { data: people, isLoading, isError, refetch } = useQuery({
     queryKey: ["suggested-users", user?.id, 5],
     queryFn: () => getSuggestedUsers(user!.id, 5),
@@ -437,12 +441,17 @@ function PeopleRail() {
                   </div>
                 </Link>
                 <FollowButton
-                  isFollowing={false}
+                  state={followStates[p.id] ?? "none"}
                   size="sm"
                   onToggle={async () => {
                     if (!user) return;
                     try {
-                      await followUser(user.id, p.id);
+                      const next = await toggleFollowState(
+                        user.id,
+                        p.id,
+                        followStates[p.id] ?? "none"
+                      );
+                      setFollowStates((s) => ({ ...s, [p.id]: next }));
                       queryClient.invalidateQueries({
                         queryKey: ["suggested-users", user.id],
                       });

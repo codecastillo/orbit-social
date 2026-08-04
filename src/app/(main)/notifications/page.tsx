@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Bell, CheckCheck } from "lucide-react";
+import Link from "next/link";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bell, CheckCheck, ChevronRight, UserPlus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   NotificationItem,
@@ -14,6 +15,7 @@ import { OrbitErrorState } from "@/components/orbit/error-state";
 import { useNotifications, useUnreadCount } from "@/lib/hooks/use-notifications";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { markAllAsRead } from "@/lib/queries/notifications";
+import { getIncomingFollowRequests } from "@/lib/queries/social";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +33,7 @@ function isMatchingFilter(notif: any, filter: FilterValue): boolean {
   const t = notif.type;
   if (filter === "mentions") return t === "mention" || t === "reply";
   if (filter === "likes") return t === "like" || t === "reaction";
-  if (filter === "follows") return t === "follow";
+  if (filter === "follows") return t === "follow" || t === "follow_request";
   return true;
 }
 
@@ -41,6 +43,15 @@ export default function NotificationsPage() {
   const { data: unreadCount } = useUnreadCount();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterValue>("all");
+
+  // Only private accounts ever have rows here, so the banner self-hides for
+  // everyone else without a separate is_private read.
+  const { data: followRequests } = useQuery({
+    queryKey: ["follow-requests", user?.id],
+    queryFn: () => getIncomingFollowRequests(user!.id),
+    enabled: !!user,
+  });
+  const pendingRequests = followRequests?.length ?? 0;
 
   const handleMarkAllRead = async () => {
     if (!user) return;
@@ -72,6 +83,27 @@ export default function NotificationsPage() {
           </Button>
         )}
       </div>
+
+      {pendingRequests > 0 && (
+        <Link
+          href="/notifications/requests"
+          className="flex items-center gap-3.5 rounded-xl border border-border bg-surface p-3.5 transition-colors hover:bg-surface-elevated"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+            <UserPlus className="h-[18px] w-[18px] text-primary" strokeWidth={1.8} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[14px] font-semibold text-foreground">
+              {pendingRequests} follow{" "}
+              {pendingRequests === 1 ? "request" : "requests"}
+            </p>
+            <p className="text-[12.5px] text-muted-foreground">
+              Approve who gets to see your posts
+            </p>
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </Link>
+      )}
 
       {/* Filter tabs */}
       <div className="flex gap-1 rounded-xl border border-border bg-surface p-[5px]">

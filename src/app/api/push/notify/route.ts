@@ -33,6 +33,9 @@ const PREF_COLUMN: Record<string, string> = {
   like: "likes",
   comment: "comments",
   follow: "follows",
+  // A follow request is the private-account form of a follow, so it rides
+  // the same toggle rather than adding a column nobody would find.
+  follow_request: "follows",
   mention: "mentions",
   message: "messages",
   repost: "reposts",
@@ -158,6 +161,12 @@ function describe(
       return { title: actorName, body: "commented on your post", url: postUrl };
     case "follow":
       return { title: actorName, body: "followed you", url: "/notifications" };
+    case "follow_request":
+      return {
+        title: actorName,
+        body: "requested to follow you",
+        url: "/notifications/requests",
+      };
     case "mention":
       return { title: actorName, body: "mentioned you", url: postUrl };
     case "repost":

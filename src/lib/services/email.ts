@@ -19,6 +19,9 @@ type SendArgs<T extends TemplateName> = {
   // Optional Resend overrides
   replyTo?: string;
   tags?: { name: string; value: string }[];
+  // Raw MIME headers. Bulk mail needs List-Unsubscribe and
+  // List-Unsubscribe-Post, which Resend passes through verbatim.
+  headers?: Record<string, string>;
 };
 
 type SendResult =
@@ -57,6 +60,7 @@ export async function sendTemplated<T extends TemplateName>(
         text,
         replyTo: args.replyTo,
         tags: args.tags,
+        headers: args.headers,
       });
       if (error) {
         if (attempt === 0 && (error as { statusCode?: number }).statusCode && (error as { statusCode?: number }).statusCode! >= 500) {
@@ -89,7 +93,18 @@ export const Email = {
   passwordReset: (to: string, vars: TemplateVars["password-reset"]) =>
     sendTemplated({ to, template: "password-reset", vars }),
   digestDaily: (to: string, vars: TemplateVars["digest-daily"]) =>
-    sendTemplated({ to, template: "digest-daily", vars }),
+    sendTemplated({
+      to,
+      template: "digest-daily",
+      vars,
+      // RFC 8058 one-click opt-out. Mailbox providers render this as a native
+      // Unsubscribe control and POST to the URL without opening the message,
+      // so the endpoint must work with no session and no confirmation step.
+      headers: {
+        "List-Unsubscribe": `<${APP_URL}/api/unsubscribe?token=${vars.unsubscribeToken}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
+    }),
   eventReminder: (to: string, vars: TemplateVars["event-reminder"]) =>
     sendTemplated({ to, template: "event-reminder", vars }),
 };

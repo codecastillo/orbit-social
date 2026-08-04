@@ -128,6 +128,10 @@ export default function PrivacySettingsScreen() {
       queryClient.setQueryData(blockedKey, context?.previous);
       Alert.alert(`Couldn't unblock @${profile.username}`);
     },
+    // Profiles and DM composers read the id set, not this list.
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["blocked-ids", user?.id] });
+    },
   });
 
   // Reads degrade to "enabled" until the read_receipts_enabled migration
@@ -166,6 +170,10 @@ export default function PrivacySettingsScreen() {
     onError: (_error, profile, context) => {
       queryClient.setQueryData(mutedKey, context?.previous);
       Alert.alert(`Couldn't unmute @${profile.username}`);
+    },
+    // The feed and clip filters read the id set, not this list.
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["muted-ids", user?.id] });
     },
   });
 

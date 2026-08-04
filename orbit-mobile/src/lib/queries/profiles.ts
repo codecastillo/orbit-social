@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 const PROFILE_SELECT = `
   id, username, display_name, avatar_url, cover_url, bio, location, website,
   is_verified, follower_count, following_count, post_count, created_at,
-  theme_color, avatar_border
+  theme_color, avatar_border, is_private
 `;
 
 // Same union as the web UserAvatar (src/components/shared/user-avatar.tsx).
@@ -33,6 +33,7 @@ export interface Profile {
   created_at: string;
   theme_color: string | null;
   avatar_border: string | null;
+  is_private: boolean | null;
 }
 
 export interface ProfilePostMedia {
@@ -152,11 +153,48 @@ export function hasPlaceholderUsername(profile: Profile): boolean {
   return profile.username === `user_${profile.id.slice(0, 8)}`;
 }
 
-export async function followUser(followerId: string, followingId: string) {
+/** What a Follow tap turned into: an immediate follow, or a pending request. */
+export type FollowOutcome = "following" | "requested";
+
+/** The three states the follow button can sit in. */
+export type FollowState = "none" | "requested" | "following";
+
+async function isPrivateAccount(userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("is_private")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.is_private === true;
+}
+
+/**
+ * Follows a public account outright; a private one only gets a request the
+ * target has to approve. The follows insert policy would happily accept a
+ * private target, so honoring privacy is the client's call to make, not
+ * something RLS will do for us.
+ *
+ * Pass `targetIsPrivate` when the caller already has the profile loaded to
+ * skip the extra lookup.
+ */
+export async function followUser(
+  followerId: string,
+  followingId: string,
+  targetIsPrivate?: boolean,
+): Promise<FollowOutcome> {
+  const isPrivate = targetIsPrivate ?? (await isPrivateAccount(followingId));
+
+  if (isPrivate) {
+    await requestFollow(followerId, followingId);
+    return "requested";
+  }
+
   const { error } = await supabase
     .from("follows")
     .insert({ follower_id: followerId, following_id: followingId });
   if (error) throw error;
+  return "following";
 }
 
 export async function unfollowUser(followerId: string, followingId: string) {
@@ -180,6 +218,80 @@ export async function checkFollowing(
     .maybeSingle();
   if (error) throw error;
   return data !== null;
+}
+
+export interface FollowRequest {
+  requester: ProfileSummary;
+  created_at: string;
+}
+
+export async function requestFollow(requesterId: string, targetId: string) {
+  const { error } = await supabase
+    .from("follow_requests")
+    .insert({ requester_id: requesterId, target_id: targetId });
+  if (error) throw error;
+}
+
+/** Used both by the requester (cancel) and the target (deny). */
+export async function cancelFollowRequest(
+  requesterId: string,
+  targetId: string,
+) {
+  const { error } = await supabase
+    .from("follow_requests")
+    .delete()
+    .eq("requester_id", requesterId)
+    .eq("target_id", targetId);
+  if (error) throw error;
+}
+
+export async function checkFollowRequest(
+  requesterId: string,
+  targetId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("follow_requests")
+    .select("target_id")
+    .eq("requester_id", requesterId)
+    .eq("target_id", targetId)
+    .maybeSingle();
+  if (error) throw error;
+  return data !== null;
+}
+
+export async function getFollowState(
+  followerId: string,
+  targetId: string,
+): Promise<FollowState> {
+  const [following, requested] = await Promise.all([
+    checkFollowing(followerId, targetId),
+    checkFollowRequest(followerId, targetId),
+  ]);
+  if (following) return "following";
+  if (requested) return "requested";
+  return "none";
+}
+
+/**
+ * Advances the Follow -> Requested/Following cycle by one tap and returns the
+ * state the button should land on. Every follow surface routes through here so
+ * the private-account branch cannot be forgotten in one of them.
+ */
+export async function toggleFollowState(
+  followerId: string,
+  targetId: string,
+  current: FollowState,
+  targetIsPrivate?: boolean,
+): Promise<FollowState> {
+  if (current === "following") {
+    await unfollowUser(followerId, targetId);
+    return "none";
+  }
+  if (current === "requested") {
+    await cancelFollowRequest(followerId, targetId);
+    return "none";
+  }
+  return followUser(followerId, targetId, targetIsPrivate);
 }
 
 // Mirrors the web ProfileSummary in src/lib/queries/social.ts, minus the
@@ -248,6 +360,72 @@ export async function checkFollowingMany(
   return new Set((data ?? []).map((f) => f.following_id));
 }
 
+/** Which of the given users have a pending request from the viewer. */
+export async function checkFollowRequestsMany(
+  requesterId: string,
+  targetIds: string[],
+): Promise<Set<string>> {
+  if (targetIds.length === 0) return new Set();
+  const { data, error } = await supabase
+    .from("follow_requests")
+    .select("target_id")
+    .eq("requester_id", requesterId)
+    .in("target_id", targetIds);
+  if (error) throw error;
+  return new Set((data ?? []).map((r) => r.target_id));
+}
+
+/** Same as getFollowState, batched for a list of rows. */
+export async function checkFollowStates(
+  followerId: string,
+  targetIds: string[],
+): Promise<Map<string, FollowState>> {
+  const states = new Map<string, FollowState>();
+  if (targetIds.length === 0) return states;
+
+  const [following, requested] = await Promise.all([
+    checkFollowingMany(followerId, targetIds),
+    checkFollowRequestsMany(followerId, targetIds),
+  ]);
+  for (const id of targetIds) {
+    if (following.has(id)) states.set(id, "following");
+    else if (requested.has(id)) states.set(id, "requested");
+    else states.set(id, "none");
+  }
+  return states;
+}
+
+export async function getIncomingFollowRequests(
+  userId: string,
+): Promise<FollowRequest[]> {
+  const { data, error } = await supabase
+    .from("follow_requests")
+    .select(
+      `created_at, profiles!follow_requests_requester_id_fkey (${SUMMARY_SELECT})`,
+    )
+    .eq("target_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+
+  return ((data ?? []) as unknown as {
+    created_at: string;
+    profiles: ProfileSummary | null;
+  }[])
+    .filter((row) => row.profiles !== null)
+    .map((row) => ({ requester: row.profiles!, created_at: row.created_at }));
+}
+
+/**
+ * Approving is target-only and has to delete the request and insert the follow
+ * together, so it runs as one SECURITY DEFINER call rather than two writes.
+ */
+export async function approveFollowRequest(requesterId: string) {
+  const { error } = await supabase.rpc("approve_follow_request", {
+    p_requester: requesterId,
+  });
+  if (error) throw error;
+}
+
 // Mirrors the web bell queries in src/lib/queries/social.ts: subscribe to a
 // creator's new posts via post_notification_subscriptions.
 export async function checkPostNotificationSubscription(
@@ -309,6 +487,22 @@ export async function getUserRecentPosts(
     .limit(limit);
   if (error) throw error;
   return (data ?? []) as unknown as ProfilePost[];
+}
+
+/**
+ * How many of an account's posts the viewer can actually read, replies and
+ * clips included. Compared against the profile's own `post_count` (a counter
+ * column, so it is not RLS-filtered) it tells a profile whose content the
+ * server is hiding apart from one that simply has nothing to show.
+ */
+export async function countVisiblePosts(userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("posts")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("is_hidden", false);
+  if (error) throw error;
+  return count ?? 0;
 }
 
 export interface MentionPost {

@@ -118,6 +118,18 @@ const PREF_GROUPS: { title: string; prefs: PrefDef[] }[] = [
       },
     ],
   },
+  {
+    title: "Email",
+    prefs: [
+      {
+        key: "email_digest",
+        label: "Daily digest",
+        description:
+          "One email a day summing up what you missed. Account email like password resets always sends.",
+        icon: "mail-open-outline",
+      },
+    ],
+  },
 ];
 
 const HOURS_PER_DAY = 24;

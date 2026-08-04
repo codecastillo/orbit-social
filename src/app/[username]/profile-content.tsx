@@ -28,14 +28,23 @@ import { ReportDialog } from "@/components/shared/report-dialog";
 import { RichText } from "@/components/shared/rich-text";
 import { normalizeAccent } from "@/lib/design/accents";
 import { getOrCreateDMConversation } from "@/lib/queries/messages";
+import {
+  cancelFollowRequest,
+  followUser,
+  unblockUser,
+  unfollowUser,
+  type FollowState,
+} from "@/lib/queries/social";
 import { restrictUser, unrestrictUser } from "@/lib/queries/content-safety";
-import { useRestrictedIds } from "@/lib/hooks/use-content-safety";
+import { useBlockedIds, useRestrictedIds } from "@/lib/hooks/use-content-safety";
+import { BLOCKED_FOLLOW_MESSAGE, isBlockedFollowError } from "@/lib/utils/blocked-error";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import {
+  countVisiblePosts,
   getUserPosts,
   getUserLikedPosts,
   getUserBookmarkedPosts,
@@ -80,7 +89,7 @@ interface ProfileContentProps {
     is_private?: boolean | null;
   };
   isOwnProfile: boolean;
-  initialIsFollowing: boolean;
+  initialFollowState: FollowState;
   initialTabCounts?: ProfileTabCounts;
 }
 
@@ -119,10 +128,13 @@ function joinedYear(iso: string): string {
 export function ProfileContent({
   profile,
   isOwnProfile,
-  initialIsFollowing,
+  initialFollowState,
   initialTabCounts,
 }: ProfileContentProps) {
-  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const [followState, setFollowState] = useState(initialFollowState);
+  // Everything gated on privacy keys off confirmed follows only; a pending
+  // request unlocks nothing.
+  const isFollowing = followState === "following";
   const [activeTab, setActiveTab] = useState<TabValue>("posts");
   const [followListOpen, setFollowListOpen] = useState<null | "followers" | "following">(null);
   const [blockMuteAction, setBlockMuteAction] = useState<null | "block" | "mute">(null);
@@ -137,6 +149,45 @@ export function ProfileContent({
 
   const { data: restrictedIds } = useRestrictedIds();
   const isRestricted = restrictedIds?.has(profile.id) ?? false;
+
+  // Only the viewer's own block rows are readable, so this answers "did I
+  // block them" and nothing else. The reverse direction stays invisible by
+  // design and is never inferred from an empty profile.
+  const { data: blockedIds } = useBlockedIds();
+  const viewerBlocked = blockedIds?.has(profile.id) ?? false;
+
+  // What the server will actually serve for this account. post_count is a
+  // counter column, so it survives the posts policy; a positive count with
+  // nothing readable means the content is being withheld from this viewer,
+  // which is all we can honestly say about it.
+  const { data: visiblePostCount } = useQuery({
+    queryKey: ["visible-post-count", profile.id, user?.id],
+    queryFn: () => countVisiblePosts(profile.id),
+    enabled:
+      !!user &&
+      !isOwnProfile &&
+      !viewerBlocked &&
+      profile.is_private !== true &&
+      profile.post_count > 0,
+    staleTime: 1000 * 60,
+  });
+  const isUnavailable = visiblePostCount === 0;
+
+  const handleUnblock = async () => {
+    if (!user) return;
+    try {
+      await unblockUser(user.id, profile.id);
+      toast.success(`Unblocked @${profile.username}`);
+      queryClient.invalidateQueries({ queryKey: ["blocked-ids", user.id] });
+      // Their posts come back through RLS, so the tab queries need a refetch.
+      queryClient.invalidateQueries({ queryKey: ["user-posts", profile.id] });
+      queryClient.invalidateQueries({ queryKey: ["user-clips", profile.id] });
+      queryClient.invalidateQueries({ queryKey: ["profile-tab-counts", profile.id] });
+      queryClient.invalidateQueries({ queryKey: ["visible-post-count", profile.id] });
+    } catch {
+      toast.error("Couldn't unblock");
+    }
+  };
 
   const handleToggleRestrict = async () => {
     if (!requireAuth() || !user) return;
@@ -425,30 +476,40 @@ export function ProfileContent({
     initialData: initialTabCounts,
   });
 
+  // Follow -> Requested (private accounts) or Following (public), and tapping
+  // either of those undoes it. The private branch never writes a follows row.
   const handleFollow = async () => {
     if (!requireAuth() || !user) return;
-    const wasFollowing = isFollowing;
-    setIsFollowing(!wasFollowing);
+    const previous = followState;
 
-    if (wasFollowing) {
-      const { error } = await supabase
-        .from("follows")
-        .delete()
-        .eq("follower_id", user.id)
-        .eq("following_id", profile.id);
-      if (error) {
-        setIsFollowing(true);
-        toast.error("Couldn't unfollow");
+    try {
+      if (previous === "following") {
+        setFollowState("none");
+        await unfollowUser(user.id, profile.id);
+      } else if (previous === "requested") {
+        setFollowState("none");
+        await cancelFollowRequest(user.id, profile.id);
+      } else {
+        const outcome = await followUser(
+          user.id,
+          profile.id,
+          profile.is_private === true
+        );
+        setFollowState(outcome);
       }
-    } else {
-      const { error } = await supabase.from("follows").insert({
-        follower_id: user.id,
-        following_id: profile.id,
-      });
-      if (error) {
-        setIsFollowing(false);
-        toast.error("Couldn't follow");
+    } catch (error) {
+      setFollowState(previous);
+      if (previous === "none" && isBlockedFollowError(error)) {
+        toast.error(BLOCKED_FOLLOW_MESSAGE);
+        return;
       }
+      toast.error(
+        previous === "following"
+          ? "Couldn't unfollow"
+          : previous === "requested"
+            ? "Couldn't cancel your request"
+            : "Couldn't follow"
+      );
     }
   };
 
@@ -584,19 +645,31 @@ export function ProfileContent({
             )}
           </div>
 
+          {/* Follow and Message are gone while the viewer has this account
+              blocked: both would fail server-side, and unblocking is the
+              only move that makes sense from here. */}
           <div className="flex flex-wrap gap-2 pt-4">
-            {!isOwnProfile && (
-              <Button
-                variant={isFollowing ? "outline" : "default"}
-                onClick={handleFollow}
-              >
-                {isFollowing ? "Following" : "Follow"}
+            {!isOwnProfile && viewerBlocked && (
+              <Button variant="outline" onClick={handleUnblock}>
+                Unblock
               </Button>
             )}
-            {!isOwnProfile && isFollowing && (
+            {!isOwnProfile && !viewerBlocked && (
+              <Button
+                variant={followState === "none" ? "default" : "outline"}
+                onClick={handleFollow}
+              >
+                {followState === "following"
+                  ? "Following"
+                  : followState === "requested"
+                    ? "Requested"
+                    : "Follow"}
+              </Button>
+            )}
+            {!isOwnProfile && !viewerBlocked && isFollowing && (
               <PostBellButton creatorId={profile.id} />
             )}
-            {!isOwnProfile && (
+            {!isOwnProfile && !viewerBlocked && (
               <Button
                 variant="outline"
                 disabled={openingDm}
@@ -677,11 +750,15 @@ export function ProfileContent({
                       className="cursor-pointer rounded-lg"
                       onClick={() => {
                         if (!requireAuth()) return;
+                        if (viewerBlocked) {
+                          void handleUnblock();
+                          return;
+                        }
                         setBlockMuteAction("block");
                       }}
                     >
                       <UserX className="mr-2 h-4 w-4" />
-                      Block @{profile.username}
+                      {viewerBlocked ? "Unblock" : "Block"} @{profile.username}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="cursor-pointer rounded-lg"
@@ -751,15 +828,48 @@ export function ProfileContent({
 
       {/* Story highlights, hidden behind the same private-account gate as
           the tabs. The row renders nothing for visitors when empty. */}
-      {!(profile.is_private === true && !isOwnProfile && !isFollowing) && (
-        <HighlightsRow userId={profile.id} isOwner={isOwnProfile} />
-      )}
+      {!(profile.is_private === true && !isOwnProfile && !isFollowing) &&
+        !viewerBlocked &&
+        !isUnavailable && (
+          <HighlightsRow userId={profile.id} isOwner={isOwnProfile} />
+        )}
 
-      {/* PRIVATE LOCK, Instagram-style. When the profile is private and the
+      {viewerBlocked ? (
+        <div className="rounded-xl border border-border bg-surface px-6 py-11 text-center text-text-secondary">
+          <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-surface-elevated">
+            <UserX className="h-[22px] w-[22px] text-muted-foreground" strokeWidth={1.6} />
+          </div>
+          <p className="m-0 text-[15px] font-semibold text-foreground">
+            You blocked this account.
+          </p>
+          <p className="mb-0 mt-1.5 text-[13px] leading-normal text-muted-foreground">
+            You cannot see @{profile.username}&apos;s posts, and they cannot see
+            yours, follow you, or message you.
+          </p>
+          <Button variant="outline" className="mt-4" onClick={handleUnblock}>
+            Unblock
+          </Button>
+        </div>
+      ) : isUnavailable ? (
+        /* The server is withholding this account's posts. We cannot tell a
+           block from the other side apart from anything else that hides
+           them, so the copy stays neutral and names no one. */
+        <div className="rounded-xl border border-border bg-surface px-6 py-11 text-center text-text-secondary">
+          <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-surface-elevated">
+            <EyeOff className="h-[22px] w-[22px] text-muted-foreground" strokeWidth={1.6} />
+          </div>
+          <p className="m-0 text-[15px] font-semibold text-foreground">
+            This account is unavailable.
+          </p>
+          <p className="mb-0 mt-1.5 text-[13px] leading-normal text-muted-foreground">
+            There is nothing here for you to see right now.
+          </p>
+        </div>
+      ) : /* PRIVATE LOCK, Instagram-style. When the profile is private and the
           viewer isn't the owner or a follower, swap the entire tabs+content
           block for a lock card. Use explicit === true so a column that
-          arrives as null/undefined doesn't accidentally unlock the profile. */}
-      {profile.is_private === true && !isOwnProfile && !isFollowing ? (
+          arrives as null/undefined doesn't accidentally unlock the profile. */
+      profile.is_private === true && !isOwnProfile && !isFollowing ? (
         <div className="rounded-xl border border-border bg-surface px-6 py-11 text-center text-text-secondary">
           <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-surface-elevated">
             <Lock className="h-[22px] w-[22px] text-muted-foreground" strokeWidth={1.6} />
@@ -768,7 +878,9 @@ export function ProfileContent({
             This account is private.
           </p>
           <p className="mb-0 mt-1.5 text-[13px] leading-normal text-muted-foreground">
-            Follow @{profile.username} to see their posts, clips, and likes.
+            {followState === "requested"
+              ? `Your request is waiting on @${profile.username}.`
+              : `Follow @${profile.username} to see their posts, clips, and likes.`}
           </p>
         </div>
       ) : (
@@ -896,9 +1008,12 @@ export function ProfileContent({
       </>
       )}
 
-      {vods.length > 0 && !(profile.is_private === true && !isOwnProfile && !isFollowing) && (
-        <PastStreamsSection vods={vods} isOwner={isOwnProfile} />
-      )}
+      {vods.length > 0 &&
+        !viewerBlocked &&
+        !isUnavailable &&
+        !(profile.is_private === true && !isOwnProfile && !isFollowing) && (
+          <PastStreamsSection vods={vods} isOwner={isOwnProfile} />
+        )}
 
       {!isOwnProfile && user && (
         <>
@@ -911,6 +1026,11 @@ export function ProfileContent({
             currentUserId={user.id}
             targetUserId={profile.id}
             targetUsername={profile.username}
+            onSuccess={() => {
+              // Blocking severs the follow both ways server-side; the button
+              // has to stop claiming a relationship that no longer exists.
+              if (blockMuteAction === "block") setFollowState("none");
+            }}
           />
           <ReportDialog
             open={reportOpen}

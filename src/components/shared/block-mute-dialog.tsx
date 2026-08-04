@@ -12,7 +12,12 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { blockUser, muteUser } from "@/lib/queries/social";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  blockUser,
+  muteUser,
+  BLOCK_INVALIDATION_KEYS,
+} from "@/lib/queries/social";
 
 type ActionType = "block" | "mute";
 
@@ -45,6 +50,7 @@ export function BlockMuteDialog({
 }: BlockMuteDialogProps) {
   const [selectedDuration, setSelectedDuration] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
 
   const isBlock = actionType === "block";
   const Icon = isBlock ? ShieldBan : VolumeX;
@@ -60,8 +66,16 @@ export function BlockMuteDialog({
 
       if (isBlock) {
         await blockUser(currentUserId, targetUserId, expiresAt);
+        // The block trigger drops the follows both ways, so every cached
+        // count, list, and suggestion is out of date the moment it lands.
+        for (const queryKey of BLOCK_INVALIDATION_KEYS) {
+          queryClient.invalidateQueries({ queryKey });
+        }
       } else {
         await muteUser(currentUserId, targetUserId, expiresAt);
+        // Feeds and the clip pager filter against this set as it arrives,
+        // so refreshing it is enough; the lists themselves stay cached.
+        queryClient.invalidateQueries({ queryKey: ["muted-ids", currentUserId] });
       }
 
       toast.success(

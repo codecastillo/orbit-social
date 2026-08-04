@@ -13,7 +13,7 @@ import {
 } from "@/lib/queries/social";
 import { getLiveStreams } from "@/lib/queries/live";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { followUser } from "@/lib/queries/social";
+import { toggleFollowState, type FollowState } from "@/lib/queries/social";
 import { FollowButton } from "@/components/shared/follow-button";
 import { cn } from "@/lib/utils";
 
@@ -252,7 +252,9 @@ function TrendingCard() {
 function PeopleToOrbitCard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [justFollowed, setJustFollowed] = useState<Set<string>>(new Set());
+  const [followStates, setFollowStates] = useState<Record<string, FollowState>>(
+    {}
+  );
 
   const { data: people, isLoading, isError, refetch } = useQuery({
     queryKey: ["suggested-users", user?.id, 3],
@@ -312,12 +314,16 @@ function PeopleToOrbitCard() {
               </div>
             </Link>
             <FollowButton
-              isFollowing={justFollowed.has(p.id)}
+              state={followStates[p.id] ?? "none"}
               size="sm"
               onToggle={async () => {
                 if (!user) return;
-                setJustFollowed((s) => new Set(s).add(p.id));
-                await followUser(user.id, p.id);
+                const next = await toggleFollowState(
+                  user.id,
+                  p.id,
+                  followStates[p.id] ?? "none"
+                );
+                setFollowStates((s) => ({ ...s, [p.id]: next }));
                 await queryClient.invalidateQueries({
                   queryKey: ["suggested-users", user.id, 3],
                 });

@@ -3,7 +3,11 @@
 import { useCallback } from "react";
 import { useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
 import { useAuth } from "./use-auth";
-import { useMutedWords, useNotInterestedIds } from "./use-content-safety";
+import {
+  useMutedIds,
+  useMutedWords,
+  useNotInterestedIds,
+} from "./use-content-safety";
 import {
   getFeedPosts,
   getPublicTimeline,
@@ -25,6 +29,7 @@ interface FeedPage {
 export function useFeed(tab: "foryou" | "following") {
   const { user } = useAuth();
   const { data: mutedWords } = useMutedWords();
+  const { data: mutedIds } = useMutedIds();
   const { data: notInterestedIds } = useNotInterestedIds();
 
   // Content-safety filtering lives in `select` rather than the queryFn so
@@ -45,12 +50,15 @@ export function useFeed(tab: "foryou" | "following") {
                 ? post.parent_post_id
                 : post.id;
             if (notInterestedIds?.has(feedbackId)) return false;
+            // A mute hides the account's posts from feeds only; their
+            // profile stays fully visible when someone visits it.
+            if (mutedIds?.has(post.user_id)) return false;
             return !matchesMutedWord(post.content);
           }),
         })),
       };
     },
-    [mutedWords, notInterestedIds]
+    [mutedWords, mutedIds, notInterestedIds]
   );
 
   return useInfiniteQuery({

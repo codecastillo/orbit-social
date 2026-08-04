@@ -930,7 +930,7 @@ function DesktopInfoBar({
 
           {canShowFollow && (
             <FollowButton
-              isFollowing={isFollowing}
+              state={isFollowing ? "following" : "none"}
               onToggle={onToggleFollow}
               size="sm"
             />

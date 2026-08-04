@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { createClient } from "./server";
+import { createBearerClient, createClient } from "./server";
 import { tokenAal } from "./aal";
 
 /**
@@ -8,16 +8,31 @@ import { tokenAal } from "./aal";
  * API routes sit outside the middleware matcher, so destructive ones must
  * run this themselves instead of a bare getUser(). Returns null for
  * anonymous requests and for sessions still stuck at aal1.
+ *
+ * Pass the request to accept a native-app caller, which carries its session
+ * as a Bearer header instead of cookies (same shape as the highlights and
+ * live chat routes). The aal claim is read off that token directly, since
+ * a bearer client has no session to look up.
  */
-export async function getMfaVerifiedUser(): Promise<User | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export async function getMfaVerifiedUser(
+  request?: Request,
+): Promise<User | null> {
+  const authorization = request?.headers.get("authorization");
+  const bearerToken = authorization?.startsWith("Bearer ")
+    ? authorization.slice("Bearer ".length)
+    : undefined;
+  const supabase = bearerToken
+    ? createBearerClient(authorization!)
+    : await createClient();
+  const { data: { user } } = await supabase.auth.getUser(bearerToken);
   if (!user) return null;
 
   const hasVerifiedFactor = (user.factors ?? []).some(
     (f) => f.status === "verified",
   );
   if (!hasVerifiedFactor) return user;
+
+  if (bearerToken) return tokenAal(bearerToken) === "aal2" ? user : null;
 
   const { data: { session } } = await supabase.auth.getSession();
   return tokenAal(session?.access_token) === "aal2" ? user : null;

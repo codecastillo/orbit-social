@@ -34,7 +34,9 @@ interface NotificationItemProps {
 
 // Only types where the individual actor stops mattering once there are
 // several collapse. Messages, mentions, quotes, invites, and the system rows
-// each carry detail that a count would throw away.
+// each carry detail that a count would throw away. follow_request stays out
+// deliberately: every one of them is a separate approve-or-deny decision, so
+// collapsing them into "and 3 others" would hide the work.
 const MAX_STACKED_AVATARS = 3;
 
 const GROUPABLE_TYPES: ReadonlySet<NotificationWithActor["type"]> = new Set([
@@ -148,6 +150,8 @@ function getNotificationText(
       return `${name} quoted your ${postNoun(post)}`;
     case "follow":
       return `${name} followed you`;
+    case "follow_request":
+      return `${name} requested to follow you`;
     case "mention":
       if (entity === "event") return `${name} mentioned you in an event`;
       if (entity === "community") return `${name} mentioned you in a room`;
@@ -188,6 +192,8 @@ function getNotificationHref(notification: NotificationWithActor): string {
       return notification.profiles
         ? `/${notification.profiles.username}`
         : "/notifications";
+    case "follow_request":
+      return "/notifications/requests";
     case "like":
     case "comment":
     case "mention":

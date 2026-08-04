@@ -483,7 +483,23 @@ export default function SignUpPage() {
                   className="mt-[3px] h-4 w-4 accent-primary"
                 />
                 <span className="text-xs leading-normal text-text-secondary">
-                  I agree to the Terms of Service and Privacy Policy.
+                  I agree to the{" "}
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Privacy Policy
+                  </Link>
+                  .
                 </span>
               </label>
               {errors.agreeToTerms && (

@@ -6,9 +6,10 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
+import type { FollowState } from "@/lib/queries/social";
 
 interface FollowButtonProps {
-  isFollowing: boolean;
+  state: FollowState;
   onToggle: () => Promise<void>;
   size?: "sm" | "default";
   className?: string;
@@ -16,7 +17,7 @@ interface FollowButtonProps {
 }
 
 export function FollowButton({
-  isFollowing,
+  state,
   onToggle,
   size = "default",
   className,
@@ -25,6 +26,9 @@ export function FollowButton({
   const [loading, setLoading] = useState(false);
   const [hovering, setHovering] = useState(false);
   const requireAuth = useRequireAuth();
+  // "Requested" and "Following" share the outline treatment: both mean the
+  // next tap undoes something.
+  const isActive = state !== "none";
 
   const handleClick = async () => {
     if (!requireAuth()) return;
@@ -39,7 +43,7 @@ export function FollowButton({
   return (
     <motion.div whileTap={{ scale: 0.97 }} transition={{ duration: 0.1 }}>
       <Button
-        variant={isFollowing ? "outline" : "default"}
+        variant={isActive ? "outline" : "default"}
         size={size}
         onClick={handleClick}
         onMouseEnter={() => setHovering(true)}
@@ -50,10 +54,10 @@ export function FollowButton({
           // No fixed min-width, let the button hug its label so it
           // takes less horizontal space in tight side-rails / mobile.
           "rounded-full transition-all duration-200 active:scale-[0.97] px-4",
-          !isFollowing && "border-0 bg-primary text-primary-foreground",
-          isFollowing &&
+          !isActive && "border-0 bg-primary text-primary-foreground",
+          isActive &&
             "border border-border bg-surface text-foreground hover:border-destructive/40 hover:text-destructive hover:bg-destructive/10",
-          isFollowing &&
+          isActive &&
             hovering &&
             "border-destructive/40 text-destructive bg-destructive/10",
           className
@@ -61,11 +65,17 @@ export function FollowButton({
       >
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
-        ) : isFollowing ? (
+        ) : state === "following" ? (
           hovering ? (
             "Unfollow"
           ) : (
             "Following"
+          )
+        ) : state === "requested" ? (
+          hovering ? (
+            "Cancel"
+          ) : (
+            "Requested"
           )
         ) : (
           "Follow"

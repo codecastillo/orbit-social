@@ -47,19 +47,22 @@ export function StarterPacksRail() {
   });
 
   const [followed, setFollowed] = useState<Set<string>>(new Set());
+  // Private members only get a request, so they are resolved for the purpose
+  // of hiding the card but must never be counted as follows.
+  const [requested, setRequested] = useState<Set<string>>(new Set());
 
   if (!user || !packs || packs.length === 0) return null;
   // The follow graph decides which packs still have something to offer, so
   // without it the rail stays hidden rather than pitching stale packs.
   if (memberIds.length > 0 && (followsPending || followsError)) return null;
 
-  const isFollowed = (id: string) =>
-    followed.has(id) || (alreadyFollowing?.has(id) ?? false);
+  const isResolved = (id: string) =>
+    followed.has(id) || requested.has(id) || (alreadyFollowing?.has(id) ?? false);
 
   const remaining = (pack: StarterPack) =>
     pack.members
       .map((m) => m.id)
-      .filter((id) => id !== user.id && !isFollowed(id));
+      .filter((id) => id !== user.id && !isResolved(id));
 
   const openPacks = packs.filter((pack) => remaining(pack).length > 0);
   if (openPacks.length === 0) return null;
@@ -67,17 +70,16 @@ export function StarterPacksRail() {
   const followAll = async (pack: StarterPack) => {
     const ids = remaining(pack);
     if (ids.length === 0) return;
-    // Optimistic: the card drops out now, restored if the insert fails.
-    setFollowed((prev) => new Set([...prev, ...ids]));
     try {
-      await followPackMembers(user.id, ids);
-      toast.success(`Following ${pack.title}`);
+      const result = await followPackMembers(user.id, ids);
+      setFollowed((prev) => new Set([...prev, ...result.followed]));
+      setRequested((prev) => new Set([...prev, ...result.requested]));
+      toast.success(
+        result.requested.length > 0
+          ? `Following ${result.followed.length} from ${pack.title}, ${result.requested.length} pending approval`
+          : `Following ${pack.title}`,
+      );
     } catch {
-      setFollowed((prev) => {
-        const next = new Set(prev);
-        ids.forEach((id) => next.delete(id));
-        return next;
-      });
       toast.error("Couldn't follow right now. Try again.");
     }
   };

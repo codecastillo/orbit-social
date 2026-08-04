@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -13,13 +14,17 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { Avatar, Button, EmptyState } from "@/components/ui";
 import {
-  checkFollowingMany,
-  followUser,
+  checkFollowStates,
   getFollowers,
   getFollowing,
-  unfollowUser,
+  toggleFollowState,
+  type FollowState,
   type ProfileSummary,
 } from "@/lib/queries/profiles";
+import {
+  BLOCKED_FOLLOW_MESSAGE,
+  isBlockedFollowError,
+} from "@/lib/blocked-error";
 import { colors, radii, spacing } from "@/lib/theme";
 
 type FollowTab = "followers" | "following";
@@ -29,14 +34,14 @@ const TITLE_STYLE = { fontSize: 17, fontWeight: "700" } as const;
 function FollowRow({
   profile,
   isSelf,
-  following,
+  followState,
   busy,
   onToggle,
   onOpen,
 }: {
   profile: ProfileSummary;
   isSelf: boolean;
-  following: boolean;
+  followState: FollowState;
   busy: boolean;
   onToggle: () => void;
   onOpen: () => void;
@@ -67,8 +72,14 @@ function FollowRow({
       </View>
       {!isSelf ? (
         <Button
-          label={following ? "Following" : "Follow"}
-          variant={following ? "outline" : "primary"}
+          label={
+            followState === "following"
+              ? "Following"
+              : followState === "requested"
+                ? "Requested"
+                : "Follow"
+          }
+          variant={followState === "none" ? "primary" : "outline"}
           disabled={busy}
           onPress={onToggle}
           style={styles.followButton}
@@ -97,8 +108,8 @@ export default function FollowListScreen() {
   const [tab, setTab] = useState<FollowTab>(
     params.tab === "following" ? "following" : "followers",
   );
-  // Overlays the fetched follow set so toggles feel instant.
-  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  // Overlays the fetched follow state so toggles feel instant.
+  const [overrides, setOverrides] = useState<Record<string, FollowState>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const listQuery = useQuery({
@@ -110,32 +121,32 @@ export default function FollowListScreen() {
 
   const rows = listQuery.data ?? [];
 
-  const followingSetQuery = useQuery({
+  const followStatesQuery = useQuery({
     queryKey: ["follow-list-status", user?.id, userId, tab, rows.length],
     queryFn: () =>
-      checkFollowingMany(
+      checkFollowStates(
         user!.id,
         rows.map((p) => p.id),
       ),
     enabled: !!user && rows.length > 0,
   });
 
-  const isFollowing = (id: string): boolean =>
-    overrides[id] ?? followingSetQuery.data?.has(id) ?? false;
+  const followStateOf = (id: string): FollowState =>
+    overrides[id] ?? followStatesQuery.data?.get(id) ?? "none";
 
   const toggleFollow = async (target: ProfileSummary) => {
     if (!user || busyId) return;
-    const currently = isFollowing(target.id);
+    const current = followStateOf(target.id);
     setBusyId(target.id);
-    setOverrides((m) => ({ ...m, [target.id]: !currently }));
     try {
-      if (currently) {
-        await unfollowUser(user.id, target.id);
+      const next = await toggleFollowState(user.id, target.id, current);
+      setOverrides((m) => ({ ...m, [target.id]: next }));
+    } catch (error) {
+      if (current === "none" && isBlockedFollowError(error)) {
+        Alert.alert(BLOCKED_FOLLOW_MESSAGE);
       } else {
-        await followUser(user.id, target.id);
+        Alert.alert("Couldn't update follow");
       }
-    } catch {
-      setOverrides((m) => ({ ...m, [target.id]: currently }));
     } finally {
       setBusyId(null);
     }
@@ -201,7 +212,7 @@ export default function FollowListScreen() {
             <FollowRow
               profile={item}
               isSelf={item.id === user?.id}
-              following={isFollowing(item.id)}
+              followState={followStateOf(item.id)}
               busy={busyId === item.id}
               onToggle={() => toggleFollow(item)}
               onOpen={() => router.push(`/user/${item.username}`)}

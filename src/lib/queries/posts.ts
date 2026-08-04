@@ -341,6 +341,22 @@ export async function getUserPosts(userId: string, cursor?: string, limit = 20) 
   return data as unknown as PostWithAuthor[];
 }
 
+/**
+ * How many of an account's posts the viewer can actually read, replies and
+ * clips included. Compared against the profile's own `post_count` (a counter
+ * column, so it is not RLS-filtered) it tells a profile whose content the
+ * server is hiding apart from one that simply has nothing to show.
+ */
+export async function countVisiblePosts(userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("posts")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("is_hidden", false);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function getUserClips(userId: string, limit = 60) {
   const { data, error } = await supabase
     .from("posts")

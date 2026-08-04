@@ -11,8 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
   getCombinedSuggestions,
-  followUser,
-  unfollowUser,
+  toggleFollowState,
+  type FollowState,
   type ProfileSummary,
 } from "@/lib/queries/social";
 
@@ -22,23 +22,16 @@ interface SuggestionCardProps {
 
 function SuggestionCard({ profile }: SuggestionCardProps) {
   const { user } = useAuth();
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [followState, setFollowState] = useState<FollowState>("none");
 
   const handleToggle = async () => {
     if (!user) {
       toast.error("Sign in to follow people");
       return;
     }
-    const was = isFollowing;
-    setIsFollowing(!was);
     try {
-      if (was) {
-        await unfollowUser(user.id, profile.id);
-      } else {
-        await followUser(user.id, profile.id);
-      }
+      setFollowState(await toggleFollowState(user.id, profile.id, followState));
     } catch {
-      setIsFollowing(was);
       toast.error("Couldn't update follow");
     }
   };
@@ -68,7 +61,7 @@ function SuggestionCard({ profile }: SuggestionCardProps) {
         )}
       </div>
       <FollowButton
-        isFollowing={isFollowing}
+        state={followState}
         onToggle={handleToggle}
         size="sm"
         className="w-full"

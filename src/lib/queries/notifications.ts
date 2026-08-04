@@ -21,7 +21,8 @@ export interface NotificationWithActor {
     | "event_invite"
     | "event_reminder"
     | "new_post"
-    | "moment_prompt";
+    | "moment_prompt"
+    | "follow_request";
   entity_type: string | null;
   entity_id: string | null;
   is_read: boolean;

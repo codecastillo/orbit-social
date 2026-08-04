@@ -150,6 +150,20 @@ export default function PromisesPage() {
             </Link>
             , with the reason and the appeal path.
           </p>
+          <div className="mt-8 flex flex-wrap gap-x-7 gap-y-2 text-[13.5px]">
+            <Link
+              href="/terms"
+              className="text-text-secondary no-underline hover:text-foreground"
+            >
+              Terms of Service
+            </Link>
+            <Link
+              href="/privacy"
+              className="text-text-secondary no-underline hover:text-foreground"
+            >
+              Privacy Policy
+            </Link>
+          </div>
           <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5 font-mono text-[11px] tracking-wider text-text-faint">
             <span>© 2026 ORBIT LABS</span>
             <Link

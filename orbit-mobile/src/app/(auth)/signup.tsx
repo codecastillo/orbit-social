@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Linking, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui";
@@ -12,6 +12,10 @@ import {
 import { colors, spacing } from "@/lib/theme";
 
 const MIN_PASSWORD_LENGTH = 6;
+// The legal documents live on the web app; the app opens them in the browser
+// rather than shipping a second copy that can drift out of date.
+const WEB_TERMS_URL = "https://orbitsocial.net/terms";
+const WEB_PRIVACY_URL = "https://orbitsocial.net/privacy";
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -142,6 +146,26 @@ export default function SignupScreen() {
       {formError ? <Text style={authStyles.error}>{formError}</Text> : null}
 
       <Button label="Create account" loading={submitting} onPress={handleSignUp} />
+
+      <Text style={styles.agreement}>
+        By creating an account you agree to the{" "}
+        <Text
+          style={styles.agreementLink}
+          accessibilityRole="link"
+          onPress={() => void Linking.openURL(WEB_TERMS_URL)}
+        >
+          Terms of Service
+        </Text>{" "}
+        and{" "}
+        <Text
+          style={styles.agreementLink}
+          accessibilityRole="link"
+          onPress={() => void Linking.openURL(WEB_PRIVACY_URL)}
+        >
+          Privacy Policy
+        </Text>
+        . You must be at least 13 years old.
+      </Text>
     </AuthShell>
   );
 }
@@ -154,6 +178,18 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
     textAlign: "center",
     marginTop: spacing(6),
+  },
+  agreement: {
+    color: colors.mutedForeground,
+    fontSize: 11.5,
+    lineHeight: 17,
+    textAlign: "center",
+    marginTop: spacing(4),
+    paddingHorizontal: spacing(2),
+  },
+  agreementLink: {
+    color: colors.primary,
+    fontWeight: "600",
   },
   sub: {
     color: colors.mutedForeground,

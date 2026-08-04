@@ -517,13 +517,20 @@ const footerCols: { title: string; links: { label: string; href: string }[] }[] 
       { label: "Ten promises", href: "/promises" },
     ],
   },
+  {
+    title: "Legal",
+    links: [
+      { label: "Terms of Service", href: "/terms" },
+      { label: "Privacy Policy", href: "/privacy" },
+    ],
+  },
 ];
 
 function Footer() {
   return (
     <footer className="border-t border-border pb-7 pt-14">
       <div className="mx-auto max-w-[1240px] px-7">
-        <div className="grid grid-cols-2 items-start gap-12 md:grid-cols-3">
+        <div className="grid grid-cols-2 items-start gap-12 md:grid-cols-4">
           <div className="flex items-center gap-2.5">
             <LogoMark size={24} />
             <span className="text-[15px] font-bold tracking-tight text-foreground">

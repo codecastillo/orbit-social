@@ -154,23 +154,22 @@ function StarterPacksStep({
   onDone: () => void;
 }) {
   const [followed, setFollowed] = useState<Set<string>>(new Set());
+  // Private members only get a request, so they are handled but not followed.
+  const [requested, setRequested] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [packError, setPackError] = useState<string | null>(null);
 
   async function followMembers(ids: string[]) {
-    const missing = ids.filter((id) => id !== userId && !followed.has(id));
+    const missing = ids.filter(
+      (id) => id !== userId && !followed.has(id) && !requested.has(id),
+    );
     if (missing.length === 0) return;
-    // Optimistic: flip the buttons now, roll back if the insert fails.
     setPackError(null);
-    setFollowed((prev) => new Set([...prev, ...missing]));
     try {
-      await followPackMembers(userId, missing);
+      const result = await followPackMembers(userId, missing);
+      setFollowed((prev) => new Set([...prev, ...result.followed]));
+      setRequested((prev) => new Set([...prev, ...result.requested]));
     } catch {
-      setFollowed((prev) => {
-        const next = new Set(prev);
-        missing.forEach((id) => next.delete(id));
-        return next;
-      });
       setPackError("Couldn't follow right now. Try again.");
     }
   }
@@ -199,8 +198,9 @@ function StarterPacksStep({
           const ids = pack.members
             .map((m) => m.id)
             .filter((id) => id !== userId);
-          const allFollowed =
-            ids.length > 0 && ids.every((id) => followed.has(id));
+          const allHandled =
+            ids.length > 0 &&
+            ids.every((id) => followed.has(id) || requested.has(id));
           const isOpen = expanded.has(pack.id);
           return (
             <View key={pack.id} style={styles.packCard}>
@@ -214,8 +214,8 @@ function StarterPacksStep({
                   ) : null}
                 </View>
                 <Button
-                  label={allFollowed ? "Following" : "Follow all"}
-                  variant={allFollowed ? "outline" : "primary"}
+                  label={allHandled ? "Added" : "Follow all"}
+                  variant={allHandled ? "outline" : "primary"}
                   disabled={ids.length === 0}
                   onPress={() => followMembers(ids)}
                   style={styles.followAllButton}
@@ -252,6 +252,7 @@ function StarterPacksStep({
                 ? pack.members.map((m) => {
                     const isSelf = m.id === userId;
                     const isOn = followed.has(m.id);
+                    const isRequested = requested.has(m.id);
                     return (
                       <View key={m.id} style={styles.memberRow}>
                         <Avatar
@@ -269,8 +270,10 @@ function StarterPacksStep({
                         </View>
                         {!isSelf ? (
                           <Button
-                            label={isOn ? "Added" : "Add"}
-                            variant={isOn ? "outline" : "primary"}
+                            label={
+                              isOn ? "Added" : isRequested ? "Requested" : "Add"
+                            }
+                            variant={isOn || isRequested ? "outline" : "primary"}
                             onPress={() => followMembers([m.id])}
                             style={styles.memberButton}
                           />

@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMfaVerifiedUser } from "@/lib/supabase/verified-user";
 
-export async function POST() {
+export async function POST(request: Request) {
   // Server-verified user, and full aal2 for MFA-enrolled accounts: a
-  // password-only session must not be able to destroy the account.
-  const user = await getMfaVerifiedUser();
+  // password-only session must not be able to destroy the account. The
+  // request is passed so the native app can authenticate with its session
+  // Bearer token instead of cookies.
+  const user = await getMfaVerifiedUser(request);
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }

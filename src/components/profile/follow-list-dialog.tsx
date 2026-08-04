@@ -15,14 +15,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { VerifiedStar } from "@/components/orbit/verified-star";
 import {
-  checkFollowing,
-  followUser,
+  checkFollowStates,
   getFollowers,
   getFollowing,
-  unfollowUser,
+  toggleFollowState,
+  type FollowState,
   type ProfileSummary,
 } from "@/lib/queries/social";
 import { useAuth } from "@/lib/hooks/use-auth";
+import {
+  BLOCKED_FOLLOW_MESSAGE,
+  isBlockedFollowError,
+} from "@/lib/utils/blocked-error";
 
 type Kind = "followers" | "following";
 
@@ -47,13 +51,15 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
     enabled: open,
   });
 
-  // Fetch which of these users I'm following so the buttons render the
+  // Fetch where I stand with each of these users so the buttons render the
   // correct initial state.
-  const { data: followingSet } = useQuery({
+  const { data: followStates } = useQuery({
     queryKey: ["follow-list-status", myId, data?.map((p) => p.id)],
     queryFn: () => {
-      if (!myId || !data || data.length === 0) return new Set<string>();
-      return checkFollowing(
+      if (!myId || !data || data.length === 0) {
+        return new Map<string, FollowState>();
+      }
+      return checkFollowStates(
         myId,
         data.map((p) => p.id)
       );
@@ -62,32 +68,32 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
   });
 
   // Local follow state: overlays the server-side set so toggles feel instant.
-  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  const [overrides, setOverrides] = useState<Record<string, FollowState>>({});
   const [busy, setBusy] = useState<string | null>(null);
 
-  const isFollowing = (id: string): boolean => {
-    if (overrides[id] !== undefined) return overrides[id];
-    return followingSet?.has(id) ?? false;
-  };
+  const followStateOf = (id: string): FollowState =>
+    overrides[id] ?? followStates?.get(id) ?? "none";
 
   const toggleFollow = async (target: ProfileSummary) => {
     if (!myId) {
       toast.error("Sign in to follow people");
       return;
     }
-    const currently = isFollowing(target.id);
     setBusy(target.id);
-    setOverrides((m) => ({ ...m, [target.id]: !currently }));
     try {
-      if (currently) {
-        await unfollowUser(myId, target.id);
-      } else {
-        await followUser(myId, target.id);
-      }
+      const next = await toggleFollowState(
+        myId,
+        target.id,
+        followStateOf(target.id)
+      );
+      setOverrides((m) => ({ ...m, [target.id]: next }));
     } catch (err) {
       console.error("Follow toggle failed:", err);
-      toast.error("Couldn't update follow");
-      setOverrides((m) => ({ ...m, [target.id]: currently }));
+      toast.error(
+        isBlockedFollowError(err)
+          ? BLOCKED_FOLLOW_MESSAGE
+          : "Couldn't update follow"
+      );
     } finally {
       setBusy(null);
     }
@@ -135,7 +141,7 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
           ) : (
             data.map((p: ProfileSummary) => {
               const isSelf = myId === p.id;
-              const following = isFollowing(p.id);
+              const state = followStateOf(p.id);
               return (
                 <div
                   key={p.id}
@@ -171,7 +177,7 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
                   {!isSelf && myId && (
                     <Button
                       size="sm"
-                      variant={following ? "outline" : "default"}
+                      variant={state === "none" ? "default" : "outline"}
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -180,7 +186,11 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
                       disabled={busy === p.id}
                       className="shrink-0"
                     >
-                      {following ? "Following" : "Follow"}
+                      {state === "following"
+                        ? "Following"
+                        : state === "requested"
+                          ? "Requested"
+                          : "Follow"}
                     </Button>
                   )}
                 </div>

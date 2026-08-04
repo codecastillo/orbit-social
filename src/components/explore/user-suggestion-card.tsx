@@ -5,23 +5,27 @@ import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { FollowButton } from "@/components/shared/follow-button";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { followUser, unfollowUser, type ProfileSummary } from "@/lib/queries/social";
+import {
+  toggleFollowState,
+  type FollowState,
+  type ProfileSummary,
+} from "@/lib/queries/social";
 import { useState } from "react";
 import { toast } from "sonner";
 
 interface UserSuggestionCardProps {
   profile: ProfileSummary;
-  initialIsFollowing?: boolean;
+  initialFollowState?: FollowState;
   className?: string;
 }
 
 export function UserSuggestionCard({
   profile,
-  initialIsFollowing = false,
+  initialFollowState = "none",
   className,
 }: UserSuggestionCardProps) {
   const { user } = useAuth();
-  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const [followState, setFollowState] = useState(initialFollowState);
   const isOwnProfile = user?.id === profile.id;
 
   const handleToggleFollow = async () => {
@@ -30,17 +34,11 @@ export function UserSuggestionCard({
       return;
     }
 
-    const wasFollowing = isFollowing;
-    setIsFollowing(!wasFollowing);
-
+    // The landing state depends on whether the target is private, so it is
+    // read from the write rather than guessed up front.
     try {
-      if (wasFollowing) {
-        await unfollowUser(user.id, profile.id);
-      } else {
-        await followUser(user.id, profile.id);
-      }
+      setFollowState(await toggleFollowState(user.id, profile.id, followState));
     } catch {
-      setIsFollowing(wasFollowing);
       toast.error("Couldn't update follow");
     }
   };
@@ -78,7 +76,7 @@ export function UserSuggestionCard({
 
       {!isOwnProfile && (
         <FollowButton
-          isFollowing={isFollowing}
+          state={followState}
           onToggle={handleToggleFollow}
           size="sm"
         />

@@ -26,24 +26,21 @@ export function StarterPacksStep({
   onFinish: () => void;
 }) {
   const [followed, setFollowed] = useState<Set<string>>(new Set());
+  // Private members land here instead: handled, but not followed.
+  const [requested, setRequested] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const followableIds = (pack: StarterPack) =>
     pack.members.map((m) => m.id).filter((id) => id !== userId);
 
   const followMembers = async (ids: string[]) => {
-    const missing = ids.filter((id) => !followed.has(id));
+    const missing = ids.filter((id) => !followed.has(id) && !requested.has(id));
     if (missing.length === 0) return;
-    // Optimistic: flip the buttons now, roll back if the insert fails.
-    setFollowed((prev) => new Set([...prev, ...missing]));
     try {
-      await followPackMembers(userId, missing);
+      const result = await followPackMembers(userId, missing);
+      setFollowed((prev) => new Set([...prev, ...result.followed]));
+      setRequested((prev) => new Set([...prev, ...result.requested]));
     } catch {
-      setFollowed((prev) => {
-        const next = new Set(prev);
-        missing.forEach((id) => next.delete(id));
-        return next;
-      });
       toast.error("Couldn't follow right now. Try again.");
     }
   };
@@ -77,8 +74,9 @@ export function StarterPacksStep({
       <div className="flex-1 space-y-3 overflow-auto px-4 py-[18px]">
         {packs.map((pack) => {
           const ids = followableIds(pack);
-          const allFollowed =
-            ids.length > 0 && ids.every((id) => followed.has(id));
+          const allHandled =
+            ids.length > 0 &&
+            ids.every((id) => followed.has(id) || requested.has(id));
           const isOpen = expanded.has(pack.id);
           return (
             <div
@@ -130,13 +128,13 @@ export function StarterPacksStep({
                 </div>
                 <Button
                   size="sm"
-                  variant={allFollowed ? "outline" : "default"}
+                  variant={allHandled ? "outline" : "default"}
                   disabled={ids.length === 0}
                   onClick={() => followMembers(ids)}
                 >
-                  {allFollowed ? (
+                  {allHandled ? (
                     <>
-                      <Check className="h-3 w-3" strokeWidth={3} /> Following
+                      <Check className="h-3 w-3" strokeWidth={3} /> Added
                     </>
                   ) : (
                     "Follow all"
@@ -149,6 +147,7 @@ export function StarterPacksStep({
                   {pack.members.map((m) => {
                     const isSelf = m.id === userId;
                     const isOn = followed.has(m.id);
+                    const isRequested = requested.has(m.id);
                     return (
                       <div
                         key={m.id}
@@ -170,7 +169,7 @@ export function StarterPacksStep({
                         {!isSelf && (
                           <Button
                             size="sm"
-                            variant={isOn ? "outline" : "default"}
+                            variant={isOn || isRequested ? "outline" : "default"}
                             onClick={() => followMembers([m.id])}
                           >
                             {isOn ? (
@@ -178,6 +177,8 @@ export function StarterPacksStep({
                                 <Check className="h-3 w-3" strokeWidth={3} />{" "}
                                 Added
                               </>
+                            ) : isRequested ? (
+                              "Requested"
                             ) : (
                               <>
                                 <Plus className="h-3 w-3" strokeWidth={2.4} />{" "}

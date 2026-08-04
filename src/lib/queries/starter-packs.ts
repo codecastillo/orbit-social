@@ -89,33 +89,71 @@ export async function getFollowedMemberIds(
   return new Set((data ?? []).map((f) => f.following_id));
 }
 
+export interface PackFollowResult {
+  /** Members the viewer now actually follows. */
+  followed: string[];
+  /** Private members who only got a request the owner still has to approve. */
+  requested: string[];
+}
+
 /**
- * Follows every pack member the user does not already follow. Skips
- * self-follows and existing rows so it is safe to call repeatedly.
+ * Follows every public pack member the user does not already follow, and files
+ * a request for the private ones instead. Skips self-follows and existing rows
+ * so it is safe to call repeatedly. Callers report the two buckets separately:
+ * a pending request is not a follow.
  */
 export async function followPackMembers(
   followerId: string,
   memberIds: string[],
-): Promise<number> {
+): Promise<PackFollowResult> {
+  const empty: PackFollowResult = { followed: [], requested: [] };
   const targets = memberIds.filter((id) => id !== followerId);
-  if (targets.length === 0) return 0;
+  if (targets.length === 0) return empty;
 
-  const { data: existing, error: readError } = await supabase
-    .from("follows")
-    .select("following_id")
-    .eq("follower_id", followerId)
-    .in("following_id", targets);
-  if (readError) throw readError;
+  const [existingRes, profilesRes] = await Promise.all([
+    supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", followerId)
+      .in("following_id", targets),
+    supabase.from("profiles").select("id, is_private").in("id", targets),
+  ]);
+  if (existingRes.error) throw existingRes.error;
+  if (profilesRes.error) throw profilesRes.error;
 
-  const already = new Set((existing ?? []).map((f) => f.following_id));
-  const inserts = targets
-    .filter((id) => !already.has(id))
-    .map((id) => ({ follower_id: followerId, following_id: id }));
-  if (inserts.length === 0) return 0;
+  const already = new Set((existingRes.data ?? []).map((f) => f.following_id));
+  const isPrivate = new Set(
+    (profilesRes.data ?? [])
+      .filter((p) => p.is_private === true)
+      .map((p) => p.id),
+  );
 
-  const { error } = await supabase.from("follows").insert(inserts);
-  if (error) throw error;
-  return inserts.length;
+  const pending = targets.filter((id) => !already.has(id));
+  const followed = pending.filter((id) => !isPrivate.has(id));
+  const requested = pending.filter((id) => isPrivate.has(id));
+
+  if (followed.length > 0) {
+    const { error } = await supabase
+      .from("follows")
+      .insert(
+        followed.map((id) => ({ follower_id: followerId, following_id: id })),
+      );
+    if (error) throw error;
+  }
+
+  if (requested.length > 0) {
+    // ignoreDuplicates so re-running a pack over an already pending request
+    // is a no-op rather than a primary-key error.
+    const { error } = await supabase
+      .from("follow_requests")
+      .upsert(
+        requested.map((id) => ({ requester_id: followerId, target_id: id })),
+        { onConflict: "requester_id,target_id", ignoreDuplicates: true },
+      );
+    if (error) throw error;
+  }
+
+  return { followed, requested };
 }
 
 // ── Admin curation ──────────────────────────────────────────────────

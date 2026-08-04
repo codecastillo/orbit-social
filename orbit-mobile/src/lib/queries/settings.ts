@@ -1,8 +1,8 @@
 import { supabase } from "@/lib/supabase";
 
-// The per-type columns the web notification settings page manages, plus
-// quiet hours. Hours are local wall-clock 0-23; the stored offset lets the
-// push fanout reconstruct local time from UTC.
+// The per-type columns the web notification settings page manages, plus the
+// email digest opt-out and quiet hours. Hours are local wall-clock 0-23; the
+// stored offset lets the push fanout reconstruct local time from UTC.
 export const NOTIFICATION_TOGGLE_KEYS = [
   "likes",
   "comments",
@@ -16,6 +16,7 @@ export const NOTIFICATION_TOGGLE_KEYS = [
   "communities",
   "story_replies",
   "new_followers_posts",
+  "email_digest",
 ] as const;
 
 export type NotificationToggleKey = (typeof NOTIFICATION_TOGGLE_KEYS)[number];
@@ -119,6 +120,36 @@ export async function getMutedUsers(
     .filter((p): p is BlockedProfile => p !== null);
 }
 
+/**
+ * The blocks the viewer owns. Expiry is deliberately ignored so this matches
+ * `blocks_between`, which enforces every row regardless of `expires_at`; a
+ * client that hid expired rows would promise sends the server still refuses.
+ */
+export async function getBlockedIds(userId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("blocks")
+    .select("blocked_id")
+    .eq("blocker_id", userId);
+
+  if (error) throw error;
+  return new Set((data ?? []).map((row) => row.blocked_id));
+}
+
+/**
+ * The accounts the viewer muted, for the feed and clip filters. Mutes are
+ * enforced entirely on the client, so timed mutes expire here.
+ */
+export async function getMutedIds(userId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("mutes")
+    .select("muted_id")
+    .eq("user_id", userId)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
+
+  if (error) throw error;
+  return new Set((data ?? []).map((row) => row.muted_id));
+}
+
 // Mirrors the web getCloseFriends in src/lib/queries/social.ts: rows where
 // user_id is you, joined to the friend's profile, newest first.
 export async function getCloseFriends(
@@ -155,6 +186,45 @@ export async function removeCloseFriend(userId: string, friendId: string) {
 
   if (error) throw error;
 }
+
+export async function blockUser(blockerId: string, blockedId: string) {
+  const { error } = await supabase
+    .from("blocks")
+    .insert({ blocker_id: blockerId, blocked_id: blockedId });
+
+  if (error) throw error;
+}
+
+export async function muteUser(userId: string, mutedId: string) {
+  const { error } = await supabase
+    .from("mutes")
+    .insert({ user_id: userId, muted_id: mutedId });
+
+  if (error) throw error;
+}
+
+/**
+ * Caches a block invalidates. The database trigger severs follows and close
+ * friends in both directions and the posts policy starts hiding content, so
+ * follow state, counts, lists, feeds, clips, and suggestions all shift.
+ * Mirrors the web BLOCK_INVALIDATION_KEYS with this app's key names.
+ */
+export const BLOCK_INVALIDATION_KEYS: readonly string[][] = [
+  ["feed"],
+  ["clips"],
+  ["curated-clips"],
+  ["suggested-users"],
+  ["follow-list"],
+  ["follow-state"],
+  ["follow-requests"],
+  ["profile"],
+  ["own-profile"],
+  ["profile-posts"],
+  ["profile-clips"],
+  ["visible-post-count"],
+  ["blocked-ids"],
+  ["blocked-users"],
+];
 
 export async function unblockUser(blockerId: string, blockedId: string) {
   const { error } = await supabase
