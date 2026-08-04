@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { registerAccountScopedReset } from "@/lib/account-state";
 import type { BlockedProfile } from "@/lib/queries/settings";
 
 // ── Muted words ──────────────────────────────────────────────────────
@@ -152,6 +153,10 @@ let signalsCache: {
   fetchedAt: number;
   signals: RankingSignals;
 } | null = null;
+
+registerAccountScopedReset(() => {
+  signalsCache = null;
+});
 
 /**
  * The viewer's topic preferences and sensitivity setting for feed ranking.

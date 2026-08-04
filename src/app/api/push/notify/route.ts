@@ -304,6 +304,37 @@ export async function POST(req: Request) {
     }
   }
 
+  // Muting someone stops their notifications, which is what the mute dialog
+  // promises, and a block does the same for anything the actor slipped in
+  // before it landed. mutes and blocks are own-rows RLS, so only the service
+  // client can read them here. Checked before the budget so a suppressed
+  // push does not burn the weekly ambient allowance.
+  if (record.actor_id) {
+    const [{ data: mute }, { data: block }] = await Promise.all([
+      admin
+        .from("mutes")
+        .select("expires_at")
+        .eq("user_id", record.user_id)
+        .eq("muted_id", record.actor_id)
+        .maybeSingle(),
+      admin
+        .from("blocks")
+        .select("blocker_id")
+        .eq("blocker_id", record.user_id)
+        .eq("blocked_id", record.actor_id)
+        .maybeSingle(),
+    ]);
+    const muteActive =
+      mute !== null &&
+      (mute.expires_at === null || new Date(mute.expires_at) > new Date());
+    if (muteActive || block) {
+      return NextResponse.json({
+        ok: true,
+        skipped: block ? "blocked actor" : "muted actor",
+      });
+    }
+  }
+
   // Quiet hours suppress push delivery only; the in-app notification row
   // already exists. Checked before the budget so a suppressed push does not
   // burn the weekly ambient allowance.

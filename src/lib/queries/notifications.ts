@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { getBlockedIds, getMutedIds } from "@/lib/queries/social";
 
 const supabase = createClient();
 
@@ -53,17 +54,49 @@ const NOTIFICATION_SELECT = `
   )
 `;
 
+/**
+ * Actors the viewer should never hear from again: accounts they muted, which
+ * is what the block/mute dialog promises, and accounts they blocked, whose
+ * older rows would otherwise sit in the list forever (notifications have no
+ * block-aware RLS the way posts do). Only the viewer's own block rows are
+ * readable, so this answers "did I block them", never "did they block me".
+ */
+async function getSuppressedActorIds(userId: string): Promise<string[]> {
+  const [muted, blocked] = await Promise.all([
+    getMutedIds(userId),
+    getBlockedIds(userId),
+  ]);
+  return Array.from(new Set([...muted, ...blocked]));
+}
+
+/**
+ * PostgREST filter dropping suppressed actors. The `is.null` arm is load
+ * bearing: `actor_id NOT IN (...)` is NULL for system rows (moment_prompt),
+ * which would drop them from the list.
+ */
+function suppressedActorFilter(actorIds: string[]): string {
+  return `actor_id.is.null,actor_id.not.in.(${actorIds.join(",")})`;
+}
+
 export async function getNotifications(
   userId: string,
   cursor?: string,
   limit = 20
 ) {
+  const suppressedActorIds = await getSuppressedActorIds(userId);
+
   let query = supabase
     .from("notifications")
     .select(NOTIFICATION_SELECT)
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(limit);
+
+  // Filtered in the query, not after it, so a page of 20 stays a page of 20
+  // and grouping downstream never sees a suppressed row.
+  if (suppressedActorIds.length > 0) {
+    query = query.or(suppressedActorFilter(suppressedActorIds));
+  }
 
   if (cursor) {
     query = query.lt("created_at", cursor);
@@ -124,12 +157,21 @@ export async function getNotifications(
 }
 
 export async function getUnreadCount(userId: string) {
-  const { count, error } = await supabase
+  const suppressedActorIds = await getSuppressedActorIds(userId);
+
+  let query = supabase
     .from("notifications")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
     .eq("is_read", false);
 
+  // The badge counts what the list shows, or it sends people to an activity
+  // page with nothing new on it.
+  if (suppressedActorIds.length > 0) {
+    query = query.or(suppressedActorFilter(suppressedActorIds));
+  }
+
+  const { count, error } = await query;
   if (error) throw error;
   return count ?? 0;
 }

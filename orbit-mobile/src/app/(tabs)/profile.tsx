@@ -3,9 +3,9 @@ import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Tabs, useRouter, type Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
+import { AccountSwitcherSheet } from "@/components/account-switcher";
 import { Button, EmptyState } from "@/components/ui";
 import {
   ProfileActionButton,
@@ -62,11 +62,12 @@ function SheetRow({
 }
 
 export default function OwnProfileScreen() {
-  const { user } = useAuth();
+  const { user, accounts, signOutActiveAccount, signOutAllAccounts } =
+    useAuth();
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
 
   const {
     data: profile,
@@ -151,12 +152,9 @@ export default function OwnProfileScreen() {
     );
   }
 
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    // Drop every cached query so the next account starts clean.
-    queryClient.clear();
-    // The AuthGate redirects to the login screen once the session clears.
-  }
+  // With a second account on the device, "Sign out" needs to say which one it
+  // means, and signing out of everything becomes its own action.
+  const hasOtherAccounts = accounts.length > 1;
 
   if (!user || isPending) {
     return (
@@ -214,6 +212,7 @@ export default function OwnProfileScreen() {
               }
               onPressFollowers={() => openFollowList("followers")}
               onPressFollowing={() => openFollowList("following")}
+              onPressUsername={() => setSwitcherOpen(true)}
               actions={
                 <>
                   <ProfileActionButton
@@ -241,6 +240,11 @@ export default function OwnProfileScreen() {
           Promise.all([refetch(), draftsQuery.refetch(), scheduledQuery.refetch()])
         }
         shortcuts={gridShortcuts}
+      />
+
+      <AccountSwitcherSheet
+        visible={switcherOpen}
+        onClose={() => setSwitcherOpen(false)}
       />
 
       <ProfileQrModal
@@ -322,14 +326,33 @@ export default function OwnProfileScreen() {
               }}
             />
             <SheetRow
+              icon="swap-horizontal-outline"
+              label="Switch account"
+              onPress={() => {
+                setMenuOpen(false);
+                setSwitcherOpen(true);
+              }}
+            />
+            <SheetRow
               icon="log-out-outline"
-              label="Sign out"
+              label={hasOtherAccounts ? `Sign out @${profile.username}` : "Sign out"}
               destructive
               onPress={() => {
                 setMenuOpen(false);
-                handleSignOut();
+                signOutActiveAccount();
               }}
             />
+            {hasOtherAccounts ? (
+              <SheetRow
+                icon="log-out-outline"
+                label="Sign out of all accounts"
+                destructive
+                onPress={() => {
+                  setMenuOpen(false);
+                  signOutAllAccounts();
+                }}
+              />
+            ) : null}
           </View>
         </View>
       </Modal>

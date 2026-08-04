@@ -1,3 +1,4 @@
+import { registerAccountScopedReset } from "@/lib/account-state";
 import type { PostDraft } from "@/lib/queries/drafts";
 
 // Module-scope handoff mirroring the undoRestore snapshot inside
@@ -17,3 +18,8 @@ export function consumeDraftRestore(): PostDraft | null {
   pendingDraft = null;
   return draft;
 }
+
+// A staged draft belongs to the account that opened it, never the next one.
+registerAccountScopedReset(() => {
+  pendingDraft = null;
+});

@@ -36,6 +36,7 @@ import {
 } from "@/lib/queries/clips";
 import { createRepost, toggleBookmark, undoRepost } from "@/lib/queries/posts";
 import { buildMutedWordMatcher } from "@/lib/queries/content-safety";
+import { registerAccountScopedReset } from "@/lib/account-state";
 import { useMutedIds, useMutedWords } from "@/lib/hooks/use-content-safety";
 import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
 import { formatNumber } from "@/lib/format";
@@ -81,6 +82,15 @@ let sessionMuted = false;
 // Once per clip per app session, same pattern as the post-detail screens:
 // pager re-activations and refetches must not count the same viewer twice.
 const viewedClipIds = new Set<string>();
+
+// A switch starts a fresh session for the incoming account: it gets the muted
+// first clip, its own mute choice, and its own view counted on clips the
+// previous account had already watched.
+registerAccountScopedReset(() => {
+  firstClipOfSession = true;
+  sessionMuted = false;
+  viewedClipIds.clear();
+});
 
 function ClipItem({
   clip,

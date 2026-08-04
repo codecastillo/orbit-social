@@ -23,7 +23,7 @@ Notifications.setNotificationHandler({
 });
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { user, loading, mfaPending } = useAuth();
+  const { user, loading, mfaPending, switching, addingAccount } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   useNotificationTaps();
@@ -32,16 +32,28 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   usePresenceHeartbeat();
 
   useEffect(() => {
-    if (loading) return;
+    // A switch passes through a signed-out moment on its way to the next
+    // account; routing on that would flash the login screen.
+    if (loading || switching) return;
     const inAuthGroup = segments[0] === "(auth)";
     // A session that still owes its TOTP code is not signed in as far as the
     // app is concerned; the login screen hosts the challenge.
     if ((!user || mfaPending) && !inAuthGroup) {
       router.replace("/(auth)/login");
-    } else if (user && !mfaPending && inAuthGroup) {
+    } else if (user && !mfaPending && inAuthGroup && !addingAccount) {
+      // While adding an account the signed-in user is deliberately sitting on
+      // the login screen, so the usual bounce back to the tabs would trap it.
       router.replace("/(tabs)");
     }
-  }, [user, loading, mfaPending, segments, router]);
+  }, [
+    user,
+    loading,
+    mfaPending,
+    switching,
+    addingAccount,
+    segments,
+    router,
+  ]);
 
   return <>{children}</>;
 }

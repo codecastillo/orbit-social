@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
-import { useRouter, Link } from "expo-router";
+import { useLocalSearchParams, useRouter, Link } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui";
 import {
@@ -22,10 +22,21 @@ const MONO_FONT = Platform.select({ ios: "Menlo", default: "monospace" });
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { mfaPending } = useAuth();
-  const [email, setEmail] = useState("");
+  const { mfaPending, addingAccount, finishAddAccount, cancelAddAccount } =
+    useAuth();
+  // Set when a stored account's session was rejected on switch: the email is
+  // known, only the password is missing.
+  const { email: emailParam, expired } = useLocalSearchParams<{
+    email?: string;
+    expired?: string;
+  }>();
+  const [email, setEmail] = useState(emailParam ?? "");
   const [password, setPassword] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(
+    expired === "1"
+      ? "That account was signed out on this device. Log in again to add it back."
+      : null,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [factorId, setFactorId] = useState<string | null>(null);
   const [code, setCode] = useState("");
@@ -98,6 +109,9 @@ export default function LoginScreen() {
     }
 
     if (data.session) await recordSignIn(data.session.user.id);
+    // The extra account is stored and live; leaving add mode lets the gate
+    // move on to the tabs.
+    finishAddAccount();
     setSubmitting(false);
     // On success the AuthGate in the root layout redirects to the tabs.
   }
@@ -122,6 +136,7 @@ export default function LoginScreen() {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) await recordSignIn(user.id);
+      finishAddAccount();
       // The session is aal2 now; the provider clears mfaPending and the
       // AuthGate moves on to the tabs.
     } catch (err) {
@@ -135,13 +150,24 @@ export default function LoginScreen() {
   }
 
   async function handleCancelChallenge() {
-    // Drop the half-authenticated session, otherwise the gate keeps routing
-    // every screen back here.
-    await supabase.auth.signOut();
     setPassword("");
     setCode("");
     setFactorId(null);
     setFormError(null);
+    if (addingAccount) {
+      // Puts the account that was active before the add attempt back.
+      await cancelAddAccount();
+      return;
+    }
+    // Drop the half-authenticated session, otherwise the gate keeps routing
+    // every screen back here.
+    await supabase.auth.signOut();
+  }
+
+  async function handleCancelAdd() {
+    setPassword("");
+    setFormError(null);
+    await cancelAddAccount();
   }
 
   if (mfaPending && factorId) {
@@ -199,16 +225,22 @@ export default function LoginScreen() {
     <AuthShell
       footer={
         <>
-          <View style={authStyles.divider}>
-            <View style={authStyles.dividerLine} />
-            <Text style={authStyles.dividerText}>OR</Text>
-            <View style={authStyles.dividerLine} />
-          </View>
-          <Button
-            label="Create new account"
-            variant="outline"
-            onPress={() => router.push("/(auth)/signup")}
-          />
+          {/* Signing up is a different flow from adding an existing account,
+              and it would leave the app parked on the auth screens. */}
+          {addingAccount ? null : (
+            <>
+              <View style={authStyles.divider}>
+                <View style={authStyles.dividerLine} />
+                <Text style={authStyles.dividerText}>OR</Text>
+                <View style={authStyles.dividerLine} />
+              </View>
+              <Button
+                label="Create new account"
+                variant="outline"
+                onPress={() => router.push("/(auth)/signup")}
+              />
+            </>
+          )}
           <Text style={[authStyles.wordmarkFooter, { marginTop: spacing(5) }]}>
             Orbit
           </Text>
@@ -216,7 +248,17 @@ export default function LoginScreen() {
       }
     >
       <OrbitMark size={72} />
-      <View style={{ height: spacing(9) }} />
+      {addingAccount ? (
+        <>
+          <Text style={styles.title}>Add another account</Text>
+          <Text style={styles.sub}>
+            You stay signed in to the account you are using now, and can switch
+            between them from your profile.
+          </Text>
+        </>
+      ) : (
+        <View style={{ height: spacing(9) }} />
+      )}
 
       <AuthInput
         value={email}
@@ -244,6 +286,15 @@ export default function LoginScreen() {
       {formError ? <Text style={authStyles.error}>{formError}</Text> : null}
 
       <Button label="Log in" loading={submitting} onPress={handleSignIn} />
+      {addingAccount ? (
+        <Button
+          label="Cancel"
+          variant="outline"
+          style={{ marginTop: spacing(3) }}
+          disabled={submitting}
+          onPress={handleCancelAdd}
+        />
+      ) : null}
 
       <Text style={styles.hint}>
         Use the account you created on orbitsocial.net.

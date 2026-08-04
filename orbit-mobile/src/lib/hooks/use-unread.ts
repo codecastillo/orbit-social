@@ -4,6 +4,7 @@ import { usePathname } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getConversations } from "@/lib/queries/messages";
+import { getUnreadCount } from "@/lib/queries/notifications";
 import { useAuth } from "@/providers/auth-provider";
 
 const UNREAD_POLL_MS = 60_000;
@@ -51,15 +52,7 @@ export function useUnreadCounts() {
 
   const notificationsQuery = useQuery({
     queryKey: [...UNREAD_NOTIFICATIONS_KEY, user?.id],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user!.id)
-        .eq("is_read", false);
-      if (error) throw error;
-      return count ?? 0;
-    },
+    queryFn: () => getUnreadCount(user!.id),
     enabled: !!user,
     refetchInterval: UNREAD_POLL_MS,
   });

@@ -1,3 +1,5 @@
+import { registerAccountScopedReset } from "@/lib/account-state";
+
 // Module-scope handoff mirroring quote-seed.ts: the sound page stages the
 // sound being reused here before pushing the clip camera, and the clip
 // flows consume it on mount so the new clip credits that sound instead of
@@ -19,3 +21,7 @@ export function consumeSoundSeed(): SoundSeed | null {
   pendingSound = null;
   return seed;
 }
+
+registerAccountScopedReset(() => {
+  pendingSound = null;
+});

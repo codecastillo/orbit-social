@@ -127,6 +127,7 @@ export function ProfileHeader({
   topAction,
   onPressFollowers,
   onPressFollowing,
+  onPressUsername,
 }: {
   profile: Profile;
   actions?: ReactNode;
@@ -135,6 +136,8 @@ export function ProfileHeader({
   topAction?: ReactNode;
   onPressFollowers?: () => void;
   onPressFollowing?: () => void;
+  /** Turns the @username into the account switcher trigger on own profile. */
+  onPressUsername?: () => void;
 }) {
   const themeAccent = normalizeAccent(profile.theme_color);
 
@@ -182,7 +185,27 @@ export function ProfileHeader({
                 />
               ) : null}
             </View>
-            <Text style={styles.username}>@{profile.username}</Text>
+            {onPressUsername ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Switch account"
+                onPress={onPressUsername}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.usernameRow,
+                  pressed && { opacity: 0.6 },
+                ]}
+              >
+                <Text style={styles.username}>@{profile.username}</Text>
+                <Ionicons
+                  name="chevron-down"
+                  size={13}
+                  color={colors.mutedForeground}
+                />
+              </Pressable>
+            ) : (
+              <Text style={styles.username}>@{profile.username}</Text>
+            )}
             <View style={styles.statsLine}>
               <Stat value={profile.post_count} label="Posts" />
               <Text style={styles.statDot}>·</Text>
@@ -343,6 +366,12 @@ const styles = StyleSheet.create({
     color: colors.mutedForeground,
     fontSize: 13,
     marginTop: 1,
+  },
+  usernameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 3,
   },
   statsLine: {
     flexDirection: "row",

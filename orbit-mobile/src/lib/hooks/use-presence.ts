@@ -43,6 +43,10 @@ export function usePresenceHeartbeat() {
     // authorises a write.
     if (!user || hidden !== false) return;
 
+    // The hook stays mounted across an account switch, so the throttle from
+    // the previous account would otherwise suppress the new one's first beat.
+    lastBeatAt.current = 0;
+
     const beat = () => {
       if (AppState.currentState !== "active") return;
       if (Date.now() - lastBeatAt.current < HEARTBEAT_MS) return;

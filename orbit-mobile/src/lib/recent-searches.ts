@@ -4,7 +4,21 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // AsyncStorage and never touches saved_searches, which is marketplace-scoped
 // and synced. Same storage shape and cap as the web src/lib/recent-searches.
 
-const STORAGE_KEY = "orbit-recent-searches";
+// Keyed per account rather than per device: with account switching, a shared
+// key would show one account's searches to the next one signed in on the
+// same phone. Scoping keeps each history intact instead of clearing on swap.
+const STORAGE_PREFIX = "orbit-recent-searches";
+
+let scopeId: string | null = null;
+
+/** Points the history at an account. Call on sign-in and on account switch. */
+export function setRecentSearchScope(userId: string | null) {
+  scopeId = userId;
+}
+
+function storageKey(): string {
+  return scopeId ? `${STORAGE_PREFIX}:${scopeId}` : STORAGE_PREFIX;
+}
 
 export const MAX_RECENT_SEARCHES = 8;
 
@@ -34,7 +48,7 @@ function identity(entry: RecentSearch): string {
 
 export async function getRecentSearches(): Promise<RecentSearch[]> {
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    const raw = await AsyncStorage.getItem(storageKey());
     const parsed: unknown = raw ? JSON.parse(raw) : null;
     return Array.isArray(parsed) ? parsed.filter(isRecentSearch) : [];
   } catch {
@@ -45,7 +59,7 @@ export async function getRecentSearches(): Promise<RecentSearch[]> {
 
 async function write(entries: RecentSearch[]): Promise<RecentSearch[]> {
   try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    await AsyncStorage.setItem(storageKey(), JSON.stringify(entries));
   } catch {
     // A failed write only costs this device its history.
   }

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import type { AccountProfile } from "@/lib/accounts";
 
 const PROFILE_SELECT = `
   id, username, display_name, avatar_url, cover_url, bio, location, website,
@@ -66,6 +67,28 @@ export async function getOwnProfile(userId: string): Promise<Profile | null> {
     .maybeSingle();
   if (error) throw error;
   return data as unknown as Profile | null;
+}
+
+/**
+ * The handful of fields the account switcher renders. Narrower than
+ * getOwnProfile because it runs on every sign-in, before any screen needs a
+ * full profile, and its result is stored next to a credential.
+ */
+export async function getAccountProfile(
+  userId: string,
+): Promise<AccountProfile | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("username, display_name, avatar_url")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    username: data.username,
+    displayName: data.display_name,
+    avatarUrl: data.avatar_url,
+  };
 }
 
 export async function getProfileByUsername(

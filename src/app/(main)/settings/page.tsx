@@ -16,9 +16,28 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Download,
+  LifeBuoy,
+  Mail,
+  Bug,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { CONTACT_EMAIL } from "@/lib/legal";
 import { createClient } from "@/lib/supabase/client";
+
+// The web build carries no version string a user could quote, so the template
+// asks for the details that identify a browser session instead.
+const BUG_REPORT_MAILTO = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
+  "Orbit bug report (web)",
+)}&body=${encodeURIComponent(
+  [
+    "What you did:",
+    "What you expected:",
+    "What happened instead:",
+    "",
+    "Page URL:",
+    "Browser and version:",
+  ].join("\n"),
+)}`;
 
 type Item = {
   href: string;
@@ -30,6 +49,8 @@ type Item = {
   title: string;
   description: string;
   hue: string;
+  /** Leaves the app (a mailto or an external page), so it renders as <a>. */
+  external?: boolean;
 };
 
 type Section = {
@@ -128,6 +149,34 @@ const sections: Section[] = [
     ],
   },
   {
+    label: "Help",
+    eyebrow: "◈  HELP",
+    items: [
+      {
+        href: "/help",
+        icon: LifeBuoy,
+        title: "Help Center",
+        description: "How the feeds, moments, clips, and controls work",
+        hue: "var(--primary)",
+      },
+      {
+        href: "/contact",
+        icon: Mail,
+        title: "Contact Support",
+        description: "Support, privacy, and copyright mailboxes",
+        hue: "var(--primary)",
+      },
+      {
+        href: BUG_REPORT_MAILTO,
+        external: true,
+        icon: Bug,
+        title: "Report a Bug",
+        description: "Opens an email to support with a template to fill in",
+        hue: "#ff8a5a",
+      },
+    ],
+  },
+  {
     label: "Broadcasting",
     eyebrow: "◇  BROADCASTING",
     items: [
@@ -217,8 +266,9 @@ function SettingsSection({ section }: { section: Section }) {
 
 function SettingsRow({ item, isFirst }: { item: Item; isFirst: boolean }) {
   const Icon = item.icon;
+  const Wrapper = item.external ? "a" : Link;
   return (
-    <Link
+    <Wrapper
       href={item.href}
       className={`group flex items-center gap-3.5 py-4 text-foreground no-underline ${
         isFirst ? "" : "border-t border-border"
@@ -249,6 +299,6 @@ function SettingsRow({ item, isFirst }: { item: Item; isFirst: boolean }) {
         className="h-[18px] w-[18px] shrink-0 text-text-faint transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-text-secondary"
         strokeWidth={1.8}
       />
-    </Link>
+    </Wrapper>
   );
 }

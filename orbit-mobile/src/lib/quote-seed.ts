@@ -1,3 +1,4 @@
+import { registerAccountScopedReset } from "@/lib/account-state";
 import type { Post } from "@/lib/queries/posts";
 
 // Module-scope handoff mirroring draft-restore.ts: the post card stages
@@ -15,3 +16,9 @@ export function consumeQuoteSeed(): Post | null {
   pendingQuote = null;
   return post;
 }
+
+// The staged post was visible to the outgoing account; the next one may not
+// be allowed to see it at all.
+registerAccountScopedReset(() => {
+  pendingQuote = null;
+});

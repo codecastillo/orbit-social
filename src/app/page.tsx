@@ -518,8 +518,10 @@ const footerCols: { title: string; links: { label: string; href: string }[] }[] 
     ],
   },
   {
-    title: "Legal",
+    title: "Support",
     links: [
+      { label: "Help center", href: "/help" },
+      { label: "Contact", href: "/contact" },
       { label: "Terms of Service", href: "/terms" },
       { label: "Privacy Policy", href: "/privacy" },
     ],

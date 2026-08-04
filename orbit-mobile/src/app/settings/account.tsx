@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import { Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useQueryClient } from "@tanstack/react-query";
 import { Button, Field } from "@/components/ui";
 import { deleteAccount } from "@/lib/queries/account";
 import { supabase } from "@/lib/supabase";
@@ -138,8 +137,7 @@ function DeleteAccountModal({
 }
 
 export default function AccountSettingsScreen() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
+  const { user, signOutActiveAccount } = useAuth();
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -194,10 +192,9 @@ export default function AccountSettingsScreen() {
       return;
     }
     setDeleteOpen(false);
-    // The account is gone; drop the dead session and every cached query so
-    // the AuthGate lands on the login screen with nothing left behind.
-    await supabase.auth.signOut();
-    queryClient.clear();
+    // The account is gone: drop its session, its cached queries and its entry
+    // in the switcher, then continue on whichever account is left.
+    await signOutActiveAccount();
   };
 
   return (

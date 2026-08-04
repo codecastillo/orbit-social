@@ -8,12 +8,14 @@ import {
 } from "react-native";
 import { Stack, useRouter, type Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { bugReportUrl } from "@/lib/diagnostics";
+import { useAuth } from "@/providers/auth-provider";
 import { colors, spacing } from "@/lib/theme";
 
-// The legal documents live on the web app; the app links out rather than
-// shipping a second copy that can drift out of date.
+// The legal documents and the help center live on the web app; the app links
+// out rather than shipping a second copy that can drift out of date.
+const WEB_HELP_URL = "https://orbitsocial.net/help";
+const WEB_CONTACT_URL = "https://orbitsocial.net/contact";
 const WEB_TERMS_URL = "https://orbitsocial.net/terms";
 const WEB_PRIVACY_URL = "https://orbitsocial.net/privacy";
 const WEB_PROMISES_URL = "https://orbitsocial.net/promises";
@@ -84,14 +86,10 @@ function StaticRow({
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const queryClient = useQueryClient();
-
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    // Drop every cached query so the next account starts clean; the
-    // AuthGate redirects to the login screen once the session clears.
-    queryClient.clear();
-  }
+  // Signs out this account only. The provider clears its cached data and
+  // switches to the next account on the device, or lets the AuthGate land on
+  // the login screen when it was the last one.
+  const { signOutActiveAccount } = useAuth();
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
@@ -194,6 +192,33 @@ export default function SettingsScreen() {
         />
       </View>
 
+      <Text style={styles.sectionTitle}>Help & About</Text>
+      <View style={styles.section}>
+        <SettingsRow
+          icon="help-circle-outline"
+          label="Help center"
+          external
+          onPress={() => void Linking.openURL(WEB_HELP_URL)}
+        />
+        <SettingsRow
+          icon="mail-outline"
+          label="Contact support"
+          external
+          onPress={() => void Linking.openURL(WEB_CONTACT_URL)}
+        />
+        <SettingsRow
+          icon="bug-outline"
+          label="Report a bug"
+          external
+          onPress={() => void Linking.openURL(bugReportUrl())}
+        />
+        <SettingsRow
+          icon="information-circle-outline"
+          label="About"
+          onPress={() => router.push("/settings/about" as Href)}
+        />
+      </View>
+
       <Text style={styles.sectionTitle}>Legal</Text>
       <View style={styles.section}>
         <SettingsRow
@@ -221,7 +246,7 @@ export default function SettingsScreen() {
           icon="log-out-outline"
           label="Sign out"
           destructive
-          onPress={handleSignOut}
+          onPress={signOutActiveAccount}
         />
       </View>
     </ScrollView>

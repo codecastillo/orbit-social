@@ -1,6 +1,6 @@
-// Shared chrome for /terms and /privacy. Server-only by design: no "use
-// client" and no data fetching, so both documents prerender at build time
-// the way /promises does.
+// Shared chrome for /terms, /privacy, /help, and /contact. Server-only by
+// design: no "use client" and no data fetching, so every document prerenders
+// at build time the way /promises does.
 import Link from "next/link";
 
 function LogoMark({ size = 24 }: { size?: number }) {
@@ -33,8 +33,10 @@ export function LegalShell({
   titleLead: string;
   titleAccent: string;
   intro: string;
-  effectiveDate: string;
-  lastUpdated: string;
+  /** Legal documents carry dates. Help pages have nothing to date, so the
+   * strip is omitted rather than filled with a meaningless value. */
+  effectiveDate?: string;
+  lastUpdated?: string;
   sections: LegalSectionRef[];
   children: React.ReactNode;
 }) {
@@ -68,16 +70,18 @@ export function LegalShell({
           <p className="mt-5 max-w-[600px] text-[15.5px] leading-relaxed text-text-secondary">
             {intro}
           </p>
-          <dl className="mt-7 flex flex-wrap gap-x-10 gap-y-3 border-t border-border pt-5 font-mono text-[11px] uppercase tracking-[0.12em]">
-            <div>
-              <dt className="text-text-faint">Effective</dt>
-              <dd className="mt-1 text-foreground">{effectiveDate}</dd>
-            </div>
-            <div>
-              <dt className="text-text-faint">Last updated</dt>
-              <dd className="mt-1 text-foreground">{lastUpdated}</dd>
-            </div>
-          </dl>
+          {effectiveDate && lastUpdated ? (
+            <dl className="mt-7 flex flex-wrap gap-x-10 gap-y-3 border-t border-border pt-5 font-mono text-[11px] uppercase tracking-[0.12em]">
+              <div>
+                <dt className="text-text-faint">Effective</dt>
+                <dd className="mt-1 text-foreground">{effectiveDate}</dd>
+              </div>
+              <div>
+                <dt className="text-text-faint">Last updated</dt>
+                <dd className="mt-1 text-foreground">{lastUpdated}</dd>
+              </div>
+            </dl>
+          ) : null}
         </header>
 
         <nav aria-labelledby="contents-heading" className="mt-12">
@@ -108,6 +112,18 @@ export function LegalShell({
 
         <footer className="mt-14 border-t border-border pt-8">
           <div className="flex flex-wrap gap-x-7 gap-y-2 text-[13.5px]">
+            <Link
+              href="/help"
+              className="text-text-secondary no-underline hover:text-foreground"
+            >
+              Help center
+            </Link>
+            <Link
+              href="/contact"
+              className="text-text-secondary no-underline hover:text-foreground"
+            >
+              Contact
+            </Link>
             <Link
               href="/terms"
               className="text-text-secondary no-underline hover:text-foreground"

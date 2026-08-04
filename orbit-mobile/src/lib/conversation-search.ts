@@ -1,3 +1,5 @@
+import { registerAccountScopedReset } from "@/lib/account-state";
+
 // Module-scope handoff mirroring draft-restore.ts: the conversation
 // settings screen stages a search request here before popping back, and
 // the conversation screen consumes it on focus to open its search bar.
@@ -15,3 +17,9 @@ export function consumeConversationSearch(conversationId: string): boolean {
   pendingSearchConversationId = null;
   return matches;
 }
+
+// A conversation id from the outgoing account's inbox means nothing to the
+// next one, and it must not survive the switch to be matched against.
+registerAccountScopedReset(() => {
+  pendingSearchConversationId = null;
+});

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { registerAccountScopedReset } from "@/lib/account-state";
 import { colors, radii, spacing } from "@/lib/theme";
 
 export const UNDO_WINDOW_MS = 5000;
@@ -71,6 +72,17 @@ export function flushUndoableSends(ids?: number[]) {
   }
   notifyListeners();
 }
+
+// Switching accounts drops pending sends instead of flushing them. A commit
+// is a network write, and by the time it ran the client would be holding the
+// incoming account's token, so the message would go out as the wrong person.
+// onUndo is skipped too: it restores composer state on screens that are being
+// torn down with the outgoing session anyway.
+registerAccountScopedReset(() => {
+  for (const send of pendingSends.values()) clearTimeout(send.timer);
+  pendingSends.clear();
+  notifyListeners();
+});
 
 function undoSend(id: number) {
   const send = pendingSends.get(id);
