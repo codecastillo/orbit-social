@@ -124,6 +124,8 @@ export function HighlightsRow({
                   style={styles.cover}
                   contentFit="cover"
                   transition={0}
+                  cachePolicy="memory-disk"
+                  recyclingKey={item.cover_url}
                 />
               ) : (
                 <View style={[styles.cover, styles.coverFallback]} />

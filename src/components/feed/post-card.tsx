@@ -1010,20 +1010,22 @@ export const PostCard = memo(function PostCard({
                 {visualMedia.map((m, i) => {
                   const isVideo = m.type === "video" || m.type === "gif";
                   const spansRows = visualMedia.length === 3 && i === 0;
-                  const hasDims = !isVideo && !!m.width && !!m.height;
+                  const hasDims = !!m.width && !!m.height;
                   return (
+                    // Video cells reserve the same way images do: without an
+                    // aspect box the cell is zero-height until the browser
+                    // reads the video's metadata, then the card jumps.
                     <div
                       key={m.id}
                       className={cn(
-                        "overflow-hidden flex items-center justify-center",
+                        "relative overflow-hidden flex items-center justify-center bg-black/40",
                         !isMulti && "max-h-[520px] w-full",
-                        !isVideo && "relative",
-                        !isVideo && isMulti && (spansRows ? "h-full" : "aspect-square"),
-                        !isVideo && !isMulti && !hasDims && "aspect-[4/3]",
+                        isMulti && (spansRows ? "h-full" : "aspect-square"),
+                        !isMulti && !hasDims && "aspect-[4/3]",
                         spansRows && "row-span-2",
                       )}
                       style={
-                        !isVideo && !isMulti && hasDims
+                        !isMulti && hasDims
                           ? { aspectRatio: `${m.width} / ${m.height}` }
                           : undefined
                       }
@@ -1035,11 +1037,10 @@ export const PostCard = memo(function PostCard({
                           controls
                           playsInline
                           preload="metadata"
-                          className={
-                            isMulti
-                              ? "w-full h-full object-cover"
-                              : "h-auto w-auto max-h-[520px] max-w-full"
-                          }
+                          className={cn(
+                            "h-full w-full",
+                            isMulti ? "object-cover" : "object-contain"
+                          )}
                         />
                       ) : (
                         <Image

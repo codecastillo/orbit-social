@@ -66,6 +66,8 @@ function StoryCard({ group, isSelf }: { group: StoryGroup; isSelf: boolean }) {
             contentFit="cover"
             transition={100}
             alt=""
+            cachePolicy="memory-disk"
+            recyclingKey={faceUri}
           />
         ) : (
           <View style={styles.playFace}>
@@ -173,6 +175,8 @@ export function StoriesBar() {
     queryKey: ["stories", user?.id],
     queryFn: () => getActiveStories(user!.id),
     enabled: !!user,
+    // Moments live for a day; the ring strip does not need minute freshness.
+    staleTime: 1000 * 60 * 2,
   });
 
   // Own avatar for the add tile; shares the profile cache key used by the
@@ -181,6 +185,9 @@ export function StoriesBar() {
     queryKey: ["profile", user?.id],
     queryFn: () => getOwnProfile(user!.id),
     enabled: !!user,
+    // Same freshness the profile tab asks for, so the shared key does not
+    // refetch on whichever screen happens to mount second.
+    staleTime: 1000 * 60 * 5,
   });
 
   if (!user || !groups) return null;

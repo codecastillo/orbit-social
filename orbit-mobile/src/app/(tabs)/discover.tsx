@@ -533,6 +533,7 @@ function ClipResultTile({
       accessibilityLabel={clip.content ?? "Open clip"}
       onPress={onPress}
       style={({ pressed }) => [
+        styles.clipTile,
         { width: size, height: size * (4 / 3) },
         pressed && { opacity: 0.8 },
       ]}
@@ -544,6 +545,8 @@ function ClipResultTile({
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={0}
+          cachePolicy="memory-disk"
+          recyclingKey={source}
         />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.clipTilePlaceholder]} />
@@ -684,6 +687,19 @@ function RecentSearchChips({
   );
 }
 
+// Each section below reserves the height of its loaded state so the whole
+// page composes in final position from the first frame. Without this the
+// sections drop in as their queries resolve and everything under them,
+// notably the Rooms/Events/Market/Live tiles, slides down twice.
+// Heading line plus its 10pt bottom margin.
+const SECTION_TITLE_HEIGHT = 28;
+// Two rows of 34pt chips plus the 8pt gap between them.
+const TRENDING_BODY_HEIGHT = 76;
+// Person card: 24 padding, 72 avatar, name, handle, 30 follow button.
+const PEOPLE_BODY_HEIGHT = 178;
+// Pack card: 24 padding, title, two description lines, avatar row, button.
+const PACKS_BODY_HEIGHT = 158;
+
 function TrendingChips({ onTagPress }: { onTagPress: (name: string) => void }) {
   const trendingQuery = useQuery({
     queryKey: ["trending-hashtags"],
@@ -692,11 +708,11 @@ function TrendingChips({ onTagPress }: { onTagPress: (name: string) => void }) {
   });
 
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, styles.trendingSection]}>
       <Text style={styles.sectionTitle}>Trending</Text>
       {trendingQuery.isPending ? (
         <View style={styles.chipsRow}>
-          {Array.from({ length: 3 }, (_, i) => (
+          {Array.from({ length: 6 }, (_, i) => (
             <View key={i} style={styles.skeletonChip} />
           ))}
         </View>
@@ -763,10 +779,13 @@ function SuggestedPeople() {
   }
 
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, styles.peopleSection]}>
       <Text style={styles.sectionTitle}>People to orbit</Text>
       {suggestedQuery.isPending ? (
-        <View style={styles.peopleRow}>
+        // The loaded state is a horizontal rail, so the skeleton has to be
+        // one too: a column of cards here would tower over the real content
+        // and collapse the moment the query lands.
+        <View style={[styles.peopleRow, styles.skeletonRow]}>
           {Array.from({ length: 3 }, (_, i) => (
             <View key={i} style={[styles.personCard, styles.skeletonPersonCard]}>
               <View style={styles.skeletonAvatar} />
@@ -882,10 +901,19 @@ function StarterPacksRail() {
     staleTime: 1000 * 60 * 5,
   });
 
-  if (!user || memberIds.length === 0) return null;
+  if (!user) return null;
+
+  // Both queries have to land before the rail knows whether it has anything
+  // to show, so it holds its height meanwhile. A rail with nothing left to
+  // offer still collapses once, but the common case composes in place.
+  if (packsQuery.isPending || (memberIds.length > 0 && followsQuery.isPending)) {
+    return <View style={styles.packsSkeleton} />;
+  }
+
+  if (memberIds.length === 0) return null;
   // The follow graph decides which packs still have something to offer, so
   // without it the rail stays hidden rather than pitching stale packs.
-  if (followsQuery.isPending || followsQuery.isError) return null;
+  if (followsQuery.isError) return null;
 
   const remaining = (pack: StarterPack) =>
     pack.members
@@ -1153,6 +1181,11 @@ const styles = StyleSheet.create({
     paddingTop: CLIP_GRID_GAP,
     paddingBottom: spacing(8),
   },
+  clipTile: {
+    // Flat placeholder under the thumbnail, so a tile that has not decoded
+    // yet reads as a filled slot instead of a gap in the grid.
+    backgroundColor: colors.surfaceElevated,
+  },
   clipTilePlaceholder: {
     backgroundColor: colors.surfaceElevated,
   },
@@ -1187,6 +1220,18 @@ const styles = StyleSheet.create({
   },
   section: {
     paddingHorizontal: spacing(4),
+  },
+  trendingSection: {
+    minHeight: SECTION_TITLE_HEIGHT + TRENDING_BODY_HEIGHT,
+  },
+  peopleSection: {
+    minHeight: SECTION_TITLE_HEIGHT + PEOPLE_BODY_HEIGHT,
+  },
+  packsSkeleton: {
+    height: SECTION_TITLE_HEIGHT + PACKS_BODY_HEIGHT,
+  },
+  skeletonRow: {
+    flexDirection: "row",
   },
   sectionTitle: {
     color: colors.foreground,

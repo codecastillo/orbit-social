@@ -54,7 +54,7 @@ export function MagazineFeed({ tab = "foryou" }: { tab?: "foryou" | "following" 
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isLoading,
+    isPending,
     isError,
     refetch,
   } = useFeed(tab);
@@ -77,7 +77,9 @@ export function MagazineFeed({ tab = "foryou" }: { tab?: "foryou" | "following" 
     [fetchNextPage, hasNextPage, isFetchingNextPage]
   );
 
-  if (isLoading) return <MagazineSkeleton />;
+  // isPending, not isLoading: the feed query is held until auth resolves, so
+  // a waiting query must still show the skeleton rather than an empty feed.
+  if (isPending) return <MagazineSkeleton />;
 
   if (isError) {
     return (

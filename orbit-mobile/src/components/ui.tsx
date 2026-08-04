@@ -92,11 +92,24 @@ export function Avatar({
       <Image
         source={{ uri: url }}
         alt={name}
-        style={{ width: size, height: size, borderRadius: size / 2 }}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          // Flat placeholder so the reserved circle reads as a slot rather
+          // than a hole while the image decodes.
+          backgroundColor: colors.surfaceElevated,
+        }}
         contentFit="cover"
         // The fade replays on every mount even on cache hits, which flashes
         // avatars in lists.
         transition={0}
+        // The same handful of avatars repeat all over DMs, feeds and
+        // comments; memory caching paints them without a re-decode.
+        cachePolicy="memory-disk"
+        // Recycled rows otherwise keep showing the previous row's avatar
+        // until the new one decodes.
+        recyclingKey={url}
       />
     );
   }

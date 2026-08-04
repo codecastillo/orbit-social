@@ -114,7 +114,7 @@ export function ConversationMediaDialog({
                   src={viewing.media_url!}
                   controls
                   autoPlay
-                  className="max-h-[60vh] w-full rounded-xl bg-black object-contain"
+                  className="h-[60vh] w-full rounded-xl bg-black object-contain"
                 />
               ) : (
                 // Full-size view keeps natural dimensions, so plain img beats
@@ -123,7 +123,7 @@ export function ConversationMediaDialog({
                 <img
                   src={viewing.media_url!}
                   alt="Shared media"
-                  className="max-h-[60vh] w-full rounded-xl object-contain"
+                  className="h-[60vh] w-full rounded-xl object-contain"
                 />
               )}
             </div>

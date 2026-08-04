@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "./use-auth";
+import { PROFILE_SNAPSHOT_PREFIX } from "@/lib/query-persist";
 import { createClient } from "@/lib/supabase/client";
 
 export interface CurrentProfile {
@@ -17,8 +18,9 @@ export interface CurrentProfile {
   hide_like_counts: boolean;
 }
 
-const STORAGE_KEY = (uid: string) => `current-profile:${uid}`;
-const LAST_KEY = "current-profile:last";
+// Both keys share the prefix clearAccountScope sweeps on sign-out.
+const STORAGE_KEY = (uid: string) => `${PROFILE_SNAPSHOT_PREFIX}${uid}`;
+const LAST_KEY = `${PROFILE_SNAPSHOT_PREFIX}last`;
 
 function readCached(uid: string): CurrentProfile | null {
   if (typeof window === "undefined") return null;

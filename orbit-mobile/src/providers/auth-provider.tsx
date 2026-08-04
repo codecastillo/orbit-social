@@ -14,6 +14,7 @@ import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { getMfaState } from "@/lib/mfa";
 import { resetAccountScopedState } from "@/lib/account-state";
+import { clearPersistedQueryCache } from "@/lib/query-persist";
 import { setRecentSearchScope } from "@/lib/recent-searches";
 import {
   forgetAccount,
@@ -184,6 +185,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     resetAccountScopedState();
     // A cached page from another account is a data leak, not a stale render.
     queryClient.clear();
+    // The on-disk copy outlives the process, so clearing memory alone would
+    // hand the outgoing account's data to the next cold start.
+    void clearPersistedQueryCache();
   }, [queryClient]);
 
   const switchTo = useCallback(

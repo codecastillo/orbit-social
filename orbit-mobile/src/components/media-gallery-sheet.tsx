@@ -151,6 +151,8 @@ export function MediaGallerySheet({
                       contentFit="cover"
                       transition={100}
                       alt=""
+                      cachePolicy="memory-disk"
+                      recyclingKey={item.media_url}
                     />
                   )}
                 </Pressable>

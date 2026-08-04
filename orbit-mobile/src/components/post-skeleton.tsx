@@ -2,7 +2,9 @@ import { StyleSheet, View } from "react-native";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const STORY_CIRCLE = 64;
-const STORY_STUB_COUNT = 6;
+// A full row of circles reads as a busy ring strip; most accounts have a
+// handful of moments waiting, and the real row replaces this in a moment.
+const STORY_STUB_COUNT = 4;
 
 function SkeletonCard({ withMedia }: { withMedia: boolean }) {
   return (
@@ -26,7 +28,9 @@ function SkeletonCard({ withMedia }: { withMedia: boolean }) {
   );
 }
 
-export function PostListSkeleton({ count = 5 }: { count?: number }) {
+// Post cards are tall: three fill a phone screen, and anything past that is
+// placeholder nobody sees before the real posts land.
+export function PostListSkeleton({ count = 3 }: { count?: number }) {
   return (
     <View>
       {Array.from({ length: count }, (_, i) => (

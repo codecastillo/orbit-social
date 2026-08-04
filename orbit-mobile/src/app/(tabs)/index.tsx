@@ -359,7 +359,9 @@ export default function FeedScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ListHeaderComponent={header}
-        initialNumToRender={8}
+        // Each card can carry media and a video player, so eight of them is
+        // most of the first frame's work for rows nobody has scrolled to yet.
+        initialNumToRender={4}
         windowSize={9}
         removeClippedSubviews
         viewabilityConfigCallbackPairs={viewabilityPairs}

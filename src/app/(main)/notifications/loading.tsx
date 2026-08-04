@@ -13,7 +13,7 @@ export default function NotificationsLoading() {
         ))}
       </div>
       <div className="rounded-xl border border-border bg-surface">
-        {Array.from({ length: 6 }).map((_, i) => (
+        {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 p-4">
             <Skeleton className="h-10 w-10 rounded-full" />
             <div className="flex-1 space-y-1.5">

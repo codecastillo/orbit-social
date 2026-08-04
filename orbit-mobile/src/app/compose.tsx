@@ -53,6 +53,7 @@ import {
   updateDraft,
   type DraftData,
 } from "@/lib/queries/drafts";
+import { uploadVideoPoster } from "@/lib/video-frame";
 import { consumeDraftRestore } from "@/lib/draft-restore";
 import { consumeQuoteSeed } from "@/lib/quote-seed";
 import { formatTimeAgo } from "@/lib/format";
@@ -510,14 +511,21 @@ export default function ComposeScreen() {
     const publish = async () => {
       try {
         const uploaded: NewPostMedia[] = await Promise.all(
-          snapshot.media.map(async (m) => ({
-            url: await uploadPostMedia(user.id, m.uri, m.mimeType),
-            type: m.kind,
-            width: m.width,
-            height: m.height,
-            ...(m.durationMs != null ? { durationMs: m.durationMs } : {}),
-            ...(m.altText.trim() ? { altText: m.altText.trim() } : {}),
-          })),
+          snapshot.media.map(async (m) => {
+            // Videos carry a poster so the feed tile paints immediately, and
+            // the poster doubles as the dimension source when the picker
+            // reported none.
+            const poster = m.kind === "video" ? await uploadVideoPoster(user.id, m.uri) : null;
+            return {
+              url: await uploadPostMedia(user.id, m.uri, m.mimeType),
+              type: m.kind,
+              width: m.width || poster?.width || null,
+              height: m.height || poster?.height || null,
+              thumbnailUrl: poster?.url ?? null,
+              ...(m.durationMs != null ? { durationMs: m.durationMs } : {}),
+              ...(m.altText.trim() ? { altText: m.altText.trim() } : {}),
+            };
+          }),
         );
         if (snapshot.voiceNote) {
           // Web parity: the web uploader types audio files as "image" (its

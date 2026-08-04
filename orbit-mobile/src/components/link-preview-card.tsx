@@ -9,9 +9,16 @@ import { colors, radii, spacing } from "@/lib/theme";
 const PREVIEW_STALE_TIME_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * Card height, held by a skeleton while the unfurl is in flight so the card
+ * does not shove the rest of the post down when it resolves. Matches the
+ * thumbnail's 76px plus the card border.
+ */
+const CARD_HEIGHT = 78;
+
+/**
  * Compact card for the first URL in a post or DM: thumbnail, site name,
- * title, description; tapping opens the link. Renders nothing until the
- * preview resolves and nothing at all when it can't, by design.
+ * title, description; tapping opens the link. Holds its height while the
+ * preview loads, then renders nothing at all when there is nothing to show.
  */
 export function LinkPreviewCard({
   url,
@@ -22,12 +29,14 @@ export function LinkPreviewCard({
   url: string;
   onOpen?: () => void;
 }) {
-  const { data } = useQuery({
+  const { data, isPending } = useQuery({
     queryKey: ["link-preview", url],
     queryFn: () => getLinkPreview(url),
     staleTime: PREVIEW_STALE_TIME_MS,
     retry: false,
   });
+
+  if (isPending) return <View style={styles.skeleton} />;
 
   if (!data || (!data.title && !data.description && !data.image_url)) return null;
 
@@ -53,6 +62,8 @@ export function LinkPreviewCard({
           style={styles.thumb}
           contentFit="cover"
           transition={150}
+          cachePolicy="memory-disk"
+          recyclingKey={data.image_url}
         />
       ) : null}
       <View style={styles.body}>
@@ -83,6 +94,13 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     backgroundColor: colors.surface,
     overflow: "hidden",
+  },
+  skeleton: {
+    height: CARD_HEIGHT,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
   },
   thumb: {
     width: 76,

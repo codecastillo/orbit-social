@@ -60,6 +60,8 @@ function ClipTile({
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={0}
+          cachePolicy="memory-disk"
+          recyclingKey={source}
         />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.tilePlaceholder]} />

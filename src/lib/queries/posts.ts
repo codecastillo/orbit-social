@@ -108,6 +108,19 @@ export interface MediaItem {
   alt_text?: string | null;
 }
 
+export interface NewPostMedia {
+  url: string;
+  type: "image" | "video" | "gif";
+  // Intrinsic pixel size, read from the file before upload. Null when the
+  // browser could not decode it; every consumer falls back to a default box.
+  width?: number | null;
+  height?: number | null;
+  // Poster frame for video media, so a tile paints before the video decodes.
+  thumbnailUrl?: string | null;
+  durationMs?: number | null;
+  altText?: string;
+}
+
 export interface PollData {
   options: { text: string; votes: number }[];
   ends_at: string;
@@ -135,7 +148,7 @@ const POST_SELECT = `
 export async function createPost(
   userId: string,
   data: PostFormData,
-  mediaUrls: { url: string; type: "image" | "video" | "gif"; altText?: string }[] = [],
+  mediaUrls: NewPostMedia[] = [],
   options?: {
     replyToId?: string;
     parentPostId?: string;
@@ -188,7 +201,11 @@ export async function createPost(
       post_id: post.id,
       type: m.type,
       url: m.url,
+      width: m.width ?? null,
+      height: m.height ?? null,
+      thumbnail_url: m.thumbnailUrl ?? null,
       sort_order: i,
+      ...(m.durationMs != null ? { duration_ms: Math.round(m.durationMs) } : {}),
       ...(m.altText ? { alt_text: m.altText } : {}),
     }));
 

@@ -15,10 +15,12 @@ import { useUIStore } from "@/lib/stores/ui-store";
 import {
   createPost,
   uploadPostMedia,
+  type NewPostMedia,
   type PollData,
   type PostWithAuthor,
   type WhoCanComment,
 } from "@/lib/queries/posts";
+import { captureVideoPoster, readMediaDimensions } from "@/lib/utils/media-dimensions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -687,15 +689,24 @@ function ComposerForm({
         : null);
 
     const publish = async () => {
-      const uploadedMedia: {
-        url: string;
-        type: "image" | "video" | "gif";
-        altText?: string;
-      }[] = await Promise.all(
-        mediaToUpload.map(async (m) => ({
-          ...(await uploadPostMedia(user.id, m.file)),
-          ...(m.altText.trim() ? { altText: m.altText.trim() } : {}),
-        }))
+      const uploadedMedia: NewPostMedia[] = await Promise.all(
+        mediaToUpload.map(async (m) => {
+          // Intrinsic size and, for video, a poster frame, both read off the
+          // local file. Without them nothing downstream can reserve the right
+          // box before the media loads.
+          const [dimensions, poster] = await Promise.all([
+            readMediaDimensions(m.file),
+            m.type === "video" ? captureVideoPoster(m.file) : Promise.resolve(null),
+          ]);
+          const thumbnail = poster ? await uploadPostMedia(user.id, poster) : null;
+          return {
+            ...(await uploadPostMedia(user.id, m.file)),
+            width: dimensions?.width ?? null,
+            height: dimensions?.height ?? null,
+            thumbnailUrl: thumbnail?.url ?? null,
+            ...(m.altText.trim() ? { altText: m.altText.trim() } : {}),
+          };
+        })
       );
       // Previews outlived the reset in case of an undo; the commit is the
       // point of no return, so release them here.

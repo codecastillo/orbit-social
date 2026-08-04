@@ -226,7 +226,7 @@ function FollowingItem({
 function FollowingListSkeleton() {
   return (
     <div>
-      {Array.from({ length: 8 }).map((_, i) => (
+      {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="flex items-center gap-3 px-4 py-3">
           <Skeleton className="h-10 w-10 rounded-full" />
           <div className="flex-1 space-y-1.5">

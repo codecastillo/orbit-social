@@ -76,6 +76,9 @@ export default function PublicProfileScreen() {
     queryKey: ["profile", "username", username],
     queryFn: () => getProfileByUsername(username),
     enabled: !!username,
+    // Someone else's bio and counts are stable enough to reuse for a few
+    // minutes; revisiting a profile should not re-skeleton it.
+    staleTime: 1000 * 60 * 5,
   });
   const profile = profileQuery.data;
   const isOwnProfile = !!profile && profile.id === user?.id;
@@ -138,6 +141,7 @@ export default function PublicProfileScreen() {
     queryKey: ["profile-posts", profile?.id],
     queryFn: () => getUserRecentPosts(profile!.id),
     enabled: !!profile && !viewerBlocked && !isUnavailable && !isLocked,
+    staleTime: 1000 * 60 * 3,
   });
 
   const blockedIdsKey = ["blocked-ids", user?.id];

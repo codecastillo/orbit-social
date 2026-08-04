@@ -110,6 +110,8 @@ function ListingCard({
             style={styles.cardImage}
             contentFit="cover"
             transition={150}
+            cachePolicy="memory-disk"
+            recyclingKey={firstImage.url}
           />
         ) : (
           <View style={[styles.cardImage, styles.cardImageFallback]} />

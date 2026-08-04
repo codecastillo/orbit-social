@@ -44,6 +44,8 @@ function CommunityCard({
           style={styles.cardCover}
           contentFit="cover"
           transition={150}
+          cachePolicy="memory-disk"
+          recyclingKey={community.cover_url}
         />
       ) : (
         <View style={[styles.cardCover, styles.cardCoverFallback]} />

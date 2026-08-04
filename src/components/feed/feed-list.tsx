@@ -31,7 +31,7 @@ export function FeedList({ tab }: FeedListProps) {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isLoading,
+    isPending,
     isError,
     refetch,
   } = useFeed(tab);
@@ -97,7 +97,10 @@ export function FeedList({ tab }: FeedListProps) {
 
   const hasNewPosts = useNewPosts(tab, newestLoadedAt);
 
-  if (isLoading) return <FeedSkeleton />;
+  // isPending, not isLoading: the query is held until auth resolves, and a
+  // query that is waiting rather than fetching would otherwise fall through
+  // to the empty state and flash "no posts yet" on every cold load.
+  if (isPending) return <FeedSkeleton />;
 
   if (isError) {
     return (

@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as Notifications from "expo-notifications";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, useIsRestoring } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { AuthProvider, useAuth } from "@/providers/auth-provider";
+import { LIST_HINT_KEY } from "@/lib/list-hints";
+import { persistOptions } from "@/lib/query-persist";
 import { UndoSnackbarHost } from "@/lib/undo-send";
 import { RootErrorBoundary } from "@/components/error-boundary";
 import { OfflineBanner } from "@/components/offline-banner";
@@ -58,56 +61,78 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * Holds the tree back until the stored cache is in the client. Restoring
+ * takes one AsyncStorage read, and mounting before it finishes would paint
+ * the skeletons this persistence exists to remove. Queries do not fetch
+ * while restoring either way, so nothing is delayed by waiting.
+ */
+function CacheGate({ children }: { children: React.ReactNode }) {
+  return useIsRestoring() ? null : <>{children}</>;
+}
+
 export default function RootLayout() {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 60 * 1000,
-            retry: 1,
-          },
+  const [queryClient] = useState(() => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 60 * 1000,
+          retry: 1,
         },
-      }),
-  );
+      },
+    });
+    // Skeleton row counts are written by hand and never fetched, so without
+    // this they would be collected as unused queries before the next launch
+    // could read them back.
+    client.setQueryDefaults([LIST_HINT_KEY], {
+      gcTime: Infinity,
+      staleTime: Infinity,
+    });
+    return client;
+  });
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={persistOptions}
+    >
       {/* Inside the query provider so the recovery screen can clear the
           cache when someone signs out of a broken session. */}
       <RootErrorBoundary>
-        <AuthProvider>
-          <AuthGate>
-            <StatusBar style="light" />
-            <Stack
-              screenOptions={{
-                headerStyle: { backgroundColor: colors.background },
-                headerTintColor: colors.foreground,
-                headerTitleStyle: { fontWeight: "600" },
-                contentStyle: { backgroundColor: colors.background },
-                // Chevron only; the default label leaks route group names
-                // like "(tabs)" on iOS.
-                headerBackButtonDisplayMode: "minimal",
-              }}
-            >
-              {/* The title feeds the iOS back long-press menu, which would
-                  otherwise display the raw group name "(tabs)". */}
-              <Stack.Screen
-                name="(tabs)"
-                options={{ headerShown: false, title: "Home" }}
-              />
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen name="notifications" options={{ title: "Activity" }} />
-              <Stack.Screen name="create-story" options={{ title: "New moment" }} />
-            </Stack>
-            {/* Above the navigator so undo countdowns survive screen changes. */}
-            <UndoSnackbarHost />
-            <OfflineBanner />
-            <TimeReminderBanner />
-            <PushPriming />
-          </AuthGate>
-        </AuthProvider>
+        <CacheGate>
+          <AuthProvider>
+            <AuthGate>
+              <StatusBar style="light" />
+              <Stack
+                screenOptions={{
+                  headerStyle: { backgroundColor: colors.background },
+                  headerTintColor: colors.foreground,
+                  headerTitleStyle: { fontWeight: "600" },
+                  contentStyle: { backgroundColor: colors.background },
+                  // Chevron only; the default label leaks route group names
+                  // like "(tabs)" on iOS.
+                  headerBackButtonDisplayMode: "minimal",
+                }}
+              >
+                {/* The title feeds the iOS back long-press menu, which would
+                    otherwise display the raw group name "(tabs)". */}
+                <Stack.Screen
+                  name="(tabs)"
+                  options={{ headerShown: false, title: "Home" }}
+                />
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                <Stack.Screen name="notifications" options={{ title: "Activity" }} />
+                <Stack.Screen name="create-story" options={{ title: "New moment" }} />
+              </Stack>
+              {/* Above the navigator so undo countdowns survive screen changes. */}
+              <UndoSnackbarHost />
+              <OfflineBanner />
+              <TimeReminderBanner />
+              <PushPriming />
+            </AuthGate>
+          </AuthProvider>
+        </CacheGate>
       </RootErrorBoundary>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }

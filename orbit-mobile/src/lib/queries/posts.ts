@@ -690,6 +690,9 @@ export interface NewPostMedia {
   height: number | null;
   durationMs?: number;
   altText?: string;
+  // Poster frame for video media, so a feed tile can paint before the
+  // video element decodes. Null for images.
+  thumbnailUrl?: string | null;
 }
 
 // Same insert shape the web createPost uses, including the derived post
@@ -756,6 +759,7 @@ export async function createPost(
         url: m.url,
         width: m.width,
         height: m.height,
+        thumbnail_url: m.thumbnailUrl ?? null,
         sort_order: i,
         ...(m.durationMs != null ? { duration_ms: Math.round(m.durationMs) } : {}),
         ...(m.altText ? { alt_text: m.altText } : {}),

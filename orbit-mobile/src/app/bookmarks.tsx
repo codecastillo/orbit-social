@@ -62,6 +62,8 @@ function BookmarkRow({
           style={styles.thumbnail}
           contentFit="cover"
           transition={0}
+          cachePolicy="memory-disk"
+          recyclingKey={thumbnail}
         />
       ) : null}
       <View style={styles.rowBody}>

@@ -156,6 +156,8 @@ export function MessageMedia({
             contentFit="cover"
             transition={100}
             alt=""
+            cachePolicy="memory-disk"
+            recyclingKey={url}
           />
         </Pressable>
       )}

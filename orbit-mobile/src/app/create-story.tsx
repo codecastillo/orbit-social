@@ -17,7 +17,7 @@ import {
   type StoryTextOverlay,
   type StoryVisibility,
 } from "@/lib/queries/stories";
-import { captureVideoFrame } from "@/lib/video-frame";
+import { captureVideoPoster } from "@/lib/video-frame";
 import { colors, radii, spacing } from "@/lib/theme";
 
 // Same ceiling as the web story creator so stories stay interchangeable.
@@ -141,8 +141,8 @@ export default function CreateStoryScreen() {
         // A failed frame grab should not block the share; the viewer falls
         // back to the video itself.
         try {
-          const frameUri = await captureVideoFrame(media.uri);
-          thumbnailUrl = await uploadStoryMedia(user.id, frameUri, "image/jpeg");
+          const poster = await captureVideoPoster(media.uri);
+          thumbnailUrl = await uploadStoryMedia(user.id, poster.uri, "image/jpeg");
         } catch {
           thumbnailUrl = undefined;
         }

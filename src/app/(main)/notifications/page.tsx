@@ -142,7 +142,7 @@ export default function NotificationsPage() {
         />
       ) : isLoading ? (
         <div className="flex flex-col gap-2">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
               className="flex gap-3.5 rounded-xl border border-border bg-surface p-3.5"

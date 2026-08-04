@@ -114,7 +114,7 @@ export function SoundContent({ soundId }: { soundId: string }) {
 
       {isLoading ? (
         <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
               className="aspect-[9/16] animate-pulse rounded-lg border border-border bg-surface"

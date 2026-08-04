@@ -7,7 +7,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { clearAccountScope } from "@/lib/query-persist";
 import type { User } from "@supabase/supabase-js";
 
 interface AuthState {
@@ -25,6 +27,7 @@ const AuthContext = createContext<AuthState | null>(null);
  * the single largest cause of slow page loads.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [state, setState] = useState<AuthState>({
     user: null,
     loading: true,
@@ -80,7 +83,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Catches every way a session ends, not just the sign-out button:
+      // account deletion, deactivation, an abandoned MFA login, an expired
+      // refresh token, or a sign-out in another tab. The cached and
+      // persisted data belongs to the account that just left.
+      if (event === "SIGNED_OUT") clearAccountScope(queryClient);
+
       const sessionUser = session?.user ?? null;
       setState({
         user: sessionUser,
@@ -93,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [queryClient]);
 
   return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
 }

@@ -40,7 +40,7 @@ interface FeedPageParam {
 }
 
 export function useFeed(tab: "foryou" | "following") {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { data: mutedWords } = useMutedWords();
   const { data: mutedIds } = useMutedIds();
   const { data: notInterestedIds } = useNotInterestedIds();
@@ -186,6 +186,10 @@ export function useFeed(tab: "foryou" | "following") {
       return lastPage.nextCursor ? { cursor: lastPage.nextCursor } : undefined;
     },
     select: filterPages,
+    // The key flips from the public timeline to the signed-in feed the
+    // moment auth resolves. Fetching before then costs a full anon page
+    // that is thrown away on every cold load for a signed-in viewer.
+    enabled: !authLoading,
     // 60s staleTime + no refetch on window focus avoids the request storm
     // that fires every time you tab back. Realtime channels still bump
     // the cache when something actually changes.

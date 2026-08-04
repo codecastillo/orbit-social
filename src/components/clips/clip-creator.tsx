@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { uploadClipVideo, createClip } from "@/lib/queries/clips";
+import { uploadPostMedia } from "@/lib/queries/posts";
+import { captureVideoPoster, readMediaDimensions } from "@/lib/utils/media-dimensions";
 
 interface ClipCreatorProps {
   open: boolean;
@@ -81,8 +83,25 @@ export function ClipCreator({ open, onOpenChange, soundId, soundName }: ClipCrea
     mutationFn: async () => {
       if (!user || !videoFile) throw new Error("Missing data");
 
-      const videoUrl = await uploadClipVideo(user.id, videoFile);
-      return createClip(user.id, caption, videoUrl, undefined, durationMs, soundId);
+      // Poster and dimensions come off the local file, so the clip tile can
+      // reserve its box and paint a frame before the video streams in.
+      const [dimensions, poster] = await Promise.all([
+        readMediaDimensions(videoFile),
+        captureVideoPoster(videoFile),
+      ]);
+      const [videoUrl, thumbnailUrl] = await Promise.all([
+        uploadClipVideo(user.id, videoFile),
+        poster ? uploadPostMedia(user.id, poster).then((m) => m.url) : Promise.resolve(undefined),
+      ]);
+      return createClip(
+        user.id,
+        caption,
+        videoUrl,
+        thumbnailUrl,
+        durationMs,
+        soundId,
+        dimensions
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clips"] });

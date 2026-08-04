@@ -23,10 +23,9 @@ import {
 } from "@/lib/queries/messages";
 import type { Presence } from "@/lib/queries/presence";
 import { formatTimeAgo } from "@/lib/format";
+import { useSkeletonRows } from "@/lib/list-hints";
 import { useAuth } from "@/providers/auth-provider";
 import { colors, radii, spacing } from "@/lib/theme";
-
-const SKELETON_ROWS = 8;
 
 type Tab = "inbox" | "requests";
 
@@ -135,10 +134,10 @@ function ConversationRow({
   );
 }
 
-function ConversationSkeleton() {
+function ConversationSkeleton({ rows }: { rows: number }) {
   return (
     <View>
-      {Array.from({ length: SKELETON_ROWS }, (_, i) => (
+      {Array.from({ length: rows }, (_, i) => (
         <View key={i} style={styles.row}>
           <View style={styles.skeletonAvatar} />
           <View style={styles.rowBody}>
@@ -170,6 +169,15 @@ export default function MessagesScreen() {
     queryFn: () => getConversations(user!.id),
     enabled: !!user,
   });
+
+  // Conversation contents are deliberately never persisted, so this screen
+  // still starts empty on a cold launch; the remembered count at least keeps
+  // the placeholder the size of the inbox it is standing in for.
+  const skeletonRows = useSkeletonRows(
+    "conversations",
+    user?.id,
+    conversations?.length,
+  );
 
   const trimmed = search.trim().toLowerCase();
   const matching = trimmed
@@ -329,7 +337,7 @@ export default function MessagesScreen() {
     return (
       <View style={styles.list}>
         {searchField}
-        <ConversationSkeleton />
+        <ConversationSkeleton rows={skeletonRows} />
       </View>
     );
   }

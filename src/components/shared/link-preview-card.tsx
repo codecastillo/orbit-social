@@ -38,8 +38,15 @@ interface LinkPreviewCardProps {
   variant?: "post" | "message";
 }
 
+/**
+ * Card height, held by the skeleton while the unfurl is in flight so the
+ * card does not shove the rest of the post down when it resolves. Matches
+ * the thumbnail's 76px plus the border.
+ */
+const CARD_HEIGHT_PX = 78;
+
 export function LinkPreviewCard({ url, variant = "post" }: LinkPreviewCardProps) {
-  const { data } = useQuery({
+  const { data, isPending } = useQuery({
     queryKey: ["link-preview", url],
     queryFn: async (): Promise<LinkPreview | null> => {
       // Fail silent by contract: any failure means "no card", never an
@@ -55,6 +62,19 @@ export function LinkPreviewCard({ url, variant = "post" }: LinkPreviewCardProps)
     staleTime: PREVIEW_STALE_TIME_MS,
     retry: false,
   });
+
+  if (isPending) {
+    return (
+      <div
+        aria-hidden
+        style={{ height: CARD_HEIGHT_PX }}
+        className={cn(
+          "animate-pulse rounded-xl border",
+          variant === "post" ? "border-border bg-surface" : "border-black/20 bg-black/15",
+        )}
+      />
+    );
+  }
 
   if (!data || (!data.title && !data.description && !data.image_url)) return null;
 

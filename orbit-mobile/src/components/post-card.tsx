@@ -126,6 +126,8 @@ function QuotedPostPreview({ post }: { post: Post }) {
           style={styles.quoteMedia}
           contentFit="cover"
           transition={200}
+          cachePolicy="memory-disk"
+          recyclingKey={media.url}
         />
       ) : null}
     </Pressable>
@@ -192,6 +194,8 @@ function PostVideo({ media, inset }: { media: PostMediaItem; inset: boolean }) {
           style={styles.mediaImage}
           contentFit="cover"
           transition={200}
+          cachePolicy="memory-disk"
+          recyclingKey={media.url}
         />
       )}
       {!playing ? (
@@ -780,6 +784,8 @@ export function PostCard({
             style={styles.mediaImage}
             contentFit="cover"
             transition={200}
+            cachePolicy="memory-disk"
+            recyclingKey={media.url}
           />
           <Animated.View
             pointerEvents="none"

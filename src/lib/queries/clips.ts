@@ -55,7 +55,8 @@ export async function createClip(
   videoUrl: string,
   thumbnailUrl?: string,
   durationMs?: number | null,
-  soundId?: string | null
+  soundId?: string | null,
+  dimensions?: { width: number; height: number } | null
 ) {
   const { data: post, error } = await supabase
     .from("posts")
@@ -75,6 +76,8 @@ export async function createClip(
     url: videoUrl,
     thumbnail_url: thumbnailUrl || null,
     duration_ms: durationMs ?? null,
+    width: dimensions?.width ?? null,
+    height: dimensions?.height ?? null,
     sort_order: 0,
   });
 

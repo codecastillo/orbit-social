@@ -25,6 +25,7 @@ import {
 } from "@/components/mention-input";
 import { useAuth } from "@/providers/auth-provider";
 import { createReelPost, uploadPostMedia } from "@/lib/queries/posts";
+import { captureVideoPoster } from "@/lib/video-frame";
 import { consumeSoundSeed } from "@/lib/sound-seed";
 import { safeBack } from "@/lib/nav";
 import { colors, radii, spacing } from "@/lib/theme";
@@ -304,10 +305,16 @@ export default function ClipUploadScreen() {
       const thumbnailUrl = cover
         ? await uploadPostMedia(user.id, cover.uri, "image/jpeg")
         : null;
+      // Some library assets come back without dimensions; a poster frame
+      // reports the video's real size, so the tile can reserve the right box.
+      const measured =
+        video.width && video.height
+          ? { width: video.width, height: video.height }
+          : await captureVideoPoster(video.uri).catch(() => null);
       return createReelPost(user.id, caption.trim(), {
         url,
-        width: video.width,
-        height: video.height,
+        width: measured?.width ?? null,
+        height: measured?.height ?? null,
         durationMs: selEndMs - selStartMs,
         thumbnailUrl,
         soundId: soundSeed?.id ?? null,

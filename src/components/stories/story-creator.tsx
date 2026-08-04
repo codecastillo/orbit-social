@@ -20,6 +20,7 @@ import {
   type StorySticker,
   type StoryTextOverlay,
 } from "@/lib/queries/stories";
+import { captureVideoPoster } from "@/lib/utils/media-dimensions";
 import { StoryOverlayLayer } from "./story-overlays";
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -130,8 +131,15 @@ export function StoryCreator({ open, onOpenChange }: StoryCreatorProps) {
       if (!user?.id || !selectedFile) throw new Error("Missing data");
 
       const { url, type } = await uploadStoryMedia(user.id, selectedFile);
+      // A poster lets the moments rail paint a frame instead of a black box
+      // while the video loads. Best effort: no poster must never cost a post.
+      const poster = type === "video" ? await captureVideoPoster(selectedFile) : null;
+      const thumbnailUrl = poster
+        ? (await uploadStoryMedia(user.id, poster)).url
+        : undefined;
       return createStory(user.id, url, type, {
         visibility,
+        thumbnailUrl,
         durationSeconds:
           type === "video" && videoDuration
             ? Math.ceil(videoDuration)

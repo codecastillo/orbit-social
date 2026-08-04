@@ -143,7 +143,7 @@ export function ProfileContent({
   const [qrOpen, setQrOpen] = useState(false);
   const [openingDm, setOpeningDm] = useState(false);
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const requireAuth = useRequireAuth();
   const queryClient = useQueryClient();
   const supabase = createClient();
@@ -422,10 +422,14 @@ export function ProfileContent({
     }));
   };
 
+  // Every tab query is keyed on the viewer, so the key changes the moment
+  // auth resolves. Without the authLoading gate each one fetches once as an
+  // anonymous viewer and immediately throws that page away.
   const { data: pinnedPosts = [] } = useQuery({
     queryKey: ["user-pinned-posts", profile.id, user?.id],
     queryFn: async () =>
       enrichWithViewerInteractions(await getUserPinnedPosts(profile.id)),
+    enabled: !authLoading,
     staleTime: 1000 * 60 * 2,
   });
 
@@ -433,38 +437,39 @@ export function ProfileContent({
     queryKey: ["user-posts", profile.id, user?.id],
     queryFn: async () =>
       enrichWithViewerInteractions(await getUserPosts(profile.id)),
+    enabled: !authLoading,
     staleTime: 1000 * 60 * 2,
   });
 
-  const { data: clips = [], isLoading: loadingClips, isError: clipsError, refetch: refetchClips } = useQuery({
+  const { data: clips = [], isPending: loadingClips, isError: clipsError, refetch: refetchClips } = useQuery({
     queryKey: ["user-clips", profile.id, user?.id],
     queryFn: async () =>
       enrichWithViewerInteractions(await getUserClips(profile.id)),
-    enabled: activeTab === "clips",
+    enabled: activeTab === "clips" && !authLoading,
     staleTime: 1000 * 60 * 2,
   });
 
-  const { data: likedPosts = [], isLoading: loadingLikes, isError: likesError, refetch: refetchLikes } = useQuery({
+  const { data: likedPosts = [], isPending: loadingLikes, isError: likesError, refetch: refetchLikes } = useQuery({
     queryKey: ["user-liked-posts", profile.id, user?.id],
     queryFn: async () =>
       enrichWithViewerInteractions(await getUserLikedPosts(profile.id)),
-    enabled: activeTab === "likes",
+    enabled: activeTab === "likes" && !authLoading,
     staleTime: 1000 * 60,
   });
 
-  const { data: repostedPosts = [], isLoading: loadingReposts, isError: repostsError, refetch: refetchReposts } = useQuery({
+  const { data: repostedPosts = [], isPending: loadingReposts, isError: repostsError, refetch: refetchReposts } = useQuery({
     queryKey: ["user-reposted-posts", profile.id, user?.id],
     queryFn: async () =>
       enrichWithViewerInteractions(await getUserRepostedPosts(profile.id)),
-    enabled: activeTab === "reposts",
+    enabled: activeTab === "reposts" && !authLoading,
     staleTime: 1000 * 60,
   });
 
-  const { data: savedPosts = [], isLoading: loadingSaved, isError: savedError, refetch: refetchSaved } = useQuery({
+  const { data: savedPosts = [], isPending: loadingSaved, isError: savedError, refetch: refetchSaved } = useQuery({
     queryKey: ["user-saved-posts", profile.id, user?.id],
     queryFn: async () =>
       enrichWithViewerInteractions(await getUserBookmarkedPosts(profile.id)),
-    enabled: activeTab === "saved" && isOwnProfile,
+    enabled: activeTab === "saved" && isOwnProfile && !authLoading,
     staleTime: 1000 * 60,
   });
 
@@ -474,11 +479,11 @@ export function ProfileContent({
     staleTime: 1000 * 60 * 2,
   });
 
-  const { data: taggedPosts = [], isLoading: loadingTagged, isError: taggedError, refetch: refetchTagged } = useQuery({
+  const { data: taggedPosts = [], isPending: loadingTagged, isError: taggedError, refetch: refetchTagged } = useQuery({
     queryKey: ["user-tagged-posts", profile.id, user?.id],
     queryFn: async () =>
       enrichWithViewerInteractions(await getUserTaggedPosts(profile.id)),
-    enabled: activeTab === "tagged",
+    enabled: activeTab === "tagged" && !authLoading,
     staleTime: 1000 * 60,
   });
 
@@ -488,6 +493,7 @@ export function ProfileContent({
   const { data: tabCounts } = useQuery({
     queryKey: ["profile-tab-counts", profile.id, user?.id],
     queryFn: () => getProfileTabCounts(profile.id, user?.id),
+    enabled: !authLoading,
     staleTime: 1000 * 30,
     initialData: initialTabCounts,
   });

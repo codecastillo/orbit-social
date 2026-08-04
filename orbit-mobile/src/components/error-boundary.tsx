@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
+import { clearPersistedQueryCache } from "@/lib/query-persist";
 import { colors, radii, spacing } from "@/lib/theme";
 
 interface State {
@@ -42,6 +43,7 @@ function RecoveryScreen({ error, onRetry }: { error: Error; onRetry: () => void 
   async function handleSignOut() {
     await supabase.auth.signOut();
     queryClient.clear();
+    await clearPersistedQueryCache();
     // Clearing the boundary hands control back to the AuthGate, which sends a
     // signed-out session to the login screen.
     onRetry();

@@ -147,6 +147,8 @@ function MediaTile({
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={0}
+          cachePolicy="memory-disk"
+          recyclingKey={source}
         />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.tilePlaceholder]} />
@@ -237,11 +239,13 @@ export function ProfileContent({
     queryKey: ["profile-clips", userId],
     queryFn: () => getUserClips(userId),
     enabled: tab === "clips",
+    staleTime: 1000 * 60 * 3,
   });
   const mentionsQuery = useQuery({
     queryKey: ["profile-mentions", userId],
     queryFn: () => getUserMentions(username, userId),
     enabled: tab === "mentions",
+    staleTime: 1000 * 60 * 3,
   });
 
   const isGridTab = tab !== "mentions";
@@ -415,6 +419,9 @@ const styles = StyleSheet.create({
   mediaTile: {
     borderRadius: TILE_RADIUS,
     overflow: "hidden",
+    // Flat placeholder under the thumbnail, so a tile that has not decoded
+    // yet reads as a filled slot instead of a gap in the grid.
+    backgroundColor: colors.surfaceElevated,
   },
   shortcutTile: {
     backgroundColor: colors.surfaceElevated,

@@ -26,6 +26,7 @@ import {
 } from "@/components/mention-input";
 import { useAuth } from "@/providers/auth-provider";
 import { createReelPost, uploadPostMedia } from "@/lib/queries/posts";
+import { uploadVideoPoster } from "@/lib/video-frame";
 import { consumeSoundSeed } from "@/lib/sound-seed";
 import { safeBack } from "@/lib/nav";
 import { colors, radii, spacing } from "@/lib/theme";
@@ -179,12 +180,14 @@ export default function ClipCameraScreen() {
       const segment = segments[0];
       if (!segment) throw new Error("Record a clip first.");
       const url = await uploadPostMedia(user.id, segment.uri, videoMimeType(segment.uri));
-      // recordAsync reports no dimensions, so width and height stay null;
-      // the clips player sizes from the decoded video.
+      // recordAsync reports no dimensions, so the poster frame is the only
+      // dimension source: it comes out at the recorded video's own size.
+      const poster = await uploadVideoPoster(user.id, segment.uri);
       return createReelPost(user.id, caption.trim(), {
         url,
-        width: null,
-        height: null,
+        width: poster?.width ?? null,
+        height: poster?.height ?? null,
+        thumbnailUrl: poster?.url ?? null,
         durationMs: segmentsTotalMs(segments),
         soundId: soundSeed?.id ?? null,
       });

@@ -78,12 +78,18 @@ export default function OwnProfileScreen() {
     queryKey: ["profile", user?.id],
     queryFn: () => getOwnProfile(user!.id),
     enabled: !!user,
+    // Your own bio and counts barely move within a session.
+    staleTime: 1000 * 60 * 5,
   });
 
+  // Everything below keys off the signed-in user id, which is known before
+  // the profile row comes back. Waiting on `profile` only made the grid start
+  // a round trip late, which is why it spun after the header had painted.
   const postsQuery = useQuery({
     queryKey: ["profile-posts", user?.id],
     queryFn: () => getUserRecentPosts(user!.id),
-    enabled: !!user && !!profile,
+    enabled: !!user,
+    staleTime: 1000 * 60 * 3,
   });
 
   // Counts for the Drafts/Scheduled grid shortcuts. Same keys as the drafts
@@ -91,13 +97,13 @@ export default function OwnProfileScreen() {
   const draftsQuery = useQuery({
     queryKey: ["post-drafts", user?.id],
     queryFn: () => listDrafts(user!.id),
-    enabled: !!user && !!profile,
+    enabled: !!user,
     staleTime: 1000 * 60 * 3,
   });
   const scheduledQuery = useQuery({
     queryKey: ["scheduled-posts", user?.id],
     queryFn: () => getScheduledPosts(user!.id),
-    enabled: !!user && !!profile,
+    enabled: !!user,
     staleTime: 1000 * 60 * 3,
   });
 
