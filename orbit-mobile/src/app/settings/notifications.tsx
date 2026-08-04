@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,8 +12,11 @@ import {
 } from "react-native";
 import { Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as Notifications from "expo-notifications";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Button, Centered, EmptyState } from "@/components/ui";
+import { Button, Centered, ErrorState } from "@/components/ui";
+import { enablePush, getPushPermission, isPushSupported } from "@/lib/push";
+import { setPushDecision } from "@/lib/push-priming";
 import {
   getNotificationPrefs,
   saveNotificationPrefs,
@@ -189,7 +193,7 @@ export default function NotificationSettingsScreen() {
       <View style={styles.flex}>
         <Stack.Screen options={{ title: "Notifications" }} />
         {isError ? (
-          <EmptyState
+          <ErrorState
             title="Settings did not load"
             description="Check your connection and try again."
             action={
@@ -213,17 +217,7 @@ export default function NotificationSettingsScreen() {
     <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: "Notifications" }} />
 
-      <View style={styles.note}>
-        <Ionicons
-          name="phone-portrait-outline"
-          size={18}
-          color={colors.primary}
-        />
-        <Text style={styles.noteText}>
-          Push on this device arrives with the development build. These
-          toggles choose which alerts reach you everywhere.
-        </Text>
-      </View>
+      <DevicePushRow />
 
       {PREF_GROUPS.map((group) => (
         <View key={group.title}>
@@ -292,6 +286,79 @@ export default function NotificationSettingsScreen() {
   );
 }
 
+/**
+ * Push on this device, separate from which alerts you want. This is the way
+ * back for anyone who dismissed the priming explainer, and once iOS has a
+ * denial on file only the OS settings can undo it.
+ */
+function DevicePushRow() {
+  const { user } = useAuth();
+  const [permission, setPermission] =
+    useState<Notifications.NotificationPermissionsStatus | null>(null);
+  const [checked, setChecked] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPushPermission()
+      .then((next) => {
+        if (cancelled) return;
+        setPermission(next);
+        setChecked(true);
+      })
+      .catch(() => setChecked(true));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleEnable() {
+    if (!user) return;
+    setBusy(true);
+    try {
+      const result = await enablePush(user.id);
+      await setPushDecision(result === "granted" ? "enabled" : "declined");
+      setPermission(await getPushPermission());
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!checked) return null;
+
+  const unsupported = !isPushSupported() || !permission;
+  const granted = permission?.status === "granted";
+  const blocked = !granted && permission?.canAskAgain === false;
+
+  return (
+    <View style={styles.note}>
+      <Ionicons name="phone-portrait-outline" size={18} color={colors.primary} />
+      <View style={styles.noteBody}>
+        <Text style={styles.noteText}>
+          {unsupported
+            ? "Push on this device arrives with the development build. These toggles choose which alerts reach you everywhere."
+            : granted
+              ? "Push is on for this device. The toggles below choose which alerts reach you."
+              : blocked
+                ? "Notifications are turned off for Orbit in your device settings. Turn them back on there to get push here."
+                : "Push is off for this device. Turn it on to get the alerts you keep switched on below."}
+        </Text>
+        {granted || unsupported ? null : (
+          <Button
+            label={blocked ? "Open device settings" : "Turn on push"}
+            variant="outline"
+            loading={busy}
+            style={styles.noteAction}
+            onPress={
+              blocked ? () => void Linking.openSettings() : handleEnable
+            }
+          />
+        )}
+      </View>
+    </View>
+  );
+}
+
 function HourRow({
   label,
   hour,
@@ -350,7 +417,7 @@ const styles = StyleSheet.create({
   },
   note: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: spacing(3),
     marginHorizontal: spacing(4),
     marginVertical: spacing(2),
@@ -360,11 +427,18 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  noteText: {
+  noteBody: {
     flex: 1,
+    minWidth: 0,
+  },
+  noteText: {
     color: colors.textSecondary,
     fontSize: 12.5,
     lineHeight: 18,
+  },
+  noteAction: {
+    marginTop: spacing(3),
+    alignSelf: "flex-start",
   },
   groupTitle: {
     marginTop: spacing(4),

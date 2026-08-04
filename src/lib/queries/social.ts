@@ -396,6 +396,29 @@ export async function getFollowers(
   })) as (ProfileSummary & { followed_at: string })[];
 }
 
+/**
+ * Drop someone from your own followers. Goes through the RPC because the
+ * follows DELETE policy is `auth.uid() = follower_id`, so the person being
+ * followed cannot delete the row directly. They are not notified and nothing
+ * stops them following again.
+ */
+export async function removeFollower(followerId: string): Promise<void> {
+  const { error } = await supabase.rpc("remove_follower", {
+    p_follower: followerId,
+  });
+  if (error) throw error;
+}
+
+/** Query keys holding follower lists or counts that a removal invalidates. */
+export const FOLLOWER_INVALIDATION_KEYS: readonly string[][] = [
+  ["followers"],
+  ["follow-list"],
+  ["follow-list-status"],
+  ["follow-states"],
+  ["profile-meta"],
+  ["profile-tab-counts"],
+];
+
 export async function getFollowing(
   userId: string,
   cursor?: string,

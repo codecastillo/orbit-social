@@ -90,7 +90,14 @@ import {
 } from "@/lib/queries/messages";
 import { unblockUser } from "@/lib/queries/settings";
 import { useBlockedIds } from "@/lib/hooks/use-content-safety";
-import { BLOCKED_DM_MESSAGE, isBlockedDmError } from "@/lib/blocked-error";
+import { usePresence } from "@/lib/hooks/use-presence";
+import { ActivityStatus } from "@/components/activity-status";
+import {
+  BLOCKED_DM_MESSAGE,
+  MESSAGE_NOT_ALLOWED_MESSAGE,
+  isBlockedDmError,
+  isMessageNotAllowedError,
+} from "@/lib/blocked-error";
 import { supabase } from "@/lib/supabase";
 import { flushUndoableSends, scheduleUndoableSend } from "@/lib/undo-send";
 import { useAuth } from "@/providers/auth-provider";
@@ -519,6 +526,10 @@ export default function ConversationScreen() {
   const blockedCounterpart =
     !isGroup && !!otherMemberId && (blockedIds?.has(otherMemberId) ?? false);
 
+  // DM-only: other_member stays null for groups, so this resolves to nothing
+  // there.
+  const presence = usePresence(isGroup ? null : otherMemberId);
+
   // Other member's read state for the "Seen" marker, gated inside
   // getDmSeenAt by the reciprocity rule. The newest message id keys the
   // query so it refreshes as messages land.
@@ -942,6 +953,10 @@ export default function ConversationScreen() {
         Alert.alert(BLOCKED_DM_MESSAGE);
         return;
       }
+      if (isMessageNotAllowedError(error)) {
+        Alert.alert(MESSAGE_NOT_ALLOWED_MESSAGE);
+        return;
+      }
       Alert.alert(
         "Voice message not sent",
         "Check your connection and try again.",
@@ -1219,6 +1234,8 @@ export default function ConversationScreen() {
         // gone, so the alert is the only surface left to report on.
         if (isBlockedDmError(error)) {
           Alert.alert(BLOCKED_DM_MESSAGE);
+        } else if (isMessageNotAllowedError(error)) {
+          Alert.alert(MESSAGE_NOT_ALLOWED_MESSAGE);
         } else {
           Alert.alert("Message not sent", "Check your connection and try again.");
         }
@@ -1436,9 +1453,12 @@ export default function ConversationScreen() {
             size={32}
           />
         ) : null}
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {title}
-        </Text>
+        <View style={styles.headerText}>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {title}
+          </Text>
+          {isGroup ? null : <ActivityStatus presence={presence} />}
+        </View>
         <View style={styles.headerActions}>
           <Pressable
             accessibilityRole="button"
@@ -1791,11 +1811,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
+  headerText: {
+    flexShrink: 1,
+  },
   headerTitle: {
     color: colors.foreground,
     fontSize: 15,
     fontWeight: "600",
-    flexShrink: 1,
   },
   headerActions: {
     flexDirection: "row",

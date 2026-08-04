@@ -40,8 +40,13 @@ import {
   type NewPostMedia,
   type PollData,
   type Post,
+  type WhoCanComment,
 } from "@/lib/queries/posts";
 import { getOwnProfile } from "@/lib/queries/profiles";
+import {
+  WHO_CAN_COMMENT_SUMMARY,
+  promptWhoCanComment,
+} from "@/lib/comment-controls";
 import {
   createDraft,
   deleteDraft,
@@ -100,6 +105,7 @@ interface ComposerSnapshot {
   location: string;
   showLocation: boolean;
   visibility: "public" | "close_friends";
+  whoCanComment: WhoCanComment;
   contentWarning: string;
   showContentWarning: boolean;
   quotedPost: Post | null;
@@ -192,6 +198,9 @@ export default function ComposeScreen() {
   );
   const [visibility, setVisibility] = useState<"public" | "close_friends">(
     restore?.visibility ?? draftData?.visibility ?? "public",
+  );
+  const [whoCanComment, setWhoCanComment] = useState<WhoCanComment>(
+    restore?.whoCanComment ?? draftData?.whoCanComment ?? "everyone",
   );
   const [contentWarning, setContentWarning] = useState(
     restore?.contentWarning ?? draftData?.contentWarning ?? "",
@@ -367,6 +376,7 @@ export default function ComposeScreen() {
     trimmed.length > 0 ||
     location.trim().length > 0 ||
     visibility !== "public" ||
+    whoCanComment !== "everyone" ||
     (showContentWarning && contentWarning.trim().length > 0) ||
     (showPoll && validPollOptions.length >= 2) ||
     showSchedule;
@@ -375,11 +385,15 @@ export default function ComposeScreen() {
   // discarded) so the unmount fallback below can't save it a second time.
   const exitHandledRef = useRef(false);
 
+  const openWhoCanCommentMenu = () =>
+    promptWhoCanComment(whoCanComment, setWhoCanComment);
+
   const persistDraft = async () => {
     if (!user) return;
     const draftData: DraftData = {
       ...(location.trim() ? { location: location.trim() } : {}),
       ...(visibility !== "public" ? { visibility } : {}),
+      ...(whoCanComment !== "everyone" ? { whoCanComment } : {}),
       ...(showContentWarning && contentWarning.trim()
         ? { contentWarning: contentWarning.trim() }
         : {}),
@@ -487,6 +501,7 @@ export default function ComposeScreen() {
       location,
       showLocation,
       visibility,
+      whoCanComment,
       contentWarning,
       showContentWarning,
       quotedPost,
@@ -539,6 +554,7 @@ export default function ComposeScreen() {
           pollData,
           scheduledAt: isScheduling ? scheduledDate.toISOString() : undefined,
           visibility: snapshot.visibility,
+          whoCanComment: snapshot.whoCanComment,
           contentWarning:
             snapshot.showContentWarning && snapshot.contentWarning.trim()
               ? snapshot.contentWarning.trim()
@@ -1031,6 +1047,28 @@ export default function ComposeScreen() {
             </Pressable>
           </View>
         ) : null}
+
+        {whoCanComment !== "everyone" ? (
+          <View style={[styles.fieldRow, styles.commentsRow]}>
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={16}
+              color={colors.primary}
+            />
+            <Text style={styles.commentsLabel}>
+              {WHO_CAN_COMMENT_SUMMARY[whoCanComment]}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Let everyone comment"
+              onPress={() => setWhoCanComment("everyone")}
+              hitSlop={8}
+              style={({ pressed }) => [{ marginLeft: "auto" }, pressed && { opacity: 0.7 }]}
+            >
+              <Ionicons name="close" size={14} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+        ) : null}
       </ScrollView>
       <View style={styles.toolbar}>
         {recording ? (
@@ -1126,6 +1164,23 @@ export default function ComposeScreen() {
                 name={visibility === "close_friends" ? "people" : "earth"}
                 size={22}
                 color={visibility === "close_friends" ? colors.success : colors.mutedForeground}
+              />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Choose who can comment"
+              onPress={openWhoCanCommentMenu}
+              style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+              hitSlop={8}
+            >
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={22}
+                color={
+                  whoCanComment === "everyone"
+                    ? colors.mutedForeground
+                    : colors.primary
+                }
               />
             </Pressable>
             <Pressable
@@ -1505,6 +1560,15 @@ const styles = StyleSheet.create({
   },
   closeFriendsLabel: {
     color: colors.success,
+    fontSize: 12.5,
+    fontWeight: "600",
+  },
+  commentsRow: {
+    borderColor: "rgba(172, 119, 250, 0.35)",
+    backgroundColor: "rgba(172, 119, 250, 0.1)",
+  },
+  commentsLabel: {
+    color: colors.primary,
     fontSize: 12.5,
     fontWeight: "600",
   },

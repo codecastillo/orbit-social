@@ -26,6 +26,7 @@ import {
 } from "@/lib/queries/posts";
 import { getOwnProfile } from "@/lib/queries/profiles";
 import { useCommentFilter } from "@/lib/hooks/use-content-safety";
+import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
 import { colors, radii, spacing } from "@/lib/theme";
 
@@ -42,6 +43,8 @@ function ReplyRow({ reply, userId }: { reply: Post; userId: string }) {
   // stored count; the toggle is optimistic with rollback, like the clip rail.
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(reply.like_count);
+  const hideLikeCounts = useHideLikeCounts();
+  const showLikeCount = !hideLikeCounts || reply.user_id === userId;
 
   const handleLike = () => {
     const wasLiked = liked;
@@ -81,7 +84,7 @@ function ReplyRow({ reply, userId }: { reply: Post; userId: string }) {
           size={16}
           color={liked ? colors.primary : colors.mutedForeground}
         />
-        {likeCount > 0 ? (
+        {showLikeCount && likeCount > 0 ? (
           <Text style={styles.replyLikeCount}>{formatNumber(likeCount)}</Text>
         ) : null}
       </Pressable>
@@ -315,6 +318,7 @@ export function ClipCommentsSheet({
         is_hidden: false,
         is_pinned: false,
         visibility: "public",
+        who_can_comment: "everyone",
         poll_data: null,
         created_at: new Date().toISOString(),
         profiles: profile

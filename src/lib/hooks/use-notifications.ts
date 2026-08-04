@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./use-auth";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -8,6 +8,7 @@ import {
   getUnreadCount,
   type NotificationWithActor,
 } from "@/lib/queries/notifications";
+import { getConversations } from "@/lib/queries/messages";
 
 // These three hooks used to each open their own Supabase realtime channel
 // AND poll every 60s. Channel + poll have been moved up to a single
@@ -48,6 +49,7 @@ export function useUnreadCount() {
 export function useUnreadMessagesCount() {
   const { user } = useAuth();
   const userId = user?.id;
+  const queryClient = useQueryClient();
 
   return useQuery({
     queryKey: ["unread-messages-count", userId],
@@ -58,7 +60,20 @@ export function useUnreadMessagesCount() {
         p_user_id: userId,
       });
       if (error) throw error;
-      return (data as number) ?? 0;
+      const total = (data as number) ?? 0;
+      // Requests wait in their own tab and must not badge the nav. Deriving
+      // that needs the conversation list, so only reach for it when there is
+      // something to subtract; the shared key reuses the messages tab's copy.
+      if (total === 0) return 0;
+      const conversations = await queryClient.fetchQuery({
+        queryKey: ["conversations", userId],
+        queryFn: () => getConversations(userId),
+        staleTime: 10_000,
+      });
+      const requests = conversations.filter(
+        (c) => c.is_request && c.unread
+      ).length;
+      return Math.max(0, total - requests);
     },
     enabled: !!userId,
     staleTime: 30_000,

@@ -1,6 +1,7 @@
 import {
   ActivityIndicator,
   Alert,
+  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
@@ -19,10 +20,21 @@ import {
 } from "@/lib/queries/settings";
 import {
   getReadReceiptsEnabled,
+  getWhoCanMessage,
   setReadReceiptsEnabled,
+  setWhoCanMessage,
+  type WhoCanMessage,
 } from "@/lib/queries/messages";
+import { getHideActivity, setHideActivity } from "@/lib/queries/presence";
+import { HIDE_ACTIVITY_KEY } from "@/lib/hooks/use-presence";
 import { useAuth } from "@/providers/auth-provider";
-import { colors, spacing } from "@/lib/theme";
+import { colors, radii, spacing } from "@/lib/theme";
+
+const WHO_CAN_MESSAGE_OPTIONS: { value: WhoCanMessage; label: string }[] = [
+  { value: "everyone", label: "Everyone" },
+  { value: "following", label: "People you follow" },
+  { value: "nobody", label: "No one" },
+];
 
 function AccountRow({
   profile,
@@ -157,6 +169,55 @@ export default function PrivacySettingsScreen() {
     },
   });
 
+  // Reciprocal: hiding your activity also hides everyone else's from you,
+  // and stops the heartbeat writing at all.
+  const hideActivityKey = [HIDE_ACTIVITY_KEY, user?.id];
+  const hideActivityQuery = useQuery({
+    queryKey: hideActivityKey,
+    queryFn: () => getHideActivity(user!.id),
+    enabled: !!user,
+  });
+
+  const hideActivityMutation = useMutation({
+    mutationFn: (hidden: boolean) => setHideActivity(user!.id, hidden),
+    onMutate: async (hidden) => {
+      await queryClient.cancelQueries({ queryKey: hideActivityKey });
+      const previous = queryClient.getQueryData<boolean>(hideActivityKey);
+      queryClient.setQueryData(hideActivityKey, hidden);
+      return { previous };
+    },
+    onError: (_error, _hidden, context) => {
+      queryClient.setQueryData(hideActivityKey, context?.previous);
+      Alert.alert("Couldn't update activity status");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["presence"] });
+      queryClient.invalidateQueries({ queryKey: ["presence-many"] });
+    },
+  });
+
+  const whoCanMessageKey = ["who-can-message", user?.id];
+  const whoCanMessageQuery = useQuery({
+    queryKey: whoCanMessageKey,
+    queryFn: () => getWhoCanMessage(user!.id),
+    enabled: !!user,
+  });
+
+  const whoCanMessageMutation = useMutation({
+    mutationFn: (value: WhoCanMessage) => setWhoCanMessage(user!.id, value),
+    onMutate: async (value) => {
+      await queryClient.cancelQueries({ queryKey: whoCanMessageKey });
+      const previous =
+        queryClient.getQueryData<WhoCanMessage>(whoCanMessageKey);
+      queryClient.setQueryData(whoCanMessageKey, value);
+      return { previous };
+    },
+    onError: (_error, _value, context) => {
+      queryClient.setQueryData(whoCanMessageKey, context?.previous);
+      Alert.alert("Couldn't update who can message you");
+    },
+  });
+
   const unmuteMutation = useMutation({
     mutationFn: (profile: BlockedProfile) => unmuteUser(user!.id, profile.id),
     onMutate: async (profile) => {
@@ -219,6 +280,25 @@ export default function PrivacySettingsScreen() {
     <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: "Privacy" }} />
 
+      <Text style={styles.sectionTitle}>Activity</Text>
+      <View style={styles.toggleRow}>
+        <View style={styles.toggleBody}>
+          <Text style={styles.toggleLabel}>Hide activity status</Text>
+          <Text style={styles.toggleHint}>
+            Stop showing when you were last online. Turn it on and you will not
+            see anyone else&apos;s either.
+          </Text>
+        </View>
+        <Switch
+          accessibilityLabel="Hide activity status"
+          value={hideActivityQuery.data ?? false}
+          onValueChange={(hidden) => hideActivityMutation.mutate(hidden)}
+          disabled={hideActivityQuery.isPending}
+          trackColor={{ false: colors.border, true: colors.primary }}
+          thumbColor={colors.foreground}
+        />
+      </View>
+
       <Text style={styles.sectionTitle}>Messages</Text>
       <View style={styles.toggleRow}>
         <View style={styles.toggleBody}>
@@ -236,6 +316,38 @@ export default function PrivacySettingsScreen() {
           trackColor={{ false: colors.border, true: colors.primary }}
           thumbColor={colors.foreground}
         />
+      </View>
+
+      <View style={styles.choiceBlock}>
+        <Text style={styles.toggleLabel}>Who can message you</Text>
+        <Text style={styles.toggleHint}>
+          First contact only. A conversation you have replied to stays open.
+          Messages from people you do not follow wait in Requests.
+        </Text>
+        <View style={styles.choices}>
+          {WHO_CAN_MESSAGE_OPTIONS.map((option) => {
+            const active =
+              (whoCanMessageQuery.data ?? "everyone") === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                onPress={() => whoCanMessageMutation.mutate(option.value)}
+                style={[styles.choice, active && styles.choiceActive]}
+              >
+                <Text
+                  style={[
+                    styles.choiceLabel,
+                    active && styles.choiceLabelActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <AccountSection
@@ -309,6 +421,35 @@ const styles = StyleSheet.create({
     color: colors.mutedForeground,
     fontSize: 12,
     lineHeight: 16,
+  },
+  choiceBlock: {
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(3),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  choices: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing(2),
+    marginTop: spacing(3),
+  },
+  choice: {
+    paddingHorizontal: spacing(3.5),
+    paddingVertical: spacing(2),
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceElevated,
+  },
+  choiceActive: {
+    backgroundColor: colors.primary,
+  },
+  choiceLabel: {
+    color: colors.mutedForeground,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  choiceLabelActive: {
+    color: colors.foreground,
   },
   accountRow: {
     flexDirection: "row",

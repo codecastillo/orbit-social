@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { TopBar } from "@/components/layout/top-bar";
 import { RealtimeBridge } from "@/components/layout/realtime-bridge";
+import { PresenceHeartbeat } from "@/components/layout/presence-heartbeat";
 import { TimeOnOrbitTracker } from "@/components/layout/time-on-orbit-tracker";
 import { EmailVerificationBanner } from "@/components/shared/email-verification-banner";
 import { LazyPostComposer } from "@/components/feed/post-composer-lazy";
@@ -25,7 +26,7 @@ export default async function MainLayout({
         await supabase
           .from("profiles")
           .select(
-            "id, username, display_name, avatar_url, is_verified, is_creator, is_admin",
+            "id, username, display_name, avatar_url, is_verified, is_creator, is_admin, hide_like_counts",
           )
           .eq("id", user.id)
           .single()
@@ -37,6 +38,7 @@ export default async function MainLayout({
       <Sidebar initialProfile={initialProfile} initialHasUser={!!user} />
       <TopBar />
       {user && <RealtimeBridge userId={user.id} />}
+      {user && <PresenceHeartbeat />}
       {user && <TimeOnOrbitTracker />}
 
       <main

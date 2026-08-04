@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 const PROFILE_SELECT = `
   id, username, display_name, avatar_url, cover_url, bio, location, website,
   is_verified, follower_count, following_count, post_count, created_at,
-  theme_color, avatar_border, is_private
+  theme_color, avatar_border, is_private, hide_like_counts
 `;
 
 // Same union as the web UserAvatar (src/components/shared/user-avatar.tsx).
@@ -34,6 +34,9 @@ export interface Profile {
   theme_color: string | null;
   avatar_border: string | null;
   is_private: boolean | null;
+  // Viewer-level display setting: hides other people's like counts from
+  // this account, never its own.
+  hide_like_counts: boolean;
 }
 
 export interface ProfilePostMedia {
@@ -75,6 +78,17 @@ export async function getProfileByUsername(
     .maybeSingle();
   if (error) throw error;
   return data as unknown as Profile | null;
+}
+
+export async function setHideLikeCounts(
+  userId: string,
+  hidden: boolean,
+): Promise<void> {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ hide_like_counts: hidden })
+    .eq("id", userId);
+  if (error) throw error;
 }
 
 export interface ProfileUpdates {
@@ -325,6 +339,19 @@ export async function getFollowers(
   return ((data ?? []) as unknown as { profiles: ProfileSummary | null }[])
     .map((row) => row.profiles)
     .filter((p): p is ProfileSummary => p !== null);
+}
+
+/**
+ * Drop someone from your own followers. Goes through the RPC because the
+ * follows DELETE policy is `auth.uid() = follower_id`, so the person being
+ * followed cannot delete the row directly. They are not notified and nothing
+ * stops them following again.
+ */
+export async function removeFollower(followerId: string): Promise<void> {
+  const { error } = await supabase.rpc("remove_follower", {
+    p_follower: followerId,
+  });
+  if (error) throw error;
 }
 
 export async function getFollowing(

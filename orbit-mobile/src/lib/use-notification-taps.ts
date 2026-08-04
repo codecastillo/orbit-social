@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
+import { toMobilePath } from "@/lib/deep-links";
 
 /**
  * Routes notification taps to the right screen. The payload's `url` field is
@@ -21,7 +22,9 @@ export function useNotificationTaps() {
 
       const url = response.notification.request.content.data?.url;
       if (typeof url === "string" && url.startsWith("/")) {
-        router.push(toMobilePath(url) as never);
+        // A tap on something the app cannot open still deserves context, so
+        // unknown payloads land on the activity feed.
+        router.push(toMobilePath(url, "/notifications") as never);
       }
     };
 
@@ -29,22 +32,4 @@ export function useNotificationTaps() {
     const sub = Notifications.addNotificationResponseReceivedListener(route);
     return () => sub.remove();
   }, [router]);
-}
-
-// Web paths and mobile routes mostly line up; map the ones that differ.
-function toMobilePath(webPath: string): string {
-  if (webPath.startsWith("/messages/")) {
-    return webPath.replace("/messages/", "/conversation/");
-  }
-  // Explicit so the profile fallback below never claims /messages.
-  if (webPath === "/messages") return "/(tabs)/messages";
-  if (webPath === "/notifications") return "/notifications";
-  if (webPath === "/notifications/requests") return "/follow-requests";
-  if (webPath.startsWith("/post/") || webPath.startsWith("/clips/")) return webPath;
-  if (webPath.startsWith("/events/") || webPath.startsWith("/communities/")) {
-    return webPath;
-  }
-  // Profile links arrive as /<username>.
-  if (/^\/[^/]+$/.test(webPath)) return `/user${webPath}`;
-  return "/notifications";
 }

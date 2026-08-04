@@ -10,13 +10,14 @@ import {
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { Avatar, Button, EmptyState } from "@/components/ui";
 import {
   checkFollowStates,
   getFollowers,
   getFollowing,
+  removeFollower,
   toggleFollowState,
   type FollowState,
   type ProfileSummary,
@@ -38,6 +39,7 @@ function FollowRow({
   busy,
   onToggle,
   onOpen,
+  onRemove,
 }: {
   profile: ProfileSummary;
   isSelf: boolean;
@@ -45,6 +47,8 @@ function FollowRow({
   busy: boolean;
   onToggle: () => void;
   onOpen: () => void;
+  /** Present only on your own followers list. */
+  onRemove?: () => void;
 }) {
   return (
     <Pressable
@@ -85,6 +89,22 @@ function FollowRow({
           style={styles.followButton}
         />
       ) : null}
+      {onRemove ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`More options for @${profile.username}`}
+          onPress={onRemove}
+          disabled={busy}
+          hitSlop={8}
+          style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+        >
+          <Ionicons
+            name="ellipsis-horizontal"
+            size={18}
+            color={colors.mutedForeground}
+          />
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -104,6 +124,7 @@ export default function FollowListScreen() {
   const username = typeof params.username === "string" ? params.username : "";
   const router = useRouter();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const [tab, setTab] = useState<FollowTab>(
     params.tab === "following" ? "following" : "followers",
@@ -133,6 +154,45 @@ export default function FollowListScreen() {
 
   const followStateOf = (id: string): FollowState =>
     overrides[id] ?? followStatesQuery.data?.get(id) ?? "none";
+
+  const canRemoveFollowers = tab === "followers" && !!user && user.id === userId;
+
+  const confirmRemoveFollower = (target: ProfileSummary) => {
+    Alert.alert(
+      `Remove @${target.username} from your followers?`,
+      "They won't be notified, and they can follow you again unless you block them.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: () => void removeFollowerRow(target),
+        },
+      ],
+    );
+  };
+
+  const removeFollowerRow = async (target: ProfileSummary) => {
+    if (busyId) return;
+    const listKey = ["follow-list", userId, tab];
+    const previous = queryClient.getQueryData<ProfileSummary[]>(listKey);
+    setBusyId(target.id);
+    queryClient.setQueryData<ProfileSummary[]>(listKey, (list) =>
+      list?.filter((p) => p.id !== target.id),
+    );
+    try {
+      await removeFollower(target.id);
+      // The follow triggers maintain follower_count, so the profile header
+      // behind this list is now stale.
+      queryClient.invalidateQueries({ queryKey: ["profile", "username"] });
+      queryClient.invalidateQueries({ queryKey: ["follow-list"] });
+    } catch {
+      queryClient.setQueryData(listKey, previous);
+      Alert.alert(`Couldn't remove @${target.username}`);
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const toggleFollow = async (target: ProfileSummary) => {
     if (!user || busyId) return;
@@ -216,6 +276,11 @@ export default function FollowListScreen() {
               busy={busyId === item.id}
               onToggle={() => toggleFollow(item)}
               onOpen={() => router.push(`/user/${item.username}`)}
+              onRemove={
+                canRemoveFollowers && item.id !== user?.id
+                  ? () => confirmRemoveFollower(item)
+                  : undefined
+              }
             />
           )}
           contentContainerStyle={styles.listContent}

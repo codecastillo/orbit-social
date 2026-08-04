@@ -180,6 +180,32 @@ export async function getActiveStories(userId: string): Promise<StoryGroup[]> {
   return groups;
 }
 
+/**
+ * The viewer's own expired moments, newest first. The stories SELECT
+ * policy keeps expired rows readable to their author only, so this is
+ * owner-scoped by policy; the explicit user_id filter keeps it honest.
+ */
+export async function getArchivedStories(
+  userId: string,
+): Promise<StoryWithAuthor[]> {
+  const { data, error } = await supabase
+    .from("stories")
+    .select(
+      `id, user_id, media_url, media_type, thumbnail_url, duration_seconds,
+       interactive_data, text_overlay, visibility, view_count, expires_at,
+       created_at,
+       profiles!stories_user_id_fkey (id, username, display_name, avatar_url, is_verified)`,
+    )
+    .eq("user_id", userId)
+    .lte("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  // Through unknown: the literal-type query parser infers the to-one
+  // profiles join as an array without generated DB types.
+  return (data ?? []) as unknown as StoryWithAuthor[];
+}
+
 export type StoryVisibility = "public" | "close_friends";
 
 // Same 24h lifetime and 5s default frame duration as the web story creator.
@@ -242,6 +268,12 @@ export async function createStory(
 
   if (error) throw error;
   return data as { id: string };
+}
+
+/** Owner-only, enforced by the stories DELETE policy. */
+export async function deleteStory(storyId: string) {
+  const { error } = await supabase.from("stories").delete().eq("id", storyId);
+  if (error) throw error;
 }
 
 /**

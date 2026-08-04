@@ -4,15 +4,17 @@ import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useCurrentProfile } from "@/lib/hooks/use-profile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { FormSection, Input, RadioRow } from "@/components/orbit/forms";
+import { FormSection, Input, RadioRow, Toggle } from "@/components/orbit/forms";
 import { SettingsHeader } from "@/components/settings/settings-header";
 import {
   getContentPreferences,
   getSensitiveContentLevel,
   normalizeTopic,
   removeTopicPreference,
+  setHideLikeCounts,
   setSensitiveContentLevel,
   setTopicPreference,
   type ContentPreference,
@@ -101,6 +103,8 @@ function TimeOnOrbitSection() {
 
 export default function ContentSettingsPage() {
   const { user, loading: authLoading } = useAuth();
+  const { data: profile, refresh: refreshProfile } = useCurrentProfile();
+  const hideLikeCounts = profile?.hide_like_counts ?? false;
 
   const [level, setLevel] = useState<SensitiveContentLevel>("standard");
   const [preferences, setPreferences] = useState<ContentPreference[]>([]);
@@ -128,6 +132,16 @@ export default function ContentSettingsPage() {
     } catch {
       setLevel(previous);
       toast.error("Couldn't update sensitive content level");
+    }
+  };
+
+  const handleHideLikeCountsChange = async (next: boolean) => {
+    if (!user) return;
+    try {
+      await setHideLikeCounts(user.id, next);
+      refreshProfile();
+    } catch {
+      toast.error("Couldn't update like count visibility");
     }
   };
 
@@ -211,6 +225,18 @@ export default function ContentSettingsPage() {
           options={SENSITIVE_OPTIONS}
           value={level}
           onChange={handleLevelChange}
+        />
+      </FormSection>
+
+      <FormSection title="Like counts">
+        <p className="mb-3 mt-0 text-[12.5px] leading-[1.45] text-muted-foreground">
+          Like counts on other people&apos;s posts stay hidden. Your own posts
+          still show theirs.
+        </p>
+        <Toggle
+          on={hideLikeCounts}
+          onChange={handleHideLikeCountsChange}
+          label="Hide like counts"
         />
       </FormSection>
 

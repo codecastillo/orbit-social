@@ -9,6 +9,10 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { searchUsers, type ProfileSummary } from "@/lib/queries/social";
 import {
+  MESSAGE_NOT_ALLOWED_MESSAGE,
+  isMessageNotAllowedError,
+} from "@/lib/utils/blocked-error";
+import {
   getConversations,
   getOrCreateDMConversation,
   sendMessage,
@@ -109,7 +113,11 @@ export function ForwardMessageDialog({
       await forwardTo(conv.id, conversationLabel(conv));
     } catch (e) {
       console.error("forward failed", e);
-      toast.error("Couldn't forward message");
+      toast.error(
+        isMessageNotAllowedError(e)
+          ? MESSAGE_NOT_ALLOWED_MESSAGE
+          : "Couldn't forward message"
+      );
     } finally {
       setSendingTo(null);
     }
@@ -126,7 +134,11 @@ export function ForwardMessageDialog({
       await forwardTo(conversationId, profile.display_name);
     } catch (e) {
       console.error("forward failed", e);
-      toast.error("Couldn't forward message");
+      toast.error(
+        isMessageNotAllowedError(e)
+          ? MESSAGE_NOT_ALLOWED_MESSAGE
+          : "Couldn't forward message"
+      );
     } finally {
       setSendingTo(null);
     }

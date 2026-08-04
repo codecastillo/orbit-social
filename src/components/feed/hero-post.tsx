@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { formatNumber, formatTimeAgo } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useHideLikeCounts } from "@/lib/hooks/use-profile";
 import { toggleLike, type PostWithAuthor } from "@/lib/queries/posts";
 import { toast } from "sonner";
 
@@ -22,6 +23,8 @@ export function HeroPost({ post, isLiked: initialLiked = false }: HeroPostProps)
   const { user } = useAuth();
   const [isLiked, setIsLiked] = useState(initialLiked);
   const [likeCount, setLikeCount] = useState(post.like_count);
+  const hideLikeCounts = useHideLikeCounts();
+  const countsHidden = hideLikeCounts && post.user_id !== user?.id;
   const profile = post.profiles;
   const media = post.post_media?.[0];
 
@@ -92,7 +95,9 @@ export function HeroPost({ post, isLiked: initialLiked = false }: HeroPostProps)
         )}
 
         <div className="flex items-center gap-4 text-white/70 text-sm">
-          <span className="font-semibold text-white">{formatNumber(likeCount)} likes</span>
+          {!countsHidden && (
+            <span className="font-semibold text-white">{formatNumber(likeCount)} likes</span>
+          )}
           <span>{formatNumber(post.comment_count)} comments</span>
         </div>
       </div>

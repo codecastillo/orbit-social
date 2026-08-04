@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { VerifiedStar } from "@/components/orbit/verified-star";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useHideLikeCounts } from "@/lib/hooks/use-profile";
 import { useCommentFilter } from "@/lib/hooks/use-content-safety";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import {
@@ -262,6 +263,8 @@ function CommentRow({
   const [liked, setLiked] = useState(initialLiked);
   const [likeCount, setLikeCount] = useState(comment.like_count ?? 0);
   const [repliesOpen, setRepliesOpen] = useState(false);
+  const hideLikeCounts = useHideLikeCounts();
+  const countsHidden = hideLikeCounts && comment.user_id !== user?.id;
 
   // Re-seed local state when the parent's authoritative values change
   // (realtime CDC on post_likes refetches the comments list, which
@@ -369,7 +372,7 @@ function CommentRow({
               }`}
               strokeWidth={liked ? 0 : 1.8}
             />
-            {likeCount > 0 && (
+            {likeCount > 0 && !countsHidden && (
               <span className="text-[11px] text-muted-foreground">
                 {formatNumber(likeCount)}
               </span>
@@ -422,6 +425,8 @@ function ReplyRow({
   const requireAuth = useRequireAuth();
   const [liked, setLiked] = useState(initialLiked);
   const [likeCount, setLikeCount] = useState(reply.like_count ?? 0);
+  const hideLikeCounts = useHideLikeCounts();
+  const countsHidden = hideLikeCounts && reply.user_id !== user?.id;
 
   // Mirror the CommentRow re-seed: realtime CDC bumps reply.like_count
   // on the parent's refetch, but this child component otherwise sticks
@@ -486,7 +491,7 @@ function ReplyRow({
           }`}
           strokeWidth={liked ? 0 : 1.8}
         />
-        {likeCount > 0 && (
+        {likeCount > 0 && !countsHidden && (
           <span className="mt-px text-[10px] text-muted-foreground">
             {formatNumber(likeCount)}
           </span>

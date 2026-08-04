@@ -96,6 +96,7 @@ export async function searchPosts(
 
 export interface SearchClip {
   id: string;
+  user_id: string;
   content: string | null;
   created_at: string;
   like_count: number;
@@ -119,7 +120,7 @@ export async function searchClips(
   let q = supabase
     .from("posts")
     .select(
-      `id, content, created_at, like_count,
+      `id, user_id, content, created_at, like_count,
        post_media (id, type, url, thumbnail_url, sort_order, duration_ms)`,
     )
     .eq("type", "reel")

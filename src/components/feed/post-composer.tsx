@@ -3,7 +3,7 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Image as ImageIcon, X, Loader2, BarChart3, Plus, Minus, Clock, MapPin, FileText, AlertTriangle, Users, Globe, Camera, Calendar, Mic } from "lucide-react";
+import { Image as ImageIcon, X, Loader2, BarChart3, Plus, Minus, Clock, MapPin, FileText, AlertTriangle, Users, Globe, Camera, Calendar, Mic, MessageCircle, MessageCircleOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,7 +17,14 @@ import {
   uploadPostMedia,
   type PollData,
   type PostWithAuthor,
+  type WhoCanComment,
 } from "@/lib/queries/posts";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { QuotedPostCard } from "@/components/feed/quoted-post-card";
 import { MAX_POST_LENGTH } from "@/lib/utils/constants";
 import { suggestCaptions, suggestCaptionsAI } from "@/lib/services/caption-suggestions";
@@ -41,6 +48,12 @@ import {
   moderateContentEnhanced,
   flagContentForReview,
 } from "@/lib/services/auto-moderation";
+
+const WHO_CAN_COMMENT_OPTIONS: { value: WhoCanComment; label: string }[] = [
+  { value: "everyone", label: "Everyone" },
+  { value: "following", label: "People you follow" },
+  { value: "nobody", label: "No one" },
+];
 
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
@@ -70,6 +83,7 @@ interface ComposerRestore {
   pollOptions: string[];
   pollEndHours: number;
   visibility: "public" | "close_friends";
+  whoCanComment: WhoCanComment;
   contentWarning: string;
   quotedPost: PostWithAuthor | null;
 }
@@ -330,6 +344,9 @@ function ComposerForm({
   );
 
   // Content warning state
+  const [whoCanComment, setWhoCanComment] = useState<WhoCanComment>(
+    restore?.whoCanComment ?? initialDraftData?.whoCanComment ?? "everyone"
+  );
   const [contentWarning, setContentWarning] = useState(
     restore?.contentWarning ?? initialDraftData?.contentWarning ?? ""
   );
@@ -548,6 +565,7 @@ function ComposerForm({
     const draftData: DraftData = {
       ...(location.trim() ? { location: location.trim() } : {}),
       ...(visibility !== "public" ? { visibility } : {}),
+      ...(whoCanComment !== "everyone" ? { whoCanComment } : {}),
       ...(showContentWarning && contentWarning.trim()
         ? { contentWarning: contentWarning.trim() }
         : {}),
@@ -691,6 +709,7 @@ function ComposerForm({
           scheduledAt: scheduledDate ? scheduledDate.toISOString() : undefined,
           location: location.trim() || undefined,
           visibility,
+          whoCanComment,
           contentWarning: showContentWarning && contentWarning.trim() ? contentWarning.trim() : undefined,
           communityId,
         }
@@ -743,6 +762,7 @@ function ComposerForm({
       setLocation("");
       setShowLocation(false);
       setVisibility("public");
+      setWhoCanComment("everyone");
       setContentWarning("");
       setShowContentWarning(false);
     };
@@ -773,6 +793,7 @@ function ComposerForm({
       pollOptions,
       pollEndHours,
       visibility,
+      whoCanComment,
       contentWarning: showContentWarning ? contentWarning : "",
       quotedPost: quotedTarget,
     };
@@ -1510,6 +1531,39 @@ function ComposerForm({
               <Globe className="h-5 w-5" />
             )}
           </button>
+          {/* Who can comment */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                "h-9 w-9 flex items-center justify-center rounded-lg border-0 bg-transparent cursor-pointer transition-colors",
+                whoCanComment === "everyone"
+                  ? "text-muted-foreground hover:text-foreground"
+                  : "text-primary hover:text-primary/80"
+              )}
+              title="Who can comment"
+              aria-label="Who can comment"
+            >
+              {whoCanComment === "nobody" ? (
+                <MessageCircleOff className="h-5 w-5" />
+              ) : (
+                <MessageCircle className="h-5 w-5" />
+              )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {WHO_CAN_COMMENT_OPTIONS.map((option) => (
+                <DropdownMenuItem
+                  key={option.value}
+                  onClick={() => setWhoCanComment(option.value)}
+                  className={cn(
+                    "cursor-pointer",
+                    whoCanComment === option.value && "text-primary"
+                  )}
+                >
+                  {option.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           {/* Content warning toggle */}
           <button
             className={cn(

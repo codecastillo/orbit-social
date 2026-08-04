@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import type { WhoCanComment } from "@/lib/queries/posts";
 
 const supabase = createClient();
 
@@ -9,6 +10,7 @@ const supabase = createClient();
 export interface DraftData {
   location?: string;
   visibility?: "public" | "close_friends";
+  whoCanComment?: WhoCanComment;
   contentWarning?: string;
   poll?: { options: string[]; endHours: number };
   // datetime-local string as typed in the composer, so it round-trips

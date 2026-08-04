@@ -6,6 +6,8 @@ import { Heart, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatNumber } from "@/lib/utils/format";
 import { type PostWithAuthor } from "@/lib/queries/posts";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { useHideLikeCounts } from "@/lib/hooks/use-profile";
 
 const gradients = [
   "from-violet-600/60 to-indigo-800/60",
@@ -22,6 +24,9 @@ interface PostGridCardProps {
 
 export function PostGridCard({ post, index = 0 }: PostGridCardProps) {
   const router = useRouter();
+  const { user } = useAuth();
+  const hideLikeCounts = useHideLikeCounts();
+  const countsHidden = hideLikeCounts && post.user_id !== user?.id;
   const media = post.post_media?.[0];
   const profile = post.profiles;
   const gradient = gradients[index % gradients.length];
@@ -52,10 +57,12 @@ export function PostGridCard({ post, index = 0 }: PostGridCardProps) {
 
       {/* Hover overlay */}
       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-6">
-        <div className="flex items-center gap-1.5 text-white font-semibold text-sm">
-          <Heart className="h-5 w-5 fill-white" />
-          {formatNumber(post.like_count)}
-        </div>
+        {!countsHidden && (
+          <div className="flex items-center gap-1.5 text-white font-semibold text-sm">
+            <Heart className="h-5 w-5 fill-white" />
+            {formatNumber(post.like_count)}
+          </div>
+        )}
         <div className="flex items-center gap-1.5 text-white font-semibold text-sm">
           <MessageCircle className="h-5 w-5 fill-white" />
           {formatNumber(post.comment_count)}

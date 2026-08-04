@@ -2,6 +2,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTimeOnOrbitTracker } from "@/lib/hooks/use-time-on-orbit";
+import { useIsOnline } from "@/lib/hooks/use-is-online";
+import { OFFLINE_BANNER_HEIGHT } from "@/components/offline-banner";
 import { colors, radii, spacing } from "@/lib/theme";
 
 /**
@@ -12,14 +14,15 @@ import { colors, radii, spacing } from "@/lib/theme";
 export function TimeReminderBanner() {
   const { reminder, dismissReminder } = useTimeOnOrbitTracker();
   const insets = useSafeAreaInsets();
+  const online = useIsOnline();
 
   if (!reminder) return null;
 
+  const top =
+    insets.top + spacing(2) + (online ? 0 : OFFLINE_BANNER_HEIGHT);
+
   return (
-    <View
-      pointerEvents="box-none"
-      style={[styles.host, { top: insets.top + spacing(2) }]}
-    >
+    <View pointerEvents="box-none" style={[styles.host, { top }]}>
       <View style={styles.banner}>
         <Ionicons name="time-outline" size={16} color={colors.mutedForeground} />
         <Text style={styles.message} numberOfLines={2}>

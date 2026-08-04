@@ -34,6 +34,25 @@ export interface PostMediaItem {
   alt_text: string | null;
 }
 
+// "following" means the AUTHOR's followees: only accounts the author
+// follows may comment.
+export type WhoCanComment = "everyone" | "following" | "nobody";
+
+/** Postgres error text the who_can_comment BEFORE INSERT trigger raises. */
+export const COMMENTS_CLOSED_ERROR = "comments_closed";
+
+/**
+ * True when a failed comment insert was rejected by that trigger rather
+ * than by a network or RLS failure, so the caller can say why.
+ */
+export function isCommentsClosedError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const { message, details } = error as { message?: unknown; details?: unknown };
+  return [message, details].some(
+    (field) => typeof field === "string" && field.includes(COMMENTS_CLOSED_ERROR),
+  );
+}
+
 export interface Post {
   id: string;
   user_id: string;
@@ -51,6 +70,7 @@ export interface Post {
   // Profile pin on top-level posts, author pin on comments (reply_to_id set).
   is_pinned: boolean;
   visibility: "public" | "close_friends";
+  who_can_comment: WhoCanComment;
   // Optional because optimistic reply rows are built without it.
   content_warning?: string | null;
   boosted_until?: string | null;
@@ -68,7 +88,8 @@ export interface Post {
 const POST_SELECT = `
   id, user_id, content, type, parent_post_id, reply_to_id, community_id,
   like_count, comment_count, repost_count, bookmark_count, view_count,
-  is_hidden, is_pinned, visibility, content_warning, boosted_until, location,
+  is_hidden, is_pinned, visibility, who_can_comment, content_warning,
+  boosted_until, location,
   poll_data, created_at, updated_at,
   profiles!posts_user_id_fkey (
     id, username, display_name, avatar_url, is_verified,
@@ -552,6 +573,7 @@ export async function createPost(
     pollData?: PollData;
     scheduledAt?: string;
     visibility?: "public" | "close_friends";
+    whoCanComment?: WhoCanComment;
     contentWarning?: string;
     location?: string;
   },
@@ -578,6 +600,7 @@ export async function createPost(
       reply_to_id: options?.replyToId || null,
       poll_data: options?.pollData || null,
       visibility: options?.visibility || "public",
+      who_can_comment: options?.whoCanComment || "everyone",
       content_warning: options?.contentWarning || null,
       location: options?.location || null,
       ...(options?.scheduledAt

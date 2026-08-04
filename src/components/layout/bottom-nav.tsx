@@ -12,6 +12,7 @@ import {
   Menu,
   Bookmark,
   FileText,
+  Archive,
   CalendarClock,
   Settings,
 } from "lucide-react";
@@ -94,6 +95,7 @@ export function BottomNav({ initialHasUser = false }: { initialHasUser?: boolean
           { label: "Bookmarks", href: "/bookmarks", icon: Bookmark },
           { label: "Drafts", href: "/drafts", icon: FileText },
           { label: "Scheduled", href: "/scheduled", icon: CalendarClock },
+          { label: "Moments", href: "/moments-archive", icon: Archive },
           { label: "Settings", href: "/settings", icon: Settings },
         ]
       : [];

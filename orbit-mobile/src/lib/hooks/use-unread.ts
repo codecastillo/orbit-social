@@ -3,6 +3,7 @@ import { AppState } from "react-native";
 import { usePathname } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { getConversations } from "@/lib/queries/messages";
 import { useAuth } from "@/providers/auth-provider";
 
 const UNREAD_POLL_MS = 60_000;
@@ -29,7 +30,20 @@ export function useUnreadCounts() {
         p_user_id: user!.id,
       });
       if (error) throw error;
-      return (data as number) ?? 0;
+      const total = (data as number) ?? 0;
+      // Requests wait in their own tab and must not badge the tab bar.
+      // Deriving that needs the conversation list, so only reach for it when
+      // there is something to subtract; the shared key reuses the messages
+      // tab's copy.
+      if (total === 0) return 0;
+      const conversations = await queryClient.fetchQuery({
+        queryKey: ["conversations", user!.id],
+        queryFn: () => getConversations(user!.id),
+      });
+      const requests = conversations.filter(
+        (c) => c.is_request && c.unread,
+      ).length;
+      return Math.max(0, total - requests);
     },
     enabled: !!user,
     refetchInterval: UNREAD_POLL_MS,

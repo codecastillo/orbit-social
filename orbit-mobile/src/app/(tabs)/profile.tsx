@@ -303,6 +303,14 @@ export default function OwnProfileScreen() {
               }}
             />
             <SheetRow
+              icon="albums-outline"
+              label="Moments archive"
+              onPress={() => {
+                setMenuOpen(false);
+                router.push("/moments-archive" as Href);
+              }}
+            />
+            <SheetRow
               icon="settings-outline"
               label="Settings"
               onPress={() => {

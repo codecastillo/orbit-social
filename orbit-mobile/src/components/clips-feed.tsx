@@ -37,6 +37,7 @@ import {
 import { createRepost, toggleBookmark, undoRepost } from "@/lib/queries/posts";
 import { buildMutedWordMatcher } from "@/lib/queries/content-safety";
 import { useMutedIds, useMutedWords } from "@/lib/hooks/use-content-safety";
+import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
 import { formatNumber } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
@@ -121,6 +122,8 @@ function ClipItem({
   });
   const [liked, setLiked] = useState(clip.user_has_liked);
   const [likeCount, setLikeCount] = useState(clip.like_count);
+  const hideLikeCounts = useHideLikeCounts();
+  const showLikeCount = !hideLikeCounts || clip.user_id === userId;
   const [bookmarked, setBookmarked] = useState(clip.user_has_bookmarked);
   const [bookmarkCount, setBookmarkCount] = useState(clip.bookmark_count);
   const [shareCount, setShareCount] = useState(clip.share_count ?? 0);
@@ -541,7 +544,9 @@ function ClipItem({
               size={30}
               color={liked ? colors.primary : OVERLAY_TEXT}
             />
-            <Text style={styles.actionCount}>{formatNumber(likeCount)}</Text>
+            {showLikeCount ? (
+              <Text style={styles.actionCount}>{formatNumber(likeCount)}</Text>
+            ) : null}
           </Pressable>
           <Pressable
             accessibilityRole="button"

@@ -20,6 +20,7 @@ import { StoryOverlayLayer } from "@/components/story-overlays";
 import { StoryViewersSheet } from "@/components/story-viewers-sheet";
 import {
   getActiveStories,
+  getArchivedStories,
   markStoryViewed,
   sendStoryReaction,
   type StoryWithAuthor,
@@ -54,7 +55,12 @@ function StoryVideo({ story }: { story: StoryWithAuthor }) {
 }
 
 export default function StoryViewerScreen() {
-  const params = useLocalSearchParams<{ userId: string; highlight?: string }>();
+  const params = useLocalSearchParams<{
+    userId: string;
+    highlight?: string;
+    archive?: string;
+    index?: string;
+  }>();
   const authorId = typeof params.userId === "string" ? params.userId : "";
   // With a highlight id the screen plays that explicit story list instead
   // of the author's active stories, so highlights outlive the 24h window.
@@ -64,7 +70,17 @@ export default function StoryViewerScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const [index, setIndex] = useState(0);
+  // The archive is owner-only by policy, so this source only makes sense
+  // when the route's author is the viewer.
+  const archiveMode =
+    params.archive === "1" && !highlightId && !!user && authorId === user.id;
+  // Archive tiles deep-link to the moment they show; the other sources
+  // always start at the top of their list.
+  const [index, setIndex] = useState(() => {
+    if (!archiveMode) return 0;
+    const parsed = Number.parseInt(params.index ?? "", 10);
+    return Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
+  });
   // Lazy useState instead of useRef so reading the value in render does
   // not trip the react-hooks/refs rule.
   const [progress] = useState(() => new Animated.Value(0));
@@ -81,7 +97,7 @@ export default function StoryViewerScreen() {
   const activeQuery = useQuery({
     queryKey: ["stories", user?.id],
     queryFn: () => getActiveStories(user!.id),
-    enabled: !!user && !highlightId,
+    enabled: !!user && !highlightId && !archiveMode,
   });
 
   // Shares the cache key the profile highlights row populates.
@@ -91,17 +107,31 @@ export default function StoryViewerScreen() {
     enabled: !!user && !!highlightId,
   });
 
+  // Shares the cache key the archive grid populates.
+  const archiveQuery = useQuery({
+    queryKey: ["archived-stories", user?.id],
+    queryFn: () => getArchivedStories(user!.id),
+    enabled: archiveMode,
+  });
+
   const { isPending, isError, refetch } = highlightId
     ? highlightsQuery
-    : activeQuery;
+    : archiveMode
+      ? archiveQuery
+      : activeQuery;
 
-  const group = highlightId
-    ? undefined
-    : activeQuery.data?.find((g) => g.user.id === authorId);
+  const group =
+    highlightId || archiveMode
+      ? undefined
+      : activeQuery.data?.find((g) => g.user.id === authorId);
   const highlight = highlightId
     ? highlightsQuery.data?.find((h) => h.id === highlightId)
     : undefined;
-  const stories = highlightId ? (highlight?.stories ?? []) : (group?.stories ?? []);
+  const stories = highlightId
+    ? (highlight?.stories ?? [])
+    : archiveMode
+      ? (archiveQuery.data ?? [])
+      : (group?.stories ?? []);
   const current = stories[index];
 
   const goNext = () => {
@@ -182,7 +212,11 @@ export default function StoryViewerScreen() {
 
   if (!user) return null;
 
-  const author = highlightId ? highlight?.stories[0]?.profiles : group?.user;
+  const author = highlightId
+    ? highlight?.stories[0]?.profiles
+    : archiveMode
+      ? current?.profiles
+      : group?.user;
   const authorName = author ? author.display_name || author.username : "";
 
   return (

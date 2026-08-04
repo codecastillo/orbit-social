@@ -2,14 +2,26 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { MoreHorizontal, UserMinus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/orbit/confirm-dialog";
+import {
+  REMOVE_FOLLOWER_DESCRIPTION,
+  removeFollowerTitle,
+} from "@/components/profile/remove-follower-copy";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -18,7 +30,9 @@ import {
   checkFollowStates,
   getFollowers,
   getFollowing,
+  removeFollower,
   toggleFollowState,
+  FOLLOWER_INVALIDATION_KEYS,
   type FollowState,
   type ProfileSummary,
 } from "@/lib/queries/social";
@@ -41,6 +55,10 @@ interface Props {
 export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Props) {
   const { user } = useAuth();
   const myId = user?.id;
+  const queryClient = useQueryClient();
+  const [removeTarget, setRemoveTarget] = useState<ProfileSummary | null>(null);
+  const canRemoveFollowers = kind === "followers" && !!myId && myId === userId;
+  const listKey = ["follow-list", userId, kind];
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["follow-list", userId, kind],
@@ -96,6 +114,26 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
       );
     } finally {
       setBusy(null);
+    }
+  };
+
+  const handleRemoveFollower = async (profile: ProfileSummary) => {
+    const previous = queryClient.getQueryData<ProfileSummary[]>(listKey);
+    queryClient.setQueryData<ProfileSummary[]>(listKey, (list) =>
+      list?.filter((p) => p.id !== profile.id)
+    );
+    try {
+      await removeFollower(profile.id);
+      // The follow triggers maintain follower_count, so the counts behind
+      // these keys shift with the row.
+      for (const queryKey of FOLLOWER_INVALIDATION_KEYS) {
+        queryClient.invalidateQueries({ queryKey });
+      }
+      toast.success(`Removed @${profile.username}`);
+    } catch (err) {
+      console.error("removeFollower failed", err);
+      queryClient.setQueryData(listKey, previous);
+      toast.error(`Couldn't remove @${profile.username}`);
     }
   };
 
@@ -193,12 +231,45 @@ export function FollowListDialog({ open, onOpenChange, userId, kind, title }: Pr
                           : "Follow"}
                     </Button>
                   )}
+                  {canRemoveFollowers && !isSelf && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        aria-label={`More options for @${p.username}`}
+                        className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-52 rounded-2xl">
+                        <DropdownMenuItem
+                          className="cursor-pointer rounded-lg text-destructive focus:text-destructive"
+                          onClick={() => setRemoveTarget(p)}
+                        >
+                          <UserMinus className="mr-2 h-4 w-4" />
+                          Remove follower
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               );
             })
           )}
         </div>
       </DialogContent>
+
+      {removeTarget && (
+        <ConfirmDialog
+          open
+          onOpenChange={(value) => {
+            if (!value) setRemoveTarget(null);
+          }}
+          title={removeFollowerTitle(removeTarget.username)}
+          description={REMOVE_FOLLOWER_DESCRIPTION}
+          confirmLabel="Remove"
+          danger
+          onConfirm={() => handleRemoveFollower(removeTarget)}
+        />
+      )}
     </Dialog>
   );
 }

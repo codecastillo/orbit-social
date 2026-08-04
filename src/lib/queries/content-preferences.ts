@@ -35,6 +35,19 @@ export async function setSensitiveContentLevel(
   if (error) throw error;
 }
 
+/**
+ * Viewer-level display setting: hide like counts on other people's content
+ * everywhere. The viewer's own posts keep showing theirs.
+ */
+export async function setHideLikeCounts(userId: string, hidden: boolean) {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ hide_like_counts: hidden, updated_at: new Date().toISOString() })
+    .eq("id", userId);
+
+  if (error) throw error;
+}
+
 export async function getContentPreferences(
   userId: string,
 ): Promise<ContentPreference[]> {

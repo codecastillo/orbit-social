@@ -15,15 +15,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Field } from "@/components/ui";
-import {
-  createHighlight,
-  getOwnActiveStories,
-} from "@/lib/queries/highlights";
+import { createHighlight, getOwnStories } from "@/lib/queries/highlights";
 import { useVideoFrame } from "@/lib/video-frame";
 import type { StoryWithAuthor } from "@/lib/queries/stories";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const BACKDROP = "rgba(0, 0, 0, 0.55)";
+// Sits on top of the thumbnail, so the pill needs its own dark plate.
+const TILE_SCRIM = "rgba(0, 0, 0, 0.65)";
 const MAX_TITLE_LENGTH = 40;
 const MAX_STORIES_PER_HIGHLIGHT = 20;
 const GRID_GAP = spacing(1.5);
@@ -33,11 +32,13 @@ function StoryTile({
   story,
   size,
   order,
+  expired,
   onToggle,
 }: {
   story: StoryWithAuthor;
   size: number;
   order: number;
+  expired: boolean;
   onToggle: () => void;
 }) {
   const selected = order >= 0;
@@ -73,14 +74,19 @@ function StoryTile({
           <Text style={styles.orderBadgeText}>{order + 1}</Text>
         </View>
       ) : null}
+      {expired ? (
+        <View style={styles.expiredBadge}>
+          <Text style={styles.expiredBadgeText}>Expired</Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
 
 /**
- * Owner-only sheet that assembles a highlight from ACTIVE stories. The
- * stories SELECT policy hides expired rows even from their author, so there
- * is no archive to pick from; the first picked story becomes the cover.
+ * Owner-only sheet that assembles a highlight from any of the author's
+ * moments, active or archived, since the stories SELECT policy carves out
+ * the author. The first picked moment becomes the cover.
  */
 export function HighlightCreator({
   visible,
@@ -102,8 +108,8 @@ export function HighlightCreator({
     (width - spacing(4) * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
 
   const storiesQuery = useQuery({
-    queryKey: ["own-active-stories", userId],
-    queryFn: () => getOwnActiveStories(userId),
+    queryKey: ["own-stories", userId],
+    queryFn: () => getOwnStories(userId),
     enabled: visible,
   });
 
@@ -169,8 +175,8 @@ export function HighlightCreator({
             </Pressable>
           </View>
           <Text style={styles.subheading}>
-            Pick active moments to keep on your profile. The first one becomes
-            the cover.
+            Pick moments to keep on your profile. The first one becomes the
+            cover.
           </Text>
 
           <Field
@@ -187,8 +193,7 @@ export function HighlightCreator({
             </View>
           ) : stories.length === 0 ? (
             <Text style={styles.emptyText}>
-              No active moments to pick from. Post a moment first; expired
-              moments can&apos;t be added.
+              No moments yet. Post a moment first.
             </Text>
           ) : (
             <FlatList
@@ -202,6 +207,9 @@ export function HighlightCreator({
                   story={item}
                   size={tileSize}
                   order={selectedIds.indexOf(item.id)}
+                  expired={
+                    new Date(item.expires_at).getTime() <= storiesQuery.dataUpdatedAt
+                  }
                   onToggle={() => toggle(item.id)}
                 />
               )}
@@ -311,5 +319,19 @@ const styles = StyleSheet.create({
     color: colors.primaryForeground,
     fontSize: 11,
     fontWeight: "700",
+  },
+  expiredBadge: {
+    position: "absolute",
+    left: 4,
+    bottom: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+    backgroundColor: TILE_SCRIM,
+  },
+  expiredBadgeText: {
+    color: colors.mutedForeground,
+    fontSize: 9.5,
+    fontWeight: "600",
   },
 });

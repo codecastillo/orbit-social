@@ -10,6 +10,7 @@ import {
   type TextInputProps,
 } from "react-native";
 import { Image } from "expo-image";
+import { useIsOnline } from "@/lib/hooks/use-is-online";
 import { colors, radii, spacing } from "@/lib/theme";
 
 export function Button({
@@ -139,6 +140,34 @@ export function EmptyState({
       {action ? <View style={{ marginTop: spacing(4) }}>{action}</View> : null}
     </View>
   );
+}
+
+/**
+ * Failure counterpart to EmptyState. A query that fails while the device is
+ * offline is almost always the connection, so say that instead of blaming
+ * the content.
+ */
+export function ErrorState({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  const online = useIsOnline();
+
+  if (!online) {
+    return (
+      <EmptyState
+        title="No connection"
+        description="Orbit cannot reach the network right now. Reconnect and try again."
+        action={action}
+      />
+    );
+  }
+  return <EmptyState title={title} description={description} action={action} />;
 }
 
 export function Centered({ children }: { children: ReactNode }) {

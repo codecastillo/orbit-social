@@ -13,6 +13,7 @@ export interface CurrentProfile {
   is_verified: boolean;
   is_creator: boolean;
   is_admin: boolean;
+  hide_like_counts: boolean;
 }
 
 const STORAGE_KEY = (uid: string) => `current-profile:${uid}`;
@@ -73,7 +74,7 @@ export function useCurrentProfile() {
       const { data } = await supabase
         .from("profiles")
         .select(
-          "id, username, display_name, avatar_url, is_verified, is_creator, is_admin"
+          "id, username, display_name, avatar_url, is_verified, is_creator, is_admin, hide_like_counts"
         )
         .eq("id", user.id)
         .single();
@@ -98,4 +99,16 @@ export function useCurrentProfile() {
   };
 
   return { ...query, data, refresh };
+}
+
+/**
+ * Viewer-level display setting: when on, like counts on OTHER people's
+ * content are suppressed everywhere, while the viewer keeps seeing the
+ * counts on their own posts. Reads off the one cached current-profile
+ * query, so a feed of cards costs no extra requests. A localStorage
+ * snapshot written before this column existed simply reads as off.
+ */
+export function useHideLikeCounts(): boolean {
+  const { data } = useCurrentProfile();
+  return data?.hide_like_counts ?? false;
 }

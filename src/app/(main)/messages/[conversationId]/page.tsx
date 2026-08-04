@@ -35,7 +35,14 @@ import {
   BLOCK_INVALIDATION_KEYS,
 } from "@/lib/queries/social";
 import { useBlockedIds } from "@/lib/hooks/use-content-safety";
-import { BLOCKED_DM_MESSAGE, isBlockedDmError } from "@/lib/utils/blocked-error";
+import { usePresence } from "@/lib/hooks/use-presence";
+import { ActivityStatus } from "@/components/messages/activity-status";
+import {
+  BLOCKED_DM_MESSAGE,
+  MESSAGE_NOT_ALLOWED_MESSAGE,
+  isBlockedDmError,
+  isMessageNotAllowedError,
+} from "@/lib/utils/blocked-error";
 import { createClient } from "@/lib/supabase/client";
 import { ChatWindow, replySnippet } from "@/components/messages/chat-window";
 import {
@@ -142,6 +149,9 @@ export default function ChatPage({ params }: ChatPageProps) {
   // them the composer stays put and the send surfaces the server's refusal.
   const { data: blockedIds } = useBlockedIds();
   const blockedCounterpart = !!otherUser && (blockedIds?.has(otherUser.id) ?? false);
+
+  // DM-only: otherUser stays null for groups, so this resolves to nothing there.
+  const presence = usePresence(otherUser?.id);
 
   const webrtc = useWebRTC(conversationId, user?.id ?? "");
 
@@ -411,7 +421,11 @@ export default function ChatPage({ params }: ChatPageProps) {
           // The commit runs after the undo window, by which point the user
           // may have left the thread, so the toast is the only surface left.
           toast.error(
-            isBlockedDmError(e) ? BLOCKED_DM_MESSAGE : "Couldn't send message"
+            isBlockedDmError(e)
+              ? BLOCKED_DM_MESSAGE
+              : isMessageNotAllowedError(e)
+                ? MESSAGE_NOT_ALLOWED_MESSAGE
+                : "Couldn't send message"
           );
           return;
         }
@@ -656,11 +670,14 @@ export default function ChatPage({ params }: ChatPageProps) {
                 <p className="text-sm font-bold leading-tight truncate text-foreground">
                   {headerName}
                 </p>
-                {headerSubtext && (
-                  <p className="text-[12px] text-muted-foreground mt-0.5 truncate">
-                    {headerSubtext}
-                  </p>
-                )}
+                <div className="mt-0.5 flex items-center gap-2">
+                  {headerSubtext && (
+                    <p className="text-[12px] text-muted-foreground truncate">
+                      {headerSubtext}
+                    </p>
+                  )}
+                  {!isGroup && <ActivityStatus presence={presence} />}
+                </div>
               </div>
             </div>
           )}

@@ -56,6 +56,32 @@ function SettingsRow({
   );
 }
 
+/** A setting the app states rather than offers, with the reason inline. */
+function StaticRow({
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <View style={styles.staticRow}>
+      <Ionicons name={icon} size={20} color={colors.foreground} />
+      <View style={styles.staticBody}>
+        <View style={styles.staticHeader}>
+          <Text style={styles.rowLabel}>{label}</Text>
+          <Text style={styles.staticValue}>{value}</Text>
+        </View>
+        <Text style={styles.staticHint}>{hint}</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function SettingsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -111,6 +137,12 @@ export default function SettingsScreen() {
           icon="options-outline"
           label="Content preferences"
           onPress={() => router.push("/settings/content" as Href)}
+        />
+        <StaticRow
+          icon="moon-outline"
+          label="Appearance"
+          value="Dark"
+          hint="Orbit is dark-only for now, on every device and system setting."
         />
       </View>
 
@@ -235,5 +267,32 @@ const styles = StyleSheet.create({
   },
   rowDestructive: {
     color: colors.destructive,
+  },
+  staticRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing(3),
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(3),
+  },
+  staticBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  staticHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing(3),
+  },
+  staticValue: {
+    color: colors.mutedForeground,
+    fontSize: 14,
+  },
+  staticHint: {
+    marginTop: 2,
+    color: colors.textFaint,
+    fontSize: 12.5,
+    lineHeight: 17,
   },
 });

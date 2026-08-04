@@ -31,16 +31,23 @@ import {
   type Post,
   type PostMediaItem,
 } from "@/lib/queries/posts";
+import { promptWhoCanComment } from "@/lib/comment-controls";
 import {
   addReaction,
   removeReaction,
   type ReactionCount,
   type ReactionType,
 } from "@/lib/queries/reactions";
-import { deletePost, pinPost, unpinPost } from "@/lib/queries/post-management";
+import {
+  deletePost,
+  pinPost,
+  unpinPost,
+  updateWhoCanComment,
+} from "@/lib/queries/post-management";
 import { stageQuoteSeed } from "@/lib/quote-seed";
 import { getRankingSignals, markNotInterested } from "@/lib/queries/content-safety";
 import { useVideoFrame } from "@/lib/video-frame";
+import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const DEFAULT_MEDIA_ASPECT = 4 / 3;
@@ -268,6 +275,10 @@ export function PostCard({
     !!display.content_warning &&
     !warningRevealed &&
     !(rankingSignals?.autoRevealSensitive ?? false);
+  // Viewer-level setting: the number goes away on other people's posts,
+  // the heart and its state never do.
+  const hideLikeCounts = useHideLikeCounts();
+  const showLikeCount = !hideLikeCounts || display.user_id === currentUserId;
   const [actionError, setActionError] = useState<string | null>(null);
   const actionErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [seed, setSeed] = useState({
@@ -486,6 +497,17 @@ export function PostCard({
       .catch(() => flashActionError("Couldn't update the pin."));
   };
 
+  const handleCommentControls = () => {
+    promptWhoCanComment(display.who_can_comment, (value) => {
+      updateWhoCanComment(display.id, value)
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ["feed"] });
+          queryClient.invalidateQueries({ queryKey: ["post", display.id] });
+        })
+        .catch(() => flashActionError("Couldn't update comment controls."));
+    });
+  };
+
   // Overflow menu via the native alert sheet, the same feedback surface
   // the rest of the app uses. Own posts get management actions; others'
   // posts carry feed feedback and reporting.
@@ -507,6 +529,7 @@ export function PostCard({
               },
             ]
           : []),
+        { text: "Comment controls", onPress: handleCommentControls },
         { text: "Delete post", style: "destructive", onPress: handleDelete },
         { text: "Cancel", style: "cancel" },
       ]);
@@ -667,6 +690,17 @@ export function PostCard({
         </View>
       ) : null}
 
+      {display.who_can_comment !== "everyone" ? (
+        <View style={styles.limitedCommentsRow}>
+          <Ionicons
+            name="chatbubble-outline"
+            size={11}
+            color={colors.mutedForeground}
+          />
+          <Text style={styles.limitedCommentsText}>Comments are limited</Text>
+        </View>
+      ) : null}
+
       {contentHidden ? (
         <View style={styles.warningBox}>
           <View style={styles.warningHeader}>
@@ -780,7 +814,7 @@ export function PostCard({
       {detail ? (
         <View style={styles.statsRow}>
           <Text style={styles.statsTime}>{formatTimeAgo(display.created_at)}</Text>
-          {likeCount > 0 ? (
+          {showLikeCount && likeCount > 0 ? (
             <Text style={styles.statsTime}>
               {"· "}
               <Text style={styles.statsCount}>
@@ -824,7 +858,7 @@ export function PostCard({
               color={liked ? colors.primary : colors.foreground}
             />
           </Animated.View>
-          {!detail && likeCount > 0 ? (
+          {!detail && showLikeCount && likeCount > 0 ? (
             <Text style={styles.actionCount}>{formatNumber(likeCount)}</Text>
           ) : null}
         </Pressable>
@@ -1158,6 +1192,16 @@ const styles = StyleSheet.create({
     color: colors.success,
     fontSize: 11,
     fontWeight: "500",
+  },
+  limitedCommentsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: spacing(1.5),
+  },
+  limitedCommentsText: {
+    color: colors.mutedForeground,
+    fontSize: 11.5,
   },
   warningBox: {
     marginTop: spacing(2),

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import type { WhoCanComment } from "@/lib/queries/posts";
 
 // Mirrors the web DraftData in src/lib/queries/drafts.ts (mobile cannot
 // import web code): the composer settings a draft carries besides its
@@ -7,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 export interface DraftData {
   location?: string;
   visibility?: "public" | "close_friends";
+  whoCanComment?: WhoCanComment;
   contentWarning?: string;
   poll?: { options: string[]; endHours: number };
   scheduledAt?: string;

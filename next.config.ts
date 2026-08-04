@@ -18,6 +18,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Apple fetches this file without following content sniffing rules
+        // and rejects anything that is not JSON; it has no extension for
+        // Next to infer the type from.
+        source: "/.well-known/apple-app-site-association",
+        headers: [{ key: "Content-Type", value: "application/json" }],
+      },
+      {
         source: "/:path*",
         headers: [
           {

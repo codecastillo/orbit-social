@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { FormSection, Toggle } from "@/components/orbit/forms";
+import { FormSection, RadioRow, Toggle } from "@/components/orbit/forms";
 import { SettingsHeader } from "@/components/settings/settings-header";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import {
@@ -24,8 +24,26 @@ import {
 } from "@/lib/queries/content-safety";
 import {
   getReadReceiptsEnabled,
+  getWhoCanMessage,
   setReadReceiptsEnabled,
+  setWhoCanMessage,
+  type WhoCanMessage,
 } from "@/lib/queries/messages";
+import { HIDE_ACTIVITY_KEY } from "@/lib/hooks/use-presence";
+
+const WHO_CAN_MESSAGE_OPTIONS: {
+  value: WhoCanMessage;
+  label: string;
+  hint: string;
+}[] = [
+  { value: "everyone", label: "Everyone", hint: "ANYONE CAN START A CHAT" },
+  {
+    value: "following",
+    label: "People you follow",
+    hint: "OTHERS ARE TURNED AWAY",
+  },
+  { value: "nobody", label: "No one", hint: "NO NEW CHATS" },
+];
 
 function AccountRow({
   profile,
@@ -96,6 +114,8 @@ export default function PrivacySettingsPage() {
   const [privateFollowers, setPrivateFollowers] = useState(false);
   const [privateLikes, setPrivateLikes] = useState(false);
   const [readReceipts, setReadReceipts] = useState(true);
+  const [whoCanMessage, setWhoCanMessageState] =
+    useState<WhoCanMessage>("everyone");
   const [profileLoading, setProfileLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [blocked, setBlocked] = useState<ProfileSummary[]>([]);
@@ -122,6 +142,7 @@ export default function PrivacySettingsPage() {
     // Separate read: getReadReceiptsEnabled degrades to true until the
     // read_receipts_enabled migration lands, without failing the main select.
     getReadReceiptsEnabled(user.id).then(setReadReceipts);
+    getWhoCanMessage(user.id).then(setWhoCanMessageState);
   }, [user, supabase]);
 
   useEffect(() => {
@@ -195,14 +216,24 @@ export default function PrivacySettingsPage() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", user.id);
-    let receiptsError = false;
+    let messagesError = false;
     try {
       await setReadReceiptsEnabled(user.id, readReceipts);
+      await setWhoCanMessage(user.id, whoCanMessage);
     } catch {
-      receiptsError = true;
+      messagesError = true;
     }
-    if (error || receiptsError) toast.error("Couldn't update privacy settings");
-    else toast.success("Saved");
+    if (error || messagesError) {
+      toast.error("Couldn't update privacy settings");
+    } else {
+      // The presence heartbeat reads hide_activity from this cache to decide
+      // whether it may write at all, and the displays are reciprocal, so
+      // hiding yours has to drop everyone else's on the spot.
+      queryClient.invalidateQueries({ queryKey: [HIDE_ACTIVITY_KEY, user.id] });
+      queryClient.invalidateQueries({ queryKey: ["presence"] });
+      queryClient.invalidateQueries({ queryKey: ["presence-many"] });
+      toast.success("Saved");
+    }
     setSaving(false);
   };
 
@@ -263,6 +294,23 @@ export default function PrivacySettingsPage() {
             on={privateLikes}
             onChange={setPrivateLikes}
           />
+        </div>
+      </FormSection>
+
+      <FormSection
+        title="Who can message you"
+        hint="First contact only. A conversation you've replied to stays open."
+      >
+        <div className="pt-1">
+          <RadioRow
+            options={WHO_CAN_MESSAGE_OPTIONS}
+            value={whoCanMessage}
+            onChange={setWhoCanMessageState}
+          />
+          <p className="mt-3 mb-0 text-[12.5px] leading-[1.45] text-muted-foreground">
+            Messages from people you don&apos;t follow wait in Requests until
+            you accept them.
+          </p>
         </div>
       </FormSection>
 

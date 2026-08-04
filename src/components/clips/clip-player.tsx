@@ -474,6 +474,7 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
       >
         <ClipActions
           postId={clip.id}
+          authorId={clip.user_id}
           likeCount={clip.like_count}
           commentCount={clip.comment_count}
           bookmarkCount={clip.bookmark_count}

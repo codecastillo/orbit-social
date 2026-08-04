@@ -7,6 +7,8 @@ import { Heart, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/utils/audio";
 import type { PostWithAuthor } from "@/lib/queries/posts";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { useHideLikeCounts } from "@/lib/hooks/use-profile";
 
 interface ProfileGridProps {
   posts: PostWithAuthor[];
@@ -32,6 +34,9 @@ export function ProfileGrid({ posts }: ProfileGridProps) {
 
 function GridItem({ post }: { post: PostWithAuthor }) {
   const [hovering, setHovering] = useState(false);
+  const { user } = useAuth();
+  const hideLikeCounts = useHideLikeCounts();
+  const countsHidden = hideLikeCounts && post.user_id !== user?.id;
   const firstMedia = post.post_media?.[0];
   const hasImage = firstMedia && (firstMedia.type === "image" || firstMedia.type === "gif");
   const hasVideo = firstMedia?.type === "video";
@@ -86,10 +91,12 @@ function GridItem({ post }: { post: PostWithAuthor }) {
           hovering ? "opacity-100" : "opacity-0"
         )}
       >
-        <span className="flex items-center gap-1.5 text-white text-sm font-bold">
-          <Heart className="h-4 w-4 fill-white" />
-          {post.like_count}
-        </span>
+        {!countsHidden && (
+          <span className="flex items-center gap-1.5 text-white text-sm font-bold">
+            <Heart className="h-4 w-4 fill-white" />
+            {post.like_count}
+          </span>
+        )}
         <span className="flex items-center gap-1.5 text-white text-sm font-bold">
           <MessageCircle className="h-4 w-4 fill-white" />
           {post.comment_count}

@@ -25,20 +25,28 @@ import {
   checkUserReposted,
   createPost,
   pinComment,
+  canViewerComment,
+  isCommentsClosedError,
   type PostWithAuthor,
 } from "@/lib/queries/posts";
+import { checkFollowing } from "@/lib/queries/social";
+
+const COMMENTS_LIMITED_MESSAGE = "Comments are limited on this post";
 
 function CommentWithReplies({
   comment,
   interactions,
   onUpdate,
   canPin,
+  canComment,
 }: {
   comment: PostWithAuthor;
   interactions: { likedPostIds: Set<string>; bookmarkedPostIds: Set<string>; repostedPostIds: Set<string> };
   onUpdate: () => void;
   // Viewer owns the parent post; only they can pin a comment.
   canPin: boolean;
+  // Parent post's comment controls apply to replies on its thread too.
+  canComment: boolean;
 }) {
   const { user } = useAuth();
   const [showReplyComposer, setShowReplyComposer] = useState(false);
@@ -72,8 +80,12 @@ function CommentWithReplies({
       refetchReplies();
       toast.success("Reply posted");
       onUpdate();
-    } catch {
-      toast.error("Couldn't post reply");
+    } catch (error) {
+      toast.error(
+        isCommentsClosedError(error)
+          ? COMMENTS_LIMITED_MESSAGE
+          : "Couldn't post reply",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -110,13 +122,15 @@ function CommentWithReplies({
 
       {/* Reply button for the comment */}
       <div className="flex items-center gap-3 pl-16 pb-2 -mt-1">
-        <button
-          onClick={() => setShowReplyComposer(!showReplyComposer)}
-          className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-sky-400 transition-colors"
-        >
-          <MessageCircle className="h-3.5 w-3.5" />
-          Reply
-        </button>
+        {canComment && (
+          <button
+            onClick={() => setShowReplyComposer(!showReplyComposer)}
+            className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-sky-400 transition-colors"
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            Reply
+          </button>
+        )}
         {(replies && replies.length > 0) || comment.comment_count > 0 ? (
           <button
             onClick={() => setShowReplies(!showReplies)}
@@ -128,7 +142,7 @@ function CommentWithReplies({
       </div>
 
       {/* Inline reply composer */}
-      {showReplyComposer && user && (
+      {showReplyComposer && canComment && user && (
         <div className="pl-16 pr-4 pb-3">
           <div className="flex gap-2">
             <Textarea
@@ -273,6 +287,23 @@ export function PostDetail({ postId }: { postId: string }) {
     staleTime: 10_000,
   });
 
+  // "People you follow" means the author's followees, so the client check
+  // asks whether the AUTHOR follows the VIEWER. UX only: the who_can_comment
+  // trigger is the real gate.
+  const needsFollowCheck =
+    !!post &&
+    !!user &&
+    post.who_can_comment === "following" &&
+    post.user_id !== user.id;
+
+  const { data: authorFollowsViewer = false } = useQuery({
+    queryKey: ["author-follows-viewer", post?.user_id, user?.id],
+    queryFn: async () =>
+      (await checkFollowing(post!.user_id, [user!.id])).has(user!.id),
+    enabled: needsFollowCheck,
+    staleTime: 60_000,
+  });
+
   // Fire-and-forget view count, only once the post is known to exist.
   useEffect(() => {
     if (!post || viewedPostIds.has(post.id)) return;
@@ -331,6 +362,7 @@ export function PostDetail({ postId }: { postId: string }) {
   const sort: CommentSort =
     sortChoice ?? (commentList.length > TOP_SORT_MIN_COMMENTS ? "top" : "newest");
   const sortedComments = [...commentList].sort((a, b) => compareComments(a, b, sort));
+  const canComment = canViewerComment(post, user?.id, authorFollowsViewer);
 
   return (
     <div className="border-x border-border min-h-screen">
@@ -364,13 +396,23 @@ export function PostDetail({ postId }: { postId: string }) {
       )}
 
       {/* Reply Composer */}
-      <ReplyComposer
-        postId={postId}
-        onSuccess={() => {
-          refetchComments();
-          queryClient.invalidateQueries({ queryKey: ["post", postId] });
-        }}
-      />
+      {canComment ? (
+        <ReplyComposer
+          postId={postId}
+          onSuccess={() => {
+            refetchComments();
+            queryClient.invalidateQueries({ queryKey: ["post", postId] });
+          }}
+        />
+      ) : (
+        user && (
+          <p className="border-b border-white/[0.06] px-4 py-4 text-[13px] text-muted-foreground">
+            {post.who_can_comment === "nobody"
+              ? "Replies are turned off for this post."
+              : "Only people the author follows can reply."}
+          </p>
+        )
+      )}
 
       {/* Comments with threaded replies */}
       {commentsLoading ? (
@@ -389,6 +431,7 @@ export function PostDetail({ postId }: { postId: string }) {
               interactions={interactions}
               onUpdate={() => refetchComments()}
               canPin={user?.id === post.user_id}
+              canComment={canComment}
             />
           ))}
         </>
@@ -416,8 +459,12 @@ function ReplyComposer({ postId, onSuccess }: { postId: string; onSuccess: () =>
       setReplyContent("");
       toast.success("Reply posted");
       onSuccess();
-    } catch {
-      toast.error("Couldn't post reply");
+    } catch (error) {
+      toast.error(
+        isCommentsClosedError(error)
+          ? COMMENTS_LIMITED_MESSAGE
+          : "Couldn't post reply",
+      );
     } finally {
       setIsSubmitting(false);
     }

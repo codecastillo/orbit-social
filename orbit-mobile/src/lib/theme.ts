@@ -1,7 +1,10 @@
 /**
  * Refined-dark token palette, ported from the web app's globals.css oklch
- * values as hex. The mobile app ships dark-only for now, matching the web
- * flagship theme.
+ * values as hex. Dark-only is a decision, not an oversight: app.json pins
+ * userInterfaceStyle to dark so the OS never hands the app a light
+ * appearance, the settings screen says so out loud, and these stay plain
+ * constants rather than a useColorScheme lookup until a light palette is
+ * actually designed.
  */
 export const colors = {
   background: "#0b0b0d",

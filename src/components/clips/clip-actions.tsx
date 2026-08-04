@@ -14,12 +14,15 @@ import {
   undoRepost,
 } from "@/lib/queries/posts";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useHideLikeCounts } from "@/lib/hooks/use-profile";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { createClient } from "@/lib/supabase/client";
 import { ShareDialog } from "@/components/shared/share-dialog";
 
 interface ClipActionsProps {
   postId: string;
+  /** Clip author, so the viewer's hide-like-counts setting can spare their own. */
+  authorId: string;
   likeCount: number;
   commentCount: number;
   bookmarkCount: number;
@@ -63,6 +66,7 @@ function ActionPill({ icon, label, ariaLabel, onClick }: PillProps) {
 
 export function ClipActions({
   postId,
+  authorId,
   likeCount,
   commentCount,
   bookmarkCount,
@@ -84,6 +88,9 @@ export function ClipActions({
   const [localBookmarkCount, setLocalBookmarkCount] = useState(bookmarkCount);
   const [localShareCount, setLocalShareCount] = useState(shareCount);
   const [shareOpen, setShareOpen] = useState(false);
+  const hideLikeCounts = useHideLikeCounts();
+  // Own clips keep their count; the setting only hides other people's.
+  const countsHidden = hideLikeCounts && authorId !== user?.id;
 
   // Sync local count state when authoritative props update (realtime
   // refetch from the parent feed after another user's interaction). For
@@ -185,7 +192,7 @@ export function ClipActions({
             strokeWidth={isLiked ? 0 : 1.8}
           />
         }
-        label={formatNumber(localLikeCount)}
+        label={countsHidden ? "" : formatNumber(localLikeCount)}
         ariaLabel={isLiked ? "Unlike" : "Like"}
         onClick={handleLike}
       />

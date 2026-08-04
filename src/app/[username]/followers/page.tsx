@@ -2,18 +2,31 @@
 
 import { use, useState, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, Users, Lock } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft, Users, Lock, MoreHorizontal, UserMinus } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { FollowButton } from "@/components/shared/follow-button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/orbit/confirm-dialog";
+import {
+  REMOVE_FOLLOWER_DESCRIPTION,
+  removeFollowerTitle,
+} from "@/components/profile/remove-follower-copy";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
   getFollowers,
   checkFollowing,
   checkFollowStates,
+  removeFollower,
   toggleFollowState,
+  FOLLOWER_INVALIDATION_KEYS,
   type FollowState,
   type ProfileSummary,
 } from "@/lib/queries/social";
@@ -37,6 +50,8 @@ interface ProfileMeta {
 export default function FollowersPage({ params }: Props) {
   const { username } = use(params);
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [removeTarget, setRemoveTarget] = useState<ProfileSummary | null>(null);
 
   const {
     data: profileMeta,
@@ -89,6 +104,28 @@ export default function FollowersPage({ params }: Props) {
     enabled: !!user?.id && followerIds.length > 0,
   });
 
+  const listKey = ["followers", username];
+
+  const handleRemoveFollower = async (profile: ProfileSummary) => {
+    const previous = queryClient.getQueryData<ProfileSummary[]>(listKey);
+    queryClient.setQueryData<ProfileSummary[]>(listKey, (list) =>
+      list?.filter((p) => p.id !== profile.id)
+    );
+    try {
+      await removeFollower(profile.id);
+      // The follow triggers maintain follower_count, so the counts behind
+      // these keys shift with the row.
+      for (const queryKey of FOLLOWER_INVALIDATION_KEYS) {
+        queryClient.invalidateQueries({ queryKey });
+      }
+      toast.success(`Removed @${profile.username}`);
+    } catch (err) {
+      console.error("removeFollower failed", err);
+      queryClient.setQueryData(listKey, previous);
+      toast.error(`Couldn't remove @${profile.username}`);
+    }
+  };
+
   return (
     <div className="border-x border-border min-h-screen">
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border">
@@ -133,9 +170,24 @@ export default function FollowersPage({ params }: Props) {
               profile={profile}
               followState={followStates?.get(profile.id) ?? "none"}
               currentUserId={user?.id}
+              onRemove={isOwnProfile ? () => setRemoveTarget(profile) : undefined}
             />
           ))}
         </div>
+      )}
+
+      {removeTarget && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setRemoveTarget(null);
+          }}
+          title={removeFollowerTitle(removeTarget.username)}
+          description={REMOVE_FOLLOWER_DESCRIPTION}
+          confirmLabel="Remove"
+          danger
+          onConfirm={() => handleRemoveFollower(removeTarget)}
+        />
       )}
     </div>
   );
@@ -159,10 +211,13 @@ function FollowerItem({
   profile,
   followState,
   currentUserId,
+  onRemove,
 }: {
   profile: ProfileSummary;
   followState: FollowState;
   currentUserId?: string;
+  /** Present only on your own followers list. */
+  onRemove?: () => void;
 }) {
   // Local overlay so a toggle shows immediately without refetching the list,
   // while the fetched state still wins until the viewer touches the row.
@@ -218,6 +273,26 @@ function FollowerItem({
           onToggle={handleToggle}
           size="sm"
         />
+      )}
+
+      {onRemove && (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label={`More options for @${profile.username}`}
+            className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52 rounded-2xl">
+            <DropdownMenuItem
+              className="cursor-pointer rounded-lg text-destructive focus:text-destructive"
+              onClick={onRemove}
+            >
+              <UserMinus className="mr-2 h-4 w-4" />
+              Remove follower
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
   );

@@ -3,6 +3,48 @@ import type { PostFormData } from "@/lib/utils/validators";
 
 const supabase = createClient();
 
+/** posts.who_can_comment. Enforced by a BEFORE INSERT trigger on comments. */
+export type WhoCanComment = "everyone" | "following" | "nobody";
+
+/** Message the who_can_comment trigger raises when a comment is refused. */
+export const COMMENTS_CLOSED_ERROR = "comments_closed";
+
+/**
+ * True when a failed comment insert was refused by the who_can_comment
+ * trigger rather than by anything else. Callers show the limited-comments
+ * copy instead of a generic failure.
+ */
+export function isCommentsClosedError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const { message, details, hint } = error as Record<string, unknown>;
+  return [message, details, hint].some(
+    (field) => typeof field === "string" && field.includes(COMMENTS_CLOSED_ERROR)
+  );
+}
+
+/**
+ * Who the viewer is allowed to reply as, computed client-side for UX only:
+ * the trigger is the real gate. "following" means the post's author follows
+ * the viewer, which is why authorFollowsViewer has to be resolved by the
+ * caller.
+ */
+export function canViewerComment(
+  post: Pick<PostWithAuthor, "user_id" | "who_can_comment">,
+  viewerId: string | undefined,
+  authorFollowsViewer: boolean
+): boolean {
+  if (!viewerId) return false;
+  if (post.user_id === viewerId) return true;
+  switch (post.who_can_comment) {
+    case "nobody":
+      return false;
+    case "following":
+      return authorFollowsViewer;
+    default:
+      return true;
+  }
+}
+
 export interface PostWithAuthor {
   id: string;
   user_id: string;
@@ -25,6 +67,7 @@ export interface PostWithAuthor {
   location: string | null;
   scheduled_at: string | null;
   visibility: "public" | "close_friends";
+  who_can_comment: WhoCanComment;
   content_warning: string | null;
   boosted_until?: string | null;
   created_at: string;
@@ -77,7 +120,8 @@ const POST_SELECT = `
   id, user_id, content, type, parent_post_id, reply_to_id, community_id,
   like_count, comment_count, repost_count, share_count, view_count,
   bookmark_count, poll_data, is_pinned, is_hidden, location, scheduled_at,
-  visibility, content_warning, boosted_until, created_at, updated_at,
+  visibility, who_can_comment, content_warning, boosted_until, created_at,
+  updated_at,
   profiles!posts_user_id_fkey (
     id, username, display_name, avatar_url, is_verified,
     follower_count, post_count
@@ -99,6 +143,7 @@ export async function createPost(
     pollData?: PollData;
     scheduledAt?: string;
     visibility?: "public" | "close_friends";
+    whoCanComment?: WhoCanComment;
     contentWarning?: string;
     location?: string;
     communityId?: string;
@@ -124,6 +169,7 @@ export async function createPost(
       parent_post_id: options?.parentPostId || null,
       poll_data: options?.pollData || null,
       visibility: options?.visibility || "public",
+      who_can_comment: options?.whoCanComment || "everyone",
       content_warning: options?.contentWarning || null,
       location: options?.location || null,
       community_id: options?.communityId || null,
@@ -570,6 +616,22 @@ export async function toggleBookmark(userId: string, postId: string, isBookmarke
       .insert({ user_id: userId, post_id: postId });
     if (error) throw error;
   }
+}
+
+/**
+ * Change who can reply to an already published post. RLS limits the update
+ * to the author, so no extra ownership check is needed here.
+ */
+export async function updateWhoCanComment(
+  postId: string,
+  whoCanComment: WhoCanComment
+) {
+  const { error } = await supabase
+    .from("posts")
+    .update({ who_can_comment: whoCanComment })
+    .eq("id", postId);
+
+  if (error) throw error;
 }
 
 export async function deletePost(postId: string) {

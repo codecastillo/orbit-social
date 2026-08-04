@@ -131,7 +131,9 @@ export async function getActiveStories(
   const followingIds = following?.map((f) => f.following_id) || [];
   followingIds.push(userId); // Include own stories
 
-  // Get active (non-expired) stories from followed users
+  // The expires_at filter is load-bearing, not belt-and-braces: the stories
+  // SELECT policy carves out the author, so without it the viewer's own
+  // expired moments would come back and reappear in the live strip.
   const { data: stories, error } = await supabase
     .from("stories")
     .select(
@@ -218,6 +220,33 @@ export async function getActiveStories(
   });
 
   return groups;
+}
+
+/**
+ * The viewer's own expired moments, newest first. The stories SELECT policy
+ * (`expires_at > NOW() OR auth.uid() = user_id`) keeps expired rows readable
+ * to their author only, so this is owner-scoped by policy; the explicit
+ * user_id filter keeps it honest.
+ */
+export async function getArchivedStories(
+  userId: string
+): Promise<StoryWithAuthor[]> {
+  const { data, error } = await supabase
+    .from("stories")
+    .select(
+      `id, user_id, media_url, media_type, thumbnail_url, duration_seconds,
+       interactive_data, text_overlay, visibility, view_count, expires_at,
+       created_at,
+       profiles!stories_user_id_fkey (id, username, display_name, avatar_url, is_verified)`
+    )
+    .eq("user_id", userId)
+    .lte("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  // Through unknown: the literal-type query parser infers the to-one
+  // profiles join as an array without generated DB types.
+  return (data ?? []) as unknown as StoryWithAuthor[];
 }
 
 export async function getStoryById(storyId: string) {

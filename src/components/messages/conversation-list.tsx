@@ -3,20 +3,40 @@
 import Link from "next/link";
 import { Users, Pin } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { Button } from "@/components/ui/button";
+import { ActivityDot } from "@/components/messages/activity-status";
+import { usePresenceMap } from "@/lib/hooks/use-presence";
 import { formatTimeAgo } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ConversationWithPreview } from "@/lib/queries/messages";
+import type { Presence } from "@/lib/queries/presence";
+
+interface RequestActions {
+  onAccept: (conversation: ConversationWithPreview) => void;
+  onDecline: (conversation: ConversationWithPreview) => void;
+  pendingId: string | null;
+}
 
 interface ConversationListProps {
   conversations: ConversationWithPreview[];
   isLoading?: boolean;
+  /** Present only on the Requests tab, where each row gets Accept/Decline. */
+  requestActions?: RequestActions;
 }
 
 export function ConversationList({
   conversations,
   isLoading,
+  requestActions,
 }: ConversationListProps) {
+  const presenceFor = usePresenceMap(
+    conversations
+      .filter((c) => !c.is_group && c.other_member)
+      .map((c) => c.other_member!.id)
+  );
+
+
   if (isLoading) {
     return (
       <div className="divide-y divide-border">
@@ -50,8 +70,14 @@ export function ConversationList({
             />
           </svg>
         </div>
-        <p className="text-lg font-medium">No conversations yet</p>
-        <p className="text-sm mt-1">Start a conversation with someone.</p>
+        <p className="text-lg font-medium">
+          {requestActions ? "No message requests" : "No conversations yet"}
+        </p>
+        <p className="text-sm mt-1">
+          {requestActions
+            ? "Messages from people you don't follow land here first."
+            : "Start a conversation with someone."}
+        </p>
       </div>
     );
   }
@@ -71,7 +97,11 @@ export function ConversationList({
           </div>
           <div className="divide-y divide-border">
             {pinned.map((c) => (
-              <ConversationRow key={c.id} conversation={c} />
+              <ConversationRow
+                key={c.id}
+                conversation={c}
+                presence={presenceFor(c.other_member?.id)}
+              />
             ))}
           </div>
           {others.length > 0 && (
@@ -85,14 +115,27 @@ export function ConversationList({
       )}
       <div className="divide-y divide-border">
         {others.map((c) => (
-          <ConversationRow key={c.id} conversation={c} />
+          <ConversationRow
+            key={c.id}
+            conversation={c}
+            presence={presenceFor(c.other_member?.id)}
+            requestActions={requestActions}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function ConversationRow({ conversation }: { conversation: ConversationWithPreview }) {
+function ConversationRow({
+  conversation,
+  presence,
+  requestActions,
+}: {
+  conversation: ConversationWithPreview;
+  presence: Presence | null;
+  requestActions?: RequestActions;
+}) {
   const isGroup = conversation.is_group;
   const displayName = isGroup
     ? conversation.name || "Group Chat"
@@ -127,7 +170,10 @@ function ConversationRow({ conversation }: { conversation: ConversationWithPrevi
           </div>
         )
       ) : (
-        <UserAvatar src={avatarUrl} fallback={displayName} size="lg" />
+        <span className="relative shrink-0">
+          <UserAvatar src={avatarUrl} fallback={displayName} size="lg" />
+          <ActivityDot presence={presence} />
+        </span>
       )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
@@ -166,10 +212,35 @@ function ConversationRow({ conversation }: { conversation: ConversationWithPrevi
           >
             {preview}
           </p>
-          {conversation.unread && (
+          {conversation.unread && !requestActions && (
             <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
           )}
         </div>
+        {requestActions && (
+          <div className="mt-2 flex gap-2">
+            <Button
+              size="sm"
+              disabled={requestActions.pendingId === conversation.id}
+              onClick={(e) => {
+                e.preventDefault();
+                requestActions.onAccept(conversation);
+              }}
+            >
+              Accept
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={requestActions.pendingId === conversation.id}
+              onClick={(e) => {
+                e.preventDefault();
+                requestActions.onDecline(conversation);
+              }}
+            >
+              Decline
+            </Button>
+          </div>
+        )}
       </div>
     </Link>
   );

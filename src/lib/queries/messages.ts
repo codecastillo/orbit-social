@@ -26,6 +26,8 @@ export interface ConversationWithPreview {
   last_read_at?: string | null;
   unread: boolean;
   is_pinned: boolean;
+  /** Derived, never stored. See isRequestConversation. */
+  is_request: boolean;
 }
 
 export interface Message {
@@ -47,6 +49,52 @@ export interface Message {
     display_name: string;
     avatar_url: string | null;
   } | null;
+}
+
+/**
+ * Which of these DM threads are message requests rather than conversations.
+ *
+ * Request-ness is derived on every read, never stored: a thread the other
+ * person opened is a request while the viewer does not follow them, has
+ * never sent a message in it, and has never marked it read. Any one of those
+ * flipping accepts the thread, which is why Accept is simply a read.
+ */
+async function getRequestConversationIds(
+  userId: string,
+  inboundDmIds: string[],
+  otherMemberByConv: Map<string, string>,
+  readConvIds: Set<string>
+): Promise<Set<string>> {
+  const candidates = inboundDmIds.filter(
+    (id) => !readConvIds.has(id) && otherMemberByConv.has(id)
+  );
+  if (candidates.length === 0) return new Set();
+
+  const counterpartIds = Array.from(
+    new Set(candidates.map((id) => otherMemberByConv.get(id)!))
+  );
+
+  const [sent, follows] = await Promise.all([
+    supabase
+      .from("messages")
+      .select("conversation_id")
+      .eq("sender_id", userId)
+      .in("conversation_id", candidates),
+    supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", userId)
+      .in("following_id", counterpartIds),
+  ]);
+
+  const repliedIn = new Set((sent.data ?? []).map((m) => m.conversation_id));
+  const following = new Set((follows.data ?? []).map((f) => f.following_id));
+
+  return new Set(
+    candidates.filter(
+      (id) => !repliedIn.has(id) && !following.has(otherMemberByConv.get(id)!)
+    )
+  );
 }
 
 export async function getConversations(
@@ -131,6 +179,16 @@ export async function getConversations(
     }
   }
 
+  // A thread the viewer started is theirs, never their own request.
+  const requestIds = await getRequestConversationIds(
+    userId,
+    visible.filter((c) => !c.is_group && c.created_by !== userId).map((c) => c.id),
+    otherMemberByConv,
+    new Set(
+      memberships.filter((m) => m.last_read_at).map((m) => m.conversation_id)
+    )
+  );
+
   return visible.map((conv) => {
     const { last_messages, ...rest } = conv;
     const membership = membershipByConv.get(conv.id);
@@ -150,6 +208,7 @@ export async function getConversations(
       last_read_at: membership?.last_read_at || null,
       unread,
       is_pinned: membership?.is_pinned ?? false,
+      is_request: requestIds.has(conv.id),
     };
   });
 }
@@ -373,6 +432,38 @@ export async function getDmSeenAt(
   if (restriction) return null;
 
   return other.last_read_at;
+}
+
+// ── Who can message you ─────────────────────────────────────────────
+
+export type WhoCanMessage = "everyone" | "following" | "nobody";
+
+/**
+ * Enforced server-side by the messages BEFORE INSERT trigger, and only for
+ * first contact: once the recipient has replied, the thread stays open no
+ * matter what this is later set to.
+ */
+export async function getWhoCanMessage(userId: string): Promise<WhoCanMessage> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("who_can_message")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error || !data) return "everyone";
+  return (data.who_can_message as WhoCanMessage) ?? "everyone";
+}
+
+export async function setWhoCanMessage(
+  userId: string,
+  value: WhoCanMessage
+): Promise<void> {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ who_can_message: value })
+    .eq("id", userId);
+
+  if (error) throw error;
 }
 
 /**

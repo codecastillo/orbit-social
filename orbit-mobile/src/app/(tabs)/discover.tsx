@@ -16,6 +16,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
+import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
 import { Avatar, Button, EmptyState } from "@/components/ui";
 import {
   checkFollowingMany,
@@ -384,6 +385,9 @@ function ClipResultTile({
   clip: SearchClip;
   onPress: () => void;
 }) {
+  const { user } = useAuth();
+  const hideLikeCounts = useHideLikeCounts();
+  const showLikeCount = !hideLikeCounts || clip.user_id === user?.id;
   const { width } = useWindowDimensions();
   const size = (width - CLIP_GRID_GAP * (CLIP_GRID_COLUMNS - 1)) / CLIP_GRID_COLUMNS;
   const media = [...clip.post_media].sort((a, b) => a.sort_order - b.sort_order)[0];
@@ -416,7 +420,9 @@ function ClipResultTile({
       )}
       <View style={styles.clipTileScrim}>
         <Ionicons name="play" size={11} color="#fff" />
-        <Text style={styles.clipTileLikes}>{formatNumber(clip.like_count)}</Text>
+        {showLikeCount ? (
+          <Text style={styles.clipTileLikes}>{formatNumber(clip.like_count)}</Text>
+        ) : null}
         {media?.duration_ms ? (
           <Text style={styles.clipTileDuration}>
             {formatClipDuration(media.duration_ms)}

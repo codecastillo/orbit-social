@@ -9,9 +9,26 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0b0b0d",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "net.orbitsocial.app",
+      "associatedDomains": [
+        "applinks:orbitsocial.net",
+        "applinks:www.orbitsocial.net"
+      ]
     },
     "android": {
+      "package": "net.orbitsocial.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "orbitsocial.net" },
+            { "scheme": "https", "host": "www.orbitsocial.net" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0b0b0d",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

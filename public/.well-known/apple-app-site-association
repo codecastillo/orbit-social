@@ -1,0 +1,21 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["APPLE_TEAM_ID_GOES_HERE.net.orbitsocial.app"],
+        "components": [
+          { "/": "/api/*", "exclude": true },
+          { "/": "/auth/*", "exclude": true },
+          { "/": "/admin/*", "exclude": true },
+          { "/": "/hashtag/*", "exclude": true },
+          { "/": "/location/*", "exclude": true },
+          { "/": "/unsubscribe*", "exclude": true },
+          { "/": "/terms", "exclude": true },
+          { "/": "/privacy", "exclude": true },
+          { "/": "/promises", "exclude": true },
+          { "/": "/*", "comment": "Every other Orbit path maps to an app route" }
+        ]
+      }
+    ]
+  }
+}

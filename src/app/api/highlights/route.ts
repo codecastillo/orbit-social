@@ -5,12 +5,13 @@
  *
  * Why this exists instead of direct client queries: story_highlight_items
  * has RLS enabled with only a SELECT policy, so item inserts are denied to
- * every client; and the stories SELECT policy (expires_at > NOW()) hides
- * expired rows from everyone including the owner. Highlights only outlive
- * the 24h story window because this route reads members with the service
- * role. Creation is validated against the same policies: only the caller's
- * own ACTIVE stories can be added, since expired ones are unreadable by
- * policy and unverifiable as a picker source.
+ * every client; and the stories SELECT policy
+ * (`expires_at > NOW() OR auth.uid() = user_id`) hides expired rows from
+ * everyone but their author, so a highlight would empty out for visitors
+ * after 24h. Highlights outlive the story window because this route reads
+ * members with the service role. Writes are validated on ownership alone:
+ * the author can read and pick from their own archive, so an expired
+ * moment is a legitimate picker source.
  */
 import { NextResponse } from "next/server";
 import { createBearerClient, createClient } from "@/lib/supabase/server";
@@ -181,16 +182,15 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // Every story must belong to the caller and still be active. The active
-  // check mirrors the stories SELECT policy: the picker can only offer
-  // active stories, so anything else here is a forged request.
-  const nowIso = new Date().toISOString();
+  // Every story must belong to the caller. Expiry is deliberately not
+  // checked: the archive lets the author pick moments past the 24h window,
+  // and the owner filter is the only thing keeping someone else's moment
+  // out of a highlight.
   const { data: stories, error: storiesError } = await admin
     .from("stories")
     .select("id, media_url, thumbnail_url")
     .in("id", storyIds)
-    .eq("user_id", viewerId)
-    .gt("expires_at", nowIso);
+    .eq("user_id", viewerId);
 
   if (storiesError) {
     console.error("highlight story check failed", storiesError);
@@ -201,7 +201,7 @@ export async function POST(request: Request) {
   }
   if (!stories || stories.length !== storyIds.length) {
     return NextResponse.json(
-      { error: "validation_failed", detail: "stories_not_owned_or_expired" },
+      { error: "validation_failed", detail: "stories_not_owned" },
       { status: 400, headers: noStore },
     );
   }
@@ -247,10 +247,10 @@ export async function POST(request: Request) {
 }
 
 /**
- * Append the caller's own active stories to one of their existing
- * highlights. Same validation as POST (ownership plus the active-story
- * check); items land after the current members in sort order. The mobile
- * moment camera's "Save to collection" flow is the first caller.
+ * Append the caller's own stories, active or archived, to one of their
+ * existing highlights. Same ownership validation as POST; items land after
+ * the current members in sort order. The mobile moment camera's "Save to
+ * collection" flow and the moment archive both call this.
  */
 export async function PATCH(request: Request) {
   const viewerId = await resolveViewer(request);
@@ -351,13 +351,12 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const nowIso = new Date().toISOString();
+  // Ownership only, same as POST: the archive is a legitimate source.
   const { data: stories, error: storiesError } = await admin
     .from("stories")
     .select("id")
     .in("id", newIds)
-    .eq("user_id", viewerId)
-    .gt("expires_at", nowIso);
+    .eq("user_id", viewerId);
 
   if (storiesError) {
     console.error("highlight story check failed", storiesError);
@@ -368,7 +367,7 @@ export async function PATCH(request: Request) {
   }
   if (!stories || stories.length !== newIds.length) {
     return NextResponse.json(
-      { error: "validation_failed", detail: "stories_not_owned_or_expired" },
+      { error: "validation_failed", detail: "stories_not_owned" },
       { status: 400, headers: noStore },
     );
   }

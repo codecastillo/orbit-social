@@ -133,6 +133,10 @@ export function StoryViewer({
     try {
       await deleteStory(currentStory.id);
       queryClient.invalidateQueries({ queryKey: ["stories"] });
+      // The archive and the highlight picker read the same rows, so a
+      // delete from inside the viewer has to clear them too.
+      queryClient.invalidateQueries({ queryKey: ["archived-stories"] });
+      queryClient.invalidateQueries({ queryKey: ["own-stories"] });
       toast.success("Moment deleted");
       // Close the viewer: the refetched groups can reindex under us.
       onClose();

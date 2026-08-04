@@ -14,6 +14,7 @@ import {
 } from "@/lib/queries/posts";
 import type { ReactionCount, ReactionType } from "@/lib/queries/reactions";
 import { useCommentFilter } from "@/lib/hooks/use-content-safety";
+import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
 import { colors, spacing } from "@/lib/theme";
 
@@ -32,6 +33,8 @@ function NestedReply({
   const [liked, setLiked] = useState(isLiked);
   const [likeCount, setLikeCount] = useState(reply.like_count);
   const [seedLiked, setSeedLiked] = useState(isLiked);
+  const hideLikeCounts = useHideLikeCounts();
+  const showLikeCount = !hideLikeCounts || reply.user_id === currentUserId;
 
   if (seedLiked !== isLiked) {
     setSeedLiked(isLiked);
@@ -76,7 +79,7 @@ function NestedReply({
           size={15}
           color={liked ? colors.primary : colors.mutedForeground}
         />
-        {likeCount > 0 ? (
+        {showLikeCount && likeCount > 0 ? (
           <Text style={styles.nestedLikeCount}>{formatNumber(likeCount)}</Text>
         ) : null}
       </Pressable>
@@ -102,6 +105,7 @@ export function CommentThread({
   expandSignal,
   onStartReply,
   canPin,
+  canComment,
 }: {
   comment: Post;
   currentUserId: string;
@@ -116,6 +120,9 @@ export function CommentThread({
   onStartReply: (comment: Post) => void;
   // Viewer owns the parent post; only they can pin a comment.
   canPin: boolean;
+  // Resolved once by the screen from the post's who_can_comment, so no row
+  // refetches the follow check on its own.
+  canComment: boolean;
 }) {
   const queryClient = useQueryClient();
   const [showReplies, setShowReplies] = useState(false);
@@ -189,16 +196,18 @@ export function CommentThread({
         reply
       />
       <View style={styles.threadActions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Reply to ${comment.profiles.username}`}
-          onPress={() => onStartReply(comment)}
-          hitSlop={8}
-          style={({ pressed }) => [styles.replyAction, pressed && { opacity: 0.7 }]}
-        >
-          <Ionicons name="arrow-undo-outline" size={13} color={colors.mutedForeground} />
-          <Text style={styles.replyActionLabel}>Reply</Text>
-        </Pressable>
+        {canComment ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Reply to ${comment.profiles.username}`}
+            onPress={() => onStartReply(comment)}
+            hitSlop={8}
+            style={({ pressed }) => [styles.replyAction, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="arrow-undo-outline" size={13} color={colors.mutedForeground} />
+            <Text style={styles.replyActionLabel}>Reply</Text>
+          </Pressable>
+        ) : null}
         {canPin ? (
           <Pressable
             accessibilityRole="button"

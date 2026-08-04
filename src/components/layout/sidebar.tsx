@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import {
   Bookmark,
+  Archive,
   CalendarClock,
   FileText,
   LogOut,
@@ -212,6 +213,12 @@ export function Sidebar({
                   <DropdownMenuItem className="cursor-pointer">
                     <CalendarClock className="mr-2 h-4 w-4" />
                     Scheduled
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/moments-archive">
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Archive className="mr-2 h-4 w-4" />
+                    Moments archive
                   </DropdownMenuItem>
                 </Link>
                 <DropdownMenuSeparator />

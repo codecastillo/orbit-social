@@ -3,9 +3,8 @@ import type { StoryWithAuthor } from "@/lib/queries/stories";
 
 // Same web origin the live chat and unfurl calls use. Highlights go through
 // the web API because story_highlight_items has no INSERT policy (client
-// writes are denied) and the stories SELECT policy hides expired rows from
-// everyone; the route reads members with the service role so highlights
-// outlive the 24h story window.
+// writes are denied), and the route reads members with the service role so
+// a highlight's moments stay visible to visitors past the 24h window.
 const HIGHLIGHTS_API_BASE = "https://orbitsocial.net";
 
 export interface HighlightWithStories {
@@ -57,9 +56,10 @@ export async function createHighlight(
 }
 
 /**
- * Append the caller's own active stories to an existing highlight of
- * theirs. The route enforces ownership of both sides and the active-story
- * check, and silently skips ids already in the highlight.
+ * Append the caller's own moments to an existing highlight of theirs. The
+ * route enforces ownership of both sides, and silently skips ids already in
+ * the highlight. It still rejects expired moments; that check is the web
+ * app's to relax now that the owner can read their own archive.
  */
 export async function addStoriesToHighlight(
   highlightId: string,
@@ -89,12 +89,12 @@ export async function deleteHighlight(highlightId: string): Promise<void> {
 }
 
 /**
- * The owner's active stories, oldest first, as the highlight picker's
- * source. The stories SELECT policy (expires_at > NOW()) has no owner
- * carve-out, so expired stories are unreadable and highlights can only be
- * assembled from active ones. Mirrors the web getOwnActiveStories.
+ * All of the owner's moments, newest first (same order as the archive), as
+ * the highlight picker's source. The stories SELECT policy carves out the
+ * author (`expires_at > NOW() OR auth.uid() = user_id`), so expired rows
+ * are readable here and a highlight can be assembled from the archive.
  */
-export async function getOwnActiveStories(
+export async function getOwnStories(
   userId: string,
 ): Promise<StoryWithAuthor[]> {
   const { data, error } = await supabase
@@ -106,8 +106,7 @@ export async function getOwnActiveStories(
        profiles!stories_user_id_fkey (id, username, display_name, avatar_url, is_verified)`,
     )
     .eq("user_id", userId)
-    .gt("expires_at", new Date().toISOString())
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false });
 
   if (error) throw error;
   // Through unknown: the literal-type query parser infers the to-one

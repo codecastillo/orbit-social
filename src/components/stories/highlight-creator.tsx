@@ -14,18 +14,15 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  createHighlight,
-  getOwnActiveStories,
-} from "@/lib/queries/highlights";
+import { createHighlight, getOwnStories } from "@/lib/queries/highlights";
 
 const MAX_TITLE_LENGTH = 40;
 const MAX_STORIES_PER_HIGHLIGHT = 20;
 
 /**
- * Owner-only dialog that assembles a highlight from ACTIVE moments. The
- * stories SELECT policy hides expired rows even from their author, so there
- * is no archive to pick from; the first picked moment becomes the cover.
+ * Owner-only dialog that assembles a highlight from any of the author's
+ * moments, active or archived, since the stories SELECT policy carves out
+ * the author. The first picked moment becomes the cover.
  */
 export function HighlightCreator({
   open,
@@ -42,9 +39,9 @@ export function HighlightCreator({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const { data: stories = [], isLoading } = useQuery({
-    queryKey: ["own-active-stories", userId],
-    queryFn: () => getOwnActiveStories(userId),
+  const { data: stories = [], isLoading, dataUpdatedAt } = useQuery({
+    queryKey: ["own-stories", userId],
+    queryFn: () => getOwnStories(userId),
     enabled: open,
   });
 
@@ -92,8 +89,8 @@ export function HighlightCreator({
         <DialogHeader>
           <DialogTitle>New highlight</DialogTitle>
           <DialogDescription>
-            Pick active moments to keep on your profile. The first one becomes
-            the cover.
+            Pick moments to keep on your profile. The first one becomes the
+            cover.
           </DialogDescription>
         </DialogHeader>
 
@@ -112,8 +109,7 @@ export function HighlightCreator({
             </div>
           ) : stories.length === 0 ? (
             <p className="py-6 text-center text-[13px] text-muted-foreground">
-              No active moments to pick from. Post a moment first; expired
-              moments can&apos;t be added.
+              No moments yet. Post a moment first.
             </p>
           ) : (
             <div className="grid max-h-[300px] grid-cols-3 gap-1.5 overflow-y-auto">
@@ -121,6 +117,10 @@ export function HighlightCreator({
                 const order = selectedIds.indexOf(story.id);
                 const selected = order >= 0;
                 const thumb = story.thumbnail_url ?? story.media_url;
+                // Compared against the fetch timestamp rather than a fresh
+                // Date.now() so the grid stays pure across re-renders.
+                const expired =
+                  new Date(story.expires_at).getTime() <= dataUpdatedAt;
                 return (
                   <button
                     key={story.id}
@@ -157,6 +157,11 @@ export function HighlightCreator({
                     {selected && (
                       <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
                         {order + 1}
+                      </span>
+                    )}
+                    {expired && (
+                      <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/65 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.08em] text-white/70">
+                        Expired
                       </span>
                     )}
                   </button>

@@ -29,6 +29,7 @@ import {
   Users,
   ShieldBan,
   VolumeX,
+  MessageCircleOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -40,9 +41,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { formatTimeAgo, formatNumber } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useHideLikeCounts } from "@/lib/hooks/use-profile";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import {
   toggleLike,
@@ -54,8 +63,10 @@ import {
   votePoll,
   pinPost,
   unpinPost,
+  updateWhoCanComment,
   type PostWithAuthor,
   type PollData,
+  type WhoCanComment,
 } from "@/lib/queries/posts";
 import { pinCommunityPost } from "@/lib/queries/communities";
 import {
@@ -88,6 +99,78 @@ import {
 } from "@/components/shared/link-preview-card";
 import { isAudioMediaItem } from "@/lib/utils/audio";
 import { VerifiedStar } from "@/components/orbit/verified-star";
+
+export const WHO_CAN_COMMENT_LABELS: Record<WhoCanComment, string> = {
+  everyone: "Everyone",
+  following: "People you follow",
+  nobody: "No one",
+};
+
+/** Owner-only chooser for posts.who_can_comment after publishing. */
+function CommentControlsDialog({
+  post,
+  open,
+  onOpenChange,
+  onChanged,
+}: {
+  post: PostWithAuthor;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onChanged: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  const handlePick = async (value: WhoCanComment) => {
+    if (saving || value === post.who_can_comment) {
+      onOpenChange(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateWhoCanComment(post.id, value);
+      toast.success("Comment controls updated");
+      onOpenChange(false);
+      onChanged();
+    } catch {
+      toast.error("Couldn't update comment controls");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[360px]">
+        <DialogHeader>
+          <DialogTitle>Who can comment</DialogTitle>
+          <DialogDescription>
+            Existing replies stay up. This only changes who can add new ones.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col">
+          {(Object.keys(WHO_CAN_COMMENT_LABELS) as WhoCanComment[]).map(
+            (value) => (
+              <button
+                key={value}
+                onClick={() => handlePick(value)}
+                disabled={saving}
+                aria-pressed={post.who_can_comment === value}
+                className={cn(
+                  "cursor-pointer rounded-lg px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent disabled:opacity-60",
+                  post.who_can_comment === value
+                    ? "text-primary"
+                    : "text-foreground"
+                )}
+              >
+                {WHO_CAN_COMMENT_LABELS[value]}
+              </button>
+            )
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 interface PostCardProps {
   post: PostWithAuthor;
@@ -170,6 +253,7 @@ export const PostCard = memo(function PostCard({
   const [blockMuteOpen, setBlockMuteOpen] = useState(false);
   const [blockMuteAction, setBlockMuteAction] = useState<"block" | "mute">("block");
   const [reportOpen, setReportOpen] = useState(false);
+  const [commentControlsOpen, setCommentControlsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content || "");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
@@ -241,6 +325,7 @@ export const PostCard = memo(function PostCard({
   }, [user, post.id, post.poll_data, post.type]);
 
   const isOwnPost = user?.id === post.user_id;
+  const hideLikeCounts = useHideLikeCounts();
   // For a repost row, "own post" for repost-target purposes is the ORIGINAL
   // post's owner, otherwise the viewer would be told they can't un-repost
   // their own repost (the row's user_id is theirs but the target isn't).
@@ -261,6 +346,9 @@ export const PostCard = memo(function PostCard({
 
   // For reposts, display the original post content
   const displayPost = isRepostType && originalPost ? originalPost : post;
+  // The viewer's hide-like-counts setting suppresses other people's counts
+  // only; their own posts keep theirs, which is the point of the setting.
+  const countsHidden = hideLikeCounts && displayPost.user_id !== user?.id;
 
   // Viewers who set sensitive_content_level "more" skip the spoiler tap.
   // getRankingSignals is module-cached, so cards share one fetch.
@@ -718,6 +806,9 @@ export const PostCard = memo(function PostCard({
                           )}
                         </>
                       )}
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setCommentControlsOpen(true); }}>
+                        <MessageCircleOff className="mr-2 h-4 w-4" /> Comment controls
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" /> Delete
                       </DropdownMenuItem>
@@ -950,6 +1041,12 @@ export const PostCard = memo(function PostCard({
 
           </div>{/* End of clickable content area */}
 
+          {displayPost.who_can_comment !== "everyone" && (
+            <p className="mt-2.5 text-[12px] text-muted-foreground">
+              Comments are limited
+            </p>
+          )}
+
           {/* Actions, order: heart, chat, retweet, bookmark, [views] */}
           <div
             className="mt-3 flex items-center gap-1 text-[12.5px] text-text-secondary"
@@ -975,7 +1072,9 @@ export const PostCard = memo(function PostCard({
                     <Heart className={cn("h-[15px] w-[15px]", isLiked && "fill-current")} />
                   )}
                 </motion.span>
-                {likeCount > 0 && <span>{formatNumber(likeCount)}</span>}
+                {likeCount > 0 && !countsHidden && (
+                  <span>{formatNumber(likeCount)}</span>
+                )}
               </button>
             </div>
 
@@ -1073,6 +1172,14 @@ export const PostCard = memo(function PostCard({
           entityType="post"
           entityId={post.id}
           reportedUserId={post.user_id}
+        />
+      )}
+      {isOwnPost && (
+        <CommentControlsDialog
+          post={post}
+          open={commentControlsOpen}
+          onOpenChange={setCommentControlsOpen}
+          onChanged={() => onUpdate?.()}
         />
       )}
     </article>

@@ -5,6 +5,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -27,6 +28,8 @@ import {
   REMINDER_OPTIONS,
   useTimeOnOrbitStats,
 } from "@/lib/hooks/use-time-on-orbit";
+import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
+import { setHideLikeCounts, type Profile } from "@/lib/queries/profiles";
 import { useAuth } from "@/providers/auth-provider";
 import { colors, radii, spacing } from "@/lib/theme";
 
@@ -178,6 +181,29 @@ export default function ContentSettingsScreen() {
     },
   });
 
+  const viewerProfileKey = ["own-profile", user?.id];
+  const hideLikeCounts = useHideLikeCounts();
+
+  const hideLikeCountsMutation = useMutation({
+    mutationFn: (hidden: boolean) => setHideLikeCounts(user!.id, hidden),
+    onMutate: async (hidden) => {
+      await queryClient.cancelQueries({ queryKey: viewerProfileKey });
+      const previous = queryClient.getQueryData<Profile>(viewerProfileKey);
+      queryClient.setQueryData<Profile>(viewerProfileKey, (profile) =>
+        profile ? { ...profile, hide_like_counts: hidden } : profile,
+      );
+      return { previous };
+    },
+    onError: (_error, _hidden, context) => {
+      queryClient.setQueryData(viewerProfileKey, context?.previous);
+      Alert.alert("Couldn't update like counts");
+    },
+    onSuccess: () => {
+      // The profile screens cache the same row under their own key.
+      queryClient.invalidateQueries({ queryKey: ["profile", user!.id] });
+    },
+  });
+
   const prefsKey = ["content-preferences", user?.id];
   const prefsQuery = useQuery({
     queryKey: prefsKey,
@@ -263,6 +289,24 @@ export default function ContentSettingsScreen() {
           onPress={() => levelMutation.mutate(option.value)}
         />
       ))}
+
+      <Text style={styles.sectionTitle}>Like counts</Text>
+      <View style={styles.toggleRow}>
+        <View style={styles.toggleBody}>
+          <Text style={styles.toggleLabel}>Hide like counts</Text>
+          <Text style={styles.toggleHint}>
+            Like counts on other people&apos;s posts stay hidden. Your own
+            posts still show theirs.
+          </Text>
+        </View>
+        <Switch
+          accessibilityLabel="Hide like counts"
+          value={hideLikeCounts}
+          onValueChange={(hidden) => hideLikeCountsMutation.mutate(hidden)}
+          trackColor={{ false: colors.border, true: colors.primary }}
+          thumbColor={colors.foreground}
+        />
+      </View>
 
       <Text style={styles.sectionTitle}>Topic preferences</Text>
       <Text style={styles.sectionHint}>
@@ -392,6 +436,30 @@ const styles = StyleSheet.create({
     marginTop: 1,
     color: colors.mutedForeground,
     fontSize: 12,
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(3),
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(3),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  toggleBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  toggleLabel: {
+    color: colors.foreground,
+    fontSize: 14.5,
+    fontWeight: "600",
+  },
+  toggleHint: {
+    marginTop: 1,
+    color: colors.mutedForeground,
+    fontSize: 12,
+    lineHeight: 16,
   },
   topicRow: {
     flexDirection: "row",

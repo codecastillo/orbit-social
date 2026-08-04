@@ -23,7 +23,7 @@ import { PostListSkeleton } from "@/components/post-skeleton";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import { useAuth } from "@/providers/auth-provider";
 import { useCommentFilter } from "@/lib/hooks/use-content-safety";
-import { getOwnProfile } from "@/lib/queries/profiles";
+import { checkFollowing, getOwnProfile } from "@/lib/queries/profiles";
 import {
   checkUserInteractions,
   createPost,
@@ -31,6 +31,7 @@ import {
   getPost,
   getPostsByIds,
   getReplies,
+  isCommentsClosedError,
   type Post,
 } from "@/lib/queries/posts";
 import { getPostsReactionCounts } from "@/lib/queries/reactions";
@@ -194,6 +195,25 @@ export default function PostDetailScreen() {
     },
   });
 
+  // Client-side gate only; the who_can_comment trigger is the real
+  // enforcement. "following" means the AUTHOR follows the VIEWER.
+  const post = postQuery.data;
+  const gateOnFollow =
+    !!post && post.who_can_comment === "following" && post.user_id !== userId;
+  const { data: authorFollowsViewer } = useQuery({
+    // Its own key: the ["follow-state", ...] entries hold the profile
+    // screen's follow/requested/none string, not a boolean.
+    queryKey: ["author-follows-viewer", post?.user_id, userId],
+    queryFn: () => checkFollowing(post!.user_id, userId),
+    enabled: gateOnFollow && !!userId,
+  });
+
+  const canComment =
+    !post ||
+    post.user_id === userId ||
+    post.who_can_comment === "everyone" ||
+    (post.who_can_comment === "following" && (authorFollowsViewer ?? false));
+
   const trimmedReply = replyText.trim();
   const canSend = trimmedReply.length > 0 && !replyMutation.isPending;
 
@@ -222,7 +242,7 @@ export default function PostDetailScreen() {
   }
 
   // Missing and not-visible-to-you (close friends) look the same: no row.
-  if (!postQuery.data) {
+  if (!post) {
     return (
       <Centered>
         <Stack.Screen options={{ title: "Post" }} />
@@ -234,7 +254,6 @@ export default function PostDetailScreen() {
     );
   }
 
-  const post = postQuery.data;
   const postDisplayId = displayPostId(post);
 
   // No explicit pick yet: fall back to the length-based default, which
@@ -290,6 +309,7 @@ export default function PostDetailScreen() {
               replyInputRef.current?.focus();
             }}
             canPin={post.user_id === userId}
+            canComment={canComment}
           />
         )}
         initialNumToRender={8}
@@ -320,7 +340,16 @@ export default function PostDetailScreen() {
           ) : null
         }
       />
-      {replyTarget ? (
+      {!canComment ? (
+        <View style={styles.replyClosed}>
+          <Text style={styles.replyClosedText}>
+            {post.who_can_comment === "nobody"
+              ? "Replies are turned off for this post"
+              : "Only people the author follows can reply"}
+          </Text>
+        </View>
+      ) : null}
+      {canComment && replyTarget ? (
         <View style={styles.replyContext}>
           <Text style={styles.replyContextText} numberOfLines={1}>
             Replying to @{replyTarget.profiles.username}
@@ -336,56 +365,60 @@ export default function PostDetailScreen() {
           </Pressable>
         </View>
       ) : null}
-      <View style={styles.replyBar}>
-        <Avatar
-          url={ownProfile?.avatar_url}
-          name={ownProfile?.display_name || ownProfile?.username || "You"}
-          size={32}
-        />
-        <MentionInput
-          ref={replyInputRef}
-          value={replyText}
-          onChangeText={setReplyText}
-          placeholder={`Reply to @${(replyTarget ?? post).profiles.username}`}
-          placeholderTextColor={colors.textFaint}
-          containerStyle={styles.replyInputWrap}
-          style={styles.replyInput}
-          panelPlacement="above"
-          multiline
-          maxLength={REPLY_MAX_LENGTH}
-        />
-        <MentionButton
-          onPress={() => replyInputRef.current?.insertMentionTrigger()}
-          disabled={replyMutation.isPending}
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Send reply"
-          disabled={!canSend}
-          onPress={() =>
-            replyMutation.mutate({
-              content: trimmedReply,
-              replyToId: replyTarget?.id ?? id,
-            })
-          }
-          style={({ pressed }) => [
-            styles.sendButton,
-            pressed && { opacity: 0.85 },
-            !canSend && { opacity: 0.4 },
-          ]}
-        >
-          {replyMutation.isPending ? (
-            <ActivityIndicator size="small" color={colors.primaryForeground} />
-          ) : (
-            <Text style={styles.sendLabel}>Send</Text>
-          )}
-        </Pressable>
-      </View>
+      {canComment ? (
+        <View style={styles.replyBar}>
+          <Avatar
+            url={ownProfile?.avatar_url}
+            name={ownProfile?.display_name || ownProfile?.username || "You"}
+            size={32}
+          />
+          <MentionInput
+            ref={replyInputRef}
+            value={replyText}
+            onChangeText={setReplyText}
+            placeholder={`Reply to @${(replyTarget ?? post).profiles.username}`}
+            placeholderTextColor={colors.textFaint}
+            containerStyle={styles.replyInputWrap}
+            style={styles.replyInput}
+            panelPlacement="above"
+            multiline
+            maxLength={REPLY_MAX_LENGTH}
+          />
+          <MentionButton
+            onPress={() => replyInputRef.current?.insertMentionTrigger()}
+            disabled={replyMutation.isPending}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Send reply"
+            disabled={!canSend}
+            onPress={() =>
+              replyMutation.mutate({
+                content: trimmedReply,
+                replyToId: replyTarget?.id ?? id,
+              })
+            }
+            style={({ pressed }) => [
+              styles.sendButton,
+              pressed && { opacity: 0.85 },
+              !canSend && { opacity: 0.4 },
+            ]}
+          >
+            {replyMutation.isPending ? (
+              <ActivityIndicator size="small" color={colors.primaryForeground} />
+            ) : (
+              <Text style={styles.sendLabel}>Send</Text>
+            )}
+          </Pressable>
+        </View>
+      ) : null}
       {replyMutation.error ? (
         <Text style={styles.replyError}>
-          {replyMutation.error instanceof Error
-            ? replyMutation.error.message
-            : "Reply failed to send."}
+          {isCommentsClosedError(replyMutation.error)
+            ? "Comments are limited on this post"
+            : replyMutation.error instanceof Error
+              ? replyMutation.error.message
+              : "Reply failed to send."}
         </Text>
       ) : null}
     </KeyboardAvoidingView>
@@ -510,6 +543,18 @@ const styles = StyleSheet.create({
     color: colors.primaryForeground,
     fontSize: 13,
     fontWeight: "700",
+  },
+  replyClosed: {
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(3.5),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  replyClosedText: {
+    color: colors.mutedForeground,
+    fontSize: 13,
+    textAlign: "center",
   },
   replyError: {
     color: colors.destructive,
