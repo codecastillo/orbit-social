@@ -15,6 +15,7 @@ import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { checkFollowing, followUser, unfollowUser } from "@/lib/queries/social";
 import { flushClipLoops } from "@/lib/queries/clips";
 import { createClient } from "@/lib/supabase/client";
+import { recordAction, recordImpression } from "@/lib/services/impressions";
 import { useUIStore } from "@/lib/stores/ui-store";
 import type { PostWithAuthor } from "@/lib/queries/posts";
 
@@ -28,6 +29,9 @@ interface ClipPlayerProps {
 // Flush accumulated loops to the server every N completed loops; the
 // remainder goes out on unmount. Matches the RPC's per-call clamp intent.
 const LOOP_FLUSH_BATCH = 5;
+
+// Past this much of the clip the viewer effectively saw the whole thing.
+const COMPLETION_RATIO = 0.9;
 
 // Once per clip per browser session, same pattern as post-detail: strict-mode
 // double effects and back-and-forth scrolling must not count a viewer twice.
@@ -60,6 +64,13 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
   const lastTimeRef = useRef(0);
   const pendingLoopsRef = useRef(0);
 
+  // Impression signals for the clips surface, kept in refs so accumulating
+  // them never re-renders the player. Flushed with the loop remainder.
+  const watchMsRef = useRef(0);
+  const completionsRef = useRef(0);
+  const passedCompletionRef = useRef(false);
+  const visibleSinceRef = useRef<number | null>(null);
+
   const flushLoops = useCallback(() => {
     const loops = pendingLoopsRef.current;
     if (loops === 0) return;
@@ -68,6 +79,26 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
   }, [clip.id]);
 
   const videoUrl = clip.post_media?.[0]?.url;
+  const mediaMs = clip.post_media?.[0]?.duration_ms ?? null;
+
+  const flushImpression = useCallback(() => {
+    const watchMs = Math.round(watchMsRef.current);
+    const visibleSince = visibleSinceRef.current;
+    const dwellMs = visibleSince === null ? 0 : Date.now() - visibleSince;
+    visibleSinceRef.current = null;
+    if (watchMs === 0 && dwellMs === 0) return;
+    recordImpression({
+      postId: clip.id,
+      surface: "clips",
+      dwellMs,
+      watchMs,
+      mediaMs,
+      completions: completionsRef.current,
+    });
+    watchMsRef.current = 0;
+    completionsRef.current = 0;
+  }, [clip.id, mediaMs]);
+
   const author = clip.profiles;
   const isSelf = user?.id === author.id;
 
@@ -92,6 +123,7 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
         if (entry.isIntersecting) {
           video.play().catch(() => {});
           setIsPlaying(true);
+          visibleSinceRef.current ??= Date.now();
           // Fire-and-forget view count the first time this clip starts
           // playing, mirroring post-detail.
           if (!viewedClipIds.has(clip.id)) {
@@ -105,6 +137,7 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
         } else {
           video.pause();
           setIsPlaying(false);
+          flushImpression();
         }
       },
       { threshold: 0.6 }
@@ -115,6 +148,18 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
     const onTime = () => {
       if (video.duration > 0) setProgress(video.currentTime / video.duration);
       const t = video.currentTime;
+      // Only forward progress inside one tick is watch time; a seek or the
+      // loop wrap jumps further than that.
+      const advanced = t - lastTimeRef.current;
+      if (advanced > 0 && advanced < 1) watchMsRef.current += advanced * 1000;
+      if (
+        video.duration > 0 &&
+        !passedCompletionRef.current &&
+        t >= video.duration * COMPLETION_RATIO
+      ) {
+        passedCompletionRef.current = true;
+        completionsRef.current += 1;
+      }
       // Wrap-around = previous tick was near the end, now we're back at
       // the start. The near-end guard keeps a backwards scrub from the
       // middle of the clip from counting as a loop.
@@ -124,6 +169,8 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
         lastTimeRef.current > Math.max(video.duration - 1.5, t)
       ) {
         pendingLoopsRef.current += 1;
+        passedCompletionRef.current = false;
+        recordAction(clip.id, "rewatch", "clips");
         if (pendingLoopsRef.current >= LOOP_FLUSH_BATCH) flushLoops();
       }
       lastTimeRef.current = t;
@@ -135,8 +182,9 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
       video.removeEventListener("timeupdate", onTime);
       // Send the sub-batch remainder when the clip scrolls away/unmounts.
       flushLoops();
+      flushImpression();
     };
-  }, [flushLoops, clip.id]);
+  }, [flushLoops, flushImpression, clip.id]);
 
   // Realtime: react to count changes (like/comment/share) on this clip
   // and to new replies under this clip without requiring a refresh.
@@ -433,7 +481,10 @@ export function ClipPlayer({ clip, onNavigate, isBestLoop }: ClipPlayerProps) {
           <div
             onClick={(e) => {
               e.stopPropagation();
-              if (caption.length > 110) setShowCaption(!showCaption);
+              if (caption.length > 110) {
+                if (!showCaption) recordAction(clip.id, "expand", "clips");
+                setShowCaption(!showCaption);
+              }
             }}
             className={caption.length > 110 ? "cursor-pointer" : "cursor-default"}
           >

@@ -141,6 +141,7 @@ export function FeedList({ tab }: FeedListProps) {
             isReposted={post.user_has_reposted}
             onUpdate={handlePostUpdate}
             allUserPosts={allPosts}
+            surface={tab}
           />
           {index < allPosts.length - 1 && (
             <div className="mx-5 h-px bg-gradient-to-r from-transparent via-border to-transparent" />

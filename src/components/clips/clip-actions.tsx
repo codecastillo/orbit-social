@@ -245,6 +245,7 @@ export function ClipActions({
         path={`/clips/${postId}`}
         open={shareOpen}
         onOpenChange={setShareOpen}
+        surface="clips"
       />
     </div>
   );

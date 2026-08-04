@@ -90,6 +90,7 @@ export function HashtagContent({ tag }: { tag: string }) {
               post={post}
               isLiked={interactions.likedPostIds.has(post.id)}
               isBookmarked={interactions.bookmarkedPostIds.has(post.id)}
+              surface="hashtag"
             />
           ))}
         </div>

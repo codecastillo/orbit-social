@@ -25,6 +25,7 @@ import {
   type ConversationWithPreview,
 } from "@/lib/queries/messages";
 import { useAuth } from "@/providers/auth-provider";
+import { recordAction, type ImpressionSurface } from "@/lib/impressions";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const BACKDROP = "rgba(0, 0, 0, 0.55)";
@@ -57,10 +58,14 @@ export function ShareSheet({
   visible,
   onClose,
   url,
+  postId,
+  surface,
 }: {
   visible: boolean;
   onClose: () => void;
   url: string;
+  postId: string;
+  surface: ImpressionSurface;
 }) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
@@ -134,11 +139,15 @@ export function ShareSheet({
 
   const handleCopy = async () => {
     await Clipboard.setStringAsync(url);
+    // Copying the link and handing it to the OS sheet both send the post out
+    // of Orbit; only the conversation picker below is a share_dm.
+    recordAction(postId, "share_external", surface);
     setCopied(true);
     setTimeout(() => setCopied(false), COPIED_RESET_MS);
   };
 
   const handleNativeShare = () => {
+    recordAction(postId, "share_external", surface);
     Share.share(Platform.OS === "ios" ? { url } : { message: url }).catch(() => {});
     handleClose();
   };
@@ -151,7 +160,18 @@ export function ShareSheet({
       // The note leads and the link follows on its own line, so the receiver
       // gets context plus a tappable link in one message (same as the web).
       const trimmed = note.trim();
-      await sendMessage(conv.id, user.id, trimmed ? `${trimmed}\n${url}` : url);
+      // shared_post_id rides along with the link text so the share is a
+      // structured reference rather than a URL to parse out of the body.
+      await sendMessage(
+        conv.id,
+        user.id,
+        trimmed ? `${trimmed}\n${url}` : url,
+        undefined,
+        undefined,
+        undefined,
+        postId,
+      );
+      recordAction(postId, "share_dm", surface);
       setSentId(conv.id);
       queryClient.invalidateQueries({ queryKey: ["conversations", user.id] });
       queryClient.invalidateQueries({ queryKey: ["messages", conv.id] });

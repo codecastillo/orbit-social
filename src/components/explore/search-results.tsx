@@ -119,7 +119,7 @@ export function SearchResults({ query, onOpenProfile }: SearchResultsProps) {
         ) : (
           <div>
             {posts.map((post) => (
-              <PostCard key={post.id} post={post} />
+              <PostCard key={post.id} post={post} surface="search" />
             ))}
           </div>
         )}

@@ -38,6 +38,8 @@ export interface Message {
   media_url: string | null;
   media_type: string | null;
   reply_to_id: string | null;
+  /** Post this message shares, set by the share sheet. */
+  shared_post_id?: string | null;
   is_deleted: boolean;
   is_pinned: boolean;
   created_at: string;
@@ -282,7 +284,9 @@ export async function sendMessage(
   content: string,
   mediaUrl?: string,
   mediaType?: "image" | "video" | "gif",
-  replyToId?: string
+  replyToId?: string,
+  /** Set when the message is a post shared from the share sheet. */
+  sharedPostId?: string
 ) {
   // Determine media type - audio files are stored as 'video' type
   // since the enum only supports image/video/gif
@@ -311,6 +315,7 @@ export async function sendMessage(
       media_url: mediaUrl || null,
       media_type: resolvedMediaType,
       reply_to_id: replyToId || null,
+      shared_post_id: sharedPostId || null,
     })
     .select(
       `

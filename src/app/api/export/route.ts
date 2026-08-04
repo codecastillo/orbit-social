@@ -38,6 +38,8 @@ export async function POST() {
     likes,
     muted,
     blocked,
+    impressions,
+    actions,
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).single(),
     supabase
@@ -78,10 +80,33 @@ export async function POST() {
       .from("blocks")
       .select("created_at, profiles!blocks_blocked_id_fkey (username)")
       .eq("blocker_id", user.id),
+    supabase
+      .from("post_impressions")
+      .select(
+        `post_id, shown_date, surface, first_shown_at, last_shown_at,
+         views, dwell_ms, watch_ms, media_ms, completions`,
+      )
+      .eq("viewer_id", user.id)
+      .order("shown_date", { ascending: false }),
+    supabase
+      .from("post_actions")
+      .select("post_id, action, surface, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false }),
   ]);
 
-  const failed = [profile, posts, following, followers, bookmarks, likes, muted, blocked]
-    .find((result) => result.error);
+  const failed = [
+    profile,
+    posts,
+    following,
+    followers,
+    bookmarks,
+    likes,
+    muted,
+    blocked,
+    impressions,
+    actions,
+  ].find((result) => result.error);
   if (failed) {
     console.error("[export] archive query failed:", failed.error);
     return NextResponse.json({ error: "Could not build export" }, { status: 500 });
@@ -120,6 +145,10 @@ export async function POST() {
       username: usernameOf(row),
       blocked_at: row.created_at,
     })),
+    // Reaches back 90 days: older partitions are dropped by the retention
+    // job, leaving only per-post totals that name no viewer.
+    post_impressions: impressions.data ?? [],
+    post_actions: actions.data ?? [],
   };
 
   const date = new Date().toISOString().slice(0, 10);

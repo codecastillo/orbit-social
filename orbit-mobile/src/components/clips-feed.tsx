@@ -37,6 +37,7 @@ import {
 import { createRepost, toggleBookmark, undoRepost } from "@/lib/queries/posts";
 import { buildMutedWordMatcher } from "@/lib/queries/content-safety";
 import { registerAccountScopedReset } from "@/lib/account-state";
+import { recordAction, recordImpression } from "@/lib/impressions";
 import { useMutedIds, useMutedWords } from "@/lib/hooks/use-content-safety";
 import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
 import { formatNumber } from "@/lib/format";
@@ -57,6 +58,13 @@ const ACTION_ERROR_TTL_MS = 2500;
 // Loop completions batch locally and flush at this size (or when the clip
 // deactivates), keeping the RPC off the hot path of every wrap.
 const LOOP_FLUSH_THRESHOLD = 5;
+
+// Watching this much of a clip counts as having finished it; the tail is
+// usually credits or a fade, and nobody sits through the last frame.
+const COMPLETION_FRACTION = 0.9;
+// timeUpdate fires every 0.25s, so a jump larger than this is a wrap or a
+// scrub, not elapsed playback, and must not inflate watch time.
+const MAX_WATCH_STEP_S = 1.5;
 
 // Horizontal pan claims the touch only after this much dominant dx, so the
 // vertical pager keeps every ordinary swipe between clips.
@@ -145,6 +153,12 @@ function ClipItem({
   const actionErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingLoopsRef = useRef(0);
   const lastTimeRef = useRef(0);
+  // Ranking signals for this clip, accumulated locally and handed to the
+  // impression queue when the clip deactivates or unmounts.
+  const watchSecondsRef = useRef(0);
+  const completionsRef = useRef(0);
+  const completedThisPassRef = useRef(false);
+  const durationMsRef = useRef(0);
   // Gesture pause is user intent, separate from the pager's active/inactive
   // play control. The ref mirrors the state for the stable gesture callbacks.
   const [userPaused, setUserPaused] = useState(false);
@@ -205,34 +219,74 @@ function ClipItem({
     });
   }, [clip.id]);
 
+  // Watch time and completions accumulate per clip and reach the impression
+  // queue in one entry, so a long session is one row rather than a tick each.
+  const flushClipSignals = useCallback(() => {
+    const watchMs = watchSecondsRef.current * 1000;
+    const completions = completionsRef.current;
+    if (watchMs === 0 && completions === 0) return;
+    watchSecondsRef.current = 0;
+    completionsRef.current = 0;
+    // views 0: the exposure was already counted when the clip went active.
+    recordImpression(clip.id, "clips", {
+      views: 0,
+      watchMs,
+      mediaMs: durationMsRef.current,
+      completions,
+    });
+  }, [clip.id]);
+
   useEffect(() => {
     if (!timeUpdate) return;
     const t = timeUpdate.currentTime;
+    durationMsRef.current = duration > 0 ? duration * 1000 : 0;
     // loop=true wraps currentTime back toward zero; a backwards jump is one
     // completed loop (there is no seek UI to confuse it). Half the duration
     // keeps sub-second loops detectable.
     const wrapThreshold = duration > 0 ? Math.min(1, duration / 2) : 1;
+    const step = t - lastTimeRef.current;
+    if (step > 0 && step <= MAX_WATCH_STEP_S) {
+      watchSecondsRef.current += step;
+    }
     if (lastTimeRef.current - t > wrapThreshold) {
       // Loops no longer headline the overlay (views do), but the count still
       // feeds Best Loops curation and ranking, so it keeps accruing.
       pendingLoopsRef.current += 1;
       if (pendingLoopsRef.current >= LOOP_FLUSH_THRESHOLD) flushLoops();
+      // Watching a clip round again is a deliberate signal, unlike the loop
+      // counter it rides on, which is a property of the clip.
+      recordAction(clip.id, "rewatch", "clips");
+      completedThisPassRef.current = false;
+    } else if (
+      !completedThisPassRef.current &&
+      duration > 0 &&
+      t >= duration * COMPLETION_FRACTION
+    ) {
+      completedThisPassRef.current = true;
+      completionsRef.current += 1;
     }
     lastTimeRef.current = t;
-  }, [timeUpdate, duration, flushLoops]);
+  }, [timeUpdate, duration, flushLoops, clip.id]);
 
   // Flush the remainder when the clip stops being the active one and again on
   // unmount, so short sessions still land their loops.
   useEffect(() => {
-    if (!isActive) flushLoops();
-    return flushLoops;
-  }, [isActive, flushLoops]);
+    if (!isActive) {
+      flushLoops();
+      flushClipSignals();
+    }
+    return () => {
+      flushLoops();
+      flushClipSignals();
+    };
+  }, [isActive, flushLoops, flushClipSignals]);
 
   // Fire-and-forget view count the first time this clip becomes the active
   // page, mirroring the post-detail screens.
   useEffect(() => {
     if (!isActive || viewedClipIds.has(clip.id)) return;
     viewedClipIds.add(clip.id);
+    recordImpression(clip.id, "clips");
     void supabase
       .rpc("increment_post_views", { p_post_id: clip.id })
       .then(({ error }) => {

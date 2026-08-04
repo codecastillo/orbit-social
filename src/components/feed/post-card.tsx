@@ -52,7 +52,12 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { formatTimeAgo, formatNumber } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useHideLikeCounts } from "@/lib/hooks/use-profile";
+import { useImpression } from "@/lib/hooks/use-impression";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
+import {
+  recordAction,
+  type ImpressionSurface,
+} from "@/lib/services/impressions";
 import {
   toggleLike,
   toggleBookmark,
@@ -215,6 +220,11 @@ interface PostCardProps {
    * top-level room post; the pin RPC re-checks the role server-side.
    */
   communityRole?: "owner" | "moderator" | "member" | null;
+  /**
+   * Where this card is rendered, used to label impressions and actions.
+   * Defaults to the main feed since that is where most cards live.
+   */
+  surface?: ImpressionSurface;
 }
 
 // Memoized: a feed renders dozens of these, each with its own state and
@@ -231,6 +241,7 @@ export const PostCard = memo(function PostCard({
   allUserPosts,
   onTogglePinComment,
   communityRole,
+  surface = "foryou",
 }: PostCardProps) {
   // Caller-provided state wins; otherwise fall back to whatever the query
   // baked into the row (e.g. profile tabs enrich posts via
@@ -365,6 +376,7 @@ export const PostCard = memo(function PostCard({
 
   // For reposts, display the original post content
   const displayPost = isRepostType && originalPost ? originalPost : post;
+  const impressionRef = useImpression(displayPost.id, surface);
   // The viewer's hide-like-counts setting suppresses other people's counts
   // only; their own posts keep theirs, which is the point of the setting.
   const countsHidden = hideLikeCounts && displayPost.user_id !== user?.id;
@@ -463,6 +475,11 @@ export const PostCard = memo(function PostCard({
         }),
     );
     setShareOpen(true);
+  };
+
+  const handleAuthorClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    recordAction(displayPost.id, "profile_visit", surface);
   };
 
   const handleRepost = async (e: React.MouseEvent) => {
@@ -658,6 +675,8 @@ export const PostCard = memo(function PostCard({
 
   return (
     <article
+      // Comment cards render compact and carry no ranking signal of their own.
+      ref={compact ? undefined : impressionRef}
       className={cn(
         "relative rounded-xl border border-border bg-surface text-foreground",
         compact ? "p-4" : "cursor-pointer p-[22px]"
@@ -713,7 +732,7 @@ export const PostCard = memo(function PostCard({
 
       <div className="flex gap-3 mb-3.5">
         {/* Avatar */}
-        <Link href={`/${displayProfile.username}`} onClick={(e) => e.stopPropagation()} className="shrink-0">
+        <Link href={`/${displayProfile.username}`} onClick={handleAuthorClick} className="shrink-0">
           <UserAvatar src={displayProfile.avatar_url} fallback={displayProfile.display_name} size="md" />
         </Link>
 
@@ -724,7 +743,7 @@ export const PostCard = memo(function PostCard({
               <div className="flex items-center gap-1.5">
                 <Link
                   href={`/${displayProfile.username}`}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={handleAuthorClick}
                   className="truncate text-sm font-semibold tracking-[-0.005em] text-foreground no-underline hover:underline"
                 >
                   {displayProfile.display_name}
@@ -934,7 +953,17 @@ export const PostCard = memo(function PostCard({
           {(!displayPost.content_warning || spoilerRevealed) && !isEditing && !displayHasMedia && (() => {
             const previewUrl = extractFirstUrl(displayedContent || displayPost.content || "");
             return previewUrl ? (
-              <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+              <div
+                className="mt-3"
+                onClick={(e) => e.stopPropagation()}
+                // Capture: the preview card is an anchor that stops
+                // propagation, so a bubbling handler would never see it.
+                onClickCapture={(e) => {
+                  if ((e.target as HTMLElement).closest("a")) {
+                    recordAction(displayPost.id, "link_click", surface);
+                  }
+                }}
+              >
                 <LinkPreviewCard url={previewUrl} />
               </div>
             ) : null;
@@ -1172,6 +1201,7 @@ export const PostCard = memo(function PostCard({
         postId={displayPost.id}
         open={shareOpen}
         onOpenChange={setShareOpen}
+        surface={surface}
       />
       {user && !isOwnPost && (
         <BlockMuteDialog

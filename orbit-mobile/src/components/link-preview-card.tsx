@@ -13,7 +13,15 @@ const PREVIEW_STALE_TIME_MS = 24 * 60 * 60 * 1000;
  * title, description; tapping opens the link. Renders nothing until the
  * preview resolves and nothing at all when it can't, by design.
  */
-export function LinkPreviewCard({ url }: { url: string }) {
+export function LinkPreviewCard({
+  url,
+  // Fired just before the link leaves the app, for callers that record the
+  // click as a ranking signal.
+  onOpen,
+}: {
+  url: string;
+  onOpen?: () => void;
+}) {
   const { data } = useQuery({
     queryKey: ["link-preview", url],
     queryFn: () => getLinkPreview(url),
@@ -32,7 +40,10 @@ export function LinkPreviewCard({ url }: { url: string }) {
 
   return (
     <Pressable
-      onPress={() => Linking.openURL(url).catch(() => {})}
+      onPress={() => {
+        onOpen?.();
+        Linking.openURL(url).catch(() => {});
+      }}
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]}
     >
       {data.image_url ? (

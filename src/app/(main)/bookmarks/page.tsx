@@ -55,7 +55,7 @@ export default function BookmarksPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {posts.map((p) => (
-            <PostCard key={p.id} post={p} />
+            <PostCard key={p.id} post={p} surface="profile" />
           ))}
         </div>
       )}

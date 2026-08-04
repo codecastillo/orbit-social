@@ -1,6 +1,7 @@
 import {
   Component,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -14,6 +15,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type ViewToken,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "expo-router";
@@ -39,6 +41,11 @@ import {
   useNotInterestedIds,
 } from "@/lib/hooks/use-content-safety";
 import { useNewPosts } from "@/lib/hooks/use-new-posts";
+import {
+  flushImpressions,
+  recordImpression,
+  type ImpressionSurface,
+} from "@/lib/impressions";
 import { colors, radii, spacing } from "@/lib/theme";
 
 // Clips is a lane here, not a feed query: selecting it swaps the whole
@@ -54,6 +61,13 @@ const HOME_TABS: { key: HomeLane; label: string }[] = [
 // Clearance the clips pager leaves for the lane tabs overlaid on the video;
 // its own All/Loops segment starts directly below this.
 const CLIPS_LANE_TABS_HEIGHT = 40;
+
+// Half the card on screen for half a second counts as seen. Same numbers the
+// web feed uses, so the two apps feed the same ranking the same signal.
+const FEED_VIEWABILITY_CONFIG = {
+  itemVisiblePercentThreshold: 50,
+  minimumViewTime: 500,
+};
 
 // StoriesBar is owned by another surface; a crash there should never take
 // the feed down with it.
@@ -169,6 +183,69 @@ export default function FeedScreen() {
     refetch();
   };
 
+  // Impression instrumentation. FlatList rejects a viewability config or
+  // handler that changes identity between renders, so both are built once and
+  // the live surface is read off a ref at callback time instead.
+  const impressionSurface = useRef<ImpressionSurface | null>(null);
+  const visibleSince = useRef(new Map<string, { postId: string; since: number }>());
+
+  useEffect(() => {
+    // Clips is a lane over this list, not a feed tab: its pager records its
+    // own impressions, and nothing under it belongs to For you or Following.
+    impressionSurface.current = lane === "clips" ? null : feedTab;
+  }, [lane, feedTab]);
+
+  const handleViewableItemsChanged = useCallback(
+    ({ changed }: { changed: ViewToken[] }) => {
+      const surface = impressionSurface.current;
+      const now = Date.now();
+      for (const token of changed) {
+        const post = token.item as Post | undefined;
+        if (!post) continue;
+        if (token.isViewable) {
+          visibleSince.current.set(post.id, {
+            // A repost row's exposure belongs to the post it displays, the
+            // id every other action on that card already targets.
+            postId: displayPostId(post),
+            since: now,
+          });
+          continue;
+        }
+        const seen = visibleSince.current.get(post.id);
+        if (!seen) continue;
+        visibleSince.current.delete(post.id);
+        if (surface) {
+          recordImpression(seen.postId, surface, { dwellMs: now - seen.since });
+        }
+      }
+    },
+    [],
+  );
+
+  const [viewabilityPairs] = useState(() => [
+    {
+      viewabilityConfig: FEED_VIEWABILITY_CONFIG,
+      onViewableItemsChanged: handleViewableItemsChanged,
+    },
+  ]);
+
+  useEffect(() => {
+    const openDwell = visibleSince.current;
+    return () => {
+      // Cards still on screen never report leaving the viewport, so close
+      // them out here rather than lose the whole session's dwell.
+      const surface = impressionSurface.current;
+      const now = Date.now();
+      if (surface) {
+        for (const seen of openDwell.values()) {
+          recordImpression(seen.postId, surface, { dwellMs: now - seen.since });
+        }
+      }
+      openDwell.clear();
+      void flushImpressions();
+    };
+  }, []);
+
   const renderItem = ({ item }: { item: Post }) => {
     const displayId = displayPostId(item);
     return (
@@ -181,6 +258,7 @@ export default function FeedScreen() {
         isReposted={interactions?.repostedPostIds.has(displayId) ?? false}
         userReaction={interactions?.reactions.get(displayId) ?? null}
         reactionCounts={reactionCounts.get(displayId) ?? []}
+        surface={feedTab}
       />
     );
   };
@@ -279,6 +357,7 @@ export default function FeedScreen() {
         initialNumToRender={8}
         windowSize={9}
         removeClippedSubviews
+        viewabilityConfigCallbackPairs={viewabilityPairs}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching && !isFetchingNextPage}

@@ -36,6 +36,7 @@ import {
   type Post,
 } from "@/lib/queries/posts";
 import { getPostsReactionCounts } from "@/lib/queries/reactions";
+import { flushImpressions, recordImpression } from "@/lib/impressions";
 import { supabase } from "@/lib/supabase";
 import { colors, spacing } from "@/lib/theme";
 
@@ -171,12 +172,18 @@ export default function PostDetailScreen() {
   useEffect(() => {
     if (!loadedPostId || viewedPostIds.has(loadedPostId)) return;
     viewedPostIds.add(loadedPostId);
+    // Opening the post is its own exposure, on top of whichever feed sent
+    // the reader here. The queue merges it into the same daily row.
+    recordImpression(loadedPostId, "detail");
     void supabase
       .rpc("increment_post_views", { p_post_id: loadedPostId })
       .then(({ error }) => {
         if (error) console.warn("increment_post_views failed", error.message);
       });
   }, [loadedPostId]);
+
+  // Leaving the screen is the natural moment to ship what the visit queued.
+  useEffect(() => () => void flushImpressions(), []);
 
   const replyMutation = useMutation({
     mutationFn: ({ content, replyToId }: { content: string; replyToId: string }) =>
@@ -274,6 +281,7 @@ export default function PostDetailScreen() {
       isReposted={interactions?.repostedPostIds.has(postDisplayId) ?? false}
       userReaction={interactions?.reactions.get(postDisplayId) ?? null}
       reactionCounts={reactionCounts?.get(postDisplayId) ?? []}
+      surface="detail"
       disableNavigation
       detail
       onReplyPress={() => {

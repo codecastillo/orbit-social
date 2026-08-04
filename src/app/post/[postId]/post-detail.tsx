@@ -385,6 +385,7 @@ export function PostDetail({ postId }: { postId: string }) {
         isBookmarked={interactions.bookmarkedPostIds.has(post.id)}
         isReposted={interactions.repostedPostIds.has(post.id)}
         onUpdate={() => queryClient.invalidateQueries({ queryKey: ["post", postId] })}
+        surface="detail"
       />
 
       {/* Views */}

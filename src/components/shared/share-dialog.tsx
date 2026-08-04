@@ -16,6 +16,10 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { createRepost } from "@/lib/queries/posts";
 import {
+  recordAction,
+  type ImpressionSurface,
+} from "@/lib/services/impressions";
+import {
   getConversations,
   sendMessage,
   type ConversationWithPreview,
@@ -27,6 +31,8 @@ interface ShareDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Overrides the default /post/<id> link, e.g. /clips/<id> for reels. */
   path?: string;
+  /** Where the share was started from, recorded with the share action. */
+  surface?: ImpressionSurface;
 }
 
 export function ShareDialog({
@@ -34,6 +40,7 @@ export function ShareDialog({
   open,
   onOpenChange,
   path,
+  surface = "foryou",
 }: ShareDialogProps) {
   const { user } = useAuth();
   const requireAuth = useRequireAuth();
@@ -62,6 +69,7 @@ export function ShareDialog({
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(postUrl);
+      recordAction(postId, "share_external", surface);
       setCopied(true);
       toast.success("Link copied");
       setTimeout(() => setCopied(false), 2000);
@@ -104,7 +112,18 @@ export function ShareDialog({
       const body = message.trim()
         ? `${message.trim()}\n${postUrl}`
         : postUrl;
-      await sendMessage(conversation.id, user.id, body);
+      // The shared post travels as a column, not as a URL the reader (or a
+      // ranking job) has to parse back out of the text.
+      await sendMessage(
+        conversation.id,
+        user.id,
+        body,
+        undefined,
+        undefined,
+        undefined,
+        postId,
+      );
+      recordAction(postId, "share_dm", surface);
       setSentTo((prev) => new Set(prev).add(conversation.id));
       toast.success("Sent to chat");
     } catch {

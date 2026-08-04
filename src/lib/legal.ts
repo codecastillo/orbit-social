@@ -21,4 +21,4 @@ export const PRIVACY_EMAIL = "privacy@orbitsocial.net";
 export const DMCA_EMAIL = "dmca@orbitsocial.net";
 
 export const EFFECTIVE_DATE = "August 3, 2026";
-export const LAST_UPDATED = "August 3, 2026";
+export const LAST_UPDATED = "August 4, 2026";

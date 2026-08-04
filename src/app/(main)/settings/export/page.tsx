@@ -13,6 +13,7 @@ const INCLUDED = [
   "Who you follow and who follows you",
   "Bookmarks and likes",
   "Muted and blocked accounts",
+  "Which posts were shown to you, and what you did from them",
 ];
 
 export default function ExportSettingsPage() {

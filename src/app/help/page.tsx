@@ -81,8 +81,9 @@ const sections: { id: string; title: string; body: React.ReactNode }[] = [
         <h3>For You</h3>
         <p>
           The same posts, reordered on your own device. Nothing is scored on a
-          server and nothing about the ordering follows you between sessions.
-          The signals are:
+          server. Which posts were shown to you is recorded and feeds ranking
+          and distribution, and only you can read those records. The signals
+          in the ordering are:
         </p>
         <ul>
           <li>
@@ -626,7 +627,8 @@ const sections: { id: string; title: string; body: React.ReactNode }[] = [
           Settings, Download Your Data hands you a JSON file straight away, no
           queue and no email. It contains your profile, your posts with their
           media and counts, who you follow, who follows you, your bookmarks,
-          your likes, and the accounts you muted and blocked. You can run it
+          your likes, the accounts you muted and blocked, and the record of
+          which posts were shown to you and what you did from them. You can run it
           once every ten minutes. The app links out to the same page on the web.
         </p>
         <p>

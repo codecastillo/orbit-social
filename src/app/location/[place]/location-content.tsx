@@ -102,7 +102,8 @@ export function LocationContent({ place }: { place: string }) {
       ) : (
         <div className="flex flex-col gap-3.5">
           {allPosts.map((post) => (
-            <PostCard key={post.id} post={post} />
+            // Browsing a place is discovery, so it books against search.
+            <PostCard key={post.id} post={post} surface="search" />
           ))}
           {hasNextPage && (
             <div className="flex justify-center p-3.5">

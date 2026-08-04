@@ -37,6 +37,8 @@ export interface Message {
   media_url: string | null;
   media_type: string | null;
   reply_to_id: string | null;
+  /** The post this message shares, when it was sent from a share sheet. */
+  shared_post_id: string | null;
   is_deleted: boolean;
   is_pinned: boolean;
   // Ships in a later migration; absent rows simply never show "(edited)".
@@ -292,6 +294,9 @@ export async function sendMessage(
   mediaUrl?: string,
   mediaType?: MessageMediaType,
   replyToId?: string,
+  // Set when the message is a shared post, so the link is a structured
+  // reference instead of a URL the ranking side would have to parse back out.
+  sharedPostId?: string,
 ): Promise<Message> {
   // Same fallback as the web sendMessage: audio extensions store as "video"
   // because the media_type enum only knows image/video/gif.
@@ -312,6 +317,7 @@ export async function sendMessage(
       media_url: mediaUrl ?? null,
       media_type: resolvedMediaType,
       reply_to_id: replyToId ?? null,
+      shared_post_id: sharedPostId ?? null,
     })
     .select(MESSAGE_SELECT)
     .single();

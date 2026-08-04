@@ -193,6 +193,7 @@ export function CommentThread({
         isReposted={isReposted}
         userReaction={userReaction}
         reactionCounts={reactionCounts}
+        surface="detail"
         reply
       />
       <View style={styles.threadActions}>

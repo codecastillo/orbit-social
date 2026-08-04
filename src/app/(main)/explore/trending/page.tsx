@@ -149,7 +149,7 @@ export default function TrendingPage() {
         ) : posts && posts.length > 0 ? (
           <div className="divide-y divide-border/30">
             {posts.map((post) => (
-              <PostCard key={post.id} post={post} />
+              <PostCard key={post.id} post={post} surface="search" />
             ))}
           </div>
         ) : (

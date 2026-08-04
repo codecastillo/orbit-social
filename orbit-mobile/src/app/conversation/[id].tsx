@@ -1160,6 +1160,7 @@ export default function ConversationScreen() {
       media_url: media?.uri ?? null,
       media_type: media?.kind ?? null,
       reply_to_id: replyToId ?? null,
+      shared_post_id: null,
       is_deleted: false,
       is_pinned: false,
       updated_at: null,

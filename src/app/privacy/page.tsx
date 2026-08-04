@@ -105,10 +105,37 @@ const sections: { id: string; title: string; body: React.ReactNode }[] = [
           close friends.
         </p>
         <p>
-          Two kinds of view data exist, and they differ. Posts, listings, and
-          replays carry an aggregate view counter with no record of who
-          viewed. Moments record each viewer by name, because the person who
-          posted is shown who watched.
+          Three kinds of view data exist, and they differ. Posts, listings,
+          and replays carry an aggregate view counter with no record of who
+          viewed, and that counter is what everyone sees on the post.
+        </p>
+        <p>
+          Separately, when a post is shown to you we keep one row for that
+          post per day, so the feed can tell what it has already put in front
+          of you and how you responded to it. The row records which surface
+          the post appeared on, one of For You, Following, Clips, a profile,
+          a hashtag, search, or the post&apos;s own page. It also records the
+          first and last time the post was shown to you that day, how many
+          times it was shown, how long it was on screen, how much of its
+          video you watched, how long that video is, and how many times you
+          watched it to at least ninety percent. Alongside it we record
+          actions you take from a post: opening the author&apos;s profile,
+          clicking a link out, sharing to a direct message, sharing outside
+          Orbit, expanding the post, and replaying its video, each with the
+          surface and the time. Sharing a post into a message also records
+          which post that message shared.
+        </p>
+        <p>
+          Those rows are readable only by you. The database grants each
+          person access to their own and to nobody else&apos;s, and the view
+          rows are written by one capped server function rather than by the
+          app directly. Authors are never shown who viewed their posts. What
+          an author will be able to see about their own posts is counts: how
+          many people, not which people.
+        </p>
+        <p>
+          Moments are the deliberate exception. They record each viewer by
+          name, because the person who posted is shown who watched.
         </p>
         <h3>Security and device data</h3>
         <p>
@@ -161,6 +188,12 @@ const sections: { id: string; title: string; body: React.ReactNode }[] = [
             email digest if that is on.
           </li>
           <li>
+            Decide ranking and distribution: which posts For You puts in
+            front of you, and how far a post travels. That is the only thing
+            the per-viewer view data is used for. It is not sold, not shared,
+            and there is no advertising for it to feed.
+          </li>
+          <li>
             Keep Orbit safe: detect spam and abuse, act on reports, and
             enforce the rules in the Terms of Service.
           </li>
@@ -175,7 +208,8 @@ const sections: { id: string; title: string; body: React.ReactNode }[] = [
         </ul>
         <p>
           Ranking on Orbit uses your own signals: who you follow, what you
-          engaged with, and the topic preferences you set. Your Following feed
+          engaged with, the topic preferences you set, and what has already
+          been shown to you. Your Following feed
           is strictly chronological and is not ranked at all. Nobody can pay
           to appear more often in anyone&apos;s feed.
         </p>
@@ -337,6 +371,16 @@ const sections: { id: string; title: string; body: React.ReactNode }[] = [
             <strong>Event reminder records</strong> are kept for 30 days.
           </li>
           <li>
+            <strong>Per-viewer view records</strong> are kept for 90 days.
+            They are stored a day at a time and a whole day is dropped at
+            once, not thinned row by row. What outlives them is a daily total
+            for each post: how many times it was shown, how many different
+            people saw it, the summed time on screen and watch time, and the
+            completions. No viewer identities are in that total. The action
+            records have no separate clock and go when the post or your
+            account does.
+          </li>
+          <li>
             <strong>Posts, messages, and everything else you create</strong>{" "}
             are kept until you delete them or delete your account. We do not
             expire your content on our own schedule.
@@ -364,7 +408,9 @@ const sections: { id: string; title: string; body: React.ReactNode }[] = [
           Settings, then Your data, produces a single JSON file you download
           on the spot, limited to one export every ten minutes. It contains
           your profile, your posts and their media, who you follow and who
-          follows you, your bookmarks, likes, mutes, and blocks. Direct
+          follows you, your bookmarks, likes, mutes, and blocks, and the view
+          and action records described above for the posts you were shown.
+          Direct
           messages are deliberately excluded, because a conversation belongs
           to everyone in it, not only to the person exporting.
         </p>

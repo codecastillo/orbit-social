@@ -930,7 +930,7 @@ export function ProfileContent({
                   ◇&nbsp;&nbsp;Pinned
                 </div>
                 {pinnedPosts.map((p) => (
-                  <PostCard key={p.id} post={p} />
+                  <PostCard key={p.id} post={p} surface="profile" />
                 ))}
               </div>
             )}
@@ -941,7 +941,7 @@ export function ProfileContent({
             ) : (
               <div className="flex flex-col gap-2">
                 {posts.map((p) => (
-                  <PostCard key={p.id} post={p} />
+                  <PostCard key={p.id} post={p} surface="profile" />
                 ))}
               </div>
             )}
@@ -969,7 +969,7 @@ export function ProfileContent({
           ) : (
             <div className="flex flex-col gap-2">
               {likedPosts.map((p) => (
-                <PostCard key={p.id} post={p} />
+                <PostCard key={p.id} post={p} surface="profile" />
               ))}
             </div>
           ))}
@@ -984,7 +984,7 @@ export function ProfileContent({
           ) : (
             <div className="flex flex-col gap-2">
               {repostedPosts.map((p) => (
-                <PostCard key={p.id} post={p} />
+                <PostCard key={p.id} post={p} surface="profile" />
               ))}
             </div>
           ))}
@@ -999,7 +999,7 @@ export function ProfileContent({
           ) : (
             <div className="flex flex-col gap-2">
               {taggedPosts.map((p) => (
-                <PostCard key={p.id} post={p} />
+                <PostCard key={p.id} post={p} surface="profile" />
               ))}
             </div>
           ))}
@@ -1015,7 +1015,7 @@ export function ProfileContent({
           ) : (
             <div className="flex flex-col gap-2">
               {savedPosts.map((p) => (
-                <PostCard key={p.id} post={p} />
+                <PostCard key={p.id} post={p} surface="profile" />
               ))}
             </div>
           ))}

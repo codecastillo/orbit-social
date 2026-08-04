@@ -45,6 +45,7 @@ import {
   updateWhoCanComment,
 } from "@/lib/queries/post-management";
 import { stageQuoteSeed } from "@/lib/quote-seed";
+import { recordAction, type ImpressionSurface } from "@/lib/impressions";
 import { getRankingSignals, markNotInterested } from "@/lib/queries/content-safety";
 import { useVideoFrame } from "@/lib/video-frame";
 import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
@@ -72,6 +73,9 @@ interface PostCardProps {
   isReposted?: boolean;
   userReaction?: ReactionType | null;
   reactionCounts?: ReactionCount[];
+  // Where this card is being shown, recorded alongside every action the
+  // ranking signals track.
+  surface: ImpressionSurface;
   // Resolved parent for repost and quote rows, batched at page level by
   // the screen query so cards never fetch on their own.
   original?: Post | null;
@@ -231,6 +235,7 @@ export function PostCard({
   isReposted = false,
   userReaction: userReactionProp = null,
   reactionCounts: reactionCountsProp = [],
+  surface,
   original = null,
   disableNavigation = false,
   reply = false,
@@ -592,7 +597,10 @@ export function PostCard({
   };
 
   const openDetail = () => router.push(`/post/${display.id}`);
-  const openAuthor = () => router.push(`/user/${display.profiles.username}`);
+  const openAuthor = () => {
+    recordAction(display.id, "profile_visit", surface);
+    router.push(`/user/${display.profiles.username}`);
+  };
 
   // A repost row whose original was deleted or hidden has nothing to show.
   if (isRepost && !original) {
@@ -797,7 +805,10 @@ export function PostCard({
 
       {!contentHidden && previewUrl ? (
         <View style={styles.linkPreviewWrap}>
-          <LinkPreviewCard url={previewUrl} />
+          <LinkPreviewCard
+            url={previewUrl}
+            onOpen={() => recordAction(display.id, "link_click", surface)}
+          />
         </View>
       ) : null}
 
@@ -937,7 +948,13 @@ export function PostCard({
       ) : null}
 
       {shareOpen ? (
-        <ShareSheet visible onClose={() => setShareOpen(false)} url={postUrl} />
+        <ShareSheet
+          visible
+          onClose={() => setShareOpen(false)}
+          url={postUrl}
+          postId={display.id}
+          surface={surface}
+        />
       ) : null}
 
       {/* Mounted on demand: feed lists render many cards, and an idle Modal

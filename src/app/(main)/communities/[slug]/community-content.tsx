@@ -326,6 +326,9 @@ export function CommunityContent({ slug }: { slug: string }) {
                 isBookmarked={interactions?.bookmarkedPostIds?.has(post.id)}
                 communityRole={userRole}
                 onUpdate={() => refetchPosts()}
+                // A room feed is subscribed content, the closest surface the
+                // impressions RPC accepts.
+                surface="following"
               />
             </div>
           ))
