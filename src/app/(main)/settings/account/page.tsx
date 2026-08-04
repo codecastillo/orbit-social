@@ -45,6 +45,8 @@ export default function AccountSettingsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
 
   const {
     register,
@@ -71,6 +73,23 @@ export default function AccountSettingsPage() {
     }
     toast.success("Password updated");
     reset();
+  };
+
+  const handleDeactivate = async () => {
+    if (!user) return;
+    setDeactivating(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ deactivated_at: new Date().toISOString() })
+      .eq("id", user.id);
+    if (error) {
+      toast.error("Couldn't deactivate your account. Please try again.");
+      setDeactivating(false);
+      return;
+    }
+    await supabase.auth.signOut();
+    toast.success("Your account is deactivated. Sign back in to restore it.");
+    router.push("/login");
   };
 
   const handleDeleteAccount = async () => {
@@ -142,6 +161,21 @@ export default function AccountSettingsPage() {
         </form>
       </FormSection>
 
+      <FormSection title="Take a break">
+        <p className="-mt-1.5 text-[13px] leading-normal text-muted-foreground">
+          Deactivating hides your profile and posts from everyone else and
+          signs you out. Nothing is deleted, and signing back in brings it all
+          back exactly as you left it.
+        </p>
+        <Button
+          variant="outline"
+          className="mt-3.5"
+          onClick={() => setDeactivateDialogOpen(true)}
+        >
+          Deactivate account
+        </Button>
+      </FormSection>
+
       <div className="mt-7">
         <h3 className="m-0 text-base font-semibold tracking-[-0.01em] text-destructive">
           Danger zone
@@ -163,6 +197,33 @@ export default function AccountSettingsPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
+        <DialogContent
+          showCloseButton={false}
+          className="p-0 gap-0 border-0 bg-transparent shadow-none !max-w-[520px]"
+        >
+          <DialogTitle className="sr-only">Deactivate your account</DialogTitle>
+          <ModalShell
+            title="Deactivate your account"
+            subtitle="You can undo this any time."
+            primaryLabel={deactivating ? "Deactivating…" : "Deactivate"}
+            onPrimary={handleDeactivate}
+            secondaryLabel="Cancel"
+            onSecondary={() => setDeactivateDialogOpen(false)}
+            canSubmit={!deactivating}
+            loading={deactivating}
+            onClose={() => setDeactivateDialogOpen(false)}
+          >
+            <p className="mt-0 text-[13.5px] leading-[1.55] text-muted-foreground">
+              Your profile and posts stop showing up for other people, and you
+              will be signed out here. Your followers, messages, and everything
+              you posted stay where they are. Sign back in whenever you want to
+              pick up where you left off.
+            </p>
+          </ModalShell>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent

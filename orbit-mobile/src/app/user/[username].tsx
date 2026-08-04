@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   RefreshControl,
@@ -44,6 +44,7 @@ import {
 } from "@/lib/blocked-error";
 import {
   countVisiblePosts,
+  findCurrentUsername,
   getFollowState,
   getProfileByUsername,
   getUserRecentPosts,
@@ -79,6 +80,20 @@ export default function PublicProfileScreen() {
   const profile = profileQuery.data;
   const isOwnProfile = !!profile && profile.id === user?.id;
 
+  // A handle that resolves to nobody may just be an old one: renames are
+  // recorded, so the route swaps itself for the current handle instead of
+  // dead-ending on "not found".
+  const renamedQuery = useQuery({
+    queryKey: ["username-redirect", username],
+    queryFn: () => findCurrentUsername(username),
+    enabled: profileQuery.isSuccess && !profileQuery.data,
+  });
+  const renamedTo = renamedQuery.data;
+
+  useEffect(() => {
+    if (renamedTo) router.replace(`/user/${renamedTo}`);
+  }, [renamedTo, router]);
+
   const followStateQuery = useQuery({
     queryKey: ["follow-state", user?.id, profile?.id],
     queryFn: () => getFollowState(user!.id, profile!.id),
@@ -113,7 +128,11 @@ export default function PublicProfileScreen() {
       profile.is_private !== true &&
       profile.post_count > 0,
   });
-  const isUnavailable = visiblePostsQuery.data === 0;
+  // A paused account keeps a readable profile row while the posts policy
+  // withholds its content, so it gets the same neutral state as a viewer
+  // whose posts are being withheld for any other reason.
+  const isUnavailable =
+    visiblePostsQuery.data === 0 || (!isOwnProfile && !!profile?.deactivated_at);
 
   const postsQuery = useQuery({
     queryKey: ["profile-posts", profile?.id],
@@ -315,6 +334,18 @@ export default function PublicProfileScreen() {
   }
 
   if (!profile) {
+    // Hold the skeleton while the rename lookup runs, and through the replace
+    // itself, so a healed link never flashes "not found" on its way.
+    if (renamedQuery.isPending || renamedTo) {
+      return (
+        <View style={styles.flex}>
+          <Stack.Screen
+            options={{ title: "Profile", headerTitleStyle: TITLE_STYLE }}
+          />
+          <ProfileHeaderSkeleton />
+        </View>
+      );
+    }
     return (
       <>
         <Stack.Screen

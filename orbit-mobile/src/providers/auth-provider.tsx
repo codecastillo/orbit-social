@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
@@ -24,6 +25,7 @@ import {
   type AccountIdentity,
 } from "@/lib/accounts";
 import { getAccountProfile } from "@/lib/queries/profiles";
+import { reactivateAccount } from "@/lib/queries/account";
 
 interface AuthState {
   user: User | null;
@@ -127,6 +129,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Only a fully authenticated session is worth storing: an account that
       // still owes its TOTP code would come back from the switcher unusable.
       if (mfaPending) return;
+
+      // Signing back in is the whole reactivation gesture, and only a session
+      // past the MFA gate counts as signed in. A token refresh is not a new
+      // sign-in, so this rides along with the identity refresh.
+      if (refreshIdentity) {
+        try {
+          if (await reactivateAccount(session.user.id)) {
+            Alert.alert("Welcome back", "Your account is active again.");
+          }
+        } catch {
+          // The pause simply holds until the next sign-in tries again.
+        }
+      }
+
       try {
         if (refreshIdentity) {
           const profile = await getAccountProfile(session.user.id);

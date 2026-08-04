@@ -4,7 +4,7 @@ import type { AccountProfile } from "@/lib/accounts";
 const PROFILE_SELECT = `
   id, username, display_name, avatar_url, cover_url, bio, location, website,
   is_verified, follower_count, following_count, post_count, created_at,
-  theme_color, avatar_border, is_private, hide_like_counts
+  theme_color, avatar_border, is_private, hide_like_counts, deactivated_at
 `;
 
 // Same union as the web UserAvatar (src/components/shared/user-avatar.tsx).
@@ -38,6 +38,8 @@ export interface Profile {
   // Viewer-level display setting: hides other people's like counts from
   // this account, never its own.
   hide_like_counts: boolean;
+  /** Set while the account is paused; null means active. */
+  deactivated_at: string | null;
 }
 
 export interface ProfilePostMedia {
@@ -101,6 +103,38 @@ export async function getProfileByUsername(
     .maybeSingle();
   if (error) throw error;
   return data as unknown as Profile | null;
+}
+
+/**
+ * Where a handle went after a rename, or null if nobody ever used it.
+ * Usernames are stored as typed, so the lookup has to be case-insensitive:
+ * ilike does that, wildcards in the handle are escaped so `a_b` cannot match
+ * `axb`, and the survivor is re-checked here.
+ */
+export async function findCurrentUsername(
+  oldUsername: string,
+): Promise<string | null> {
+  const pattern = oldUsername.replace(/[\\%_]/g, (char) => `\\${char}`);
+  const { data: history, error } = await supabase
+    .from("username_history")
+    .select("old_username, user_id")
+    .ilike("old_username", pattern)
+    .order("changed_at", { ascending: false })
+    .limit(5);
+  if (error) throw error;
+
+  const match = (history ?? []).find(
+    (row) => row.old_username.toLowerCase() === oldUsername.toLowerCase(),
+  );
+  if (!match) return null;
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("id", match.user_id)
+    .maybeSingle();
+  if (profileError) throw profileError;
+  return profile?.username ?? null;
 }
 
 export async function setHideLikeCounts(

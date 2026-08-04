@@ -84,7 +84,18 @@ export function FeedList({ tab }: FeedListProps) {
       .filter((p) => !p.reply_to_id);
   }, [data]);
 
-  const hasNewPosts = useNewPosts(tab, allPosts[0]?.created_at ?? null);
+  // The newest post anywhere in the loaded pages, not the top card: For You
+  // is ranked, so the first card is usually older than the most recent post,
+  // and comparing against it would claim new posts on nearly every check.
+  const newestLoadedAt = useMemo(() => {
+    let newest: string | null = null;
+    for (const post of allPosts) {
+      if (!newest || post.created_at > newest) newest = post.created_at;
+    }
+    return newest;
+  }, [allPosts]);
+
+  const hasNewPosts = useNewPosts(tab, newestLoadedAt);
 
   if (isLoading) return <FeedSkeleton />;
 

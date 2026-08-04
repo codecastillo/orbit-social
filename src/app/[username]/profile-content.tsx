@@ -87,6 +87,7 @@ interface ProfileContentProps {
     private_followers?: boolean | null;
     private_likes?: boolean | null;
     is_private?: boolean | null;
+    deactivated_at?: string | null;
   };
   isOwnProfile: boolean;
   initialFollowState: FollowState;
@@ -171,7 +172,11 @@ export function ProfileContent({
       profile.post_count > 0,
     staleTime: 1000 * 60,
   });
-  const isUnavailable = visiblePostCount === 0;
+  // A deactivated account still has a readable profile row while the posts
+  // policy withholds its content, so without this a visitor would land on an
+  // empty but otherwise normal-looking profile.
+  const isUnavailable =
+    visiblePostCount === 0 || (!isOwnProfile && !!profile.deactivated_at);
 
   const handleUnblock = async () => {
     if (!user) return;

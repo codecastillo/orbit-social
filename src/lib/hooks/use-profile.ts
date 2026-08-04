@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useAuth } from "./use-auth";
 import { createClient } from "@/lib/supabase/client";
 
@@ -75,11 +76,25 @@ export function useCurrentProfile() {
       const { data } = await supabase
         .from("profiles")
         .select(
-          "id, username, display_name, avatar_url, is_verified, is_creator, is_admin, hide_like_counts"
+          "id, username, display_name, avatar_url, is_verified, is_creator, is_admin, hide_like_counts, deactivated_at"
         )
         .eq("id", user.id)
         .single();
-      return (data as CurrentProfile) ?? null;
+      if (!data) return null;
+      const { deactivated_at: deactivatedAt, ...profile } = data as
+        CurrentProfile & { deactivated_at: string | null };
+      // Signing back in is the whole reactivation gesture. This is the one
+      // place the app resolves the signed-in profile, and react-query runs it
+      // once no matter how many components read the hook, so the toast fires
+      // once too.
+      if (deactivatedAt) {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ deactivated_at: null })
+          .eq("id", user.id);
+        if (!error) toast.success("Welcome back. Your account is active again.");
+      }
+      return profile as CurrentProfile;
     },
     enabled: !!user,
     staleTime: 1000 * 60 * 2,

@@ -7,6 +7,36 @@ import { supabase } from "@/lib/supabase";
 const ACCOUNT_API_BASE = "https://orbitsocial.net";
 
 /**
+ * Pauses the account: the profile and its posts drop out of everyone else's
+ * view until the next sign-in clears the flag. Nothing is deleted.
+ */
+export async function deactivateAccount(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ deactivated_at: new Date().toISOString() })
+    .eq("id", userId);
+  if (error) throw error;
+}
+
+/**
+ * Undoes a pause when a session is established. Filtering on the flag inside
+ * the update keeps this to one round trip and makes the returned row the
+ * answer to "was this account actually paused", which is what decides whether
+ * the user is told anything.
+ */
+export async function reactivateAccount(userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ deactivated_at: null })
+    .eq("id", userId)
+    .not("deactivated_at", "is", null)
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  return !!data;
+}
+
+/**
  * Deletes the signed-in account for good. Throws with the route's own
  * message so the screen can tell an MFA-stale session apart from a real
  * server failure.

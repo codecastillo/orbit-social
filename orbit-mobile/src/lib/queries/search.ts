@@ -60,6 +60,7 @@ export async function searchUsers(
     .from("profiles")
     .select(SUMMARY_SELECT)
     .or(`username.ilike.${term},display_name.ilike.${term}`)
+    .is("deactivated_at", null)
     .order("follower_count", { ascending: false })
     .limit(limit);
   if (error) throw error;
@@ -204,15 +205,19 @@ export async function getSuggestedUsers(
       .from("profiles")
       .select(SUMMARY_SELECT)
       .neq("id", userId)
+      .is("deactivated_at", null)
       .order("follower_count", { ascending: false })
       .limit(limit);
     if (error) throw error;
     return (data ?? []) as unknown as ProfileSummary[];
   }
 
+  // The embedded filter drops a deactivated account's profile to null, and
+  // the loop below already skips rows without one.
   const { data: suggestions, error } = await supabase
     .from("follows")
     .select(`profiles!follows_following_id_fkey (${SUMMARY_SELECT})`)
+    .is("profiles.deactivated_at", null)
     .in("follower_id", followingIds)
     .not("following_id", "in", `(${[userId, ...followingIds].join(",")})`)
     .limit(limit * 3); // over-fetch, then dedupe and rank by frequency

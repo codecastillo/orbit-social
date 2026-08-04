@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Alert,
   Linking,
   Modal,
   Pressable,
@@ -11,7 +12,7 @@ import {
 import { Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Button, Field } from "@/components/ui";
-import { deleteAccount } from "@/lib/queries/account";
+import { deactivateAccount, deleteAccount } from "@/lib/queries/account";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
 import { colors, radii, spacing } from "@/lib/theme";
@@ -143,6 +144,9 @@ export default function AccountSettingsScreen() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const [deactivating, setDeactivating] = useState(false);
+  const [deactivateError, setDeactivateError] = useState<string | null>(null);
+
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [newError, setNewError] = useState<string | null>(null);
@@ -177,6 +181,32 @@ export default function AccountSettingsScreen() {
     setNewPassword("");
     setConfirmPassword("");
     setSaved(true);
+  };
+
+  const handleDeactivate = async () => {
+    setDeactivating(true);
+    setDeactivateError(null);
+    try {
+      await deactivateAccount(user.id);
+    } catch {
+      setDeactivating(false);
+      setDeactivateError("Couldn't deactivate your account. Please try again.");
+      return;
+    }
+    // Same exit as deletion: drop the session, its cached queries and its
+    // switcher entry, so a paused account does not linger in the switcher.
+    await signOutActiveAccount();
+  };
+
+  const confirmDeactivate = () => {
+    Alert.alert(
+      "Deactivate your account?",
+      "Your profile and posts stop showing up for other people, and you will be signed out on this device. Nothing is deleted: sign back in whenever you want and everything comes back.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Deactivate", onPress: () => void handleDeactivate() },
+      ],
+    );
   };
 
   const handleDeleteAccount = async () => {
@@ -258,6 +288,24 @@ export default function AccountSettingsScreen() {
           label="Download your data"
           variant="outline"
           onPress={() => void Linking.openURL(WEB_EXPORT_URL)}
+        />
+      </View>
+
+      <Text style={styles.sectionTitle}>Take a break</Text>
+      <View style={styles.formSection}>
+        <Text style={styles.deleteExplainer}>
+          Deactivating hides your profile and posts from everyone else and
+          signs you out here. Nothing is deleted, and signing back in restores
+          everything.
+        </Text>
+        {deactivateError ? (
+          <Text style={styles.submitError}>{deactivateError}</Text>
+        ) : null}
+        <Button
+          label="Deactivate account"
+          variant="outline"
+          loading={deactivating}
+          onPress={confirmDeactivate}
         />
       </View>
 

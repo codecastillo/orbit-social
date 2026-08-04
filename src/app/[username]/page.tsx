@@ -1,10 +1,46 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileContent } from "./profile-content";
 import type { FollowState } from "@/lib/queries/social";
 
 interface Props {
   params: Promise<{ username: string }>;
+}
+
+type ServerClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Where a handle went after a rename, or null if nobody ever used it.
+ * Usernames are stored as typed, so the lookup has to be case-insensitive:
+ * ilike does that, wildcards in the handle are escaped so `a_b` cannot match
+ * `axb`, and the survivor is re-checked in JS.
+ */
+async function findCurrentUsername(
+  supabase: ServerClient,
+  oldUsername: string
+): Promise<string | null> {
+  const pattern = oldUsername.replace(/[\\%_]/g, (char) => `\\${char}`);
+  const { data: history } = await supabase
+    .from("username_history")
+    .select("old_username, user_id")
+    .ilike("old_username", pattern)
+    .order("changed_at", { ascending: false })
+    .limit(5);
+
+  const match = (
+    history as { old_username: string; user_id: string }[] | null
+  )?.find(
+    (row) => row.old_username.toLowerCase() === oldUsername.toLowerCase()
+  );
+  if (!match) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("id", match.user_id)
+    .maybeSingle();
+
+  return profile?.username ?? null;
 }
 
 export async function generateMetadata({ params }: Props) {
@@ -39,7 +75,13 @@ export default async function ProfilePage({ params }: Props) {
     .eq("username", username)
     .single();
 
-  if (!profile) notFound();
+  if (!profile) {
+    // A 308 rather than a render under the old handle, so shared links and
+    // search results heal on their own.
+    const current = await findCurrentUsername(supabase, username);
+    if (current) permanentRedirect(`/${encodeURIComponent(current)}`);
+    notFound();
+  }
 
   const {
     data: { user },

@@ -149,11 +149,19 @@ export default function FeedScreen() {
     enabled: !!userId && displayIds.length > 0,
   });
 
-  // Freshness pill. The check runs against the unfiltered top of the fetched
-  // page, so muting someone cannot make the pill claim posts that will never
-  // render.
+  // Freshness pill. Compare against the newest post ANYWHERE in the loaded
+  // pages, not the top of the list: For You is ranked, so the first card is
+  // usually not the most recent one, and comparing against it would report
+  // new posts on almost every check. Reading the unfiltered pages also means
+  // muting someone cannot make the pill promise posts that never render.
   const listRef = useRef<FlatList<Post>>(null);
-  const newestLoadedAt = data?.pages[0]?.posts[0]?.created_at ?? null;
+  const newestLoadedAt =
+    data?.pages.reduce<string | null>((newest, page) => {
+      for (const post of page.posts) {
+        if (!newest || post.created_at > newest) newest = post.created_at;
+      }
+      return newest;
+    }, null) ?? null;
   const hasNewPosts = useNewPosts(userId, feedTab, newestLoadedAt);
 
   const jumpToNewPosts = () => {

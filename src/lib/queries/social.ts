@@ -474,16 +474,20 @@ export async function getSuggestedUsers(userId: string, limit = 10) {
       .from("profiles")
       .select(PROFILE_SELECT)
       .neq("id", userId)
+      .is("deactivated_at", null)
       .order("follower_count", { ascending: false })
       .limit(limit);
     if (error) throw error;
     return (data ?? []) as ProfileSummary[];
   }
 
-  // Get users that your followings follow
+  // Get users that your followings follow. The embedded filter drops a
+  // deactivated account's profile to null, and the loop below already skips
+  // rows without one.
   const { data: suggestions, error } = await supabase
     .from("follows")
     .select(`profiles!follows_following_id_fkey (${PROFILE_SELECT})`)
+    .is("profiles.deactivated_at", null)
     .in("follower_id", followingIds)
     .not("following_id", "in", `(${[userId, ...followingIds].join(",")})`)
     .limit(limit * 3); // over-fetch for dedup
@@ -532,6 +536,7 @@ export async function searchUsers(query: string, limit = 20) {
     .from("profiles")
     .select(PROFILE_SELECT)
     .or(`username.ilike.${term},display_name.ilike.${term}`)
+    .is("deactivated_at", null)
     .order("follower_count", { ascending: false })
     .limit(limit);
 
@@ -836,6 +841,7 @@ export async function getEngagementBasedSuggestions(
       .select("id")
       .ilike("location", `%${userLocation}%`)
       .not("id", "in", `(${excludeIds.join(",")})`)
+      .is("deactivated_at", null)
       .limit(50);
 
     for (const row of localUsers ?? []) {
@@ -855,6 +861,7 @@ export async function getEngagementBasedSuggestions(
       .from("profiles")
       .select(PROFILE_SELECT)
       .not("id", "in", `(${excludeIds.join(",")})`)
+      .is("deactivated_at", null)
       .order("follower_count", { ascending: false })
       .limit(limit);
     if (error) throw error;
@@ -865,7 +872,8 @@ export async function getEngagementBasedSuggestions(
   const { data: candidateProfiles, error } = await supabase
     .from("profiles")
     .select(PROFILE_SELECT)
-    .in("id", Array.from(candidateIds));
+    .in("id", Array.from(candidateIds))
+    .is("deactivated_at", null);
 
   if (error) throw error;
 
