@@ -17,6 +17,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { Avatar, Button, EmptyState } from "@/components/ui";
 import { PostCard } from "@/components/post-card";
+import { ActionSheet, type ActionSheetOption } from "@/components/action-sheet";
+import { ReportSheet } from "@/components/report-sheet";
 import { checkUserInteractions, type Post } from "@/lib/queries/posts";
 import {
   checkMembership,
@@ -24,6 +26,7 @@ import {
   getCommunityJoinRequests,
   getCommunityPosts,
   getMyJoinRequestStatus,
+  leaveCommunity,
   joinCommunity,
   setCommunityPostPinned,
   setCommunitySlowmode,
@@ -282,6 +285,36 @@ export default function CommunityDetailScreen() {
   // Slowmode setting is owner-only: the communities UPDATE policy is
   // creator-only, so a moderator's write would silently no-op under RLS.
   const [slowmodeModalOpen, setSlowmodeModalOpen] = useState(false);
+  const [roomMenuOpen, setRoomMenuOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+
+  const leaveMutation = useMutation({
+    mutationFn: () => leaveCommunity(community!.id, user!.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["community-membership"] });
+      queryClient.invalidateQueries({ queryKey: ["my-communities"] });
+      router.back();
+    },
+    onError: () => Alert.alert("Couldn't leave this room"),
+  });
+
+  const confirmLeave = () =>
+    Alert.alert(
+      "Leave this room?",
+      role === "owner"
+        ? "You own this room. Hand ownership to another member first."
+        : "You will stop seeing its posts. You can join again later unless the room is invite only.",
+      role === "owner"
+        ? [{ text: "OK", style: "cancel" }]
+        : [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Leave",
+              style: "destructive",
+              onPress: () => leaveMutation.mutate(),
+            },
+          ],
+    );
   const saveSlowmode = useMutation({
     mutationFn: (seconds: number) => setCommunitySlowmode(community!.id, seconds),
     onSuccess: () => {
@@ -298,6 +331,30 @@ export default function CommunityDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["community-posts", community?.id] }),
     onError: () => Alert.alert("Couldn't update the pin"),
   });
+
+  const roomMenuOptions: ActionSheetOption[] = [
+    ...(isMember
+      ? [
+          {
+            label: "Leave room",
+            icon: "exit-outline" as const,
+            destructive: true,
+            onPress: confirmLeave,
+          },
+        ]
+      : []),
+    // Reporting your own room is not a thing anyone needs to do.
+    ...(community && user && community.created_by !== user.id
+      ? [
+          {
+            label: "Report room",
+            icon: "flag-outline" as const,
+            destructive: true,
+            onPress: () => setReportOpen(true),
+          },
+        ]
+      : []),
+  ];
 
   // Authors self-pin; owners and moderators can pin any top-level room post.
   // The pin_community_post RPC re-checks the role server-side.
@@ -622,6 +679,24 @@ export default function CommunityDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {roomMenuOpen ? (
+        <ActionSheet
+          visible
+          title={community.name}
+          options={roomMenuOptions}
+          onClose={() => setRoomMenuOpen(false)}
+        />
+      ) : null}
+      {reportOpen ? (
+        <ReportSheet
+          visible
+          onClose={() => setReportOpen(false)}
+          entityType="room"
+          entityId={community.id}
+          reportedUserId={community.created_by}
+        />
+      ) : null}
     </View>
   );
 }

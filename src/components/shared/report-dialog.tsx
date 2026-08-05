@@ -13,6 +13,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { reportEntityLabel } from "@/lib/reports/entities";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { createReport } from "@/lib/queries/admin";
 
@@ -75,7 +76,7 @@ export function ReportDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Flag className="h-4 w-4 text-destructive" />
-            Report {entityType}
+            Report this {reportEntityLabel(entityType)}
           </DialogTitle>
           <DialogDescription>
             Help us understand what&apos;s wrong. We&apos;ll review this report

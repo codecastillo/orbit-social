@@ -300,6 +300,20 @@ export async function rejectCommunityRequest(requestId: string) {
   if (error) throw error;
 }
 
+/**
+ * Leave a room. A plain delete rather than the remove-member RPC, which is
+ * owner-only: the DELETE policy on community_members already allows a member
+ * to remove their own row.
+ */
+export async function leaveCommunity(communityId: string, userId: string) {
+  const { error } = await supabase
+    .from("community_members")
+    .delete()
+    .eq("community_id", communityId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
 export async function removeCommunityMember(communityId: string, userId: string) {
   // SECURITY DEFINER RPC, owner-only server-side.
   const { error } = await supabase.rpc("community_remove_member", {

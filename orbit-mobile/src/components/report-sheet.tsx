@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui";
 import { createReport } from "@/lib/queries/moderation";
+import { reportEntityLabel } from "@/lib/report-entities";
 import { useAuth } from "@/providers/auth-provider";
 import { colors, radii, spacing } from "@/lib/theme";
 
@@ -166,7 +167,9 @@ export function ReportSheet({
         </View>
 
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Report {entityType}</Text>
+          <Text style={styles.headerTitle}>
+            Report this {reportEntityLabel(entityType)}
+          </Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Close report"
@@ -297,7 +300,6 @@ const styles = StyleSheet.create({
     color: colors.foreground,
     fontSize: 14.5,
     fontWeight: "600",
-    textTransform: "capitalize",
   },
   formContent: {
     paddingTop: spacing(3),

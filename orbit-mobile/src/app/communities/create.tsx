@@ -5,7 +5,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -18,6 +17,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import {
   createCommunity,
+  type JoinPolicy,
   updateCommunity,
   uploadCommunityImage,
 } from "@/lib/queries/communities";
@@ -49,7 +49,7 @@ export default function CreateCommunityScreen() {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [inviteOnly, setInviteOnly] = useState(false);
+  const [joinPolicy, setJoinPolicy] = useState<JoinPolicy>("public");
   const [avatar, setAvatar] = useState<PickedImage | null>(null);
   const [cover, setCover] = useState<PickedImage | null>(null);
 
@@ -62,7 +62,7 @@ export default function CreateCommunityScreen() {
         name.trim(),
         slug,
         description.trim(),
-        inviteOnly ? "invite" : "public",
+        joinPolicy,
       );
 
       // Images upload after create (the storage path needs the community id),
@@ -242,21 +242,38 @@ export default function CreateCommunityScreen() {
           />
         </View>
 
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleCopy}>
-            <Text style={styles.toggleTitle}>Invite only</Text>
-            <Text style={styles.toggleHint}>
-              {inviteOnly
-                ? "People can only join with an invite."
-                : "Anyone can find and join this room."}
-            </Text>
-          </View>
-          <Switch
-            value={inviteOnly}
-            onValueChange={setInviteOnly}
-            trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
-            thumbColor={colors.foreground}
-          />
+        {/* Three policies, not a switch. The approval option is the whole
+            reason the join-request queue exists, and a binary invite-only
+            toggle made it unreachable from this client. */}
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Who can join</Text>
+          {JOIN_POLICIES.map((option) => {
+            const active = joinPolicy === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={option.title}
+                onPress={() => setJoinPolicy(option.value)}
+                style={({ pressed }) => [
+                  styles.policyRow,
+                  active && styles.policyRowActive,
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Ionicons
+                  name={active ? "radio-button-on" : "radio-button-off"}
+                  size={20}
+                  color={active ? colors.primary : colors.textFaint}
+                />
+                <View style={styles.policyCopy}>
+                  <Text style={styles.policyTitle}>{option.title}</Text>
+                  <Text style={styles.policyHint}>{option.hint}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
 
         {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
@@ -264,6 +281,24 @@ export default function CreateCommunityScreen() {
     </KeyboardAvoidingView>
   );
 }
+
+const JOIN_POLICIES: { value: JoinPolicy; title: string; hint: string }[] = [
+  {
+    value: "public",
+    title: "Anyone",
+    hint: "Anyone can find this room and join it straight away.",
+  },
+  {
+    value: "approval",
+    title: "By request",
+    hint: "People ask to join and you approve them from the Requests screen.",
+  },
+  {
+    value: "invite",
+    title: "Invite only",
+    hint: "The room is hidden and people can only join with an invite.",
+  },
+];
 
 const styles = StyleSheet.create({
   fill: {
@@ -363,6 +398,35 @@ const styles = StyleSheet.create({
   inputMultiline: {
     minHeight: 88,
     textAlignVertical: "top",
+  },
+  policyRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing(3),
+    paddingVertical: spacing(3),
+    paddingHorizontal: spacing(3),
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    marginTop: spacing(2),
+  },
+  policyRowActive: {
+    borderColor: colors.primary,
+  },
+  policyCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  policyTitle: {
+    color: colors.foreground,
+    fontSize: 14.5,
+    fontWeight: "600",
+  },
+  policyHint: {
+    color: colors.mutedForeground,
+    fontSize: 12.5,
+    lineHeight: 17,
   },
   toggleRow: {
     flexDirection: "row",

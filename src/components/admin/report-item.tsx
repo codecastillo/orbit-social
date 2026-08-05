@@ -8,8 +8,11 @@ import {
   Eye,
   ChevronDown,
   ChevronUp,
+  ExternalLink,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { reportEntityHref, reportEntityLabel } from "@/lib/reports/entities";
 import { formatTimeAgo } from "@/lib/utils/format";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +42,7 @@ export function ReportItem({
   isUpdating,
 }: ReportItemProps) {
   const [expanded, setExpanded] = useState(false);
+  const contentHref = reportEntityHref(report.entity_type, report.entity_id);
 
   return (
     <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
@@ -55,7 +59,7 @@ export function ReportItem({
               {report.reporter?.display_name ?? "Unknown"}
             </span>
             <span className="text-xs text-muted-foreground">
-              reported {report.entity_type}
+              reported a {reportEntityLabel(report.entity_type)}
             </span>
           </div>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
@@ -133,6 +137,21 @@ export function ReportItem({
               </div>
             )}
           </div>
+
+          {/* The reported content itself. Without this a moderator can read
+              why something was reported but never see the thing. */}
+          {contentHref && (
+            <div className="mt-4">
+              <Link
+                href={contentHref}
+                target="_blank"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Open the reported {reportEntityLabel(report.entity_type)}
+              </Link>
+            </div>
+          )}
 
           {/* Details */}
           <div className="mt-4 space-y-2">
