@@ -364,9 +364,6 @@ export default function MarketplaceScreen() {
         }}
       />
       {searchBar}
-      <Text style={styles.searchHint}>
-        Tips: &quot;exact phrase&quot;, bike OR scooter, -exclude
-      </Text>
       {savedChips}
       {chips}
       {listingsQuery.isPending ? (
@@ -480,12 +477,6 @@ const styles = StyleSheet.create({
     color: colors.foreground,
     fontSize: 14,
     paddingVertical: spacing(2),
-  },
-  searchHint: {
-    color: colors.textFaint,
-    fontSize: 11,
-    marginTop: spacing(1.5),
-    paddingHorizontal: spacing(4),
   },
   filterButton: {
     flexDirection: "row",

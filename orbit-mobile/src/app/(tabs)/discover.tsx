@@ -144,9 +144,6 @@ export default function DiscoverScreen() {
             </Pressable>
           ) : null}
         </View>
-        <Text style={styles.searchHint}>
-          Tips: &quot;exact phrase&quot;, cats OR dogs, -exclude
-        </Text>
       </View>
       {isSearching ? (
         <SearchResults
@@ -689,7 +686,15 @@ function TrendingChips({ onTagPress }: { onTagPress: (name: string) => void }) {
   });
 
   return (
-    <View style={[styles.section, styles.trendingSection]}>
+    <View
+      style={[
+        styles.section,
+        // Height is reserved only while the answer is unknown. Holding it
+        // after an empty result leaves a hole the size of content that is
+        // never coming.
+        trendingQuery.isPending && styles.trendingSection,
+      ]}
+    >
       <Text style={styles.sectionTitle}>Trending</Text>
       {trendingQuery.isPending ? (
         <View style={styles.chipsRow}>
@@ -760,7 +765,12 @@ function SuggestedPeople() {
   }
 
   return (
-    <View style={[styles.section, styles.peopleSection]}>
+    <View
+      style={[
+        styles.section,
+        suggestedQuery.isPending && styles.peopleSection,
+      ]}
+    >
       <Text style={styles.sectionTitle}>People to orbit</Text>
       {suggestedQuery.isPending ? (
         // The loaded state is a horizontal rail, so the skeleton has to be
@@ -1056,12 +1066,6 @@ const styles = StyleSheet.create({
     color: colors.foreground,
     fontSize: 14,
     paddingVertical: spacing(2),
-  },
-  searchHint: {
-    color: colors.textFaint,
-    fontSize: 11,
-    marginTop: spacing(1.5),
-    paddingHorizontal: spacing(3),
   },
   tabs: {
     flexDirection: "row",

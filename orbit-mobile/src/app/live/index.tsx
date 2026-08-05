@@ -264,8 +264,8 @@ export default function LiveScreen() {
             />
           }
         >
-          <Ionicons name="videocam-outline" size={40} color={colors.mutedForeground} />
           <EmptyState
+            icon="videocam-outline"
             title="Nobody is live right now"
             description="Streams from people you follow show up here the moment they go on air. To start your own, head to Settings > Streaming."
           />

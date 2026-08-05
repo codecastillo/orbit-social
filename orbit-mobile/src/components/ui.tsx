@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -10,6 +10,7 @@ import {
   type TextInputProps,
 } from "react-native";
 import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
 import { useIsOnline } from "@/lib/hooks/use-is-online";
 import { colors, radii, spacing } from "@/lib/theme";
 
@@ -138,16 +139,29 @@ export function Avatar({
 }
 
 export function EmptyState({
+  icon,
   title,
   description,
   action,
 }: {
+  // Rendered inside the centered block. Placing an icon as a sibling above
+  // an EmptyState instead pushes it to the top of the container, because
+  // this view takes the remaining height and centers only its own contents.
+  icon?: ComponentProps<typeof Ionicons>["name"];
   title: string;
   description?: string;
   action?: ReactNode;
 }) {
   return (
     <View style={styles.empty}>
+      {icon ? (
+        <Ionicons
+          name={icon}
+          size={40}
+          color={colors.mutedForeground}
+          style={styles.emptyIcon}
+        />
+      ) : null}
       <Text style={styles.emptyTitle}>{title}</Text>
       {description ? <Text style={styles.emptyDescription}>{description}</Text> : null}
       {action ? <View style={{ marginTop: spacing(4) }}>{action}</View> : null}
@@ -235,6 +249,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: spacing(8),
+  },
+  emptyIcon: {
+    marginBottom: spacing(3),
   },
   emptyTitle: {
     color: colors.foreground,

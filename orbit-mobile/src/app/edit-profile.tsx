@@ -404,7 +404,11 @@ function EditProfileForm({ profile }: { profile: Profile }) {
         <Text style={styles.sectionTitle}>Appearance</Text>
         <View style={styles.appearanceSection}>
           <Text style={styles.appearanceLabel}>Accent color</Text>
-          <View style={styles.previewRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.previewRow}
+          >
             {PROFILE_ACCENTS.map((accent) => {
               const active = themeColor === accent.value;
               return (
@@ -453,10 +457,14 @@ function EditProfileForm({ profile }: { profile: Profile }) {
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
 
           <Text style={styles.appearanceLabel}>Avatar border</Text>
-          <View style={styles.previewRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.previewRow}
+          >
             {BORDER_OPTIONS.map((option) => {
               const active = avatarBorder === option.value;
               return (
@@ -502,7 +510,7 @@ function EditProfileForm({ profile }: { profile: Profile }) {
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
         </View>
 
         {formError ? <Text style={styles.error}>{formError}</Text> : null}
@@ -618,10 +626,12 @@ const styles = StyleSheet.create({
     color: colors.foreground,
     fontSize: 14,
   },
+  // A single scrolling rail rather than a wrapping grid: wrapped rows put a
+  // half-empty second line between two pickers, which read as one group.
   previewRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: spacing(3),
+    paddingRight: spacing(4),
   },
   previewOption: {
     alignItems: "center",
