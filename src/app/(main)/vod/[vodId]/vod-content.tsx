@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Eye, Share2, Trash2, Loader2 } from "lucide-react";
+import { ReportAction } from "@/components/shared/report-action";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { getVodById, incrementVodViews, deleteVod } from "@/lib/queries/vods";
@@ -192,6 +193,15 @@ export function VodContent({ vodId }: { vodId: string }) {
         <ArrowLeft className="h-3.5 w-3.5" />
         Back
       </button>
+
+      <div className="absolute top-4 right-4 z-10">
+        <ReportAction
+          entityType="vod"
+          entityId={vod.id}
+          reportedUserId={vod.user_id}
+          className="bg-black/40 text-white backdrop-blur-md hover:bg-black/60 hover:text-white"
+        />
+      </div>
 
       <div className="mx-auto w-full max-w-[1280px] px-4 pt-16 pb-16">
         <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/[0.08] bg-black shadow-[0_20px_60px_-20px_rgba(0,0,0,0.7)]">

@@ -18,12 +18,14 @@ import {
   Link2,
   UsersRound,
   UserPlus,
+  Flag,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/utils/format";
 import { Button } from "@/components/ui/button";
+import { ReportDialog } from "@/components/shared/report-dialog";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import {
   DropdownMenu,
@@ -96,6 +98,7 @@ export function CommunityHeader({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState(community.name);
@@ -471,7 +474,24 @@ export function CommunityHeader({
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete room
                       </DropdownMenuItem>
-                    </>
+                      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        entityType="room"
+        entityId={community.id}
+        reportedUserId={community.created_by}
+      />
+    </>
+                  )}
+                  {!isOwner && (
+                    <DropdownMenuItem
+                      variant="destructive"
+                      className="cursor-pointer rounded-lg"
+                      onClick={() => setReportOpen(true)}
+                    >
+                      <Flag className="mr-2 h-4 w-4" />
+                      Report room
+                    </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>

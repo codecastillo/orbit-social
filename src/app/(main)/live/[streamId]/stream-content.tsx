@@ -25,6 +25,7 @@ import {
   checkFollowing,
 } from "@/lib/queries/social";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { ReportAction } from "@/components/shared/report-action";
 import { FollowButton } from "@/components/shared/follow-button";
 import { VerifiedStar } from "@/components/orbit/verified-star";
 import {
@@ -714,6 +715,16 @@ export function StreamContent({ streamId }: { streamId: string }) {
                       {m.content}
                     </p>
                   </div>
+                  {/* Revealed on hover: a chat this dense cannot carry a
+                      visible control on every line. */}
+                  <div className="opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                    <ReportAction
+                      entityType="live_chat"
+                      entityId={m.id}
+                      reportedUserId={m.userId}
+                      className="h-7 w-7 text-white/60 hover:bg-white/10 hover:text-white"
+                    />
+                  </div>
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -953,6 +964,13 @@ function DesktopInfoBar({
               size="sm"
             />
           )}
+
+          <ReportAction
+            entityType="live_stream"
+            entityId={stream.id}
+            reportedUserId={stream.user_id}
+            className="h-7 w-7 text-white/80 hover:bg-white/[0.08] hover:text-white"
+          />
 
           <button
             onClick={onShare}
