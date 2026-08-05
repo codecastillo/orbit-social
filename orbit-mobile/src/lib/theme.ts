@@ -64,7 +64,10 @@ export const type: Record<
 > = {
   hero: { fontFamily: fonts.displayHeavy, fontSize: 30, letterSpacing: -0.8 },
   title: { fontFamily: fonts.display, fontSize: 21, letterSpacing: -0.5 },
-  heading: { fontFamily: fonts.display, fontSize: 16.5, letterSpacing: -0.3 },
+  // Whole numbers on the display steps: these feed the native stack header,
+  // whose font size crosses the bridge as an integer and throws on a
+  // fraction ("loss of precision during arithmetic conversion").
+  heading: { fontFamily: fonts.display, fontSize: 17, letterSpacing: -0.3 },
   // Section labels and metadata: small, wide, uppercase. The editorial
   // counterweight to the tight display sizes.
   label: {
