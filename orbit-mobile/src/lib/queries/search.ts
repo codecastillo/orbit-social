@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { POST_SELECT, type Post } from "@/lib/queries/posts";
 
 // Mirrors the web PROFILE_SELECT in src/lib/queries/social.ts.
 const SUMMARY_SELECT = `
@@ -21,19 +22,6 @@ export interface TrendingHashtag {
   id: string;
   name: string;
   post_count: number;
-}
-
-export interface SearchPost {
-  id: string;
-  content: string | null;
-  created_at: string;
-  profiles: {
-    id: string;
-    username: string;
-    display_name: string;
-    avatar_url: string | null;
-    is_verified: boolean;
-  } | null;
 }
 
 // Mirrors the web isFtsQuery in src/lib/queries/social.ts. websearch-mode
@@ -67,17 +55,16 @@ export async function searchUsers(
   return (data ?? []) as unknown as ProfileSummary[];
 }
 
-// Same filter as the web searchPosts, with a lean select for compact rows.
+// Same filter as the web searchPosts. Results select the full post shape
+// because they render as post cards: a lean select stripped the media, so a
+// photo post came back as a line of text with its image missing.
 export async function searchPosts(
   query: string,
   limit = 20,
-): Promise<SearchPost[]> {
+): Promise<Post[]> {
   let q = supabase
     .from("posts")
-    .select(
-      `id, content, created_at,
-       profiles!posts_user_id_fkey (id, username, display_name, avatar_url, is_verified)`,
-    )
+    .select(POST_SELECT)
     .eq("is_hidden", false)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -92,7 +79,7 @@ export async function searchPosts(
   }
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as unknown as SearchPost[];
+  return (data ?? []) as unknown as Post[];
 }
 
 export interface SearchClip {

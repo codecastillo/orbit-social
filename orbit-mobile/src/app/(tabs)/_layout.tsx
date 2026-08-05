@@ -13,6 +13,12 @@ const BELL_BADGE_RING = 2;
 
 export default function TabsLayout() {
   const router = useRouter();
+  // A tab press returns to that tab's own screen. Detail routes (a hashtag,
+  // a post, a profile) stack above the tab bar at the root, so without this
+  // tapping Discover from a hashtag page leaves you on the hashtag page.
+  const popToTab = () => {
+    if (router.canDismiss()) router.dismissAll();
+  };
   const { unreadMessages, unreadNotifications } = useUnreadCounts();
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -33,6 +39,7 @@ export default function TabsLayout() {
       >
         <Tabs.Screen
           name="index"
+          listeners={{ tabPress: popToTab }}
           options={{
             title: "Home",
             headerTitle: "Orbit",
@@ -82,6 +89,7 @@ export default function TabsLayout() {
         />
         <Tabs.Screen
           name="discover"
+          listeners={{ tabPress: popToTab }}
           options={{
             title: "Discover",
             tabBarIcon: ({ color, size }) => (
@@ -116,6 +124,7 @@ export default function TabsLayout() {
         />
         <Tabs.Screen
           name="messages"
+          listeners={{ tabPress: popToTab }}
           options={{
             title: "Messages",
             tabBarIcon: ({ color, size }) => (
@@ -146,6 +155,7 @@ export default function TabsLayout() {
         />
         <Tabs.Screen
           name="profile"
+          listeners={{ tabPress: popToTab }}
           options={{
             title: "You",
             tabBarIcon: ({ color, size }) => (

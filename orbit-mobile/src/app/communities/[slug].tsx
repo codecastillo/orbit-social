@@ -8,7 +8,6 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -17,9 +16,10 @@ import { Image } from "expo-image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { Avatar, Button, EmptyState } from "@/components/ui";
+import { PostCard } from "@/components/post-card";
+import { checkUserInteractions, type Post } from "@/lib/queries/posts";
 import {
   checkMembership,
-  createCommunityPost,
   getCommunityBySlug,
   getCommunityJoinRequests,
   getCommunityPosts,
@@ -28,14 +28,11 @@ import {
   setCommunityPostPinned,
   setCommunitySlowmode,
   type Community,
-  type CommunityPost,
   type CommunityRole,
 } from "@/lib/queries/communities";
-import { formatNumber, formatTimeAgo } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import { colors, radii, spacing } from "@/lib/theme";
 
-const EXCERPT_LENGTH = 140;
-const MAX_POST_LENGTH = 500;
 
 // Discord-style slowmode steps, same presets as the web edit dialog.
 const SLOWMODE_PRESETS = [
@@ -70,39 +67,6 @@ function formatSlowmode(totalSeconds: number) {
 // device-local flag keyed by user + room. Same key shape as the web app.
 const rulesAcceptedKey = (userId: string, communityId: string) =>
   `room-rules-accepted:${userId}:${communityId}`;
-
-function excerpt(content: string | null): string {
-  if (!content) return "Shared a post";
-  return content.length > EXCERPT_LENGTH
-    ? `${content.slice(0, EXCERPT_LENGTH).trimEnd()}...`
-    : content;
-}
-
-function PostRow({
-  post,
-  onPress,
-  onLongPress,
-}: {
-  post: CommunityPost;
-  onPress: () => void;
-  onLongPress?: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      onLongPress={onLongPress}
-      style={({ pressed }) => [styles.postRow, pressed && { opacity: 0.7 }]}
-    >
-      {post.is_pinned ? <Text style={styles.pinnedTag}>PINNED</Text> : null}
-      <View style={styles.postMeta}>
-        <Text style={styles.postAuthor}>{post.profiles.display_name}</Text>
-        <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
-      </View>
-      <Text style={styles.postContent}>{excerpt(post.content)}</Text>
-    </Pressable>
-  );
-}
 
 function RulesList({ rules }: { rules: Community["rules"] }) {
   if (!rules || rules.length === 0) return null;
@@ -213,6 +177,15 @@ export default function CommunityDetailScreen() {
     enabled: !!community,
   });
 
+  // One lookup for the whole list, so the cards show the viewer's own likes
+  // and bookmarks instead of every card asking for itself.
+  const postIds = postsQuery.data?.map((post) => post.id) ?? [];
+  const { data: interactions } = useQuery({
+    queryKey: ["post-interactions", user?.id, postIds],
+    queryFn: () => checkUserInteractions(user!.id, postIds),
+    enabled: !!user && postIds.length > 0,
+  });
+
   // Owners and mods see how many join requests wait on them (approval rooms).
   const joinRequestsQuery = useQuery({
     queryKey: ["community-join-requests", community?.id],
@@ -264,21 +237,9 @@ export default function CommunityDetailScreen() {
     setRulesModalOpen(false);
   };
 
-  const [draft, setDraft] = useState("");
-  // Client-side slowmode v1: the send timestamp is recorded locally so the
-  // countdown starts immediately, and the loaded posts list backs it up
-  // across remounts. Owners and moderators are exempt.
-  const [lastSentAt, setLastSentAt] = useState(0);
-  const createPost = useMutation({
-    mutationFn: () => createCommunityPost(user!.id, community!.id, draft.trim()),
-    onSuccess: () => {
-      setDraft("");
-      setLastSentAt(Date.now());
-      queryClient.invalidateQueries({ queryKey: ["community-posts", community?.id] });
-    },
-    onError: () => Alert.alert("Couldn't post to this room"),
-  });
-
+  // Slowmode reads the loaded posts list rather than a local send
+  // timestamp: posting happens in the composer screen now, and the list is
+  // refetched on the way back. Owners and moderators are exempt.
   const slowmodeSeconds = community?.slowmode_seconds ?? 0;
   const lastOwnPostAt = useMemo(() => {
     const fromList = (postsQuery.data ?? []).reduce(
@@ -288,8 +249,8 @@ export default function CommunityDetailScreen() {
           : latest,
       0,
     );
-    return Math.max(fromList, lastSentAt);
-  }, [postsQuery.data, user, lastSentAt]);
+    return fromList;
+  }, [postsQuery.data, user]);
   const slowmodeUntil =
     slowmodeSeconds > 0 && !isOwnerOrMod && lastOwnPostAt > 0
       ? lastOwnPostAt + slowmodeSeconds * 1000
@@ -331,7 +292,7 @@ export default function CommunityDetailScreen() {
   });
 
   const togglePin = useMutation({
-    mutationFn: ({ post }: { post: CommunityPost }) =>
+    mutationFn: ({ post }: { post: Post }) =>
       setCommunityPostPinned(post.id, !post.is_pinned),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["community-posts", community?.id] }),
@@ -340,9 +301,9 @@ export default function CommunityDetailScreen() {
 
   // Authors self-pin; owners and moderators can pin any top-level room post.
   // The pin_community_post RPC re-checks the role server-side.
-  const canPinPost = (post: CommunityPost) =>
+  const canPinPost = (post: Post) =>
     !!user && (post.user_id === user.id || isOwnerOrMod);
-  const handlePostLongPress = (post: CommunityPost) => {
+  const handlePostLongPress = (post: Post) => {
     if (!canPinPost(post)) return;
     Alert.alert(
       post.is_pinned ? "Unpin this post?" : "Pin this post?",
@@ -478,28 +439,22 @@ export default function CommunityDetailScreen() {
             </Text>
           </Pressable>
         ) : (
-          <View style={styles.composerRow}>
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              placeholder="Post to this room..."
-              placeholderTextColor={colors.textFaint}
-              multiline
-              maxLength={MAX_POST_LENGTH}
-              style={styles.composerInput}
-            />
-            <Button
-              label={
-                slowmodeRemaining > 0
-                  ? `Slowmode: ${formatSlowmode(slowmodeRemaining)}`
-                  : "Post"
-              }
-              loading={createPost.isPending}
-              disabled={draft.trim().length === 0 || slowmodeRemaining > 0}
-              onPress={() => createPost.mutate()}
-              style={styles.composerButton}
-            />
-          </View>
+          <Button
+            label={
+              slowmodeRemaining > 0
+                ? `Slowmode: ${formatSlowmode(slowmodeRemaining)}`
+                : "Post to this room"
+            }
+            disabled={slowmodeRemaining > 0}
+            // The room used to carry a plain text box, so a room post could
+            // not have an image, a poll, a mention, or anything else the app
+            // can post. It opens the real composer aimed at this room.
+            onPress={() =>
+              router.push(
+                `/compose?communityId=${community.id}&communityName=${encodeURIComponent(community.name)}`,
+              )
+            }
+          />
         )}
         {slowmodeSeconds > 0 && !isOwnerOrMod ? (
           <Text style={styles.slowmodeHint}>
@@ -535,13 +490,25 @@ export default function CommunityDetailScreen() {
           />
         }
         renderItem={({ item }) => (
-          <PostRow
-            post={item}
-            onPress={() => router.push(`/post/${item.id}`)}
+          <Pressable
             onLongPress={
               canPinPost(item) ? () => handlePostLongPress(item) : undefined
             }
-          />
+            delayLongPress={400}
+          >
+            <PostCard
+              post={item}
+              currentUserId={user!.id}
+              isLiked={interactions?.likedPostIds.has(item.id) ?? false}
+              isBookmarked={interactions?.bookmarkedPostIds.has(item.id) ?? false}
+              isReposted={interactions?.repostedPostIds.has(item.id) ?? false}
+              // Room browsing is not one of the ranking surfaces, and the
+              // impressions table only accepts the values that feed it. This
+              // reads as a detail view: the room is the destination, not a
+              // ranked feed that served the post.
+              surface="detail"
+            />
+          </Pressable>
         )}
         ListEmptyComponent={
           postsQuery.isPending ? (
@@ -843,38 +810,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(4),
     paddingBottom: spacing(3),
   },
-  postRow: {
-    paddingHorizontal: spacing(4),
-    paddingVertical: spacing(3),
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
   pinnedTag: {
     color: colors.primary,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1.2,
     marginBottom: spacing(1),
-  },
-  postMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  postAuthor: {
-    color: colors.foreground,
-    fontSize: 13.5,
-    fontWeight: "600",
-  },
-  postTime: {
-    color: colors.textFaint,
-    fontSize: 12,
-  },
-  postContent: {
-    color: colors.textSecondary,
-    fontSize: 13.5,
-    lineHeight: 19,
-    marginTop: 4,
   },
   postsLoading: {
     padding: spacing(8),

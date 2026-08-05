@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { POST_SELECT, type Post } from "@/lib/queries/posts";
 
 export type JoinPolicy = "public" | "approval" | "invite";
 
@@ -23,21 +24,6 @@ export interface Community {
   rules: CommunityRule[] | null;
   slowmode_seconds: number;
   created_at: string;
-}
-
-export interface CommunityPost {
-  id: string;
-  user_id: string;
-  content: string | null;
-  is_pinned: boolean | null;
-  created_at: string;
-  profiles: {
-    id: string;
-    username: string;
-    display_name: string;
-    avatar_url: string | null;
-    is_verified: boolean;
-  };
 }
 
 export interface CommunityMember {
@@ -224,14 +210,9 @@ export async function joinCommunity(communityId: string) {
 export async function getCommunityPosts(communityId: string, limit = 30) {
   const { data, error } = await supabase
     .from("posts")
-    .select(
-      `
-      id, user_id, content, is_pinned, created_at,
-      profiles!posts_user_id_fkey (
-        id, username, display_name, avatar_url, is_verified
-      )
-    `,
-    )
+    // The same columns the feed selects: a room post is a post, and the room
+    // renders it with the same card rather than a stripped-down row.
+    .select(POST_SELECT)
     .eq("community_id", communityId)
     .eq("is_hidden", false)
     .is("reply_to_id", null)
@@ -241,21 +222,7 @@ export async function getCommunityPosts(communityId: string, limit = 30) {
     .limit(limit);
 
   if (error) throw error;
-  return data as unknown as CommunityPost[];
-}
-
-export async function createCommunityPost(
-  userId: string,
-  communityId: string,
-  content: string,
-) {
-  const { error } = await supabase.from("posts").insert({
-    user_id: userId,
-    community_id: communityId,
-    content,
-    type: "text",
-  });
-  if (error) throw error;
+  return data as unknown as Post[];
 }
 
 export async function setCommunityPostPinned(postId: string, pinned: boolean) {

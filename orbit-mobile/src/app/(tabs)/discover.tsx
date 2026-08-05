@@ -17,6 +17,8 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
+import { PostCard } from "@/components/post-card";
+import { checkUserInteractions } from "@/lib/queries/posts";
 import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
 import { Avatar, Button, EmptyState } from "@/components/ui";
 import {
@@ -47,14 +49,12 @@ import {
   searchUsers,
   type ProfileSummary,
   type SearchClip,
-  type SearchPost,
 } from "@/lib/queries/search";
 import { useVideoFrame } from "@/lib/video-frame";
-import { formatNumber, formatTimeAgo } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const SEARCH_DEBOUNCE_MS = 300;
-const EXCERPT_LENGTH = 120;
 const CLIP_GRID_GAP = 1;
 const CLIP_GRID_COLUMNS = 3;
 
@@ -73,13 +73,6 @@ function useDebounce(value: string, delay: number) {
     return () => clearTimeout(timer);
   }, [value, delay]);
   return debounced;
-}
-
-function excerpt(content: string | null): string {
-  if (!content) return "Shared a post";
-  return content.length > EXCERPT_LENGTH
-    ? `${content.slice(0, EXCERPT_LENGTH).trimEnd()}...`
-    : content;
 }
 
 export default function DiscoverScreen() {
@@ -248,6 +241,15 @@ function SearchResults({
     enabled: segment === "clips",
   });
 
+  // Same one-lookup-per-page shape as the follow states below: the cards
+  // need the viewer's own likes and bookmarks to render their filled state.
+  const postResultIds = (postsQuery.data ?? []).map((post) => post.id);
+  const { data: postInteractions } = useQuery({
+    queryKey: ["post-interactions", user?.id, postResultIds],
+    queryFn: () => checkUserInteractions(user!.id, postResultIds),
+    enabled: !!user && postResultIds.length > 0,
+  });
+
   // One lookup for the whole result page, so every row shows the right
   // Follow / Requested / Following label without a round trip of its own.
   const peopleIds = (peopleQuery.data ?? []).map((person) => person.id);
@@ -392,9 +394,13 @@ function SearchResults({
         keyboardShouldPersistTaps="handled"
         refreshControl={refreshControl}
         renderItem={({ item }) => (
-          <PostResultRow
+          <PostCard
             post={item}
-            onPress={() => router.push(`/post/${item.id}`)}
+            currentUserId={user!.id}
+            isLiked={postInteractions?.likedPostIds.has(item.id) ?? false}
+            isBookmarked={postInteractions?.bookmarkedPostIds.has(item.id) ?? false}
+            isReposted={postInteractions?.repostedPostIds.has(item.id) ?? false}
+            surface={query.startsWith("#") ? "hashtag" : "search"}
           />
         )}
         ListEmptyComponent={
@@ -476,34 +482,6 @@ function PersonRow({
       ) : (
         <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
       )}
-    </Pressable>
-  );
-}
-
-function PostResultRow({
-  post,
-  onPress,
-}: {
-  post: SearchPost;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.postRow, pressed && { opacity: 0.7 }]}
-    >
-      <View style={styles.postMeta}>
-        <Text style={styles.postAuthor} numberOfLines={1}>
-          {post.profiles?.display_name ?? "Unknown"}
-          {"  "}
-          <Text style={styles.postUsername}>
-            @{post.profiles?.username ?? "unknown"}
-          </Text>
-        </Text>
-        <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
-      </View>
-      <Text style={styles.postContent}>{excerpt(post.content)}</Text>
     </Pressable>
   );
 }
@@ -621,10 +599,13 @@ function DiscoverHome({
         onRemove={onRemoveRecent}
         onClearAll={onClearRecents}
       />
+      {/* Navigation first. These are destinations, not suggestions, and
+          below three sections that are empty on a young account they read
+          as leftovers stranded at the bottom of the page. */}
+      <SurfaceTiles />
       <TrendingChips onTagPress={onTagPress} />
       <SuggestedPeople />
       <StarterPacksRail />
-      <SurfaceTiles />
     </ScrollView>
   );
 }
@@ -689,8 +670,8 @@ function RecentSearchChips({
 
 // Each section below reserves the height of its loaded state so the whole
 // page composes in final position from the first frame. Without this the
-// sections drop in as their queries resolve and everything under them,
-// notably the Rooms/Events/Market/Live tiles, slides down twice.
+// sections drop in as their queries resolve and everything under them
+// slides down twice.
 // Heading line plus its 10pt bottom margin.
 const SECTION_TITLE_HEIGHT = 28;
 // Two rows of 34pt chips plus the 8pt gap between them.
@@ -1138,39 +1119,6 @@ const styles = StyleSheet.create({
     color: colors.mutedForeground,
     fontSize: 12.5,
     marginTop: 1,
-  },
-  postRow: {
-    paddingHorizontal: spacing(4),
-    paddingVertical: spacing(3),
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  postMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing(2),
-  },
-  postAuthor: {
-    color: colors.foreground,
-    fontSize: 13.5,
-    fontWeight: "600",
-    flexShrink: 1,
-  },
-  postUsername: {
-    color: colors.mutedForeground,
-    fontWeight: "400",
-    fontSize: 12.5,
-  },
-  postTime: {
-    color: colors.textFaint,
-    fontSize: 12,
-  },
-  postContent: {
-    color: colors.textSecondary,
-    fontSize: 13.5,
-    lineHeight: 19,
-    marginTop: 4,
   },
   clipGridRow: {
     gap: CLIP_GRID_GAP,

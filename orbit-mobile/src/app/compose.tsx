@@ -13,7 +13,7 @@ import {
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
@@ -156,6 +156,12 @@ let undoRestore: ComposerSnapshot | null = null;
 export default function ComposeScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  // Set when a room sent us here, so the post lands in that room with the
+  // same composer everything else uses.
+  const { communityId, communityName } = useLocalSearchParams<{
+    communityId?: string;
+    communityName?: string;
+  }>();
   const queryClient = useQueryClient();
   // Seed from a stashed undo snapshot when a cancelled publish reopened
   // this modal; cleared after mount so the next compose starts blank.
@@ -568,8 +574,12 @@ export default function ComposeScreen() {
               ? snapshot.contentWarning.trim()
               : undefined,
           location: snapshot.location.trim() || undefined,
+          communityId,
         });
         queryClient.invalidateQueries({ queryKey: ["feed"] });
+        if (communityId) {
+          queryClient.invalidateQueries({ queryKey: ["community-posts"] });
+        }
         if (explicitType === "reel") {
           queryClient.invalidateQueries({ queryKey: ["clips"] });
         }
@@ -611,7 +621,7 @@ export default function ComposeScreen() {
     >
       <Stack.Screen
         options={{
-          title: "New post",
+          title: communityName ? `Post to ${communityName}` : "New post",
           presentation: "modal",
           headerTitleAlign: "center",
           headerTitleStyle: { fontSize: 16, fontWeight: "700" },
@@ -656,7 +666,11 @@ export default function ComposeScreen() {
             ref={captionRef}
             value={content}
             onChangeText={setContent}
-            placeholder="What is happening in your orbit?"
+            placeholder={
+              communityName
+                ? `Share something with ${communityName}`
+                : "What is happening in your orbit?"
+            }
             placeholderTextColor={colors.textFaint}
             containerStyle={styles.inputWrap}
             style={styles.input}

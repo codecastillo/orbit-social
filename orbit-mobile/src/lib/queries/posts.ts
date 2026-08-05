@@ -86,7 +86,7 @@ export interface Post {
 // Mirrors the web app's POST_SELECT, trimmed to the columns the mobile
 // screens render. The cast goes through unknown because without generated
 // DB types the query parser infers the to-one profiles join as an array.
-const POST_SELECT = `
+export const POST_SELECT = `
   id, user_id, content, type, parent_post_id, reply_to_id, community_id,
   like_count, comment_count, repost_count, bookmark_count, view_count,
   is_hidden, is_pinned, visibility, who_can_comment, content_warning,
@@ -712,6 +712,8 @@ export async function createPost(
     pollData?: PollData;
     scheduledAt?: string;
     visibility?: "public" | "close_friends";
+    /** Posts into a room rather than the author's own feed. */
+    communityId?: string;
     whoCanComment?: WhoCanComment;
     contentWarning?: string;
     location?: string;
@@ -737,6 +739,7 @@ export async function createPost(
       type: postType,
       parent_post_id: options?.parentPostId || null,
       reply_to_id: options?.replyToId || null,
+      community_id: options?.communityId || null,
       poll_data: options?.pollData || null,
       visibility: options?.visibility || "public",
       who_can_comment: options?.whoCanComment || "everyone",
@@ -773,6 +776,7 @@ export async function createPost(
   // until it is applied the call errors and publishing proceeds unaffected.
   const fansOut =
     !options?.replyToId &&
+    !options?.communityId &&
     !options?.scheduledAt &&
     (options?.visibility ?? "public") === "public";
   if (fansOut) {
