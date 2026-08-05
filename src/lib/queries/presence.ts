@@ -2,8 +2,14 @@ import { createClient } from "@/lib/supabase/client";
 
 const supabase = createClient();
 
-/** Below this age the counterpart reads as online rather than "Active Xm ago". */
-export const ONLINE_WINDOW_MS = 2 * 60 * 1000;
+/**
+ * Below this age the counterpart reads as online rather than "Active Xm ago".
+ * Deliberately more than double HEARTBEAT_MS: a client that is online writes
+ * only once per heartbeat, so an equal window marks a genuinely active user
+ * offline in the seconds before each write and the dot blinks. Two missed
+ * beats are now needed before the dot drops.
+ */
+export const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
 /** Cadence for touch_last_seen. One write per window at most, per client. */
 export const HEARTBEAT_MS = 2 * 60 * 1000;

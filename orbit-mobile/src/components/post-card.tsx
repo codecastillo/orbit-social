@@ -44,6 +44,10 @@ import {
   unpinPost,
   updateWhoCanComment,
 } from "@/lib/queries/post-management";
+import {
+  ActionSheet,
+  type ActionSheetOption,
+} from "@/components/action-sheet";
 import { stageQuoteSeed } from "@/lib/quote-seed";
 import { recordAction, type ImpressionSurface } from "@/lib/impressions";
 import { getRankingSignals, markNotInterested } from "@/lib/queries/content-safety";
@@ -271,6 +275,7 @@ export function PostCard({
   const [emojiSheetOpen, setEmojiSheetOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [repostMenuOpen, setRepostMenuOpen] = useState(false);
   const [warningRevealed, setWarningRevealed] = useState(false);
   // Viewers who set sensitive_content_level "more" skip the reveal tap.
   // getRankingSignals is module-cached, so cards share one fetch.
@@ -399,6 +404,12 @@ export function PostCard({
     lastMediaTapRef.current = now;
   };
 
+  // Reposting your own post is refused by the server, so the action is not
+  // offered rather than shown and then explained away with an error. Replies
+  // carry neither repost nor bookmark: both are for whole posts, and five
+  // controls on a comment crowd out the two that get used.
+  const canRepost = !reply && display.user_id !== currentUserId;
+
   const handleBookmark = () => {
     const wasBookmarked = bookmarked;
     setBookmarked(!wasBookmarked);
@@ -410,11 +421,6 @@ export function PostCard({
   };
 
   const handleRepost = () => {
-    // Same rule as the web, but say so instead of silently ignoring the tap.
-    if (display.user_id === currentUserId) {
-      flashActionError("You can't repost your own post.");
-      return;
-    }
     const wasReposted = reposted;
     setReposted(!wasReposted);
     setRepostCount((n) => Math.max(0, n + (wasReposted ? -1 : 1)));
@@ -440,18 +446,25 @@ export function PostCard({
     router.push("/compose");
   };
 
-  // Repost is no longer a bare toggle: the tap offers plain repost (or
-  // undo) and quote, like the web's repost menu.
-  const openRepostMenu = () => {
-    Alert.alert("Repost", undefined, [
-      {
-        text: reposted ? "Undo repost" : "Repost",
-        onPress: handleRepost,
-      },
-      { text: "Quote", onPress: handleQuote },
-      { text: "Cancel", style: "cancel" },
-    ]);
-  };
+  // Repost is not a bare toggle: the tap offers plain repost (or undo) and
+  // quote, like the web's repost menu.
+  const repostOptions: ActionSheetOption[] = [
+    {
+      label: reposted ? "Undo repost" : "Repost",
+      icon: "repeat",
+      description: reposted
+        ? "Remove this from your profile"
+        : "Share this with your followers",
+      onPress: handleRepost,
+      destructive: reposted,
+    },
+    {
+      label: "Quote",
+      icon: "create-outline",
+      description: "Add your own take above it",
+      onPress: handleQuote,
+    },
+  ];
 
   const postUrl = `${WEB_POST_URL}/${display.id}`;
 
@@ -831,22 +844,8 @@ export function PostCard({
       {detail ? (
         <View style={styles.statsRow}>
           <Text style={styles.statsTime}>{formatTimeAgo(display.created_at)}</Text>
-          {showLikeCount && likeCount > 0 ? (
-            <Text style={styles.statsTime}>
-              {"· "}
-              <Text style={styles.statsCount}>
-                {formatNumber(likeCount)} {likeCount === 1 ? "like" : "likes"}
-              </Text>
-            </Text>
-          ) : null}
-          {repostCount > 0 ? (
-            <Text style={styles.statsTime}>
-              {"· "}
-              <Text style={styles.statsCount}>
-                {formatNumber(repostCount)} {repostCount === 1 ? "repost" : "reposts"}
-              </Text>
-            </Text>
-          ) : null}
+          {/* Likes, reposts, and bookmarks read beside their own buttons
+              below. Views are the one figure with no button to sit next to. */}
           {display.view_count > 0 ? (
             <Text style={styles.statsTime}>
               {"· "}
@@ -875,50 +874,50 @@ export function PostCard({
               color={liked ? colors.primary : colors.foreground}
             />
           </Animated.View>
-          {!detail && showLikeCount && likeCount > 0 ? (
+          {showLikeCount && likeCount > 0 ? (
             <Text style={styles.actionCount}>{formatNumber(likeCount)}</Text>
           ) : null}
         </Pressable>
         <Pressable onPress={onReplyPress ?? openDetail} style={styles.action} hitSlop={8}>
           <Ionicons name="chatbubble-outline" size={21} color={colors.foreground} />
-          {!detail && display.comment_count > 0 ? (
+          {display.comment_count > 0 ? (
             <Text style={styles.actionCount}>
               {formatNumber(display.comment_count)}
             </Text>
           ) : null}
         </Pressable>
-        <Pressable onPress={openRepostMenu} style={styles.action} hitSlop={8}>
-          <Ionicons
-            name="repeat"
-            size={22}
-            color={reposted ? colors.success : colors.foreground}
-          />
-          {!detail && repostCount > 0 ? (
-            <Text style={styles.actionCount}>{formatNumber(repostCount)}</Text>
-          ) : null}
-        </Pressable>
+        {canRepost ? (
+          <Pressable
+            onPress={() => setRepostMenuOpen(true)}
+            style={styles.action}
+            hitSlop={8}
+          >
+            <Ionicons
+              name="repeat"
+              size={22}
+              color={reposted ? colors.success : colors.foreground}
+            />
+            {repostCount > 0 ? (
+              <Text style={styles.actionCount}>{formatNumber(repostCount)}</Text>
+            ) : null}
+          </Pressable>
+        ) : null}
         <Pressable onPress={() => setShareOpen(true)} style={styles.action} hitSlop={8}>
           <Ionicons name="share-outline" size={21} color={colors.foreground} />
         </Pressable>
+        {reply ? null : (
         <Pressable onPress={handleBookmark} style={[styles.action, styles.actionBookmark]} hitSlop={8}>
           <Ionicons
             name={bookmarked ? "bookmark" : "bookmark-outline"}
             size={21}
             color={bookmarked ? colors.primary : colors.foreground}
           />
-          {!detail && bookmarkCount > 0 ? (
+          {bookmarkCount > 0 ? (
             <Text style={styles.actionCount}>{formatNumber(bookmarkCount)}</Text>
           ) : null}
         </Pressable>
+        )}
       </View>
-
-      {!detail && display.comment_count > 0 ? (
-        <Pressable onPress={onReplyPress ?? openDetail} hitSlop={4}>
-          <Text style={styles.viewComments}>
-            View {display.comment_count === 1 ? "1 reply" : `all ${formatNumber(display.comment_count)} replies`}
-          </Text>
-        </Pressable>
-      ) : null}
 
       {actionError ? <Text style={styles.actionErrorText}>{actionError}</Text> : null}
 
@@ -950,6 +949,15 @@ export function PostCard({
             applyReaction(emoji);
           }}
           onClose={() => setEmojiSheetOpen(false)}
+        />
+      ) : null}
+
+      {repostMenuOpen ? (
+        <ActionSheet
+          visible
+          title="Repost"
+          options={repostOptions}
+          onClose={() => setRepostMenuOpen(false)}
         />
       ) : null}
 
@@ -1157,7 +1165,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: spacing(3),
-    gap: spacing(5),
+    gap: spacing(4),
   },
   actionsDetail: {
     marginTop: spacing(3),
@@ -1168,7 +1176,7 @@ const styles = StyleSheet.create({
   action: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 3,
   },
   actionBookmark: {
     marginLeft: "auto",
@@ -1178,11 +1186,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     fontVariant: ["tabular-nums"],
-  },
-  viewComments: {
-    color: colors.mutedForeground,
-    fontSize: 13,
-    marginTop: spacing(1.5),
   },
   burstWrap: {
     ...StyleSheet.absoluteFillObject,

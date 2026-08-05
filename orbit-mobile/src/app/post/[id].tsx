@@ -308,10 +308,6 @@ export default function PostDetailScreen() {
             comment={item}
             currentUserId={userId}
             isLiked={interactions?.likedPostIds.has(item.id) ?? false}
-            isBookmarked={interactions?.bookmarkedPostIds.has(item.id) ?? false}
-            isReposted={interactions?.repostedPostIds.has(item.id) ?? false}
-            userReaction={interactions?.reactions.get(item.id) ?? null}
-            reactionCounts={reactionCounts?.get(item.id) ?? []}
             expandSignal={expandedCommentId}
             onStartReply={(comment) => {
               setReplyTarget(comment);
@@ -391,22 +387,28 @@ export default function PostDetailScreen() {
             name={ownProfile?.display_name || ownProfile?.username || "You"}
             size={32}
           />
-          <MentionInput
-            ref={replyInputRef}
-            value={replyText}
-            onChangeText={setReplyText}
-            placeholder={`Reply to @${(replyTarget ?? post).profiles.username}`}
-            placeholderTextColor={colors.textFaint}
-            containerStyle={styles.replyInputWrap}
-            style={styles.replyInput}
-            panelPlacement="above"
-            multiline
-            maxLength={REPLY_MAX_LENGTH}
-          />
-          <MentionButton
-            onPress={() => replyInputRef.current?.insertMentionTrigger()}
-            disabled={replyMutation.isPending}
-          />
+          {/* The mention trigger lives inside the field it types into.
+              Sitting between the field and Send, it competed with both for
+              the same row and pushed Send off the edge on narrow screens. */}
+          <View style={styles.replyInputWrap}>
+            <MentionInput
+              ref={replyInputRef}
+              value={replyText}
+              onChangeText={setReplyText}
+              placeholder={`Reply to @${(replyTarget ?? post).profiles.username}`}
+              placeholderTextColor={colors.textFaint}
+              style={styles.replyInput}
+              panelPlacement="above"
+              multiline
+              maxLength={REPLY_MAX_LENGTH}
+            />
+            <View style={styles.mentionSlot}>
+              <MentionButton
+                onPress={() => replyInputRef.current?.insertMentionTrigger()}
+                disabled={replyMutation.isPending}
+              />
+            </View>
+          </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Send reply"
@@ -538,6 +540,10 @@ const styles = StyleSheet.create({
   },
   replyInputWrap: {
     flex: 1,
+    // Without this a long placeholder sets the field's minimum width and the
+    // row grows past the screen instead of the field shrinking.
+    minWidth: 0,
+    justifyContent: "flex-end",
   },
   replyInput: {
     minHeight: 36,
@@ -545,9 +551,16 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: colors.surfaceElevated,
     color: colors.foreground,
-    paddingHorizontal: spacing(3.5),
+    paddingLeft: spacing(3.5),
+    // Room for the mention button sitting inside the field.
+    paddingRight: spacing(9),
     paddingVertical: spacing(2),
     fontSize: 14,
+  },
+  mentionSlot: {
+    position: "absolute",
+    right: spacing(2),
+    bottom: spacing(1.5),
   },
   sendButton: {
     height: 36,

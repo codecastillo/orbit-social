@@ -1,41 +1,75 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { PostCard } from "@/components/post-card";
+import { ActionSheet, type ActionSheetOption } from "@/components/action-sheet";
+import { ReportSheet } from "@/components/report-sheet";
 import { RichText } from "@/components/rich-text";
 import { Avatar } from "@/components/ui";
 import {
   checkUserInteractions,
+  deletePost,
   getReplies,
   pinComment,
   toggleLike,
   type Post,
 } from "@/lib/queries/posts";
-import type { ReactionCount, ReactionType } from "@/lib/queries/reactions";
 import { useCommentFilter } from "@/lib/hooks/use-content-safety";
 import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
 import { colors, spacing } from "@/lib/theme";
 
-function NestedReply({
-  reply,
+const AVATAR_TOP_LEVEL = 34;
+const AVATAR_NESTED = 28;
+
+/**
+ * One comment, laid out the way short-video apps lay them out: avatar on the
+ * left, text and its actions in a column beside it, and the like button alone
+ * on the right with its count underneath.
+ *
+ * Comments deliberately do not render as PostCard. A comment is not a post
+ * with a smaller avatar: it has no repost, bookmark, or share, its reply
+ * action belongs on this screen rather than pushing another one, and its like
+ * reads better on the right than as one of five equal buttons in a row.
+ */
+function CommentRow({
+  comment,
   currentUserId,
   isLiked,
+  nested = false,
+  canReply,
+  canPin,
+  pinned = false,
+  onTogglePin,
+  onReply,
+  children,
 }: {
-  reply: Post;
+  comment: Post;
   currentUserId: string;
   isLiked: boolean;
+  /** A reply to a comment: smaller, and with no thread controls of its own. */
+  nested?: boolean;
+  canReply: boolean;
+  canPin: boolean;
+  pinned?: boolean;
+  onTogglePin?: () => void;
+  onReply: () => void;
+  /** Replies expander and list, rendered under a top-level row's actions. */
+  children?: React.ReactNode;
 }) {
-  // Optimistic heart with rollback, seeded from the interactions query and
-  // re-seeded during render when a refetch delivers fresh values (the same
-  // adjust-state-on-prop-change pattern PostCard uses).
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [liked, setLiked] = useState(isLiked);
-  const [likeCount, setLikeCount] = useState(reply.like_count);
+  const [likeCount, setLikeCount] = useState(comment.like_count);
   const [seedLiked, setSeedLiked] = useState(isLiked);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const hideLikeCounts = useHideLikeCounts();
-  const showLikeCount = !hideLikeCounts || reply.user_id === currentUserId;
+  const showLikeCount = !hideLikeCounts || comment.user_id === currentUserId;
 
+  // Re-seed during render when a refetch delivers fresh values, the same
+  // adjust-state-on-prop-change pattern PostCard uses.
   if (seedLiked !== isLiked) {
     setSeedLiked(isLiked);
     setLiked(isLiked);
@@ -44,64 +78,159 @@ function NestedReply({
   const handleLike = () => {
     const wasLiked = liked;
     setLiked(!wasLiked);
-    setLikeCount((n) => (wasLiked ? n - 1 : n + 1));
-    toggleLike(currentUserId, reply.id, wasLiked).catch(() => {
+    setLikeCount((n) => Math.max(0, n + (wasLiked ? -1 : 1)));
+    toggleLike(currentUserId, comment.id, wasLiked).catch(() => {
       setLiked(wasLiked);
-      setLikeCount((n) => (wasLiked ? n + 1 : n - 1));
+      setLikeCount((n) => Math.max(0, n + (wasLiked ? 1 : -1)));
     });
   };
 
-  const authorName = reply.profiles.display_name || reply.profiles.username;
+  const handleDelete = () => {
+    deletePost(comment.id)
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["post-replies"] });
+        queryClient.invalidateQueries({ queryKey: ["comment-replies"] });
+      })
+      .catch(() => {
+        // The comment is still on screen and the list still matches the
+        // server, so the failure is already visible without a toast.
+      });
+  };
+
+  const menuOptions: ActionSheetOption[] =
+    comment.user_id === currentUserId
+      ? [
+          {
+            label: "Delete comment",
+            icon: "trash-outline",
+            destructive: true,
+            onPress: handleDelete,
+          },
+        ]
+      : [
+          {
+            label: "Report comment",
+            icon: "flag-outline",
+            destructive: true,
+            onPress: () => setReportOpen(true),
+          },
+        ];
+
+  const authorName = comment.profiles.display_name || comment.profiles.username;
 
   return (
-    <View style={styles.nestedRow}>
-      <Avatar url={reply.profiles.avatar_url} name={authorName} size={28} />
-      <View style={styles.nestedBody}>
-        <View style={styles.nestedMeta}>
-          <Text style={styles.nestedAuthor} numberOfLines={1}>
-            {authorName}
-          </Text>
-          <Text style={styles.nestedTime}>{formatTimeAgo(reply.created_at)}</Text>
-        </View>
-        {reply.content ? (
-          <RichText style={styles.nestedText}>{reply.content}</RichText>
-        ) : null}
-      </View>
+    <View style={[styles.row, nested && styles.rowNested]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={liked ? "Unlike reply" : "Like reply"}
+        accessibilityLabel={`View ${comment.profiles.username}'s profile`}
+        onPress={() => router.push(`/user/${comment.profiles.username}`)}
+        hitSlop={4}
+      >
+        <Avatar
+          url={comment.profiles.avatar_url}
+          name={authorName}
+          size={nested ? AVATAR_NESTED : AVATAR_TOP_LEVEL}
+        />
+      </Pressable>
+
+      <View style={styles.body}>
+        <Text style={styles.author} numberOfLines={1}>
+          {authorName}
+          {pinned ? <Text style={styles.pinnedNote}>{"  ·  Pinned"}</Text> : null}
+        </Text>
+        {comment.content ? (
+          <RichText style={styles.text}>{comment.content}</RichText>
+        ) : null}
+
+        <View style={styles.meta}>
+          <Text style={styles.time}>{formatTimeAgo(comment.created_at)}</Text>
+          {canReply ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Reply to ${comment.profiles.username}`}
+              onPress={onReply}
+              hitSlop={8}
+              style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+            >
+              <Text style={styles.metaAction}>Reply</Text>
+            </Pressable>
+          ) : null}
+          {canPin && onTogglePin ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={pinned ? "Unpin comment" : "Pin comment"}
+              onPress={onTogglePin}
+              hitSlop={8}
+              style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+            >
+              <Text style={styles.metaAction}>{pinned ? "Unpin" : "Pin"}</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Comment options"
+            onPress={() => setMenuOpen(true)}
+            hitSlop={8}
+            style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+          >
+            <Ionicons
+              name="ellipsis-horizontal"
+              size={14}
+              color={colors.textFaint}
+            />
+          </Pressable>
+        </View>
+
+        {children}
+      </View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={liked ? "Unlike comment" : "Like comment"}
         onPress={handleLike}
         hitSlop={8}
-        style={({ pressed }) => [styles.nestedLike, pressed && { opacity: 0.7 }]}
+        style={({ pressed }) => [styles.likeColumn, pressed && { opacity: 0.6 }]}
       >
         <Ionicons
           name={liked ? "heart" : "heart-outline"}
-          size={15}
+          size={16}
           color={liked ? colors.primary : colors.mutedForeground}
         />
         {showLikeCount && likeCount > 0 ? (
-          <Text style={styles.nestedLikeCount}>{formatNumber(likeCount)}</Text>
+          <Text style={styles.likeCount}>{formatNumber(likeCount)}</Text>
         ) : null}
       </Pressable>
+
+      {menuOpen ? (
+        <ActionSheet
+          visible
+          title="Comment"
+          options={menuOptions}
+          onClose={() => setMenuOpen(false)}
+        />
+      ) : null}
+      {reportOpen ? (
+        <ReportSheet
+          visible
+          onClose={() => setReportOpen(false)}
+          entityType="post"
+          entityId={comment.id}
+          reportedUserId={comment.user_id}
+        />
+      ) : null}
     </View>
   );
 }
 
 /**
- * A top-level comment on the post detail screen plus its one level of
- * nested replies, mirroring the web CommentWithReplies: the comment renders
- * as a threaded PostCard, with a Reply action and a "View N replies"
- * expander underneath. Nesting stops here; replies to replies flatten into
- * the same list, matching the web's 2-level threading.
+ * A top-level comment plus its one level of nested replies. Nesting stops
+ * here; replies to replies flatten into the same list, matching the web's
+ * 2-level threading.
  */
 export function CommentThread({
   comment,
   currentUserId,
   isLiked,
-  isBookmarked,
-  isReposted,
-  userReaction,
-  reactionCounts,
   expandSignal,
   onStartReply,
   canPin,
@@ -110,10 +239,6 @@ export function CommentThread({
   comment: Post;
   currentUserId: string;
   isLiked: boolean;
-  isBookmarked: boolean;
-  isReposted: boolean;
-  userReaction: ReactionType | null;
-  reactionCounts: ReactionCount[];
   // Id of the comment the screen just posted a reply under, so the thread
   // opens itself and the fresh reply is visible without another tap.
   expandSignal: string | null;
@@ -128,7 +253,7 @@ export function CommentThread({
   const [showReplies, setShowReplies] = useState(false);
 
   // Optimistic pin with rollback, re-seeded when a refetch delivers the
-  // authoritative value (same pattern as the nested-reply heart).
+  // authoritative value (same pattern as the like heart).
   const [pinned, setPinned] = useState(comment.is_pinned);
   const [seedPinned, setSeedPinned] = useState(comment.is_pinned);
   if (seedPinned !== comment.is_pinned) {
@@ -143,7 +268,9 @@ export function CommentThread({
       .then(() => {
         // Refetch re-sorts the list and clears any sibling pin the RPC
         // replaced.
-        queryClient.invalidateQueries({ queryKey: ["post-replies", comment.reply_to_id] });
+        queryClient.invalidateQueries({
+          queryKey: ["post-replies", comment.reply_to_id],
+        });
       })
       .catch(() => setPinned(wasPinned));
   };
@@ -178,181 +305,144 @@ export function CommentThread({
   const replyCount = comment.comment_count;
 
   return (
-    <View>
-      {pinned ? (
-        <View style={styles.pinnedTag}>
-          <Ionicons name="pin" size={12} color={colors.mutedForeground} />
-          <Text style={styles.pinnedTagLabel}>Pinned</Text>
-        </View>
-      ) : null}
-      <PostCard
-        post={comment}
+    <View style={styles.thread}>
+      <CommentRow
+        comment={comment}
         currentUserId={currentUserId}
         isLiked={isLiked}
-        isBookmarked={isBookmarked}
-        isReposted={isReposted}
-        userReaction={userReaction}
-        reactionCounts={reactionCounts}
-        surface="detail"
-        reply
-      />
-      <View style={styles.threadActions}>
-        {canComment ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Reply to ${comment.profiles.username}`}
-            onPress={() => onStartReply(comment)}
-            hitSlop={8}
-            style={({ pressed }) => [styles.replyAction, pressed && { opacity: 0.7 }]}
-          >
-            <Ionicons name="arrow-undo-outline" size={13} color={colors.mutedForeground} />
-            <Text style={styles.replyActionLabel}>Reply</Text>
-          </Pressable>
-        ) : null}
-        {canPin ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={pinned ? "Unpin comment" : "Pin comment"}
-            onPress={handleTogglePin}
-            hitSlop={8}
-            style={({ pressed }) => [styles.replyAction, pressed && { opacity: 0.7 }]}
-          >
-            <Ionicons
-              name={pinned ? "pin" : "pin-outline"}
-              size={13}
-              color={colors.mutedForeground}
-            />
-            <Text style={styles.replyActionLabel}>{pinned ? "Unpin" : "Pin"}</Text>
-          </Pressable>
-        ) : null}
+        canReply={canComment}
+        canPin={canPin}
+        pinned={pinned}
+        onTogglePin={handleTogglePin}
+        onReply={() => onStartReply(comment)}
+      >
         {replyCount > 0 ? (
           <Pressable
             accessibilityRole="button"
             onPress={() => setShowReplies((v) => !v)}
             hitSlop={8}
-            style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+            style={({ pressed }) => [styles.expander, pressed && { opacity: 0.6 }]}
           >
-            <Text style={styles.viewReplies}>
+            <View style={styles.expanderRule} />
+            <Text style={styles.expanderLabel}>
               {showReplies
                 ? "Hide replies"
                 : `View ${replyCount === 1 ? "1 reply" : `${formatNumber(replyCount)} replies`}`}
             </Text>
           </Pressable>
         ) : null}
-      </View>
-      {showReplies ? (
-        <View style={styles.nestedList}>
-          {repliesQuery.isPending ? (
-            <ActivityIndicator style={styles.nestedLoading} color={colors.primary} />
-          ) : null}
-          {repliesQuery.isSuccess && repliesQuery.data.length === 0 ? (
-            <Text style={styles.nestedEmpty}>No replies yet.</Text>
-          ) : null}
-          {(repliesQuery.data ?? []).map((reply) => (
-            <NestedReply
-              key={reply.id}
-              reply={reply}
-              currentUserId={currentUserId}
-              isLiked={replyInteractions?.likedPostIds.has(reply.id) ?? false}
-            />
-          ))}
-        </View>
-      ) : null}
+
+        {showReplies ? (
+          <View style={styles.nestedList}>
+            {repliesQuery.isPending ? (
+              <ActivityIndicator
+                style={styles.nestedLoading}
+                color={colors.primary}
+              />
+            ) : null}
+            {repliesQuery.isSuccess && repliesQuery.data.length === 0 ? (
+              <Text style={styles.nestedEmpty}>No replies yet.</Text>
+            ) : null}
+            {(repliesQuery.data ?? []).map((reply) => (
+              <CommentRow
+                key={reply.id}
+                comment={reply}
+                currentUserId={currentUserId}
+                isLiked={replyInteractions?.likedPostIds.has(reply.id) ?? false}
+                nested
+                canReply={canComment}
+                canPin={false}
+                onReply={() => onStartReply(reply)}
+              />
+            ))}
+          </View>
+        ) : null}
+      </CommentRow>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Matches the reply card's body-text inset so the tag sits above the
-  // comment's author line.
-  pinnedTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing(1),
-    paddingLeft: spacing(17),
-    paddingTop: spacing(2),
-    marginBottom: -spacing(1),
+  thread: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  pinnedTagLabel: {
+  row: {
+    flexDirection: "row",
+    gap: spacing(3),
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(3),
+  },
+  // Nested rows sit inside a top-level row's body column, which already
+  // carries the horizontal inset.
+  rowNested: {
+    paddingHorizontal: 0,
+    paddingVertical: spacing(2),
+  },
+  body: {
+    flex: 1,
+    minWidth: 0,
+  },
+  author: {
     color: colors.mutedForeground,
-    fontSize: 11,
+    fontSize: 12.5,
     fontWeight: "600",
   },
-  // Left inset lines the actions and nested rows up with the reply card's
-  // body text (card inset + thread rule + 32px avatar + gap).
-  threadActions: {
+  pinnedNote: {
+    color: colors.textFaint,
+    fontWeight: "600",
+  },
+  text: {
+    color: colors.foreground,
+    fontSize: 14.5,
+    lineHeight: 20,
+    marginTop: 2,
+  },
+  meta: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing(4),
-    paddingLeft: spacing(17),
-    paddingRight: spacing(4),
-    paddingVertical: spacing(2),
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    marginTop: spacing(1.5),
   },
-  replyAction: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing(1),
+  time: {
+    color: colors.textFaint,
+    fontSize: 12,
   },
-  replyActionLabel: {
+  metaAction: {
     color: colors.mutedForeground,
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
   },
-  viewReplies: {
-    color: colors.primary,
+  // Aligned with the author line rather than the middle of the row, so on a
+  // long comment it still reads as belonging to this one.
+  likeColumn: {
+    alignItems: "center",
+    width: 28,
+    paddingTop: 2,
+  },
+  likeCount: {
+    color: colors.mutedForeground,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  expander: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    marginTop: spacing(2.5),
+  },
+  expanderRule: {
+    width: spacing(6),
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+  },
+  expanderLabel: {
+    color: colors.mutedForeground,
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   nestedList: {
-    marginLeft: spacing(12),
-    paddingLeft: spacing(3),
-    paddingRight: spacing(4),
-    borderLeftWidth: 2,
-    borderLeftColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-    paddingBottom: spacing(2),
-  },
-  nestedRow: {
-    flexDirection: "row",
-    gap: spacing(2.5),
-    paddingVertical: spacing(2),
-  },
-  nestedBody: {
-    flex: 1,
-  },
-  nestedMeta: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: spacing(2),
-  },
-  nestedAuthor: {
-    color: colors.foreground,
-    fontSize: 12.5,
-    fontWeight: "600",
-    flexShrink: 1,
-  },
-  nestedTime: {
-    color: colors.textFaint,
-    fontSize: 11,
-  },
-  nestedText: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 2,
-  },
-  nestedLike: {
-    alignItems: "center",
-    paddingTop: 2,
-    minWidth: 24,
-  },
-  nestedLikeCount: {
-    color: colors.mutedForeground,
-    fontSize: 10.5,
-    marginTop: 2,
+    marginTop: spacing(1),
   },
   nestedLoading: {
     paddingVertical: spacing(2),

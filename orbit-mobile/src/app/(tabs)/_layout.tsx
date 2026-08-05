@@ -202,9 +202,10 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     textAlign: "center",
-    // Without this the glyph sits on its default baseline, which leaves it
-    // low in the circle rather than centered in it.
-    lineHeight: BELL_BADGE_SIZE,
+    // No lineHeight here on purpose: iOS lays the glyph on the baseline of
+    // the line box, so stretching the box to the badge diameter pushes the
+    // digit toward the bottom. The natural box centers via the flex parent.
+    includeFontPadding: false,
   },
   createSlot: {
     flex: 1,
