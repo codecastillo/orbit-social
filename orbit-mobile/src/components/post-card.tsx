@@ -20,6 +20,8 @@ import { PollCard } from "@/components/poll-card";
 import { ReactionCounts } from "@/components/reaction-counts";
 import { RichText } from "@/components/rich-text";
 import { ReactionPicker, type ReactionAnchor } from "@/components/reaction-picker";
+import { MediaCarousel } from "@/components/media-carousel";
+import { MediaLightbox } from "@/components/media-lightbox";
 import { ReportSheet } from "@/components/report-sheet";
 import { ShareSheet } from "@/components/share-sheet";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
@@ -63,6 +65,8 @@ const ACTION_ERROR_TTL_MS = 2500;
 // updated_at trails created_at by a moment on plain inserts; only a gap
 // past this marks a genuine edit, same rule as the web card.
 const EDITED_GAP_MS = 60_000;
+/** Window a second tap has to arrive in to count as a double tap. */
+const DOUBLE_TAP_MS = 300;
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.round(ms / 1000);
@@ -291,6 +295,8 @@ export function PostCard({
   const router = useRouter();
   const queryClient = useQueryClient();
   const likeButtonRef = useRef<View>(null);
+  const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const isRepost = post.type === "repost" && !!post.parent_post_id;
   const quoted = post.type === "quote" && post.parent_post_id ? original : null;
@@ -431,15 +437,26 @@ export function PostCard({
     });
   };
 
-  const handleMediaTap = () => {
+  // A single tap opens the image, a double tap likes it. Opening is deferred
+  // by the double-tap window so a like never flashes the viewer open first;
+  // the second tap cancels the pending open.
+  const handleMediaTap = (index = 0) => {
     const now = Date.now();
-    if (now - lastMediaTapRef.current < 300) {
+    if (now - lastMediaTapRef.current < DOUBLE_TAP_MS) {
       lastMediaTapRef.current = 0;
+      if (openTimerRef.current) {
+        clearTimeout(openTimerRef.current);
+        openTimerRef.current = null;
+      }
       playBurst();
       if (!liked) handleLike();
       return;
     }
     lastMediaTapRef.current = now;
+    openTimerRef.current = setTimeout(() => {
+      openTimerRef.current = null;
+      setLightboxIndex(index);
+    }, DOUBLE_TAP_MS);
   };
 
   // Reposting your own post is refused by the server, so the action is not
@@ -681,7 +698,10 @@ export function PostCard({
     );
   }
 
-  const media = [...display.post_media].sort((a, b) => a.sort_order - b.sort_order)[0];
+  const orderedMedia = [...display.post_media].sort(
+    (a, b) => a.sort_order - b.sort_order,
+  );
+  const media = orderedMedia[0];
   const aspectRatio =
     media?.width && media?.height ? media.width / media.height : DEFAULT_MEDIA_ASPECT;
   const isEdited =
@@ -831,19 +851,15 @@ export function PostCard({
 
       {!contentHidden && media && media.type !== "video" ? (
         <Pressable
-          onPress={handleMediaTap}
+          onPress={() => handleMediaTap(0)}
           style={[reply ? styles.mediaInset : styles.mediaFullBleed, { aspectRatio }]}
         >
-          <Image
-            source={{ uri: media.url }}
-            alt={media.alt_text ?? "Post image"}
-            accessibilityLabel={media.alt_text ?? "Post image"}
-            placeholder={media.blurhash ? { blurhash: media.blurhash } : undefined}
-            style={styles.mediaImage}
-            contentFit="cover"
-            transition={200}
-            cachePolicy="memory-disk"
-            recyclingKey={media.url}
+          {/* The carousel owns the swipe; the tap still reaches this Pressable
+              so double-tap-to-like keeps working on every page. */}
+          <MediaCarousel
+            media={orderedMedia}
+            inset={reply}
+            onPressItem={handleMediaTap}
           />
           <Animated.View
             pointerEvents="none"
@@ -996,6 +1012,15 @@ export function PostCard({
             applyReaction(emoji);
           }}
           onClose={() => setEmojiSheetOpen(false)}
+        />
+      ) : null}
+
+      {lightboxIndex !== null ? (
+        <MediaLightbox
+          media={orderedMedia}
+          initialIndex={lightboxIndex}
+          visible
+          onClose={() => setLightboxIndex(null)}
         />
       ) : null}
 

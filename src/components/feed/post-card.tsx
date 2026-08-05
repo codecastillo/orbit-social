@@ -94,6 +94,7 @@ import { getRankingSignals, markNotInterested } from "@/lib/queries/content-safe
 import { ShareDialog } from "@/components/shared/share-dialog";
 import { BlockMuteDialog } from "@/components/shared/block-mute-dialog";
 import { ReportDialog } from "@/components/shared/report-dialog";
+import { MediaLightbox } from "@/components/shared/media-lightbox";
 import { ReactionPicker, ReactionCountsDisplay } from "./reaction-picker";
 import { QuotedPostCard, QuotedPostUnavailable } from "./quoted-post-card";
 import { PostInsights, computeUserAverages } from "./post-insights";
@@ -300,6 +301,7 @@ export const PostCard = memo(function PostCard({
   const [blockMuteOpen, setBlockMuteOpen] = useState(false);
   const [blockMuteAction, setBlockMuteAction] = useState<"block" | "mute">("block");
   const [reportOpen, setReportOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [commentControlsOpen, setCommentControlsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content || "");
@@ -1046,13 +1048,14 @@ export const PostCard = memo(function PostCard({
                         <Image
                           src={m.url}
                           alt={m.alt_text ?? ""}
+                          onClick={() => setLightboxIndex(i)}
                           fill
                           sizes={
                             isMulti
                               ? "(max-width: 640px) 50vw, 300px"
                               : "(max-width: 640px) 100vw, 600px"
                           }
-                          className="object-cover"
+                          className="object-cover cursor-zoom-in"
                         />
                       )}
                     </div>
@@ -1215,6 +1218,14 @@ export const PostCard = memo(function PostCard({
           onSuccess={onUpdate}
         />
       )}
+      <MediaLightbox
+        media={displayPost.post_media
+          .filter((m) => !isAudioMediaItem(m.url) && m.type !== "video")
+          .sort((a, b) => a.sort_order - b.sort_order)}
+        index={lightboxIndex}
+        onIndexChange={setLightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+      />
       {user && !isOwnPost && (
         <ReportDialog
           open={reportOpen}
