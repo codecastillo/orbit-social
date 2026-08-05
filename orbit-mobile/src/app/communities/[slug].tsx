@@ -333,6 +333,20 @@ export default function CommunityDetailScreen() {
   });
 
   const roomMenuOptions: ActionSheetOption[] = [
+    ...(role === "owner"
+      ? [
+          {
+            label: "Room settings",
+            icon: "settings-outline" as const,
+            description: "Name, description, privacy, and deleting the room",
+            onPress: () =>
+              router.push({
+                pathname: "/communities/settings",
+                params: { slug },
+              }),
+          },
+        ]
+      : []),
     ...(isMember
       ? [
           {

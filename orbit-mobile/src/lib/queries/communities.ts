@@ -156,19 +156,38 @@ export async function createCommunity(
 
 export async function updateCommunity(
   communityId: string,
-  patch: { avatarUrl?: string | null; coverUrl?: string | null },
+  patch: {
+    name?: string;
+    description?: string;
+    joinPolicy?: JoinPolicy;
+    rules?: CommunityRule[];
+    avatarUrl?: string | null;
+    coverUrl?: string | null;
+  },
 ) {
+  // Every field is null-means-leave-alone, so a patch only carries what the
+  // owner actually changed.
   const { data, error } = await supabase.rpc("update_community", {
     p_community_id: communityId,
-    p_name: null,
-    p_description: null,
+    p_name: patch.name ?? null,
+    p_description: patch.description ?? null,
     p_avatar_url: patch.avatarUrl ?? null,
     p_cover_url: patch.coverUrl ?? null,
     p_clear_avatar: false,
     p_clear_cover: false,
+    p_join_policy: patch.joinPolicy ?? null,
+    p_rules: patch.rules ?? null,
   });
   if (error) throw error;
   return data as Community;
+}
+
+/** Owner-only, re-checked server-side. Posts survive with community_id nulled. */
+export async function deleteCommunity(communityId: string) {
+  const { error } = await supabase.rpc("delete_community", {
+    p_community_id: communityId,
+  });
+  if (error) throw error;
 }
 
 export async function uploadCommunityImage(
