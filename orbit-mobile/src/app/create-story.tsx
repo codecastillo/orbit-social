@@ -168,7 +168,7 @@ export default function CreateStoryScreen() {
   const pickMedia = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images", "videos"],
-      quality: 0.85,
+      quality: 1,
     });
     if (result.canceled || !result.assets[0]) return;
 

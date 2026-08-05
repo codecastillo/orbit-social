@@ -35,7 +35,7 @@ import { colors, radii, spacing } from "@/lib/theme";
 // shot fires itself after this countdown.
 const COUNTDOWN_TICKS = 3;
 const COUNTDOWN_TICK_MS = 800;
-const PHOTO_QUALITY = 0.85;
+const PHOTO_QUALITY = 1;
 // Where the front photo composites over the back photo; the viewer renders
 // the same corner from interactive_data.selfie.position.
 const SELFIE_CORNER = "top-left" as const;

@@ -4,7 +4,15 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { CreateSheet } from "@/components/create-sheet";
 import { useUnreadCounts } from "@/lib/hooks/use-unread";
-import { colors, fonts, type as typeScale } from "@/lib/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { colors, fonts, spacing, type as typeScale } from "@/lib/theme";
+
+/**
+ * Height of the tab row itself, above the home indicator inset. Tall enough
+ * to center an icon and its label as one block rather than pinning the icon
+ * to the top edge, which is what left the bar looking top-heavy.
+ */
+const TAB_BAR_HEIGHT = 56;
 
 /** Diameter of the notification badge, and the radius it is halved into. */
 const BELL_BADGE_SIZE = 18;
@@ -13,6 +21,7 @@ const BELL_BADGE_RING = 2;
 
 export default function TabsLayout() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   // A tab press returns to that tab's own screen. Detail routes (a hashtag,
   // a post, a profile) stack above the tab bar at the root, so without this
   // tapping Discover from a hashtag page leaves you on the hashtag page.
@@ -32,6 +41,20 @@ export default function TabsLayout() {
           tabBarStyle: {
             backgroundColor: colors.background,
             borderTopColor: colors.border,
+            height: TAB_BAR_HEIGHT + insets.bottom,
+            // The inset is reserved as padding rather than absorbed into the
+            // row, so the icons sit in the middle of the visible bar instead
+            // of riding above the home indicator's empty space.
+            paddingBottom: insets.bottom,
+            paddingTop: 0,
+          },
+          tabBarItemStyle: {
+            justifyContent: "center",
+            paddingVertical: spacing(1.5),
+          },
+          tabBarLabelStyle: {
+            fontSize: 10,
+            marginTop: 2,
           },
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.mutedForeground,

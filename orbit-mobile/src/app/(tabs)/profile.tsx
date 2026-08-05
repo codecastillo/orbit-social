@@ -110,17 +110,16 @@ export default function OwnProfileScreen() {
   const draftCount = draftsQuery.data?.length ?? 0;
   const scheduledCount = scheduledQuery.data?.length ?? 0;
   const gridShortcuts: ProfileGridShortcut[] = [
-    ...(draftCount > 0
-      ? [
-          {
-            id: "shortcut-drafts",
-            icon: "document-text-outline" as const,
-            label: "Drafts",
-            count: draftCount,
-            onPress: () => router.push("/drafts" as Href),
-          },
-        ]
-      : []),
+    // Drafts holds its place at the top left whether or not anything is in
+    // it, so the way back to an unfinished post is always where it was last
+    // time rather than appearing and disappearing with the count.
+    {
+      id: "shortcut-drafts",
+      icon: "document-text-outline" as const,
+      label: "Drafts",
+      count: draftCount,
+      onPress: () => router.push("/drafts" as Href),
+    },
     ...(scheduledCount > 0
       ? [
           {
@@ -313,14 +312,6 @@ export default function OwnProfileScreen() {
               onPress={() => {
                 setMenuOpen(false);
                 router.push("/scheduled" as Href);
-              }}
-            />
-            <SheetRow
-              icon="albums-outline"
-              label="Moments archive"
-              onPress={() => {
-                setMenuOpen(false);
-                router.push("/moments-archive" as Href);
               }}
             />
             <SheetRow

@@ -215,12 +215,6 @@ export function Sidebar({
                     Scheduled
                   </DropdownMenuItem>
                 </Link>
-                <Link href="/moments-archive">
-                  <DropdownMenuItem className="cursor-pointer">
-                    <Archive className="mr-2 h-4 w-4" />
-                    Moments archive
-                  </DropdownMenuItem>
-                </Link>
                 <DropdownMenuSeparator />
                 <Link href="/settings">
                   <DropdownMenuItem className="cursor-pointer">

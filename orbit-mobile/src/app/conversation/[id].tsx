@@ -1012,7 +1012,7 @@ export default function ConversationScreen() {
   const pickDmMedia = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images", "videos"],
-      quality: 0.85,
+      quality: 1,
     });
     if (result.canceled || result.assets.length === 0) return;
     const asset = result.assets[0];

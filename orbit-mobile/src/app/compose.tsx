@@ -292,7 +292,9 @@ export default function ComposeScreen() {
     if (remainingSlots <= 0) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images", "videos"],
-      quality: 0.85,
+      // The picker re-encodes at anything below 1, and a post's photo is
+      // the content. Upload the original and let the CDN serve it down.
+      quality: 1,
       allowsMultipleSelection: true,
       selectionLimit: remainingSlots,
     });
