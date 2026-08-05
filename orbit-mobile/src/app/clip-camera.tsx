@@ -16,7 +16,7 @@ import {
   useMicrophonePermissions,
 } from "expo-camera";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { Stack, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -268,7 +268,6 @@ export default function ClipCameraScreen() {
 
     return (
       <View style={[styles.fill, styles.permissionWrap]}>
-        <Stack.Screen options={{ headerShown: false, presentation: "fullScreenModal" }} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Close camera"
@@ -313,8 +312,6 @@ export default function ClipCameraScreen() {
 
   return (
     <View style={styles.fill}>
-      <Stack.Screen options={{ headerShown: false, presentation: "fullScreenModal" }} />
-
       {phase === "capture" ? (
         <CameraView
           ref={cameraRef}

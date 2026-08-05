@@ -15,7 +15,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as VideoThumbnails from "expo-video-thumbnails";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { useEvent } from "expo";
-import { Stack, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -336,8 +336,6 @@ export default function ClipUploadScreen() {
 
   return (
     <View style={styles.fill}>
-      <Stack.Screen options={{ headerShown: false, presentation: "fullScreenModal" }} />
-
       {video ? (
         <UploadPreview
           // Keyed so Replace remounts the player; useVideoPlayer does not

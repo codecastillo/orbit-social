@@ -11,7 +11,7 @@ import {
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { Stack, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Field } from "@/components/ui";
@@ -225,9 +225,6 @@ export default function MomentCameraScreen() {
   if (!permission.granted) {
     return (
       <View style={[styles.fill, styles.permissionWrap]}>
-        <Stack.Screen
-          options={{ headerShown: false, presentation: "fullScreenModal" }}
-        />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Close camera"
@@ -282,10 +279,6 @@ export default function MomentCameraScreen() {
 
   return (
     <View style={styles.fill}>
-      <Stack.Screen
-        options={{ headerShown: false, presentation: "fullScreenModal" }}
-      />
-
       {phase !== "preview" ? (
         <CameraView
           ref={cameraRef}

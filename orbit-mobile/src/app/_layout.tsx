@@ -25,6 +25,12 @@ Notifications.setNotificationHandler({
   }),
 });
 
+const FULLSCREEN_CAPTURE_ROUTES = [
+  "moment-camera",
+  "clip-camera",
+  "clip-upload",
+];
+
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading, mfaPending, switching, addingAccount } = useAuth();
   const segments = useSegments();
@@ -123,6 +129,21 @@ export default function RootLayout() {
                 <Stack.Screen name="(auth)" options={{ headerShown: false }} />
                 <Stack.Screen name="notifications" options={{ title: "Activity" }} />
                 <Stack.Screen name="create-story" options={{ title: "New moment" }} />
+                {/* Full-screen capture surfaces own their whole viewport. These
+                    belong here rather than on the screens themselves: React
+                    Navigation remounts a modal whose header visibility changes
+                    after mount, and a screen that hides its own header on every
+                    mount remounts itself forever. */}
+                {FULLSCREEN_CAPTURE_ROUTES.map((name) => (
+                  <Stack.Screen
+                    key={name}
+                    name={name}
+                    options={{
+                      headerShown: false,
+                      presentation: "fullScreenModal",
+                    }}
+                  />
+                ))}
               </Stack>
               {/* Above the navigator so undo countdowns survive screen changes. */}
               <UndoSnackbarHost />
