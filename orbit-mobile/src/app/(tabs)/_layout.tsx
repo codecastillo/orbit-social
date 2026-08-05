@@ -52,14 +52,7 @@ export default function TabsLayout() {
                     />
                     {unreadNotifications > 0 ? (
                       <View style={styles.bellBadge}>
-                        <Text
-                          style={styles.bellBadgeText}
-                          numberOfLines={1}
-                          // The badge sits over the icon, so it can only grow
-                          // sideways. Let the digits shrink rather than clip.
-                          adjustsFontSizeToFit
-                          minimumFontScale={0.7}
-                        >
+                        <Text style={styles.bellBadgeText} numberOfLines={1}>
                           {unreadNotifications > 99 ? "99+" : unreadNotifications}
                         </Text>
                       </View>
@@ -161,13 +154,13 @@ const styles = StyleSheet.create({
   },
   bellBadge: {
     position: "absolute",
-    top: -6,
-    // Overhangs the bell rather than sitting inside it, so a three-character
-    // count does not cover the icon it belongs to.
-    right: -10,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    top: -7,
+    // Overhangs the bell so a two-digit count does not cover the icon, but
+    // stays inside the header's 16pt padding so it cannot clip off screen.
+    right: -8,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
     paddingHorizontal: 4,
     alignItems: "center",
     justifyContent: "center",
@@ -179,7 +172,6 @@ const styles = StyleSheet.create({
     color: colors.primaryForeground,
     fontSize: 10,
     fontWeight: "700",
-    lineHeight: 12,
   },
   createSlot: {
     flex: 1,
