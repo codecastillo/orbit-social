@@ -31,7 +31,7 @@ import {
   type CommunityRole,
 } from "@/lib/queries/communities";
 import { formatNumber } from "@/lib/format";
-import { colors, radii, spacing } from "@/lib/theme";
+import { colors, fonts, radii, spacing, type as typeScale } from "@/lib/theme";
 
 
 // Discord-style slowmode steps, same presets as the web edit dialog.
@@ -666,19 +666,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerName: {
+    ...typeScale.title,
     color: colors.foreground,
-    fontSize: 18,
-    fontWeight: "700",
-    letterSpacing: -0.3,
   },
   headerMembers: {
+    ...typeScale.label,
     color: colors.mutedForeground,
-    fontSize: 12.5,
     marginTop: 2,
   },
   headerMemberCount: {
     color: colors.foreground,
-    fontWeight: "700",
+    fontFamily: fonts.displayHeavy,
   },
   joinButton: {
     minHeight: 36,
@@ -801,11 +799,11 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     marginTop: 2,
   },
+  // A section marker, not a heading competing with the room's name: small,
+  // wide, and quiet is the editorial way to label a run of content.
   sectionTitle: {
-    color: colors.foreground,
-    fontSize: 15,
-    fontWeight: "700",
-    letterSpacing: -0.3,
+    ...typeScale.label,
+    color: colors.textFaint,
     paddingHorizontal: spacing(4),
     paddingBottom: spacing(3),
   },

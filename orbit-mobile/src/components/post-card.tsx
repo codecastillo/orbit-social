@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { InfiniteData, QueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
@@ -28,6 +29,7 @@ import {
   toggleBookmark,
   toggleLike,
   undoRepost,
+  type FeedPage,
   type Post,
   type PostMediaItem,
 } from "@/lib/queries/posts";
@@ -53,7 +55,7 @@ import { recordAction, type ImpressionSurface } from "@/lib/impressions";
 import { getRankingSignals, markNotInterested } from "@/lib/queries/content-safety";
 import { useVideoFrame } from "@/lib/video-frame";
 import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
-import { colors, radii, spacing } from "@/lib/theme";
+import { colors, radii, spacing, type as typeScale } from "@/lib/theme";
 
 const DEFAULT_MEDIA_ASPECT = 4 / 3;
 const WEB_POST_URL = "https://orbitsocial.net/post";
@@ -100,6 +102,36 @@ interface PostCardProps {
   // screen uses it to focus the composer instead of stacking a duplicate
   // of its own route.
   onReplyPress?: () => void;
+}
+
+/**
+ * Drops the viewer's own repost row for an original from every cached feed
+ * page. A repost is a separate post pointing at the original, so undoing one
+ * has to remove that row rather than only clear this card's own state.
+ */
+function dropRepostRowFromFeed(
+  queryClient: QueryClient,
+  viewerId: string,
+  originalId: string,
+) {
+  queryClient.setQueriesData<InfiniteData<FeedPage>>(
+    { queryKey: ["feed"] },
+    (cached) =>
+      cached && {
+        ...cached,
+        pages: cached.pages.map((page) => ({
+          ...page,
+          posts: page.posts.filter(
+            (row) =>
+              !(
+                row.type === "repost" &&
+                row.user_id === viewerId &&
+                row.parent_post_id === originalId
+              ),
+          ),
+        })),
+      },
+  );
 }
 
 // Compact bordered preview of the post a quote embeds.
@@ -430,6 +462,10 @@ export function PostCard({
     const wasReposted = reposted;
     setReposted(!wasReposted);
     setRepostCount((n) => Math.max(0, n + (wasReposted ? -1 : 1)));
+    // Undoing removes the repost row itself, which is a different post from
+    // the one this card acts on. Without this the row stays in the feed
+    // looking un-reposted until the next refetch replaces the page.
+    if (wasReposted) dropRepostRowFromFeed(queryClient, currentUserId, display.id);
     const request = wasReposted
       ? undoRepost(currentUserId, display.id)
       : createRepost(currentUserId, display.id);
@@ -442,6 +478,9 @@ export function PostCard({
       }
       setReposted(wasReposted);
       setRepostCount((n) => Math.max(0, n + (wasReposted ? 1 : -1)));
+      // The row was removed optimistically and the undo did not happen, so
+      // refetch rather than trying to splice it back at its old position.
+      if (wasReposted) queryClient.invalidateQueries({ queryKey: ["feed"] });
       flashActionError(wasReposted ? "Could not undo the repost." : "Repost failed. Try again.");
     });
   };
@@ -1060,10 +1099,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   displayName: {
+    ...typeScale.name,
     color: colors.foreground,
-    fontSize: 14.5,
-    fontWeight: "700",
-    letterSpacing: -0.3,
     flexShrink: 1,
   },
   time: {
@@ -1116,13 +1153,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexWrap: "wrap",
     gap: 4,
-    marginTop: spacing(3),
+    marginTop: spacing(2.5),
   },
   statsTime: {
     color: colors.mutedForeground,
     fontSize: 13,
   },
   statsCount: {
+    ...typeScale.count,
     color: colors.foreground,
     fontSize: 13,
     fontWeight: "700",
@@ -1175,11 +1213,10 @@ const styles = StyleSheet.create({
     marginTop: spacing(3),
     gap: spacing(4),
   },
+  // No rule above the actions on detail: the stats line directly above is
+  // the same post's own metadata, not a different section to fence off.
   actionsDetail: {
-    marginTop: spacing(3),
-    paddingTop: spacing(3),
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    marginTop: spacing(2),
   },
   action: {
     flexDirection: "row",
@@ -1190,10 +1227,8 @@ const styles = StyleSheet.create({
     marginLeft: "auto",
   },
   actionCount: {
+    ...typeScale.count,
     color: colors.foreground,
-    fontSize: 13,
-    fontWeight: "600",
-    fontVariant: ["tabular-nums"],
   },
   burstWrap: {
     ...StyleSheet.absoluteFillObject,

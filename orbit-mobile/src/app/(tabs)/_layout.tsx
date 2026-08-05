@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { CreateSheet } from "@/components/create-sheet";
 import { useUnreadCounts } from "@/lib/hooks/use-unread";
-import { colors } from "@/lib/theme";
+import { colors, fonts, type as typeScale } from "@/lib/theme";
 
 /** Diameter of the notification badge, and the radius it is halved into. */
 const BELL_BADGE_SIZE = 18;
@@ -43,7 +43,10 @@ export default function TabsLayout() {
           options={{
             title: "Home",
             headerTitle: "Orbit",
-            headerTitleStyle: { fontWeight: "800", fontSize: 20 },
+            headerTitleStyle: {
+              fontFamily: typeScale.title.fontFamily,
+              fontSize: typeScale.title.fontSize,
+            },
             headerRight: () => (
               <View style={styles.headerActions}>
                 <Pressable
@@ -139,8 +142,8 @@ export default function TabsLayout() {
             tabBarBadgeStyle: {
               backgroundColor: colors.primary,
               color: colors.primaryForeground,
+              fontFamily: fonts.displayHeavy,
               fontSize: 10,
-              fontWeight: "700",
             },
           }}
         />
@@ -209,8 +212,8 @@ const styles = StyleSheet.create({
   },
   bellBadgeText: {
     color: colors.primaryForeground,
+    fontFamily: fonts.displayHeavy,
     fontSize: 10,
-    fontWeight: "700",
     textAlign: "center",
     // No lineHeight here on purpose: iOS lays the glyph on the baseline of
     // the line box, so stretching the box to the badge diameter pushes the

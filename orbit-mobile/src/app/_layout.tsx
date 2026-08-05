@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as Notifications from "expo-notifications";
+import {
+  useFonts,
+  Archivo_600SemiBold,
+  Archivo_700Bold,
+  Archivo_800ExtraBold,
+} from "@expo-google-fonts/archivo";
 import { QueryClient, useIsRestoring } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { AuthProvider, useAuth } from "@/providers/auth-provider";
@@ -14,7 +20,7 @@ import { PushPriming } from "@/components/push-priming";
 import { TimeReminderBanner } from "@/components/time-reminder-banner";
 import { useNotificationTaps } from "@/lib/use-notification-taps";
 import { usePresenceHeartbeat } from "@/lib/hooks/use-presence";
-import { colors } from "@/lib/theme";
+import { colors, type as typeScale } from "@/lib/theme";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -77,6 +83,23 @@ function CacheGate({ children }: { children: React.ReactNode }) {
   return useIsRestoring() ? null : <>{children}</>;
 }
 
+/**
+ * Holds the tree back until the display faces are in memory. Rendering first
+ * would paint every heading in the system face and reflow it a frame later,
+ * which is worse than the extra frame this costs. The waits are additive
+ * with CacheGate's by design: both finish in the time the splash is up.
+ */
+function FontGate({ children }: { children: React.ReactNode }) {
+  const [loaded, error] = useFonts({
+    Archivo_600SemiBold,
+    Archivo_700Bold,
+    Archivo_800ExtraBold,
+  });
+  // A font that fails to load falls back to the system face. That is a
+  // degraded look, not a broken app, so it must not block the tree.
+  return loaded || error ? <>{children}</> : null;
+}
+
 export default function RootLayout() {
   const [queryClient] = useState(() => {
     const client = new QueryClient({
@@ -105,7 +128,8 @@ export default function RootLayout() {
       {/* Inside the query provider so the recovery screen can clear the
           cache when someone signs out of a broken session. */}
       <RootErrorBoundary>
-        <CacheGate>
+        <FontGate>
+          <CacheGate>
           <AuthProvider>
             <AuthGate>
               <StatusBar style="light" />
@@ -113,7 +137,10 @@ export default function RootLayout() {
                 screenOptions={{
                   headerStyle: { backgroundColor: colors.background },
                   headerTintColor: colors.foreground,
-                  headerTitleStyle: { fontWeight: "600" },
+                  headerTitleStyle: {
+                    fontFamily: typeScale.heading.fontFamily,
+                    fontSize: typeScale.heading.fontSize,
+                  },
                   contentStyle: { backgroundColor: colors.background },
                   // Chevron only; the default label leaks route group names
                   // like "(tabs)" on iOS.
@@ -152,7 +179,8 @@ export default function RootLayout() {
               <PushPriming />
             </AuthGate>
           </AuthProvider>
-        </CacheGate>
+          </CacheGate>
+        </FontGate>
       </RootErrorBoundary>
     </PersistQueryClientProvider>
   );
