@@ -73,7 +73,9 @@ interface PostCardProps {
   post: Post;
   currentUserId: string;
   isLiked: boolean;
-  isBookmarked: boolean;
+  // Both default to false: a surface with no bookmark or repost button
+  // has nothing to seed them from.
+  isBookmarked?: boolean;
   isReposted?: boolean;
   userReaction?: ReactionType | null;
   reactionCounts?: ReactionCount[];
@@ -91,6 +93,9 @@ interface PostCardProps {
   // Detail hero cell: larger body type plus a stats line instead of the
   // inline action counts, like IG's post detail.
   detail?: boolean;
+  // Posted inside a room, where what is said stays. Drops every action that
+  // would carry the post out of it: repost, quote, share, and bookmark.
+  confined?: boolean;
   // Overrides the reply icon's default push to /post/[id]; the detail
   // screen uses it to focus the composer instead of stacking a duplicate
   // of its own route.
@@ -239,7 +244,7 @@ export function PostCard({
   post,
   currentUserId,
   isLiked,
-  isBookmarked,
+  isBookmarked = false,
   isReposted = false,
   userReaction: userReactionProp = null,
   reactionCounts: reactionCountsProp = [],
@@ -247,6 +252,7 @@ export function PostCard({
   original = null,
   disableNavigation = false,
   reply = false,
+  confined = false,
   detail = false,
   onReplyPress,
 }: PostCardProps) {
@@ -408,7 +414,7 @@ export function PostCard({
   // offered rather than shown and then explained away with an error. Replies
   // carry neither repost nor bookmark: both are for whole posts, and five
   // controls on a comment crowd out the two that get used.
-  const canRepost = !reply && display.user_id !== currentUserId;
+  const canRepost = !reply && !confined && display.user_id !== currentUserId;
 
   const handleBookmark = () => {
     const wasBookmarked = bookmarked;
@@ -902,10 +908,12 @@ export function PostCard({
             ) : null}
           </Pressable>
         ) : null}
-        <Pressable onPress={() => setShareOpen(true)} style={styles.action} hitSlop={8}>
-          <Ionicons name="share-outline" size={21} color={colors.foreground} />
-        </Pressable>
-        {reply ? null : (
+        {confined ? null : (
+          <Pressable onPress={() => setShareOpen(true)} style={styles.action} hitSlop={8}>
+            <Ionicons name="share-outline" size={21} color={colors.foreground} />
+          </Pressable>
+        )}
+        {reply || confined ? null : (
         <Pressable onPress={handleBookmark} style={[styles.action, styles.actionBookmark]} hitSlop={8}>
           <Ionicons
             name={bookmarked ? "bookmark" : "bookmark-outline"}

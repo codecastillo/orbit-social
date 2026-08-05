@@ -500,13 +500,12 @@ export default function CommunityDetailScreen() {
               post={item}
               currentUserId={user!.id}
               isLiked={interactions?.likedPostIds.has(item.id) ?? false}
-              isBookmarked={interactions?.bookmarkedPostIds.has(item.id) ?? false}
-              isReposted={interactions?.repostedPostIds.has(item.id) ?? false}
               // Room browsing is not one of the ranking surfaces, and the
               // impressions table only accepts the values that feed it. This
               // reads as a detail view: the room is the destination, not a
               // ranked feed that served the post.
               surface="detail"
+              confined
             />
           </Pressable>
         )}
