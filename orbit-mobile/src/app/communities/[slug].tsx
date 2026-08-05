@@ -474,6 +474,19 @@ export default function CommunityDetailScreen() {
           style={styles.moderationButton}
         />
       ) : null}
+      {isOwnerOrMod ? (
+        <Button
+          label="Moderation"
+          variant="outline"
+          onPress={() =>
+            router.push({
+              pathname: "/communities/moderation",
+              params: { communityId: community.id },
+            })
+          }
+          style={styles.moderationButton}
+        />
+      ) : null}
       {role === "owner" ? (
         <Button
           label={

@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -15,6 +16,7 @@ import { Avatar, Button, EmptyState } from "@/components/ui";
 import {
   getCommunityMembers,
   inviteCommunityUser,
+  banCommunityMember,
   removeCommunityMember,
   setCommunityMemberRole,
   type CommunityMember,
@@ -167,6 +169,55 @@ export default function CommunityMembersScreen() {
     onError: () => Alert.alert("Couldn't remove this member"),
   });
 
+  const ban = useMutation({
+    mutationFn: ({ userId, reason }: { userId: string; reason?: string }) =>
+      banCommunityMember(communityId, userId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: membersKey });
+      queryClient.invalidateQueries({ queryKey: ["community-bans", communityId] });
+    },
+    onError: (err: unknown) =>
+      Alert.alert(
+        err instanceof Error && /only the owner/i.test(err.message)
+          ? "Only the owner can ban a moderator"
+          : "Couldn't ban this member",
+      ),
+  });
+
+  // Prompt.alert is iOS-only, so the reason is collected by a screen on
+  // Android rather than silently dropped. Both land in the same RPC.
+  const promptBanReason = (userId: string, username: string) => {
+    if (Platform.OS === "ios") {
+      Alert.prompt(
+        `Ban @${username}?`,
+        "They are removed from the room and cannot rejoin. The reason is recorded in the moderation log.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Ban",
+            style: "destructive",
+            onPress: (reason?: string) => ban.mutate({ userId, reason: reason?.trim() }),
+          },
+        ],
+        "plain-text",
+        "",
+      );
+      return;
+    }
+    Alert.alert(
+      `Ban @${username}?`,
+      "They are removed from the room and cannot rejoin.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Ban",
+          style: "destructive",
+          onPress: () => ban.mutate({ userId }),
+        },
+      ],
+    );
+  };
+
   const openMemberMenu = (member: CommunityMember) => {
     const username = member.profiles.username;
     Alert.alert(`@${username}`, undefined, [
@@ -186,14 +237,23 @@ export default function CommunityMembersScreen() {
         text: "Remove from room",
         style: "destructive",
         onPress: () =>
-          Alert.alert(`Remove @${username}?`, "They'll be removed from this room.", [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Remove",
-              style: "destructive",
-              onPress: () => remove.mutate(member.user_id),
-            },
-          ]),
+          Alert.alert(
+            `Remove @${username}?`,
+            "They leave the room but can join again. Ban them instead to make it stick.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Remove",
+                style: "destructive",
+                onPress: () => remove.mutate(member.user_id),
+              },
+            ],
+          ),
+      },
+      {
+        text: "Ban from room",
+        style: "destructive",
+        onPress: () => promptBanReason(member.user_id, username),
       },
       { text: "Cancel", style: "cancel" },
     ]);

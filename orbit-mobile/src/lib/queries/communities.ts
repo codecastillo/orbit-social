@@ -342,6 +342,84 @@ export async function removeCommunityMember(communityId: string, userId: string)
   if (error) throw error;
 }
 
+export interface CommunityBan {
+  user_id: string;
+  reason: string | null;
+  expires_at: string | null;
+  created_at: string;
+  profiles: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+  };
+}
+
+export interface ModerationLogEntry {
+  id: string;
+  action: string;
+  reason: string | null;
+  created_at: string;
+  actor: { username: string; display_name: string } | null;
+  target: { username: string; display_name: string } | null;
+}
+
+/**
+ * Ban someone from a room. Removing a member only takes their membership,
+ * which they can take straight back in a public room; a ban is what makes a
+ * removal stick. Owners and moderators only, re-checked server-side.
+ */
+export async function banCommunityMember(
+  communityId: string,
+  userId: string,
+  reason?: string,
+  expiresAt?: string,
+) {
+  const { error } = await supabase.rpc("community_ban_member", {
+    p_community_id: communityId,
+    p_user_id: userId,
+    p_reason: reason ?? null,
+    p_expires_at: expiresAt ?? null,
+  });
+  if (error) throw error;
+}
+
+export async function unbanCommunityMember(communityId: string, userId: string) {
+  const { error } = await supabase.rpc("community_unban_member", {
+    p_community_id: communityId,
+    p_user_id: userId,
+  });
+  if (error) throw error;
+}
+
+export async function getCommunityBans(communityId: string) {
+  const { data, error } = await supabase
+    .from("community_bans")
+    .select(
+      `user_id, reason, expires_at, created_at,
+       profiles!community_bans_user_id_fkey (id, username, display_name, avatar_url)`,
+    )
+    .eq("community_id", communityId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as CommunityBan[];
+}
+
+export async function getCommunityModerationLog(communityId: string, limit = 100) {
+  const { data, error } = await supabase
+    .from("community_moderation_log")
+    .select(
+      `id, action, reason, created_at,
+       actor:profiles!community_moderation_log_actor_id_fkey (username, display_name),
+       target:profiles!community_moderation_log_target_user_id_fkey (username, display_name)`,
+    )
+    .eq("community_id", communityId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as unknown as ModerationLogEntry[];
+}
+
 export async function setCommunityMemberRole(
   communityId: string,
   userId: string,
