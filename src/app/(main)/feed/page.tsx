@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, TrendingUp } from "lucide-react";
 import { InlineComposer } from "@/components/feed/post-composer";
 import { FeedList } from "@/components/feed/feed-list";
+import { StoryBar } from "@/components/stories/story-bar";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
   getTrendingHashtags,
@@ -42,6 +43,18 @@ export default function FeedPage() {
             don't stretch posts (and images inside) edge-to-edge. */}
         <div className="flex flex-col gap-4 min-w-0 w-full max-w-[640px] mx-auto">
         <h1 className="sr-only">Home feed</h1>
+        {/* Moments. The rail was written but mounted by no page, so on web a
+            moment could only ever be reached through a profile's collections
+            and there was no way to post one at all. Signed-in only: it is a
+            rail of people you follow plus your own create button. */}
+        {authLoading ? (
+          // Heading block (32) plus the rail's own padding (16) and a 96px
+          // card. Reserved rather than bordered, because the rail has no
+          // frame and a box that loses its border reads as a glitch.
+          <div className="h-[144px]" />
+        ) : user ? (
+          <StoryBar />
+        ) : null}
         {/* Tabs panel, only signed-in users have a follow graph; anon viewers
             see a single public timeline so the For You/Following switcher is
             meaningless and the panel is hidden. While auth is still loading,
