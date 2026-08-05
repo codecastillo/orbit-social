@@ -8,6 +8,8 @@ import { colors } from "@/lib/theme";
 
 /** Diameter of the notification badge, and the radius it is halved into. */
 const BELL_BADGE_SIZE = 18;
+/** Width of the background-colored gap separating the badge from the bell. */
+const BELL_BADGE_RING = 2;
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -54,15 +56,19 @@ export default function TabsLayout() {
                       color={colors.foreground}
                     />
                     {unreadNotifications > 0 ? (
-                      <View
-                        style={[
-                          styles.bellBadge,
-                          unreadNotifications > 9 && styles.bellBadgeWide,
-                        ]}
-                      >
-                        <Text style={styles.bellBadgeText} numberOfLines={1}>
-                          {unreadNotifications > 99 ? "99+" : unreadNotifications}
-                        </Text>
+                      <View style={styles.bellBadgeRing}>
+                        <View
+                          style={[
+                            styles.bellBadge,
+                            unreadNotifications > 9 && styles.bellBadgeWide,
+                          ]}
+                        >
+                          <Text style={styles.bellBadgeText} numberOfLines={1}>
+                            {unreadNotifications > 99
+                              ? "99+"
+                              : unreadNotifications}
+                          </Text>
+                        </View>
                       </View>
                     ) : null}
                   </View>
@@ -160,12 +166,21 @@ const styles = StyleSheet.create({
     gap: 20,
     paddingHorizontal: 16,
   },
-  bellBadge: {
+  // The gap that separates the badge from the bell strokes underneath. A
+  // border on the badge itself renders the fill out to the border's outer
+  // edge, so the purple bleeds past the ring on a rounded corner. Padding on
+  // a wrapper is a real gap and has nothing to bleed through.
+  bellBadgeRing: {
     position: "absolute",
-    top: -6,
+    top: -7,
     // Overhangs the bell so the count does not cover the icon, while staying
     // inside the header's 16pt padding so it cannot clip at the screen edge.
-    right: -7,
+    right: -8,
+    padding: BELL_BADGE_RING,
+    borderRadius: BELL_BADGE_SIZE / 2 + BELL_BADGE_RING,
+    backgroundColor: colors.background,
+  },
+  bellBadge: {
     // Square, so the radius renders a true circle for the common single-digit
     // count. Horizontal padding here would stretch it into an oval.
     width: BELL_BADGE_SIZE,
@@ -174,8 +189,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.primary,
-    borderWidth: 2,
-    borderColor: colors.background,
   },
   // Two or more digits need the width, and a stadium shape is what every
   // other app does at that point.
@@ -188,6 +201,10 @@ const styles = StyleSheet.create({
     color: colors.primaryForeground,
     fontSize: 10,
     fontWeight: "700",
+    textAlign: "center",
+    // Without this the glyph sits on its default baseline, which leaves it
+    // low in the circle rather than centered in it.
+    lineHeight: BELL_BADGE_SIZE,
   },
   createSlot: {
     flex: 1,
