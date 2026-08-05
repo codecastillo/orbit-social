@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, useRouter } from "expo-router";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { CreateSheet } from "@/components/create-sheet";
 import { useUnreadCounts } from "@/lib/hooks/use-unread";
@@ -38,7 +38,7 @@ export default function TabsLayout() {
                   accessibilityRole="button"
                   accessibilityLabel={
                     unreadNotifications > 0
-                      ? "Notifications, unread activity"
+                      ? `Notifications, ${unreadNotifications} unread`
                       : "Notifications"
                   }
                   onPress={() => router.push("/notifications")}
@@ -51,7 +51,18 @@ export default function TabsLayout() {
                       color={colors.foreground}
                     />
                     {unreadNotifications > 0 ? (
-                      <View style={styles.bellDot} />
+                      <View style={styles.bellBadge}>
+                        <Text
+                          style={styles.bellBadgeText}
+                          numberOfLines={1}
+                          // The badge sits over the icon, so it can only grow
+                          // sideways. Let the digits shrink rather than clip.
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.7}
+                        >
+                          {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                        </Text>
+                      </View>
                     ) : null}
                   </View>
                 </Pressable>
@@ -148,16 +159,27 @@ const styles = StyleSheet.create({
     gap: 20,
     paddingHorizontal: 16,
   },
-  bellDot: {
+  bellBadge: {
     position: "absolute",
-    top: -1,
-    right: -1,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: -6,
+    // Overhangs the bell rather than sitting inside it, so a three-character
+    // count does not cover the icon it belongs to.
+    right: -10,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: colors.primary,
     borderWidth: 1.5,
     borderColor: colors.background,
+  },
+  bellBadgeText: {
+    color: colors.primaryForeground,
+    fontSize: 10,
+    fontWeight: "700",
+    lineHeight: 12,
   },
   createSlot: {
     flex: 1,
