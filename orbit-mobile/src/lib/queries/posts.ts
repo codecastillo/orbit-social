@@ -279,11 +279,15 @@ export interface FeedPageParam {
 
 export interface FeedPage {
   posts: Post[];
+  // Plain records rather than Maps because a feed page is written to disk by
+  // the query cache, and a Map does not survive JSON: it comes back as {}
+  // and throws on the first spread. The screen builds Maps from these.
+  //
   // Resolved parents for repost and quote rows, keyed by original post id.
-  originals: Map<string, Post>;
+  originals: Record<string, Post>;
   // Reaction tallies keyed by the id each card displays (the original for
   // repost rows), fetched once per page instead of per card.
-  reactionCounts: Map<string, ReactionCount[]>;
+  reactionCounts: Record<string, ReactionCount[]>;
   // Chronological cursor captured before For You ranking reorders the
   // page, so pagination stays a clean created_at walk. Null on the last
   // page.
@@ -458,7 +462,13 @@ export async function getFeedPage(
     ...new Set(posts.map((p) => displayPostId(p))),
   ]);
 
-  return { posts, originals, reactionCounts, nextCursor, nextExcludeIds };
+  return {
+    posts,
+    originals: Object.fromEntries(originals),
+    reactionCounts: Object.fromEntries(reactionCounts),
+    nextCursor,
+    nextExcludeIds,
+  };
 }
 
 // Null when the post does not exist or RLS hides it (a close-friends post

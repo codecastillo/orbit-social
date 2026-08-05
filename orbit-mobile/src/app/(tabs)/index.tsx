@@ -152,8 +152,10 @@ export default function FeedScreen() {
             !mutedIds?.has(post.user_id) &&
             !matchesMutedWord(post.content),
         ),
-      originals: new Map(pages.flatMap((p) => [...p.originals])),
-      reactionCounts: new Map(pages.flatMap((p) => [...p.reactionCounts])),
+      originals: new Map(pages.flatMap((p) => Object.entries(p.originals))),
+      reactionCounts: new Map(
+        pages.flatMap((p) => Object.entries(p.reactionCounts)),
+      ),
     };
     return merged;
   }, [data, mutedWords, mutedIds, notInterestedIds]);

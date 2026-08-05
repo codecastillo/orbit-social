@@ -11,9 +11,9 @@ const STORAGE_KEY = "orbit-query-cache";
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /** Bump to invalidate every persisted cache after a breaking shape change. */
-// v2 discards caches written by the first release, which persisted queries
-// that resolve to Sets and crashed the feed on restore.
-const CACHE_BUSTER = "v2";
+// v3 discards caches written before the safety check walked nested values,
+// which stored feed pages whose Maps crashed the feed on restore.
+const CACHE_BUSTER = "v3";
 
 /**
  * Query key prefixes that never reach the device's storage, mirroring the
@@ -66,19 +66,21 @@ const UNPERSISTED_KEYS = new Set([
 /**
  * True when the value survives a JSON round trip intact. Sets and Maps do
  * not: they serialize to {} and rehydrate as a plain object, so any method
- * call on them throws. Checking one level deep is enough, because every
- * query here returns either a primitive, an array of rows, or an object of
- * such values.
+ * call or spread on them throws.
+ *
+ * The walk is recursive because the offenders are not at the top. An
+ * infinite query's data is {pages, pageParams}, and a feed page carries its
+ * own Maps of originals and reaction counts, three levels down. A
+ * one-level check passed that data and shipped a crash.
  */
-function isJsonSafe(value: unknown): boolean {
+function isJsonSafe(value: unknown, seen = new Set<object>()): boolean {
   if (value instanceof Set || value instanceof Map) return false;
-  if (Array.isArray(value)) return value.every((v) => !(v instanceof Set || v instanceof Map));
-  if (value && typeof value === "object") {
-    return Object.values(value).every(
-      (v) => !(v instanceof Set || v instanceof Map),
-    );
-  }
-  return true;
+  if (value === null || typeof value !== "object") return true;
+  // A cycle would not survive JSON anyway, but it must not hang this walk.
+  if (seen.has(value)) return true;
+  seen.add(value);
+  if (Array.isArray(value)) return value.every((v) => isJsonSafe(v, seen));
+  return Object.values(value).every((v) => isJsonSafe(v, seen));
 }
 
 export const queryPersister = createAsyncStoragePersister({
