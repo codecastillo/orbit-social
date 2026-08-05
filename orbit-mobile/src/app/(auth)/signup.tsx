@@ -104,9 +104,6 @@ export default function SignupScreen() {
             variant="outline"
             onPress={() => router.replace("/(auth)/login")}
           />
-          <Text style={[authStyles.wordmarkFooter, { marginTop: spacing(5) }]}>
-            Orbit
-          </Text>
         </>
       }
     >

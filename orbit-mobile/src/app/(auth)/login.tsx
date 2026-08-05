@@ -172,13 +172,7 @@ export default function LoginScreen() {
 
   if (mfaPending && factorId) {
     return (
-      <AuthShell
-        footer={
-          <Text style={[authStyles.wordmarkFooter, { marginTop: spacing(5) }]}>
-            Orbit
-          </Text>
-        }
-      >
+      <AuthShell>
         <OrbitMark size={56} />
         <Text style={styles.title}>Verify it&apos;s you</Text>
         <Text style={styles.sub}>
@@ -223,28 +217,23 @@ export default function LoginScreen() {
 
   return (
     <AuthShell
+      // Signing up is a different flow from adding an existing account, and
+      // it would leave the app parked on the auth screens.
       footer={
-        <>
-          {/* Signing up is a different flow from adding an existing account,
-              and it would leave the app parked on the auth screens. */}
-          {addingAccount ? null : (
-            <>
-              <View style={authStyles.divider}>
-                <View style={authStyles.dividerLine} />
-                <Text style={authStyles.dividerText}>OR</Text>
-                <View style={authStyles.dividerLine} />
-              </View>
-              <Button
-                label="Create new account"
-                variant="outline"
-                onPress={() => router.push("/(auth)/signup")}
-              />
-            </>
-          )}
-          <Text style={[authStyles.wordmarkFooter, { marginTop: spacing(5) }]}>
-            Orbit
-          </Text>
-        </>
+        addingAccount ? null : (
+          <>
+            <View style={authStyles.divider}>
+              <View style={authStyles.dividerLine} />
+              <Text style={authStyles.dividerText}>OR</Text>
+              <View style={authStyles.dividerLine} />
+            </View>
+            <Button
+              label="Create new account"
+              variant="outline"
+              onPress={() => router.push("/(auth)/signup")}
+            />
+          </>
+        )
       }
     >
       <OrbitMark size={72} />
@@ -279,10 +268,6 @@ export default function LoginScreen() {
         onSubmitEditing={handleSignIn}
       />
 
-      <Link href="/(auth)/forgot-password" style={authStyles.linkRight}>
-        Forgot password?
-      </Link>
-
       {formError ? <Text style={authStyles.error}>{formError}</Text> : null}
 
       <Button label="Log in" loading={submitting} onPress={handleSignIn} />
@@ -296,9 +281,9 @@ export default function LoginScreen() {
         />
       ) : null}
 
-      <Text style={styles.hint}>
-        Use the account you created on orbitsocial.net.
-      </Text>
+      <Link href="/(auth)/forgot-password" style={authStyles.linkCenter}>
+        Forgot password?
+      </Link>
     </AuthShell>
   );
 }

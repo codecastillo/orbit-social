@@ -151,12 +151,12 @@ export const authStyles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: spacing(3),
   },
-  linkRight: {
+  linkCenter: {
     color: colors.primary,
     fontSize: 13,
     fontWeight: "600",
-    textAlign: "right",
-    marginBottom: spacing(4),
+    textAlign: "center",
+    marginTop: spacing(4),
   },
   divider: {
     flexDirection: "row",
@@ -173,13 +173,5 @@ export const authStyles = StyleSheet.create({
     color: colors.textFaint,
     fontSize: 12,
     fontWeight: "600",
-  },
-  wordmarkFooter: {
-    color: colors.textFaint,
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 2,
-    textAlign: "center",
-    textTransform: "uppercase",
   },
 });
