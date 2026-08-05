@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Centered, EmptyState } from "@/components/ui";
 import { StoryOverlayLayer } from "@/components/story-overlays";
+import { ReportAction } from "@/components/report-action";
 import { StoryViewersSheet } from "@/components/story-viewers-sheet";
 import {
   getActiveStories,
@@ -401,6 +402,13 @@ export default function StoryViewerScreen() {
                 {authorName}
               </Text>
               <Text style={styles.time}>{formatTimeAgo(current.created_at)}</Text>
+              <ReportAction
+                entityType="moment"
+                entityId={current.id}
+                reportedUserId={current.user_id}
+                size={22}
+                color={CHROME_TEXT}
+              />
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Close moments"

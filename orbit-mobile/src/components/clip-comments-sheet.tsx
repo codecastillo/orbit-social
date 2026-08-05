@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar, Button } from "@/components/ui";
+import { ReportAction } from "@/components/report-action";
 import {
   createPost,
   getReplies,
@@ -150,6 +151,13 @@ function CommentRow({
           />
           <Text style={styles.replyActionLabel}>Reply</Text>
         </Pressable>
+        <ReportAction
+          entityType="clip_comment"
+          entityId={comment.id}
+          reportedUserId={comment.user_id}
+          size={14}
+          color={colors.mutedForeground}
+        />
         {replyCount > 0 ? (
           <Pressable
             accessibilityRole="button"

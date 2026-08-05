@@ -33,10 +33,15 @@ import { giftByType, type SentGift } from "@/lib/queries/gifts";
 import { supabase } from "@/lib/supabase";
 import { safeBack } from "@/lib/nav";
 import { formatNumber } from "@/lib/format";
+import { ReportAction } from "@/components/report-action";
+import { ReportSheet } from "@/components/report-sheet";
 import { colors, radii, spacing } from "@/lib/theme";
 
 interface ChatMessage {
   id: string;
+  // Carried by the broadcast payload already; kept so a chat line can be
+  // reported and attributed without another lookup.
+  userId?: string;
   username: string;
   displayName: string;
   content: string;
@@ -357,6 +362,7 @@ export default function LiveViewerScreen() {
         if (cancelled) return;
         const history: ChatMessage[] = rows.map((r) => ({
           id: r.id,
+          userId: r.user_id,
           username: r.profiles?.username ?? "user",
           displayName: r.profiles?.display_name ?? "User",
           content: r.content,
@@ -380,6 +386,7 @@ export default function LiveViewerScreen() {
 
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [reportChat, setReportChat] = useState<ChatMessage | null>(null);
   const [chatError, setChatError] = useState<string | null>(null);
 
   const sendChat = useCallback(async () => {
@@ -582,6 +589,15 @@ export default function LiveViewerScreen() {
         <Ionicons name="chevron-back" size={22} color="#fff" />
       </Pressable>
 
+      <View style={[styles.streamReport, { top: insets.top + spacing(2) }]}>
+        <ReportAction
+          entityType="live_stream"
+          entityId={stream.id}
+          reportedUserId={stream.user_id}
+          color="#fff"
+        />
+      </View>
+
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         {hearts.map((h) => (
           <FloatingHeartView key={h.id} heart={h} />
@@ -655,10 +671,23 @@ export default function LiveViewerScreen() {
                 <Text style={styles.chatEmpty}>Chat appears here as people talk.</Text>
               }
               renderItem={({ item }) => (
-                <Text style={styles.chatLine} numberOfLines={3}>
-                  <Text style={styles.chatName}>{item.displayName} </Text>
-                  {item.content}
-                </Text>
+                <Pressable
+                  // Long press to report: a visible button on every line would
+                  // crowd a chat that scrolls this fast.
+                  onLongPress={
+                    item.userId && item.userId !== user?.id
+                      ? () => setReportChat(item)
+                      : undefined
+                  }
+                  delayLongPress={400}
+                  accessibilityRole={item.userId ? "button" : undefined}
+                  accessibilityLabel={`Message from ${item.displayName}. Long press to report.`}
+                >
+                  <Text style={styles.chatLine} numberOfLines={3}>
+                    <Text style={styles.chatName}>{item.displayName} </Text>
+                    {item.content}
+                  </Text>
+                </Pressable>
               )}
             />
             {live && user ? (
@@ -734,6 +763,16 @@ export default function LiveViewerScreen() {
         }}
         onClose={() => setQualityOpen(false)}
       />
+
+      {reportChat ? (
+        <ReportSheet
+          visible
+          onClose={() => setReportChat(null)}
+          entityType="live_chat"
+          entityId={reportChat.id}
+          reportedUserId={reportChat.userId}
+        />
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
@@ -876,6 +915,16 @@ const styles = StyleSheet.create({
   offlineText: {
     color: colors.mutedForeground,
     fontSize: 13,
+  },
+  streamReport: {
+    position: "absolute",
+    right: spacing(4),
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
   back: {
     position: "absolute",

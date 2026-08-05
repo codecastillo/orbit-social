@@ -13,6 +13,7 @@ import {
 import { Stack, useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
+import { ReportSheet } from "@/components/report-sheet";
 import { Avatar, Button, EmptyState } from "@/components/ui";
 import { MediaGallerySheet } from "@/components/media-gallery-sheet";
 import { stageConversationSearch } from "@/lib/conversation-search";
@@ -49,6 +50,7 @@ export default function ConversationSettingsScreen() {
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     const handle = setTimeout(
@@ -529,6 +531,11 @@ export default function ConversationSettingsScreen() {
 
           <View style={styles.footer}>
             <Button
+              label="Report this group"
+              variant="outline"
+              onPress={() => setReportOpen(true)}
+            />
+            <Button
               label={leaveMutation.isPending ? "Leaving" : "Leave group"}
               variant="destructive"
               loading={leaveMutation.isPending}
@@ -569,6 +576,15 @@ export default function ConversationSettingsScreen() {
         conversationId={conversationId}
         onClose={() => setGalleryOpen(false)}
       />
+
+      {reportOpen ? (
+        <ReportSheet
+          visible
+          onClose={() => setReportOpen(false)}
+          entityType="conversation"
+          entityId={info.id}
+        />
+      ) : null}
     </ScrollView>
   );
 }

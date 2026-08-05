@@ -11,6 +11,7 @@ import { useIsFocused } from "@react-navigation/native";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
+import { ReportAction } from "@/components/report-action";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import { hlsUrl } from "@/lib/queries/live";
 import { getVodById, incrementVodViews } from "@/lib/queries/vods";
@@ -85,7 +86,18 @@ export default function VodScreen() {
 
   return (
     <View style={styles.root}>
-      <Stack.Screen options={{ title: "Past stream" }} />
+      <Stack.Screen
+        options={{
+          title: "Past stream",
+          headerRight: () => (
+            <ReportAction
+              entityType="vod"
+              entityId={vod.id}
+              reportedUserId={vod.user_id}
+            />
+          ),
+        }}
+      />
 
       <View style={styles.videoWrap}>
         <VideoView

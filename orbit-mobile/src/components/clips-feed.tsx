@@ -23,6 +23,7 @@ import { VideoView, useVideoPlayer } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
+import { ReportAction } from "@/components/report-action";
 import { ClipCommentsSheet } from "@/components/clip-comments-sheet";
 import {
   CLIP_PAGE_SIZE,
@@ -656,6 +657,14 @@ function ClipItem({
             <Ionicons name="paper-plane-outline" size={27} color={OVERLAY_TEXT} />
             <Text style={styles.actionCount}>{formatNumber(shareCount)}</Text>
           </Pressable>
+          <ReportAction
+            entityType="clip"
+            entityId={clip.id}
+            reportedUserId={clip.user_id}
+            size={26}
+            color={OVERLAY_TEXT}
+            style={styles.actionButton}
+          />
         </View>
       </View>
 

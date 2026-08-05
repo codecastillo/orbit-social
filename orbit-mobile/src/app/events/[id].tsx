@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { File, Paths } from "expo-file-system";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
+import { ReportAction } from "@/components/report-action";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import {
   deleteEventComment,
@@ -341,7 +342,18 @@ export default function EventDetailScreen() {
       style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <Stack.Screen options={{ title: event.title }} />
+      <Stack.Screen
+        options={{
+          title: event.title,
+          headerRight: () => (
+            <ReportAction
+              entityType="event"
+              entityId={event.id}
+              reportedUserId={event.creator_id}
+            />
+          ),
+        }}
+      />
       <ScrollView
         refreshControl={
           <RefreshControl

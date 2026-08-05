@@ -15,6 +15,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
+import { ReportAction } from "@/components/report-action";
 import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
 import {
   deleteListing,
@@ -130,7 +131,18 @@ export default function ListingDetailScreen() {
 
   return (
     <View style={styles.flex}>
-      <Stack.Screen options={{ title: listing.title }} />
+      <Stack.Screen
+        options={{
+          title: listing.title,
+          headerRight: () => (
+            <ReportAction
+              entityType="listing"
+              entityId={listing.id}
+              reportedUserId={listing.seller_id}
+            />
+          ),
+        }}
+      />
       <ScrollView
         refreshControl={
           <RefreshControl
