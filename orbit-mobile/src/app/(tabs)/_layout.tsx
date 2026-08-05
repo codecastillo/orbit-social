@@ -12,7 +12,10 @@ import { colors, fonts, spacing, type as typeScale } from "@/lib/theme";
  * to center an icon and its label as one block rather than pinning the icon
  * to the top edge, which is what left the bar looking top-heavy.
  */
-const TAB_BAR_HEIGHT = 56;
+const TAB_BAR_HEIGHT = 50;
+
+/** The create button, sized past the tab icons because it is the primary action. */
+const CREATE_BUTTON_SIZE = 58;
 
 /** Diameter of the notification badge, and the radius it is halved into. */
 const BELL_BADGE_SIZE = 18;
@@ -50,11 +53,11 @@ export default function TabsLayout() {
           },
           tabBarItemStyle: {
             justifyContent: "center",
-            paddingVertical: spacing(1.5),
+            paddingVertical: spacing(0.5),
           },
           tabBarLabelStyle: {
             fontSize: 10,
-            marginTop: 2,
+            marginTop: 1,
           },
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.mutedForeground,
@@ -140,7 +143,7 @@ export default function TabsLayout() {
                 <View style={styles.createButton}>
                   <Ionicons
                     name="add"
-                    size={28}
+                    size={32}
                     color={colors.primaryForeground}
                   />
                 </View>
@@ -249,12 +252,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   createButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: CREATE_BUTTON_SIZE,
+    height: CREATE_BUTTON_SIZE,
+    borderRadius: CREATE_BUTTON_SIZE / 2,
     // Raised above the row so the primary action reads larger than the
     // flanking tab icons.
-    marginTop: -14,
+    marginTop: -16,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
