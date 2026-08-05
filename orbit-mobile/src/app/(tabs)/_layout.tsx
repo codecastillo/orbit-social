@@ -6,6 +6,9 @@ import { CreateSheet } from "@/components/create-sheet";
 import { useUnreadCounts } from "@/lib/hooks/use-unread";
 import { colors } from "@/lib/theme";
 
+/** Diameter of the notification badge, and the radius it is halved into. */
+const BELL_BADGE_SIZE = 18;
+
 export default function TabsLayout() {
   const router = useRouter();
   const { unreadMessages, unreadNotifications } = useUnreadCounts();
@@ -51,7 +54,12 @@ export default function TabsLayout() {
                       color={colors.foreground}
                     />
                     {unreadNotifications > 0 ? (
-                      <View style={styles.bellBadge}>
+                      <View
+                        style={[
+                          styles.bellBadge,
+                          unreadNotifications > 9 && styles.bellBadgeWide,
+                        ]}
+                      >
                         <Text style={styles.bellBadgeText} numberOfLines={1}>
                           {unreadNotifications > 99 ? "99+" : unreadNotifications}
                         </Text>
@@ -154,19 +162,27 @@ const styles = StyleSheet.create({
   },
   bellBadge: {
     position: "absolute",
-    top: -7,
-    // Overhangs the bell so a two-digit count does not cover the icon, but
-    // stays inside the header's 16pt padding so it cannot clip off screen.
-    right: -8,
-    minWidth: 17,
-    height: 17,
-    borderRadius: 9,
-    paddingHorizontal: 4,
+    top: -6,
+    // Overhangs the bell so the count does not cover the icon, while staying
+    // inside the header's 16pt padding so it cannot clip at the screen edge.
+    right: -7,
+    // Square, so the radius renders a true circle for the common single-digit
+    // count. Horizontal padding here would stretch it into an oval.
+    width: BELL_BADGE_SIZE,
+    height: BELL_BADGE_SIZE,
+    borderRadius: BELL_BADGE_SIZE / 2,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.primary,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: colors.background,
+  },
+  // Two or more digits need the width, and a stadium shape is what every
+  // other app does at that point.
+  bellBadgeWide: {
+    width: "auto",
+    minWidth: BELL_BADGE_SIZE,
+    paddingHorizontal: 4,
   },
   bellBadgeText: {
     color: colors.primaryForeground,
