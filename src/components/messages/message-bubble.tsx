@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Forward, Pencil, Pin, Reply, Trash2 } from "lucide-react";
+import { ReportAction } from "@/components/shared/report-action";
 import { cn } from "@/lib/utils";
 import { isAudioMessage } from "@/lib/utils/audio";
 import { formatTime } from "@/lib/utils/format";
@@ -298,6 +299,12 @@ export function MessageBubble({
                   <Forward className="h-3.5 w-3.5" />
                 </button>
               )}
+              <ReportAction
+                entityType="message"
+                entityId={message.id}
+                reportedUserId={message.sender_id}
+                className="h-7 w-7"
+              />
               {onDeleteMessage && (
                 <button
                   onClick={() => onDeleteMessage(message.id)}

@@ -23,6 +23,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ReportAction } from "@/components/shared/report-action";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -466,6 +467,11 @@ export function EventContent({ eventId }: { eventId: string }) {
           <ArrowLeftIcon className="h-5 w-5" />
         </Button>
         <h1 className="font-semibold truncate flex-1">Event</h1>
+        <ReportAction
+          entityType="event"
+          entityId={event.id}
+          reportedUserId={event.creator_id}
+        />
         {isHost && (
           <DropdownMenu>
             <DropdownMenuTrigger

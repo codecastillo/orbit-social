@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { useHideLikeCounts } from "@/lib/hooks/use-profile";
 import { useRequireAuth } from "@/lib/hooks/use-require-auth";
 import { createClient } from "@/lib/supabase/client";
+import { ReportAction } from "@/components/shared/report-action";
 import { ShareDialog } from "@/components/shared/share-dialog";
 
 interface ClipActionsProps {
@@ -239,6 +240,12 @@ export function ClipActions({
         label={localShareCount > 0 ? formatNumber(localShareCount) : "Share"}
         ariaLabel="Share"
         onClick={handleShare}
+      />
+      <ReportAction
+        entityType="clip"
+        entityId={postId}
+        reportedUserId={authorId}
+        className="text-white/80 hover:bg-white/10 hover:text-white"
       />
       <ShareDialog
         postId={postId}

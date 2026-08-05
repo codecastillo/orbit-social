@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportAction } from "@/components/shared/report-action";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { formatTimeAgo } from "@/lib/utils/format";
@@ -280,6 +281,16 @@ export function ListingContent({ listingId }: { listingId: string }) {
                 </p>
               </div>
             </div>
+            {user?.id !== listing.seller_id && (
+              <div className="mt-3">
+                <ReportAction
+                  entityType="listing"
+                  entityId={listing.id}
+                  reportedUserId={listing.seller_id}
+                  variant="inline"
+                />
+              </div>
+            )}
             {user?.id === listing.seller_id ? (
               <div className="mt-[18px] flex flex-col gap-2.5">
                 <Button

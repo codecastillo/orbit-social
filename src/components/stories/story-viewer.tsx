@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { X, ChevronLeft, ChevronRight, Eye, Loader2, Plus, Trash2 } from "lucide-react";
+import { ReportAction } from "@/components/shared/report-action";
 import { formatTimeAgo } from "@/lib/utils/format";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -309,6 +310,12 @@ export function StoryViewer({
               </div>
             </div>
             <div className="flex items-center gap-1">
+              <ReportAction
+                entityType="moment"
+                entityId={currentStory.id}
+                reportedUserId={currentStory.user_id}
+                className="text-white/80 hover:bg-white/10 hover:text-white"
+              />
               {isOwnStory && (
                 <button
                   onClick={() => setConfirmDeleteOpen(true)}
