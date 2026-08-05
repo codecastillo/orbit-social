@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { POST_SELECT, type Post } from "@/lib/queries/posts";
 import type { AccountProfile } from "@/lib/accounts";
 
 const PROFILE_SELECT = `
@@ -546,6 +547,67 @@ export async function unsubscribeFromCreatorPosts(
     .eq("user_id", userId)
     .eq("creator_id", creatorId);
   if (error) throw error;
+}
+
+/**
+ * Posts this person reposted, liked, or saved: the three profile tabs the web
+ * app has had and this client did not.
+ *
+ * Likes and bookmarks are two queries rather than a join because the ids come
+ * from a separate table and Postgres returns the second query in its own
+ * order, so the original order is restored from the id list afterwards. Saved
+ * is only ever the viewer's own; the tab is hidden for anyone else and the
+ * bookmarks RLS policy refuses it regardless.
+ */
+export async function getUserRepostedPosts(userId: string, limit = 50) {
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .eq("user_id", userId)
+    .eq("type", "repost")
+    .is("community_id", null)
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data as unknown as Post[];
+}
+
+async function postsByIdPreservingOrder(postIds: string[]) {
+  if (postIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .in("id", postIds)
+    .is("community_id", null)
+    .eq("is_hidden", false);
+  if (error) throw error;
+  const byId = new Map((data ?? []).map((p) => [(p as { id: string }).id, p]));
+  return postIds
+    .map((id) => byId.get(id))
+    .filter(Boolean) as unknown as Post[];
+}
+
+export async function getUserLikedPosts(userId: string, limit = 50) {
+  const { data, error } = await supabase
+    .from("post_likes")
+    .select("post_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return postsByIdPreservingOrder((data ?? []).map((l) => l.post_id));
+}
+
+export async function getUserBookmarkedPosts(userId: string, limit = 50) {
+  const { data, error } = await supabase
+    .from("bookmarks")
+    .select("post_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return postsByIdPreservingOrder((data ?? []).map((b) => b.post_id));
 }
 
 // Mirrors the web getUserPosts filters (top-level, non-community, no clips or

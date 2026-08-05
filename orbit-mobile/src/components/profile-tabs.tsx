@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  ScrollView,
   RefreshControl,
   StyleSheet,
   Text,
@@ -17,6 +18,9 @@ import { ProfilePostRow } from "@/components/profile-header";
 import {
   getUserClips,
   getUserMentions,
+  getUserRepostedPosts,
+  getUserLikedPosts,
+  getUserBookmarkedPosts,
   type MentionPost,
   type ProfilePost,
 } from "@/lib/queries/profiles";
@@ -29,13 +33,27 @@ const GRID_COLUMNS = 3;
 // flush squares.
 const TILE_RADIUS = 6;
 
-type ProfileTab = "posts" | "clips" | "mentions";
+type ProfileTab =
+  | "posts"
+  | "clips"
+  | "mentions"
+  | "reposts"
+  | "likes"
+  | "saved";
 
-const TABS: { key: ProfileTab; label: string }[] = [
+// Saved is the viewer's own bookmarks, so it is filtered out on someone
+// else's profile rather than shown and refused by RLS.
+const TABS: { key: ProfileTab; label: string; ownOnly?: boolean }[] = [
   { key: "posts", label: "Posts" },
   { key: "clips", label: "Clips" },
+  { key: "reposts", label: "Reposts" },
+  { key: "likes", label: "Likes" },
   { key: "mentions", label: "Mentions" },
+  { key: "saved", label: "Saved", ownOnly: true },
 ];
+
+/** Tabs that render a 3-column grid; the rest render a list of rows. */
+const GRID_TABS: ProfileTab[] = ["posts", "clips"];
 
 /**
  * Quick-access tile pinned to the front of the own-profile Posts grid
@@ -52,13 +70,22 @@ export interface ProfileGridShortcut {
 function ProfileTabBar({
   active,
   onChange,
+  isOwnProfile,
 }: {
   active: ProfileTab;
   onChange: (tab: ProfileTab) => void;
+  isOwnProfile: boolean;
 }) {
+  const visible = TABS.filter((tab) => !tab.ownOnly || isOwnProfile);
   return (
-    <View style={styles.tabBar}>
-      {TABS.map((tab) => {
+    // Scrolls rather than dividing the width six ways: equal flex columns
+    // truncate the labels to two characters each on a narrow phone.
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.tabBar}
+    >
+      {visible.map((tab) => {
         const isActive = tab.key === active;
         return (
           <Pressable
@@ -83,7 +110,7 @@ function ProfileTabBar({
           </Pressable>
         );
       })}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -216,6 +243,7 @@ export function ProfileContent({
   onPressPost,
   onRefresh,
   shortcuts,
+  isOwnProfile = false,
 }: {
   header: ReactNode;
   posts: ProfilePost[] | undefined;
@@ -230,6 +258,8 @@ export function ProfileContent({
   onRefresh?: () => Promise<unknown> | void;
   /** Own-profile only: Drafts/Scheduled tiles pinned before the Posts grid. */
   shortcuts?: ProfileGridShortcut[];
+  /** Gates the Saved tab, which is the viewer's own bookmarks. */
+  isOwnProfile?: boolean;
 }) {
   const [tab, setTab] = useState<ProfileTab>("posts");
   const { width } = useWindowDimensions();
@@ -247,27 +277,87 @@ export function ProfileContent({
     enabled: tab === "mentions",
     staleTime: 1000 * 60 * 3,
   });
+  const repostsQuery = useQuery({
+    queryKey: ["profile-reposts", userId],
+    queryFn: () => getUserRepostedPosts(userId),
+    enabled: tab === "reposts",
+    staleTime: 1000 * 60 * 3,
+  });
+  const likesQuery = useQuery({
+    queryKey: ["profile-likes", userId],
+    queryFn: () => getUserLikedPosts(userId),
+    enabled: tab === "likes",
+    staleTime: 1000 * 60 * 3,
+  });
+  const savedQuery = useQuery({
+    queryKey: ["profile-saved", userId],
+    queryFn: () => getUserBookmarkedPosts(userId),
+    enabled: tab === "saved" && isOwnProfile,
+    staleTime: 1000 * 60 * 3,
+  });
 
-  const isGridTab = tab !== "mentions";
-  const gridData = tab === "posts" ? (posts ?? []) : (clipsQuery.data ?? []);
-  const pending =
-    tab === "posts"
-      ? isPending
-      : tab === "clips"
-        ? clipsQuery.isPending
-        : mentionsQuery.isPending;
-  const errored =
-    tab === "posts"
-      ? isError
-      : tab === "clips"
-        ? clipsQuery.isError
-        : mentionsQuery.isError;
-  const retry =
-    tab === "posts"
-      ? onRetry
-      : tab === "clips"
-        ? clipsQuery.refetch
-        : mentionsQuery.refetch;
+  // One entry per tab instead of a ladder of ternaries: six tabs made the
+  // nested form unreadable, and every tab needs the same four things.
+  const tabSources: Record<
+    ProfileTab,
+    {
+      rows: unknown[];
+      pending: boolean;
+      errored: boolean;
+      retry: () => unknown;
+      empty: { icon: keyof typeof Ionicons.glyphMap; text: string };
+    }
+  > = {
+    posts: {
+      rows: posts ?? [],
+      pending: isPending,
+      errored: isError,
+      retry: onRetry,
+      empty: { icon: "camera-outline", text: "No posts yet" },
+    },
+    clips: {
+      rows: clipsQuery.data ?? [],
+      pending: clipsQuery.isPending,
+      errored: clipsQuery.isError,
+      retry: clipsQuery.refetch,
+      empty: { icon: "film-outline", text: "No clips yet" },
+    },
+    mentions: {
+      rows: mentionsQuery.data ?? [],
+      pending: mentionsQuery.isPending,
+      errored: mentionsQuery.isError,
+      retry: mentionsQuery.refetch,
+      empty: { icon: "at-outline", text: "No mentions yet" },
+    },
+    reposts: {
+      rows: repostsQuery.data ?? [],
+      pending: repostsQuery.isPending,
+      errored: repostsQuery.isError,
+      retry: repostsQuery.refetch,
+      empty: { icon: "repeat-outline", text: "No reposts yet" },
+    },
+    likes: {
+      rows: likesQuery.data ?? [],
+      pending: likesQuery.isPending,
+      errored: likesQuery.isError,
+      retry: likesQuery.refetch,
+      empty: { icon: "heart-outline", text: "No liked posts yet" },
+    },
+    saved: {
+      rows: savedQuery.data ?? [],
+      pending: savedQuery.isPending,
+      errored: savedQuery.isError,
+      retry: savedQuery.refetch,
+      empty: { icon: "bookmark-outline", text: "Nothing saved yet" },
+    },
+  };
+
+  const source = tabSources[tab];
+  const isGridTab = GRID_TABS.includes(tab);
+  const pending = source.pending;
+  const errored = source.errored;
+  const retry = source.retry;
+  const emptyCopy = source.empty;
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -280,24 +370,15 @@ export function ProfileContent({
     }
   }
 
-  const emptyCopy =
-    tab === "posts"
-      ? { icon: "camera-outline" as const, text: "No posts yet" }
-      : tab === "clips"
-        ? { icon: "film-outline" as const, text: "No clips yet" }
-        : { icon: "at-outline" as const, text: "No mentions yet" };
-
   return (
     <FlatList
       // numColumns cannot change on a mounted FlatList; keying by tab
       // remounts the list when the segmented control switches.
       key={tab}
       data={
-        (isGridTab
-          ? tab === "posts" && shortcuts?.length
-            ? [...shortcuts, ...gridData]
-            : gridData
-          : (mentionsQuery.data ?? [])) as (
+        (isGridTab && tab === "posts" && shortcuts?.length
+          ? [...shortcuts, ...source.rows]
+          : source.rows) as (
           | ProfilePost
           | MentionPost
           | ProfileGridShortcut
@@ -309,7 +390,11 @@ export function ProfileContent({
       ListHeaderComponent={
         <View>
           {header}
-          <ProfileTabBar active={tab} onChange={setTab} />
+          <ProfileTabBar
+            active={tab}
+            onChange={setTab}
+            isOwnProfile={isOwnProfile}
+          />
         </View>
       }
       renderItem={({ item }) => {
@@ -382,11 +467,10 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: "row",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing(2),
   },
   tab: {
-    flex: 1,
+    paddingHorizontal: spacing(4),
     height: 44,
     alignItems: "center",
     justifyContent: "center",

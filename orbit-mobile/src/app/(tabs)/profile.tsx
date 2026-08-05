@@ -245,6 +245,7 @@ export default function OwnProfileScreen() {
           Promise.all([refetch(), draftsQuery.refetch(), scheduledQuery.refetch()])
         }
         shortcuts={gridShortcuts}
+        isOwnProfile
       />
 
       <AccountSwitcherSheet
