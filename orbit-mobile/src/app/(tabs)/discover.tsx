@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { PostCard } from "@/components/post-card";
+import { describeFilters, parseSearchQuery } from "@/lib/search-query";
 import { checkUserInteractions } from "@/lib/queries/posts";
 import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
 import { Avatar, Button, EmptyState } from "@/components/ui";
@@ -45,26 +46,36 @@ import {
   getSuggestedUsers,
   getTrendingHashtags,
   searchClips,
-  searchPosts,
+  searchLiked,
+  searchMessages,
+  searchPostsAdvanced,
+  searchSaved,
   searchUsers,
   type ProfileSummary,
   type SearchClip,
 } from "@/lib/queries/search";
 import { useVideoFrame } from "@/lib/video-frame";
-import { formatNumber } from "@/lib/format";
+import { formatNumber, formatTimeAgo } from "@/lib/format";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const CLIP_GRID_GAP = 1;
 const CLIP_GRID_COLUMNS = 3;
 
-type Segment = "people" | "posts" | "clips";
+type Segment = "people" | "posts" | "clips" | "messages" | "saved" | "liked";
 
 const SEGMENT_LABELS: Record<Segment, string> = {
   people: "People",
   posts: "Posts",
   clips: "Clips",
+  messages: "Messages",
+  saved: "Saved",
+  liked: "Liked",
 };
+
+// The last three search the viewer's own things, so they are pointless when
+// signed out and are filtered from the bar there.
+const OWN_SEGMENTS: Segment[] = ["messages", "saved", "liked"];
 
 function useDebounce(value: string, delay: number) {
   const [debounced, setDebounced] = useState(value);
@@ -175,13 +186,21 @@ export default function DiscoverScreen() {
 function SegmentedControl({
   segment,
   onChange,
+  segments,
 }: {
   segment: Segment;
   onChange: (segment: Segment) => void;
+  segments: Segment[];
 }) {
   return (
-    <View style={styles.tabs}>
-      {(["people", "posts", "clips"] as const).map((value) => {
+    // Six segments do not fit a fixed row on a phone, so the bar scrolls the
+    // same way the profile tabs do.
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.tabs}
+    >
+      {segments.map((value) => {
         const active = segment === value;
         return (
           <Pressable
@@ -201,7 +220,7 @@ function SegmentedControl({
           </Pressable>
         );
       })}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -219,22 +238,50 @@ function SearchResults({
 }) {
   const router = useRouter();
   const { user } = useAuth();
+  // Operators are parsed once here and every search below acts on the parts,
+  // so "from:@dan has:image beach" narrows rather than being searched for
+  // literally.
+  const parsed = useMemo(() => parseSearchQuery(query), [query]);
+  const filterSummary = describeFilters(parsed);
+  const visibleSegments: Segment[] = user
+    ? (Object.keys(SEGMENT_LABELS) as Segment[])
+    : (Object.keys(SEGMENT_LABELS) as Segment[]).filter(
+        (value) => !OWN_SEGMENTS.includes(value),
+      );
 
   const peopleQuery = useQuery({
     queryKey: ["search-users", query],
-    queryFn: () => searchUsers(query),
+    queryFn: () => searchUsers(parsed.text || query),
     enabled: segment === "people",
   });
 
   const postsQuery = useQuery({
     queryKey: ["search-posts", query],
-    queryFn: () => searchPosts(query),
+    queryFn: () => searchPostsAdvanced(parsed),
     enabled: segment === "posts",
+  });
+
+  const messagesQuery = useQuery({
+    queryKey: ["search-messages", query, user?.id],
+    queryFn: () => searchMessages(parsed),
+    enabled: segment === "messages" && !!user,
+  });
+
+  const savedQuery = useQuery({
+    queryKey: ["search-saved", query, user?.id],
+    queryFn: () => searchSaved(user!.id, parsed),
+    enabled: segment === "saved" && !!user,
+  });
+
+  const likedQuery = useQuery({
+    queryKey: ["search-liked", query, user?.id],
+    queryFn: () => searchLiked(user!.id, parsed),
+    enabled: segment === "liked" && !!user,
   });
 
   const clipsQuery = useQuery({
     queryKey: ["search-clips", query],
-    queryFn: () => searchClips(query),
+    queryFn: () => searchClips(parsed.text || query),
     enabled: segment === "clips",
   });
 
@@ -272,12 +319,17 @@ function SearchResults({
     }
   }
 
-  const active =
-    segment === "people"
-      ? peopleQuery
-      : segment === "posts"
-        ? postsQuery
-        : clipsQuery;
+  // One entry per segment rather than a ternary chain; six segments made the
+  // nested form unreadable.
+  const bySegment = {
+    people: peopleQuery,
+    posts: postsQuery,
+    clips: clipsQuery,
+    messages: messagesQuery,
+    saved: savedQuery,
+    liked: likedQuery,
+  } as const;
+  const active = bySegment[segment];
   const refreshControl = (
     <RefreshControl
       refreshing={active.isRefetching}
@@ -285,7 +337,22 @@ function SearchResults({
       tintColor={colors.mutedForeground}
     />
   );
-  const header = <SegmentedControl segment={segment} onChange={onSegmentChange} />;
+  const header = (
+    <View>
+      <SegmentedControl
+        segments={visibleSegments}
+        segment={segment}
+        onChange={onSegmentChange}
+      />
+      {/* Says what the operators were understood to mean. Without it a typo
+          in "form:@dan" silently searches for the word instead. */}
+      {filterSummary.length > 0 ? (
+        <Text style={styles.filterSummary}>
+          Filtering {filterSummary.join(", ")}
+        </Text>
+      ) : null}
+    </View>
+  );
 
   if (active.isPending) {
     return (
@@ -382,11 +449,63 @@ function SearchResults({
     );
   }
 
+  if (segment === "messages") {
+    return (
+      <View style={styles.flex}>
+        {header}
+        <FlatList
+          data={messagesQuery.data ?? []}
+          keyExtractor={(hit) => hit.id}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={refreshControl}
+          renderItem={({ item }) => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open conversation with ${item.sender?.username ?? "unknown"}`}
+              onPress={() => router.push(`/conversation/${item.conversation_id}`)}
+              style={({ pressed }) => [
+                styles.messageHit,
+                pressed && { opacity: 0.75 },
+              ]}
+            >
+              <Text style={styles.messageHitSender} numberOfLines={1}>
+                {item.sender?.display_name ?? item.sender?.username ?? "Unknown"}
+              </Text>
+              <Text style={styles.messageHitBody} numberOfLines={2}>
+                {item.content}
+              </Text>
+              <Text style={styles.messageHitTime}>
+                {formatTimeAgo(item.created_at)}
+              </Text>
+            </Pressable>
+          )}
+          ListEmptyComponent={
+            <EmptyState
+              title="No messages found"
+              description={
+                parsed.text
+                  ? `No message matches "${parsed.text}".`
+                  : "Type something to search your conversations."
+              }
+            />
+          }
+        />
+      </View>
+    );
+  }
+
+  const postRows =
+    segment === "saved"
+      ? (savedQuery.data ?? [])
+      : segment === "liked"
+        ? (likedQuery.data ?? [])
+        : (postsQuery.data ?? []);
+
   return (
     <View style={styles.flex}>
       {header}
       <FlatList
-        data={postsQuery.data ?? []}
+        data={postRows}
         keyExtractor={(post) => post.id}
         keyboardShouldPersistTaps="handled"
         refreshControl={refreshControl}
@@ -1043,6 +1162,34 @@ function SurfaceTiles() {
 }
 
 const styles = StyleSheet.create({
+  filterSummary: {
+    color: colors.mutedForeground,
+    fontSize: 12,
+    paddingHorizontal: spacing(4),
+    paddingBottom: spacing(2),
+  },
+  messageHit: {
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(3),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  messageHitSender: {
+    color: colors.foreground,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  messageHitBody: {
+    color: colors.textSecondary,
+    fontSize: 13.5,
+    lineHeight: 19,
+    marginTop: 2,
+  },
+  messageHitTime: {
+    color: colors.textFaint,
+    fontSize: 11.5,
+    marginTop: 3,
+  },
   flex: {
     flex: 1,
     backgroundColor: colors.background,
