@@ -22,7 +22,7 @@ import {
   setAudioModeAsync,
   useAudioRecorder,
 } from "expo-audio";
-import { Avatar } from "@/components/ui";
+import { Avatar, Field } from "@/components/ui";
 import {
   MentionButton,
   MentionInput,
@@ -110,6 +110,8 @@ interface ComposerSnapshot {
   contentWarning: string;
   showContentWarning: boolean;
   quotedPost: Post | null;
+  /** Further parts of a thread, each posted as a reply to the one before. */
+  thread: string[];
 }
 
 // iOS gallery videos are .mov; Android's are .mp4. Same mapping the clip
@@ -176,6 +178,7 @@ export default function ComposeScreen() {
   // A quote staged by the post card's repost menu; the undo snapshot wins
   // for the same recency reason as the draft seed.
   const [quoteSeed] = useState(() => consumeQuoteSeed());
+  const [thread, setThread] = useState<string[]>(restore?.thread ?? []);
   const [quotedPost, setQuotedPost] = useState<Post | null>(
     restore?.quotedPost ?? quoteSeed,
   );
@@ -514,6 +517,7 @@ export default function ComposeScreen() {
       contentWarning,
       showContentWarning,
       quotedPost,
+      thread,
     };
 
     const publish = async () => {
@@ -563,7 +567,7 @@ export default function ComposeScreen() {
         // NEVER call increment_post_reposts for a quote: server triggers
         // own the quote repost_count bump and the repost/quote
         // notifications, so the insert below is the whole client job.
-        await createPost(user.id, snapshot.content.trim(), {
+        const first = await createPost(user.id, snapshot.content.trim(), {
           type: explicitType,
           parentPostId: snapshot.quotedPost?.id,
           media: uploaded.length > 0 ? uploaded : undefined,
@@ -578,6 +582,26 @@ export default function ComposeScreen() {
           location: snapshot.location.trim() || undefined,
           communityId,
         });
+
+        // Each further part replies to the one before it, which is what makes
+        // the chain read as a thread rather than a run of loose posts. Posted
+        // in sequence, not in parallel: part three must reply to part two, so
+        // it cannot start until part two has an id.
+        //
+        // Replies do not count toward post_count, so a thread is one post on
+        // the author's profile however long it runs.
+        let previousId = first.id;
+        for (const part of snapshot.thread ?? []) {
+          const text = part.trim();
+          if (!text) continue;
+          const next = await createPost(user.id, text, {
+            replyToId: previousId,
+            visibility: snapshot.visibility,
+            whoCanComment: snapshot.whoCanComment,
+            communityId,
+          });
+          previousId = next.id;
+        }
         queryClient.invalidateQueries({ queryKey: ["feed"] });
         if (communityId) {
           queryClient.invalidateQueries({ queryKey: ["community-posts"] });
@@ -682,6 +706,57 @@ export default function ComposeScreen() {
             maxLength={POST_MAX_LENGTH}
           />
         </View>
+
+        {/* Thread parts. Each becomes a reply to the one above it, so a long
+            idea posts as a chain instead of being cut to fit one box or
+            posted as loose fragments nobody can follow. */}
+        {thread.map((part, index) => (
+          <View key={index} style={styles.threadRow}>
+            <View style={styles.threadRule} />
+            <View style={styles.threadBody}>
+              <Field
+                value={part}
+                onChangeText={(value: string) =>
+                  setThread((parts) =>
+                    parts.map((p, i) => (i === index ? value : p)),
+                  )
+                }
+                placeholder={`Part ${index + 2}`}
+                maxLength={POST_MAX_LENGTH}
+                multiline
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Remove part ${index + 2}`}
+                onPress={() =>
+                  setThread((parts) => parts.filter((_, i) => i !== index))
+                }
+                hitSlop={8}
+                style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+              >
+                <Text style={styles.threadRemove}>Remove</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+
+        {/* Only offered once there is something to continue from, and never
+            for a scheduled post: the cron publishes one row, so the rest of
+            the chain would arrive without its opening. */}
+        {content.trim() && !showSchedule ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add another part to this thread"
+            onPress={() => setThread((parts) => [...parts, ""])}
+            hitSlop={8}
+            style={({ pressed }) => [styles.threadAdd, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+            <Text style={styles.threadAddLabel}>
+              {thread.length === 0 ? "Continue in a thread" : "Add another part"}
+            </Text>
+          </Pressable>
+        ) : null}
 
         {quotedPost ? (
           // Read-only echo of the post card's QuoteBox, with a remove X.
@@ -1239,6 +1314,39 @@ export default function ComposeScreen() {
 }
 
 const styles = StyleSheet.create({
+  threadRow: {
+    flexDirection: "row",
+    gap: spacing(3),
+    marginTop: spacing(3),
+  },
+  // Mirrors the reply rule on threaded post cards, so the chain looks in the
+  // composer like it will look in the feed.
+  threadRule: {
+    width: 2,
+    borderRadius: 1,
+    backgroundColor: colors.border,
+    marginLeft: spacing(4),
+  },
+  threadBody: {
+    flex: 1,
+    gap: spacing(1.5),
+  },
+  threadRemove: {
+    color: colors.mutedForeground,
+    fontSize: 12.5,
+    fontWeight: "600",
+  },
+  threadAdd: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    marginTop: spacing(3),
+  },
+  threadAddLabel: {
+    color: colors.primary,
+    fontSize: 13.5,
+    fontWeight: "600",
+  },
   fill: {
     flex: 1,
     backgroundColor: colors.background,
