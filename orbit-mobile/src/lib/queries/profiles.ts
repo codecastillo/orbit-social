@@ -4,9 +4,32 @@ import type { AccountProfile } from "@/lib/accounts";
 
 const PROFILE_SELECT = `
   id, username, display_name, avatar_url, cover_url, bio, location, website,
+  pronouns, links, status_text, status_expires_at,
   is_verified, follower_count, following_count, post_count, created_at,
   theme_color, avatar_border, is_private, hide_like_counts, deactivated_at
 `;
+
+/** One row of the profile's link list. */
+export interface ProfileLink {
+  label: string;
+  url: string;
+}
+
+/**
+ * The profile's status, or null when it never had one or the one it had has
+ * expired. Nothing clears the text server-side, so every reader has to check
+ * the expiry rather than trusting the presence of a string.
+ */
+export function activeStatus(profile: {
+  status_text: string | null;
+  status_expires_at: string | null;
+}): string | null {
+  if (!profile.status_text) return null;
+  if (!profile.status_expires_at) return null;
+  return new Date(profile.status_expires_at) > new Date()
+    ? profile.status_text
+    : null;
+}
 
 // Same union as the web UserAvatar (src/components/shared/user-avatar.tsx).
 // gradient-rainbow and animated-glow are legacy values no longer offered,
@@ -28,6 +51,10 @@ export interface Profile {
   bio: string | null;
   location: string | null;
   website: string | null;
+  pronouns: string | null;
+  links: ProfileLink[];
+  status_text: string | null;
+  status_expires_at: string | null;
   is_verified: boolean;
   follower_count: number;
   following_count: number;
@@ -155,6 +182,10 @@ export interface ProfileUpdates {
   bio?: string | null;
   location?: string | null;
   website?: string | null;
+  pronouns?: string | null;
+  links?: ProfileLink[];
+  status_text?: string | null;
+  status_expires_at?: string | null;
   avatar_url?: string;
   cover_url?: string;
   theme_color?: string | null;

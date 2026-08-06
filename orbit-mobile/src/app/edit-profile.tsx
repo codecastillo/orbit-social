@@ -17,7 +17,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { Avatar, Button, Centered, EmptyState } from "@/components/ui";
+import { Avatar, Button, Centered, EmptyState, Field } from "@/components/ui";
 import { AvatarRing, avatarRingInnerSize } from "@/components/avatar-ring";
 import { PROFILE_ACCENTS } from "@/lib/accents";
 import {
@@ -27,6 +27,7 @@ import {
   uploadCover,
   type AvatarBorderStyle,
   type Profile,
+  type ProfileLink,
   type ProfileUpdates,
 } from "@/lib/queries/profiles";
 import { colors, radii, spacing } from "@/lib/theme";
@@ -51,6 +52,24 @@ const BORDER_OPTIONS: { value: AvatarBorderStyle; label: string }[] = [
 // Same normalization as the web websiteSchema: prepend https:// when the
 // user typed a bare domain, empty means no website. Returns null when the
 // result is not a valid http(s) URL.
+/**
+ * Drops empty rows and normalizes each url the same way the single website
+ * field is normalized, so a bare domain typed into a link row behaves the
+ * way it does one field above.
+ */
+/** Matches the jsonb_array_length check on profiles.links. */
+const MAX_LINKS = 5;
+
+function cleanLinks(rows: ProfileLink[]): ProfileLink[] {
+  return rows
+    .map((row) => ({
+      label: row.label.trim(),
+      url: normalizeWebsite(row.url) ?? "",
+    }))
+    .filter((row) => row.url.length > 0)
+    .map((row) => ({ label: row.label || row.url.replace(/^https?:\/\//, ""), url: row.url }));
+}
+
 function normalizeWebsite(raw: string): string | null {
   const trimmed = raw.trim();
   if (!trimmed) return "";
@@ -132,6 +151,10 @@ function EditProfileForm({ profile }: { profile: Profile }) {
   const [bio, setBio] = useState(profile.bio ?? "");
   const [location, setLocation] = useState(profile.location ?? "");
   const [website, setWebsite] = useState(profile.website ?? "");
+  const [pronouns, setPronouns] = useState(profile.pronouns ?? "");
+  // Links are edited as rows; an empty url drops the row on save, which is
+  // how a link is removed without a separate delete affordance.
+  const [links, setLinks] = useState<ProfileLink[]>(profile.links ?? []);
   const [themeColor, setThemeColor] = useState(profile.theme_color);
   // Legacy stored values (animated-glow, gradient-rainbow) stay untouched
   // until the user picks one of the current options, matching the web form.
@@ -155,6 +178,8 @@ function EditProfileForm({ profile }: { profile: Profile }) {
     bio.trim() !== (profile.bio ?? "") ||
     location.trim() !== (profile.location ?? "") ||
     website.trim() !== (profile.website ?? "") ||
+    pronouns.trim() !== (profile.pronouns ?? "") ||
+    JSON.stringify(cleanLinks(links)) !== JSON.stringify(profile.links ?? []) ||
     themeColor !== profile.theme_color ||
     avatarBorder !== (profile.avatar_border ?? "none") ||
     pickedAvatar !== null ||
@@ -196,6 +221,8 @@ function EditProfileForm({ profile }: { profile: Profile }) {
         // handleSave already rejected invalid values, so the fallback here
         // never fires; it only satisfies the null return type.
         website: normalizeWebsite(website) || null,
+        pronouns: pronouns.trim() || null,
+        links: cleanLinks(links),
         theme_color: themeColor,
         avatar_border: avatarBorder,
       };
@@ -261,6 +288,16 @@ function EditProfileForm({ profile }: { profile: Profile }) {
     setSaved(false);
     save.mutate();
   }
+
+  const updateLink = (index: number, patch: Partial<ProfileLink>) => {
+    setLinks((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+    setSaved(false);
+  };
+
+  const addLink = () => {
+    setLinks((rows) => [...rows, { label: "", url: "" }]);
+    setSaved(false);
+  };
 
   function edit<T>(setter: (value: T) => void) {
     return (value: T) => {
@@ -399,6 +436,49 @@ function EditProfileForm({ profile }: { profile: Profile }) {
             placeholder="Where you are based"
             maxLength={60}
           />
+          <FormRow
+            label="Pronouns"
+            value={pronouns}
+            onChangeText={edit(setPronouns)}
+            placeholder="she/her, he/him, they/them"
+            autoCapitalize="none"
+            maxLength={40}
+          />
+        </View>
+
+        <Text style={styles.sectionTitle}>Links</Text>
+        <View style={styles.form}>
+          <Text style={styles.linksHint}>
+            Up to {MAX_LINKS}. Leave a link blank to remove it. The label is
+            what people see; without one the address is used.
+          </Text>
+          {links.map((link, index) => (
+            <View key={index} style={styles.linkRow}>
+              <Field
+                value={link.label}
+                onChangeText={(value) => updateLink(index, { label: value })}
+                placeholder="Label"
+                maxLength={30}
+                style={styles.linkLabelInput}
+              />
+              <Field
+                value={link.url}
+                onChangeText={(value) => updateLink(index, { url: value })}
+                placeholder="yoursite.com"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                style={styles.linkUrlInput}
+              />
+            </View>
+          ))}
+          {links.length < MAX_LINKS ? (
+            <Button
+              label="Add a link"
+              variant="outline"
+              onPress={addLink}
+            />
+          ) : null}
         </View>
 
         <Text style={styles.sectionTitle}>Appearance</Text>
@@ -523,6 +603,23 @@ function EditProfileForm({ profile }: { profile: Profile }) {
 }
 
 const styles = StyleSheet.create({
+  linksHint: {
+    color: colors.mutedForeground,
+    fontSize: 12.5,
+    lineHeight: 18,
+  },
+  linkRow: {
+    flexDirection: "row",
+    gap: spacing(2),
+  },
+  linkLabelInput: {
+    flex: 1,
+    minWidth: 0,
+  },
+  linkUrlInput: {
+    flex: 1.6,
+    minWidth: 0,
+  },
   flex: {
     flex: 1,
     backgroundColor: colors.background,

@@ -15,7 +15,7 @@ import { AvatarRing, avatarRingInnerSize } from "@/components/avatar-ring";
 import { RichText } from "@/components/rich-text";
 import { normalizeAccent } from "@/lib/accents";
 import { formatNumber, formatTimeAgo } from "@/lib/format";
-import type { Profile } from "@/lib/queries/profiles";
+import { activeStatus, type Profile } from "@/lib/queries/profiles";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const EXCERPT_LENGTH = 140;
@@ -140,6 +140,9 @@ export function ProfileHeader({
   onPressUsername?: () => void;
 }) {
   const themeAccent = normalizeAccent(profile.theme_color);
+  // Expired statuses are not cleared server-side, so presence of the text is
+  // never enough on its own.
+  const status = activeStatus(profile);
 
   return (
     <View>
@@ -226,6 +229,16 @@ export function ProfileHeader({
             <View style={styles.topAction}>{topAction}</View>
           ) : null}
         </View>
+        {status ? (
+          <View style={styles.statusRow}>
+            <Text style={styles.statusText} numberOfLines={2}>
+              {status}
+            </Text>
+          </View>
+        ) : null}
+        {profile.pronouns ? (
+          <Text style={styles.pronouns}>{profile.pronouns}</Text>
+        ) : null}
         {profile.bio ? (
           <RichText style={styles.bio}>{profile.bio}</RichText>
         ) : null}
@@ -239,6 +252,31 @@ export function ProfileHeader({
             <Text style={styles.location}>{profile.location}</Text>
           </View>
         ) : null}
+        {(profile.links ?? []).map((link) => (
+          <Pressable
+            key={link.url}
+            accessibilityRole="link"
+            accessibilityLabel={`Open ${link.label}`}
+            onPress={() => {
+              Linking.openURL(link.url).catch(() => {
+                // Stored URLs are validated on save; nothing actionable.
+              });
+            }}
+            style={({ pressed }) => [
+              styles.websiteRow,
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Ionicons
+              name="link-outline"
+              size={13}
+              color={colors.mutedForeground}
+            />
+            <Text style={styles.websiteText} numberOfLines={1}>
+              {link.label}
+            </Text>
+          </Pressable>
+        ))}
         {profile.website ? (
           <Pressable
             accessibilityRole="link"
@@ -405,6 +443,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginTop: spacing(2.5),
+  },
+  // A status is a passing note, so it reads quieter than the bio and sits
+  // above it rather than competing with it.
+  statusRow: {
+    alignSelf: "flex-start",
+    paddingHorizontal: spacing(2.5),
+    paddingVertical: spacing(1.5),
+    borderRadius: radii.full,
+    backgroundColor: colors.surface,
+    marginBottom: spacing(2),
+  },
+  statusText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+  },
+  pronouns: {
+    color: colors.mutedForeground,
+    fontSize: 12.5,
+    marginBottom: spacing(1),
   },
   locationRow: {
     flexDirection: "row",
