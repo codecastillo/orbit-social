@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  ScrollView,
   RefreshControl,
   StyleSheet,
   Text,
@@ -18,7 +19,7 @@ import {
   type ViewToken,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useNavigation } from "expo-router";
+import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { ClipsFeed } from "@/components/clips-feed";
@@ -48,11 +49,22 @@ import {
   recordImpression,
   type ImpressionSurface,
 } from "@/lib/impressions";
+import {
+  getCustomFeedPage,
+  getCustomFeeds,
+} from "@/lib/queries/custom-feeds";
 import { colors, radii, spacing } from "@/lib/theme";
 
 // Clips is a lane here, not a feed query: selecting it swaps the whole
 // content area for the clips pager instead of changing the feed fetch.
 type HomeLane = FeedTab | "clips";
+
+/** A pinned custom feed becomes a lane keyed by its id. */
+type Lane = HomeLane | { customFeedId: string };
+
+function laneKey(lane: Lane): string {
+  return typeof lane === "string" ? lane : lane.customFeedId;
+}
 
 const HOME_TABS: { key: HomeLane; label: string }[] = [
   { key: "foryou", label: "For you" },
@@ -88,9 +100,10 @@ class StoriesBoundary extends Component<{ children: ReactNode }, { failed: boole
 export default function FeedScreen() {
   const { user } = useAuth();
   const navigation = useNavigation();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const userId = user?.id ?? "";
-  const [lane, setLane] = useState<HomeLane>("foryou");
+  const [lane, setLane] = useState<Lane>("foryou");
   // The feed keeps its last For you/Following selection while Clips is up,
   // so coming back lands exactly where the user left off, and the choice is
   // restored across launches because /promises says it sticks.
@@ -116,6 +129,26 @@ export default function FeedScreen() {
   // The clips pager mounts on first visit and then stays mounted (hidden)
   // so its scroll position and players survive lane switches.
   const [clipsMounted, setClipsMounted] = useState(false);
+  const activeCustomFeedId = typeof lane === "object" ? lane.customFeedId : null;
+
+  // Pinned custom feeds become extra lanes; unpinned ones are reachable from
+  // the builder screen only.
+  const customFeedsQuery = useQuery({
+    queryKey: ["custom-feeds", userId],
+    queryFn: () => getCustomFeeds(userId),
+    enabled: !!userId,
+    staleTime: 1000 * 60 * 5,
+  });
+  const pinnedFeeds = (customFeedsQuery.data ?? []).filter((f) => f.is_pinned);
+
+  const customFeedQuery = useInfiniteQuery({
+    queryKey: ["custom-feed", activeCustomFeedId],
+    queryFn: ({ pageParam }) =>
+      getCustomFeedPage(activeCustomFeedId!, pageParam as string | undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    enabled: !!activeCustomFeedId,
+  });
 
   // The Orbit app header would stack on top of the floating lane row, so the
   // Clips lane runs full-bleed. The focus-effect cleanup restores the header
@@ -156,7 +189,7 @@ export default function FeedScreen() {
   const { data: mutedIds } = useMutedIds();
   const { data: notInterestedIds } = useNotInterestedIds();
 
-  const { posts, originals, reactionCounts } = useMemo(() => {
+  const { posts: feedPosts, originals, reactionCounts } = useMemo(() => {
     const pages = data?.pages ?? [];
     // Content-safety filtering happens after the fetch so pagination
     // cursors stay a clean created_at walk. Feedback on a repost row
@@ -179,6 +212,11 @@ export default function FeedScreen() {
     };
     return merged;
   }, [data, mutedWords, mutedIds, notInterestedIds]);
+
+  const customFeedPosts = (customFeedQuery.data?.pages ?? []).flatMap(
+    (page) => page.posts,
+  );
+  const posts = activeCustomFeedId ? customFeedPosts : feedPosts;
 
   // Interactions are checked against the id each card acts on (the
   // original for reposts), so likes and reactions light up correctly.
@@ -219,7 +257,8 @@ export default function FeedScreen() {
   useEffect(() => {
     // Clips is a lane over this list, not a feed tab: its pager records its
     // own impressions, and nothing under it belongs to For you or Following.
-    impressionSurface.current = lane === "clips" ? null : feedTab;
+    impressionSurface.current =
+      lane === "clips" || typeof lane === "object" ? null : feedTab;
   }, [lane, feedTab]);
 
   const handleViewableItemsChanged = useCallback(
@@ -290,20 +329,33 @@ export default function FeedScreen() {
     );
   };
 
+  const laneOptions: { key: Lane; label: string }[] = [
+    ...HOME_TABS.map(({ key, label }) => ({ key: key as Lane, label })),
+    ...pinnedFeeds.map((feed) => ({
+      key: { customFeedId: feed.id } as Lane,
+      label: feed.name,
+    })),
+  ];
+
   const tabsRow = (
-    <View style={styles.tabsRow}>
-      {HOME_TABS.map(({ key, label }) => {
-        const active = lane === key;
+    // Scrolls, because the number of lanes is now up to the reader.
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.tabsRow}
+    >
+      {laneOptions.map(({ key, label }) => {
+        const active = laneKey(lane) === laneKey(key);
         return (
           <Pressable
-            key={key}
+            key={laneKey(key)}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
             onPress={() => {
               setLane(key);
               if (key === "clips") {
                 setClipsMounted(true);
-              } else {
+              } else if (typeof key === "string") {
                 setFeedTab(key);
               }
             }}
@@ -314,7 +366,16 @@ export default function FeedScreen() {
           </Pressable>
         );
       })}
-    </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Build a feed"
+        onPress={() => router.push("/custom-feed")}
+        style={({ pressed }) => [styles.tabButton, pressed && { opacity: 0.7 }]}
+      >
+        <Ionicons name="add" size={18} color={colors.mutedForeground} />
+        <View style={styles.tabIndicator} />
+      </Pressable>
+    </ScrollView>
   );
 
   // Compact TikTok-style variant of the lane row for the clips layer: white
@@ -395,12 +456,29 @@ export default function FeedScreen() {
           />
         }
         onEndReached={() => {
-          if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+          // Each lane paginates its own query; without this the custom feed
+          // would ask the main feed for more and stop at one page.
+          if (activeCustomFeedId) {
+            if (
+              customFeedQuery.hasNextPage &&
+              !customFeedQuery.isFetchingNextPage
+            ) {
+              customFeedQuery.fetchNextPage();
+            }
+          } else if (hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+          }
         }}
         onEndReachedThreshold={0.5}
         ListEmptyComponent={
           <EmptyState
-            title={feedTab === "following" ? "Your following feed is quiet" : "Nothing here yet"}
+            title={
+              activeCustomFeedId
+                ? "Nothing matches this feed yet"
+                : feedTab === "following"
+                  ? "Your following feed is quiet"
+                  : "Nothing here yet"
+            }
             description={
               feedTab === "following"
                 ? "Posts from people you follow will show up here."
