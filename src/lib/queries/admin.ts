@@ -323,3 +323,54 @@ export async function createReport(
   if (error) throw error;
   return data;
 }
+
+export interface VerificationRequestRow {
+  id: string;
+  category: string;
+  statement: string;
+  evidence: string[];
+  status: string;
+  decision_note: string | null;
+  created_at: string;
+  profiles: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    follower_count: number;
+    created_at: string;
+  } | null;
+}
+
+/** The verification queue. Pending first, because that is the work. */
+export async function getVerificationRequests(status = "pending") {
+  const { data, error } = await supabase
+    .from("verification_requests")
+    .select(
+      `id, category, statement, evidence, status, decision_note, created_at,
+       profiles!verification_requests_user_id_fkey (
+         id, username, display_name, avatar_url, follower_count, created_at
+       )`,
+    )
+    .eq("status", status)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as unknown as VerificationRequestRow[];
+}
+
+/**
+ * Approving both decides the request and sets the badge, which is why it is
+ * one function server-side rather than two writes from here.
+ */
+export async function decideVerificationRequest(
+  requestId: string,
+  approve: boolean,
+  note?: string,
+) {
+  const { error } = await supabase.rpc("decide_verification_request", {
+    p_request_id: requestId,
+    p_approve: approve,
+    p_note: note ?? null,
+  });
+  if (error) throw error;
+}

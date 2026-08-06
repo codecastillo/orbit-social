@@ -12,7 +12,7 @@ import {
   UsersRound,
   Repeat,
   ShieldAlert,
-  Loader2,
+  Loader2, BadgeCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/client";
 const adminLinks = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/reports", label: "Reports", icon: Flag },
+  { href: "/admin/verification", label: "Verification", icon: BadgeCheck },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/starter-packs", label: "Starter Packs", icon: UsersRound },
   { href: "/admin/best-loops", label: "Best Loops", icon: Repeat },

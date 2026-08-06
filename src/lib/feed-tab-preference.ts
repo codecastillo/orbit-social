@@ -36,3 +36,19 @@ export function saveFeedTab(tab: FeedTabPreference): void {
     // would be a larger one.
   }
 }
+
+/**
+ * Subscribe for useSyncExternalStore. Storage events only fire in other
+ * tabs, which is exactly the case worth reacting to: pick Following in one
+ * tab and the others follow.
+ */
+export function subscribeToFeedTab(onChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+
+/** The server has no localStorage, so it always renders the default. */
+export function serverFeedTab(): FeedTabPreference | null {
+  return null;
+}

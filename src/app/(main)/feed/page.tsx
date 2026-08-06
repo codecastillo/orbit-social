@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, TrendingUp } from "lucide-react";
 import { InlineComposer } from "@/components/feed/post-composer";
 import { FeedList } from "@/components/feed/feed-list";
-import { loadFeedTab, saveFeedTab } from "@/lib/feed-tab-preference";
+import {
+  loadFeedTab,
+  saveFeedTab,
+  serverFeedTab,
+  subscribeToFeedTab,
+} from "@/lib/feed-tab-preference";
 import { StoryBar } from "@/components/stories/story-bar";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
@@ -27,16 +32,19 @@ const TABS = [
 type TabValue = (typeof TABS)[number]["value"];
 
 export default function FeedPage() {
-  // Server-rendered first paint cannot read localStorage, so the stored
-  // choice is applied in an effect. Rendering For you and correcting is the
-  // only option that does not either flash or block the whole page.
-  const [tab, setTabState] = useState<TabValue>("foryou");
-  useEffect(() => {
-    const stored = loadFeedTab();
-    if (stored) setTabState(stored);
-  }, []);
+  // The stored choice is an external store rather than effect-set state:
+  // the server cannot read localStorage, so it renders the default and the
+  // client corrects after hydration without a mismatch. Setting it in an
+  // effect instead would be a synchronous setState that cascades a render.
+  const stored = useSyncExternalStore(
+    subscribeToFeedTab,
+    loadFeedTab,
+    serverFeedTab,
+  );
+  const [chosen, setChosen] = useState<TabValue | null>(null);
+  const tab = chosen ?? stored ?? "foryou";
   const setTab = (next: TabValue) => {
-    setTabState(next);
+    setChosen(next);
     if (next === "foryou" || next === "following") saveFeedTab(next);
   };
   const { user, loading: authLoading } = useAuth();

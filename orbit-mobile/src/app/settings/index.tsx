@@ -176,6 +176,11 @@ export default function SettingsScreen() {
       <Text style={styles.sectionTitle}>Creator</Text>
       <View style={styles.section}>
         <SettingsRow
+          icon="shield-checkmark-outline"
+          label="Verification"
+          onPress={() => router.push("/settings/verification" as Href)}
+        />
+        <SettingsRow
           icon="radio-outline"
           label="Streaming"
           onPress={() => router.push("/settings/streaming" as Href)}
