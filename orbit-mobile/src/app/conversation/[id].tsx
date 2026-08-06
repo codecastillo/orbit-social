@@ -535,7 +535,7 @@ export default function ConversationScreen() {
   // query so it refreshes as messages land.
   const seenQuery = useQuery({
     queryKey: ["dm-seen", conversationId, messageIds[0] ?? null],
-    queryFn: () => getDmSeenAt(conversationId, user!.id),
+    queryFn: () => getDmSeenAt(conversationId),
     enabled: !!user && !!conversationId && !isGroup,
   });
 

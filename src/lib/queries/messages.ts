@@ -402,41 +402,20 @@ export async function setReadReceiptsEnabled(
  * side has read receipts off, when the viewer has restricted the
  * counterpart, or when there is no single counterpart.
  */
+/** The counterpart's seen time, or null. The viewer is taken from the session. */
 export async function getDmSeenAt(
-  conversationId: string,
-  viewerId: string
+  conversationId: string
 ): Promise<string | null> {
-  if (!(await getReadReceiptsEnabled(viewerId))) return null;
-
-  const { data: conv } = await supabase
-    .from("conversations")
-    .select("is_group")
-    .eq("id", conversationId)
-    .maybeSingle();
-  if (!conv || conv.is_group) return null;
-
-  const { data: others, error } = await supabase
-    .from("conversation_members")
-    .select("user_id, last_read_at")
-    .eq("conversation_id", conversationId)
-    .neq("user_id", viewerId);
-
-  if (error || !others || others.length !== 1) return null;
-  const other = others[0];
-  if (!other.last_read_at) return null;
-  if (!(await getReadReceiptsEnabled(other.user_id))) return null;
-
-  // Restrict is viewer-side only (RLS keeps the list private), so seen
-  // state from a restricted counterpart is suppressed at display time.
-  const { data: restriction } = await supabase
-    .from("restricted_users")
-    .select("restricted_id")
-    .eq("user_id", viewerId)
-    .eq("restricted_id", other.user_id)
-    .maybeSingle();
-  if (restriction) return null;
-
-  return other.last_read_at;
+  // One server call rather than four client queries. Restrict has to be
+  // applied server-side: restricted_users is readable only by the person who
+  // wrote the restriction, so the client that must withhold the receipt
+  // cannot see the rule that applies to it. The RPC also folds in both
+  // parties' receipt settings and the group check.
+  const { data, error } = await supabase.rpc("dm_seen_at", {
+    p_conversation_id: conversationId,
+  });
+  if (error) return null;
+  return (data as string | null) ?? null;
 }
 
 // ── Who can message you ─────────────────────────────────────────────

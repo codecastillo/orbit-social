@@ -253,7 +253,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   useEffect(() => {
     if (!user || !conversationId || isGroupConversation) return;
     let cancelled = false;
-    getDmSeenAt(conversationId, user.id)
+    getDmSeenAt(conversationId)
       .then((value) => {
         if (!cancelled) setSeenAt(value);
       })
@@ -279,7 +279,7 @@ export default function ChatPage({ params }: ChatPageProps) {
           filter: `conversation_id=eq.${conversationId}`,
         },
         () => {
-          getDmSeenAt(conversationId, user.id)
+          getDmSeenAt(conversationId)
             .then(setSeenAt)
             .catch(() => {});
         }
