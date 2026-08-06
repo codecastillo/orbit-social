@@ -54,7 +54,11 @@ import {
 } from "@/components/action-sheet";
 import { stageQuoteSeed } from "@/lib/quote-seed";
 import { recordAction, type ImpressionSurface } from "@/lib/impressions";
-import { getRankingSignals, markNotInterested } from "@/lib/queries/content-safety";
+import {
+  getRankingSignals,
+  markNotInterested,
+  type NotInterestedReason,
+} from "@/lib/queries/content-safety";
 import { useVideoFrame } from "@/lib/video-frame";
 import { useHideLikeCounts } from "@/lib/hooks/use-hide-like-counts";
 import { colors, radii, spacing, type as typeScale } from "@/lib/theme";
@@ -320,6 +324,7 @@ export function PostCard({
   const [reportOpen, setReportOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [repostMenuOpen, setRepostMenuOpen] = useState(false);
+  const [notInterestedOpen, setNotInterestedOpen] = useState(false);
   const [warningRevealed, setWarningRevealed] = useState(false);
   // Viewers who set sensitive_content_level "more" skip the reveal tap.
   // getRankingSignals is module-cached, so cards share one fetch.
@@ -530,7 +535,13 @@ export function PostCard({
 
   const postUrl = `${WEB_POST_URL}/${display.id}`;
 
-  const handleNotInterested = () => {
+  /** First hashtag on the post, which is what a topic dismissal acts on. */
+  const firstTag = display.content?.match(/#(\w+)/)?.[1] ?? null;
+
+  const handleNotInterested = (
+    reason: NotInterestedReason = "post",
+    confirmation = "You will see less like this.",
+  ) => {
     // Optimistic: the feed screen filters against this cache, so the post
     // disappears from the list immediately.
     const cacheKey = ["not-interested", currentUserId];
@@ -539,18 +550,61 @@ export function PostCard({
       cacheKey,
       new Set(previous).add(display.id),
     );
-    markNotInterested(currentUserId, display.id)
+    markNotInterested(
+      currentUserId,
+      display.id,
+      reason,
+      reason === "topic" ? (firstTag ?? undefined) : undefined,
+    )
       .then(() => {
         // Reconcile with the server list in case the optimistic set was
         // seeded before the query ever fetched.
         queryClient.invalidateQueries({ queryKey: cacheKey });
+        if (reason === "topic") {
+          queryClient.invalidateQueries({ queryKey: ["content-preferences"] });
+        }
       })
       .catch(() => {
         queryClient.setQueryData(cacheKey, previous);
         Alert.alert("Couldn't save your feedback");
       });
-    Alert.alert("Got it", "You'll see fewer posts like this.");
+    Alert.alert("Got it", confirmation);
   };
+
+  // Each option names the consequence rather than promising "less like
+  // this", which is a claim nobody can check.
+  const notInterestedOptions: ActionSheetOption[] = [
+    {
+      label: "Just this post",
+      icon: "eye-off-outline",
+      description: "Hides this one and nothing else",
+      onPress: () => handleNotInterested("post", "This post is hidden."),
+    },
+    {
+      label: `Less from ${display.profiles.display_name || display.profiles.username}`,
+      icon: "person-remove-outline",
+      description: "You stay following them; this is only feed feedback",
+      onPress: () =>
+        handleNotInterested(
+          "author",
+          "Noted. Mute them from their profile if you want it stronger.",
+        ),
+    },
+    ...(firstTag
+      ? [
+          {
+            label: `Less about #${firstTag}`,
+            icon: "pricetag-outline" as const,
+            description: "Adds it to See less in your content settings",
+            onPress: () =>
+              handleNotInterested(
+                "topic",
+                `#${firstTag} is now in See less, under Settings, Content.`,
+              ),
+          },
+        ]
+      : []),
+  ];
 
   const handleDelete = () => {
     Alert.alert("Delete post?", "This can't be undone.", [
@@ -620,7 +674,7 @@ export function PostCard({
       return;
     }
     Alert.alert("Post options", undefined, [
-      { text: "Not interested", onPress: handleNotInterested },
+      { text: "Not interested", onPress: () => setNotInterestedOpen(true) },
       {
         text: "Report post",
         style: "destructive",
@@ -1021,6 +1075,15 @@ export function PostCard({
           initialIndex={lightboxIndex}
           visible
           onClose={() => setLightboxIndex(null)}
+        />
+      ) : null}
+
+      {notInterestedOpen ? (
+        <ActionSheet
+          visible
+          title="Show me less"
+          options={notInterestedOptions}
+          onClose={() => setNotInterestedOpen(false)}
         />
       ) : null}
 

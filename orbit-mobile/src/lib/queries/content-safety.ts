@@ -113,14 +113,41 @@ export async function getRestrictedProfiles(
 
 // ── Not interested (post_feedback) ───────────────────────────────────
 
-export async function markNotInterested(userId: string, postId: string) {
+export type NotInterestedReason = "post" | "author" | "topic" | "format";
+
+/**
+ * Records that a post was dismissed, and why.
+ *
+ * The topic reason also writes a see_less preference for the tag, which is
+ * what makes the promise checkable: "fewer posts like this" is a claim nobody
+ * can verify, "fewer posts tagged #carguy" is a row someone can go and see in
+ * their content settings.
+ */
+export async function markNotInterested(
+  userId: string,
+  postId: string,
+  reason: NotInterestedReason = "post",
+  topic?: string,
+) {
   const { error } = await supabase
     .from("post_feedback")
     .upsert(
-      { user_id: userId, post_id: postId, feedback: "not_interested" },
+      { user_id: userId, post_id: postId, feedback: "not_interested", reason },
       { onConflict: "user_id,post_id" },
     );
   if (error) throw error;
+
+  if (reason === "topic" && topic) {
+    const { error: prefError } = await supabase
+      .from("content_preferences")
+      .upsert(
+        { user_id: userId, topic: topic.toLowerCase(), preference: "see_less" },
+        { onConflict: "user_id,topic" },
+      );
+    // The dismissal already succeeded; failing the whole call because the
+    // preference did not save would hide the part that worked.
+    if (prefError) console.warn("[feed] see_less not saved:", prefError);
+  }
 }
 
 export async function getNotInterestedPostIds(
