@@ -181,6 +181,11 @@ export default function SettingsScreen() {
           onPress={() => router.push("/settings/verification" as Href)}
         />
         <SettingsRow
+          icon="cash-outline"
+          label="Monetization"
+          onPress={() => router.push("/settings/monetization" as Href)}
+        />
+        <SettingsRow
           icon="radio-outline"
           label="Streaming"
           onPress={() => router.push("/settings/streaming" as Href)}
