@@ -41,6 +41,7 @@ import {
   useMutedWords,
   useNotInterestedIds,
 } from "@/lib/hooks/use-content-safety";
+import { loadFeedTab, saveFeedTab } from "@/lib/feed-tab-preference";
 import { useNewPosts } from "@/lib/hooks/use-new-posts";
 import {
   flushImpressions,
@@ -91,8 +92,27 @@ export default function FeedScreen() {
   const userId = user?.id ?? "";
   const [lane, setLane] = useState<HomeLane>("foryou");
   // The feed keeps its last For you/Following selection while Clips is up,
-  // so coming back lands exactly where the user left off.
-  const [feedTab, setFeedTab] = useState<FeedTab>("foryou");
+  // so coming back lands exactly where the user left off, and the choice is
+  // restored across launches because /promises says it sticks.
+  const [feedTab, setFeedTabState] = useState<FeedTab>("foryou");
+
+  // Restores the stored choice once. Reading it before first paint would
+  // mean blocking the whole feed on an AsyncStorage round trip, so For you
+  // renders first and is corrected if the reader picked otherwise.
+  useEffect(() => {
+    let active = true;
+    loadFeedTab().then((stored) => {
+      if (active && stored) setFeedTabState(stored);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const setFeedTab = (tab: FeedTab) => {
+    setFeedTabState(tab);
+    void saveFeedTab(tab);
+  };
   // The clips pager mounts on first visit and then stays mounted (hidden)
   // so its scroll position and players survive lane switches.
   const [clipsMounted, setClipsMounted] = useState(false);

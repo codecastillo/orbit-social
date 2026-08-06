@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, TrendingUp } from "lucide-react";
 import { InlineComposer } from "@/components/feed/post-composer";
 import { FeedList } from "@/components/feed/feed-list";
+import { loadFeedTab, saveFeedTab } from "@/lib/feed-tab-preference";
 import { StoryBar } from "@/components/stories/story-bar";
 import { useAuth } from "@/lib/hooks/use-auth";
 import {
@@ -26,7 +27,18 @@ const TABS = [
 type TabValue = (typeof TABS)[number]["value"];
 
 export default function FeedPage() {
-  const [tab, setTab] = useState<TabValue>("foryou");
+  // Server-rendered first paint cannot read localStorage, so the stored
+  // choice is applied in an effect. Rendering For you and correcting is the
+  // only option that does not either flash or block the whole page.
+  const [tab, setTabState] = useState<TabValue>("foryou");
+  useEffect(() => {
+    const stored = loadFeedTab();
+    if (stored) setTabState(stored);
+  }, []);
+  const setTab = (next: TabValue) => {
+    setTabState(next);
+    if (next === "foryou" || next === "following") saveFeedTab(next);
+  };
   const { user, loading: authLoading } = useAuth();
 
   // No scroll juggling here: the shared AuthProvider resolves auth from the
