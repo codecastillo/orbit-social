@@ -5,7 +5,6 @@ const supabase = createClient();
 export interface ConversationWithPreview {
   id: string;
   is_group: boolean;
-  is_encrypted: boolean;
   name: string | null;
   avatar_url: string | null;
   created_by: string;
