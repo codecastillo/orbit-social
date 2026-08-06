@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -13,7 +14,13 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Centered, EmptyState } from "@/components/ui";
-import { getBookmarkedPosts, removeBookmark } from "@/lib/queries/bookmarks";
+import {
+  getBookmarkCollections,
+  getSavedPosts,
+  removeBookmark,
+  type SavedPost,
+} from "@/lib/queries/bookmarks";
+import { CollectionFilter, FileSaveSheet } from "@/components/bookmark-collections";
 import type { Post } from "@/lib/queries/posts";
 import { formatTimeAgo } from "@/lib/format";
 import { useAuth } from "@/providers/auth-provider";
@@ -39,12 +46,16 @@ function rowExcerpt(post: Post): string {
 
 function BookmarkRow({
   post,
+  note,
   onPress,
   onUnsave,
+  onFile,
 }: {
   post: Post;
+  note: string | null;
   onPress: () => void;
   onUnsave: () => void;
+  onFile: () => void;
 }) {
   const thumbnail = rowThumbnail(post);
 
@@ -76,7 +87,21 @@ function BookmarkRow({
         <Text style={styles.rowExcerpt} numberOfLines={2}>
           {rowExcerpt(post)}
         </Text>
+        {note ? (
+          <Text style={styles.rowNote} numberOfLines={2}>
+            {note}
+          </Text>
+        ) : null}
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="File this save"
+        onPress={onFile}
+        hitSlop={8}
+        style={({ pressed }) => [styles.unsave, pressed && { opacity: 0.6 }]}
+      >
+        <Ionicons name="folder-outline" size={18} color={colors.mutedForeground} />
+      </Pressable>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Remove from saved"
@@ -94,11 +119,19 @@ export default function BookmarksScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const bookmarksKey = ["bookmarked-posts", user?.id];
+  const [collectionId, setCollectionId] = useState<string | null>(null);
+  const [filing, setFiling] = useState<SavedPost | null>(null);
+  const bookmarksKey = ["saved-posts", user?.id, collectionId];
+
+  const collectionsQuery = useQuery({
+    queryKey: ["bookmark-collections", user?.id],
+    queryFn: () => getBookmarkCollections(user!.id),
+    enabled: !!user,
+  });
 
   const { data, isPending, isError, refetch, isRefetching } = useQuery({
     queryKey: bookmarksKey,
-    queryFn: () => getBookmarkedPosts(user!.id),
+    queryFn: () => getSavedPosts(user!.id, collectionId),
     enabled: !!user,
   });
 
@@ -106,9 +139,9 @@ export default function BookmarksScreen() {
     mutationFn: (postId: string) => removeBookmark(user!.id, postId),
     onMutate: async (postId) => {
       await queryClient.cancelQueries({ queryKey: bookmarksKey });
-      const previous = queryClient.getQueryData<Post[]>(bookmarksKey);
-      queryClient.setQueryData<Post[]>(bookmarksKey, (posts) =>
-        posts?.filter((p) => p.id !== postId),
+      const previous = queryClient.getQueryData<SavedPost[]>(bookmarksKey);
+      queryClient.setQueryData<SavedPost[]>(bookmarksKey, (entries) =>
+        entries?.filter((entry) => entry.post.id !== postId),
       );
       return { previous };
     },
@@ -151,12 +184,21 @@ export default function BookmarksScreen() {
       <Stack.Screen options={{ title: "Saved" }} />
       <FlatList
         data={data}
-        keyExtractor={(post) => post.id}
+        keyExtractor={(entry) => entry.post.id}
+        ListHeaderComponent={
+          <CollectionFilter
+            collections={collectionsQuery.data ?? []}
+            active={collectionId}
+            onChange={setCollectionId}
+          />
+        }
         renderItem={({ item }) => (
           <BookmarkRow
-            post={item}
-            onPress={() => router.push(`/post/${item.id}`)}
-            onUnsave={() => unsaveMutation.mutate(item.id)}
+            post={item.post}
+            note={item.note}
+            onPress={() => router.push(`/post/${item.post.id}`)}
+            onUnsave={() => unsaveMutation.mutate(item.post.id)}
+            onFile={() => setFiling(item)}
           />
         )}
         refreshControl={
@@ -168,12 +210,29 @@ export default function BookmarksScreen() {
         }
         ListEmptyComponent={
           <EmptyState
-            title="Nothing saved yet"
-            description="Tap the bookmark on any post to keep it here."
+            title={collectionId ? "Nothing in this collection" : "Nothing saved yet"}
+            description={
+              collectionId
+                ? "File a save into it from the saved list."
+                : "Tap the bookmark on any post to keep it here."
+            }
           />
         }
         contentContainerStyle={data?.length === 0 ? styles.flex : undefined}
       />
+      {filing ? (
+        <FileSaveSheet
+          visible
+          saved={filing}
+          collections={collectionsQuery.data ?? []}
+          onClose={() => setFiling(null)}
+          onDone={() => {
+            setFiling(null);
+            queryClient.invalidateQueries({ queryKey: ["saved-posts"] });
+            queryClient.invalidateQueries({ queryKey: ["bookmark-collections"] });
+          }}
+        />
+      ) : null}
     </View>
   );
 }
@@ -216,6 +275,14 @@ const styles = StyleSheet.create({
   rowTime: {
     color: colors.textFaint,
     fontSize: 12,
+  },
+  // The note is the viewer's own words, so it reads in the accent rather
+  // than as more of the post's text.
+  rowNote: {
+    color: colors.primary,
+    fontSize: 12.5,
+    lineHeight: 17,
+    marginTop: 3,
   },
   rowExcerpt: {
     marginTop: 2,
