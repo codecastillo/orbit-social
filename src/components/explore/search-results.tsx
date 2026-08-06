@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Users, FileText } from "lucide-react";
+import Link from "next/link";
+import { Users, FileText, MessageSquare, Bookmark, Heart } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -9,11 +11,15 @@ import { OrbitErrorState } from "@/components/orbit/error-state";
 import { PostCard } from "@/components/feed/post-card";
 import { UserSuggestionCard } from "@/components/explore/user-suggestion-card";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { checkFollowStates, searchUsers } from "@/lib/queries/social";
 import {
-  checkFollowStates,
-  searchUsers,
-  searchPosts,
-} from "@/lib/queries/social";
+  searchLiked,
+  searchMessages,
+  searchPostsAdvanced,
+  searchSaved,
+} from "@/lib/queries/search-advanced";
+import { describeFilters, parseSearchQuery } from "@/lib/search-query";
+import { formatTimeAgo } from "@/lib/utils/format";
 
 interface SearchResultsProps {
   query: string;
@@ -23,6 +29,11 @@ interface SearchResultsProps {
 
 export function SearchResults({ query, onOpenProfile }: SearchResultsProps) {
   const { user } = useAuth();
+  // Operators are parsed once and every search below acts on the parts, so
+  // "from:@dan has:image beach" narrows rather than being searched for
+  // literally. Same parser as mobile.
+  const parsed = useMemo(() => parseSearchQuery(query), [query]);
+  const filterSummary = describeFilters(parsed);
   const {
     data: users,
     isLoading: usersLoading,
@@ -30,7 +41,7 @@ export function SearchResults({ query, onOpenProfile }: SearchResultsProps) {
     refetch: refetchUsers,
   } = useQuery({
     queryKey: ["search-users", query],
-    queryFn: () => searchUsers(query, 20),
+    queryFn: () => searchUsers(parsed.text || query, 20),
     enabled: query.length > 0,
   });
 
@@ -41,8 +52,28 @@ export function SearchResults({ query, onOpenProfile }: SearchResultsProps) {
     refetch: refetchPosts,
   } = useQuery({
     queryKey: ["search-posts", query],
-    queryFn: () => searchPosts(query),
+    queryFn: () => searchPostsAdvanced(parsed),
     enabled: query.length > 0,
+  });
+
+  // The three below search the viewer's own things, so they only run for a
+  // signed-in reader and their tabs are absent otherwise.
+  const { data: messages, isLoading: messagesLoading } = useQuery({
+    queryKey: ["search-messages", query, user?.id],
+    queryFn: () => searchMessages(parsed),
+    enabled: query.length > 0 && !!user,
+  });
+
+  const { data: saved, isLoading: savedLoading } = useQuery({
+    queryKey: ["search-saved", query, user?.id],
+    queryFn: () => searchSaved(user!.id, parsed),
+    enabled: query.length > 0 && !!user,
+  });
+
+  const { data: liked, isLoading: likedLoading } = useQuery({
+    queryKey: ["search-liked", query, user?.id],
+    queryFn: () => searchLiked(user!.id, parsed),
+    enabled: query.length > 0 && !!user,
   });
 
   // One lookup for the whole result page, so every row can show the right
@@ -68,7 +99,31 @@ export function SearchResults({ query, onOpenProfile }: SearchResultsProps) {
           <FileText className="h-4 w-4 mr-1.5" />
           Posts
         </TabsTrigger>
+        {user && (
+          <>
+            <TabsTrigger value="messages" className="flex-1 py-3">
+              <MessageSquare className="h-4 w-4 mr-1.5" />
+              Messages
+            </TabsTrigger>
+            <TabsTrigger value="saved" className="flex-1 py-3">
+              <Bookmark className="h-4 w-4 mr-1.5" />
+              Saved
+            </TabsTrigger>
+            <TabsTrigger value="liked" className="flex-1 py-3">
+              <Heart className="h-4 w-4 mr-1.5" />
+              Liked
+            </TabsTrigger>
+          </>
+        )}
       </TabsList>
+
+      {/* Says how the operators were read. Without it a typo like
+          "form:@dan" silently searches for the word instead. */}
+      {filterSummary.length > 0 && (
+        <p className="px-4 pt-2 text-xs text-muted-foreground">
+          Filtering {filterSummary.join(", ")}
+        </p>
+      )}
 
       <TabsContent value="people">
         {usersLoading ? (
@@ -119,6 +174,78 @@ export function SearchResults({ query, onOpenProfile }: SearchResultsProps) {
         ) : (
           <div>
             {posts.map((post) => (
+              <PostCard key={post.id} post={post} surface="search" />
+            ))}
+          </div>
+        )}
+      </TabsContent>
+
+      <TabsContent value="messages">
+        {messagesLoading ? (
+          <PostListSkeleton />
+        ) : !messages || messages.length === 0 ? (
+          <EmptyState
+            icon={MessageSquare}
+            title="No messages found"
+            description={
+              parsed.text
+                ? `No message matches "${parsed.text}"`
+                : "Type something to search your conversations."
+            }
+          />
+        ) : (
+          <div>
+            {messages.map((hit) => (
+              <Link
+                key={hit.id}
+                href={`/messages/${hit.conversation_id}`}
+                className="block border-b border-border px-4 py-3 transition-colors hover:bg-muted/40"
+              >
+                <p className="text-sm font-semibold">
+                  {hit.sender?.display_name ?? hit.sender?.username ?? "Unknown"}
+                </p>
+                <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
+                  {hit.content}
+                </p>
+                <p className="mt-1 text-xs text-text-faint">
+                  {formatTimeAgo(hit.created_at)}
+                </p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </TabsContent>
+
+      <TabsContent value="saved">
+        {savedLoading ? (
+          <PostListSkeleton />
+        ) : !saved || saved.length === 0 ? (
+          <EmptyState
+            icon={Bookmark}
+            title="Nothing saved matches"
+            description={`No saved post matches "${query}"`}
+          />
+        ) : (
+          <div>
+            {saved.map((post) => (
+              <PostCard key={post.id} post={post} surface="search" />
+            ))}
+          </div>
+        )}
+      </TabsContent>
+
+      <TabsContent value="liked">
+        {likedLoading ? (
+          <PostListSkeleton />
+        ) : !liked || liked.length === 0 ? (
+          <EmptyState
+            icon={Heart}
+            title="Nothing liked matches"
+            description={`No liked post matches "${query}"`}
+          />
+        ) : (
+          <div>
+            {liked.map((post) => (
               <PostCard key={post.id} post={post} surface="search" />
             ))}
           </div>

@@ -129,7 +129,7 @@ export interface PollData {
 
 // Casts below go through unknown because the literal-type query parser
 // infers the to-one profiles join as an array without generated DB types.
-const POST_SELECT = `
+export const POST_SELECT = `
   id, user_id, content, type, parent_post_id, reply_to_id, community_id,
   like_count, comment_count, repost_count, share_count, view_count,
   bookmark_count, poll_data, is_pinned, is_hidden, location, scheduled_at,
