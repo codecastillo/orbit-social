@@ -191,6 +191,9 @@ export async function getSavedSearches(userId: string) {
     .from("saved_searches")
     .select("id, user_id, query, filters, created_at")
     .eq("user_id", userId)
+    // saved_searches is shared with post search now. Without this filter a
+    // saved post search would appear in the Marketplace filter bar.
+    .eq("scope", "marketplace")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -204,7 +207,7 @@ export async function saveSearch(
 ) {
   const { data, error } = await supabase
     .from("saved_searches")
-    .insert({ user_id: userId, query, filters })
+    .insert({ user_id: userId, query, filters, scope: "marketplace" })
     .select("id, user_id, query, filters, created_at")
     .single();
 

@@ -15,7 +15,7 @@ import {
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { PostCard } from "@/components/post-card";
 import { describeFilters, parseSearchQuery } from "@/lib/search-query";
@@ -50,6 +50,7 @@ import {
   searchMessages,
   searchPostsAdvanced,
   searchSaved,
+  savePostSearch,
   searchUsers,
   type ProfileSummary,
   type SearchClip,
@@ -242,7 +243,21 @@ function SearchResults({
   // so "from:@dan has:image beach" narrows rather than being searched for
   // literally.
   const parsed = useMemo(() => parseSearchQuery(query), [query]);
+  const [saved, setSaved] = useState(false);
+
+  // Saving turns alerts on in the same step: a saved search nobody is told
+  // about is a bookmark, and the point is to hear when something matches.
+  const saveSearch = useMutation({
+    mutationFn: () => savePostSearch(user!.id, query.trim(), { alerts: true }),
+    onSuccess: () => setSaved(true),
+    onError: () => Alert.alert("Couldn't save this search"),
+  });
   const filterSummary = describeFilters(parsed);
+  const [savedFor, setSavedFor] = useState(query);
+  if (savedFor !== query) {
+    setSavedFor(query);
+    setSaved(false);
+  }
   const visibleSegments: Segment[] = user
     ? (Object.keys(SEGMENT_LABELS) as Segment[])
     : (Object.keys(SEGMENT_LABELS) as Segment[]).filter(
@@ -350,6 +365,28 @@ function SearchResults({
         <Text style={styles.filterSummary}>
           Filtering {filterSummary.join(", ")}
         </Text>
+      ) : null}
+      {user && query.trim() ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={saved ? "Search saved" : "Save this search"}
+          disabled={saved || saveSearch.isPending}
+          onPress={() => saveSearch.mutate()}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.saveSearchRow,
+            pressed && { opacity: 0.7 },
+          ]}
+        >
+          <Ionicons
+            name={saved ? "checkmark-circle" : "bookmark-outline"}
+            size={15}
+            color={saved ? colors.success : colors.primary}
+          />
+          <Text style={styles.saveSearchLabel}>
+            {saved ? "Saved, alerts on" : "Save this search and alert me"}
+          </Text>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -1162,6 +1199,18 @@ function SurfaceTiles() {
 }
 
 const styles = StyleSheet.create({
+  saveSearchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    paddingHorizontal: spacing(4),
+    paddingBottom: spacing(2.5),
+  },
+  saveSearchLabel: {
+    color: colors.primary,
+    fontSize: 12.5,
+    fontWeight: "600",
+  },
   filterSummary: {
     color: colors.mutedForeground,
     fontSize: 12,

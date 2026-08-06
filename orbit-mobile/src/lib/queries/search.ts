@@ -412,3 +412,70 @@ export async function searchLiked(
     )
     .slice(0, limit);
 }
+
+export interface SavedPostSearch {
+  id: string;
+  query: string;
+  label: string | null;
+  alerts_enabled: boolean;
+  created_at: string;
+}
+
+/**
+ * Saved post searches. Scoped so Marketplace's own saved searches, which
+ * live in the same table and predate this, stay out of the way.
+ */
+export async function getSavedPostSearches(userId: string) {
+  const { data, error } = await supabase
+    .from("saved_searches")
+    .select("id, query, label, alerts_enabled, created_at")
+    .eq("user_id", userId)
+    .eq("scope", "posts")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as SavedPostSearch[];
+}
+
+export async function savePostSearch(
+  userId: string,
+  query: string,
+  options: { label?: string; alerts?: boolean } = {},
+) {
+  const { data, error } = await supabase
+    .from("saved_searches")
+    .insert({
+      user_id: userId,
+      query,
+      scope: "posts",
+      label: options.label?.trim() || null,
+      alerts_enabled: options.alerts ?? false,
+    })
+    .select("id, query, label, alerts_enabled, created_at")
+    .single();
+  if (error) throw error;
+  return data as SavedPostSearch;
+}
+
+/**
+ * Turns alerts on or off for one saved search. Enabling also resets the
+ * watermark, so switching alerts on never delivers a backlog of everything
+ * that matched while they were off.
+ */
+export async function setSavedSearchAlerts(searchId: string, enabled: boolean) {
+  const { error } = await supabase
+    .from("saved_searches")
+    .update({
+      alerts_enabled: enabled,
+      ...(enabled ? { last_alerted_at: new Date().toISOString() } : {}),
+    })
+    .eq("id", searchId);
+  if (error) throw error;
+}
+
+export async function deleteSavedPostSearch(searchId: string) {
+  const { error } = await supabase
+    .from("saved_searches")
+    .delete()
+    .eq("id", searchId);
+  if (error) throw error;
+}
