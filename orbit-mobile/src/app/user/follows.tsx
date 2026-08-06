@@ -16,6 +16,7 @@ import { Avatar, Button, EmptyState } from "@/components/ui";
 import {
   checkFollowStates,
   getFollowers,
+  getOwnProfile,
   getFollowing,
   removeFollower,
   toggleFollowState,
@@ -142,6 +143,17 @@ export default function FollowListScreen() {
 
   const rows = listQuery.data ?? [];
 
+  // The owner always sees their own list, so the private case only applies to
+  // someone else's profile. Fetched lazily and only when the list came back
+  // empty, since that is the only time the answer changes what is shown.
+  const { data: listOwner } = useQuery({
+    queryKey: ["profile-by-id", userId],
+    queryFn: () => getOwnProfile(userId),
+    enabled: !!userId && rows.length === 0 && userId !== user?.id,
+  });
+  const listIsPrivate =
+    userId !== user?.id && listOwner?.private_followers === true;
+
   const followStatesQuery = useQuery({
     queryKey: ["follow-list-status", user?.id, userId, tab, rows.length],
     queryFn: () =>
@@ -259,11 +271,23 @@ export default function FollowListScreen() {
           }
         />
       ) : rows.length === 0 ? (
-        <EmptyState
-          title={
-            tab === "followers" ? "No followers yet" : "Not following anyone yet"
-          }
-        />
+        // A hidden list and an empty one both come back with no rows, because
+        // the follows policy simply returns nothing to an outsider. Saying
+        // "no followers yet" in that case would be a lie about someone else's
+        // account, so the private case is named.
+        listIsPrivate ? (
+          <EmptyState
+            icon="lock-closed-outline"
+            title="This list is private"
+            description="They have chosen not to show who follows them or who they follow."
+          />
+        ) : (
+          <EmptyState
+            title={
+              tab === "followers" ? "No followers yet" : "Not following anyone yet"
+            }
+          />
+        )
       ) : (
         <FlatList
           data={rows}

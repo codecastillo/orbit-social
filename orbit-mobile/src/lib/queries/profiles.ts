@@ -6,7 +6,8 @@ const PROFILE_SELECT = `
   id, username, display_name, avatar_url, cover_url, bio, location, website,
   pronouns, links, status_text, status_expires_at,
   is_verified, follower_count, following_count, post_count, created_at,
-  theme_color, avatar_border, is_private, hide_like_counts, deactivated_at
+  theme_color, avatar_border, is_private, hide_like_counts, deactivated_at,
+  private_followers
 `;
 
 /** One row of the profile's link list. */
@@ -63,6 +64,8 @@ export interface Profile {
   theme_color: string | null;
   avatar_border: string | null;
   is_private: boolean | null;
+  /** Hides the follower and following lists from everyone but the owner. */
+  private_followers: boolean | null;
   // Viewer-level display setting: hides other people's like counts from
   // this account, never its own.
   hide_like_counts: boolean;
