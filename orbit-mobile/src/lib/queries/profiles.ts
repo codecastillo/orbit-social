@@ -643,6 +643,36 @@ export async function getUserBookmarkedPosts(userId: string, limit = 50) {
   return postsByIdPreservingOrder((data ?? []).map((b) => b.post_id));
 }
 
+export interface EngagementSample {
+  view_count: number;
+  like_count: number;
+  comment_count: number;
+  repost_count: number;
+}
+
+/**
+ * Counts from an author's recent posts, for comparing one post against their
+ * own normal. Four integers per row rather than whole posts: the averages
+ * need nothing else, and the insights card should not pull media and profile
+ * joins it will never render.
+ */
+export async function getAuthorEngagementSample(
+  userId: string,
+  limit = 20,
+): Promise<EngagementSample[]> {
+  const { data, error } = await supabase
+    .from("posts")
+    .select("view_count, like_count, comment_count, repost_count")
+    .eq("user_id", userId)
+    .is("reply_to_id", null)
+    .is("community_id", null)
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as EngagementSample[];
+}
+
 // Mirrors the web getUserPosts filters (top-level, non-community, no clips or
 // reposts). Media feeds the profile grid tab; the list tab only needs text.
 export async function getUserRecentPosts(

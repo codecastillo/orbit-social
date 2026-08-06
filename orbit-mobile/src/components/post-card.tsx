@@ -21,6 +21,10 @@ import { ReactionCounts } from "@/components/reaction-counts";
 import { RichText } from "@/components/rich-text";
 import { ReactionPicker, type ReactionAnchor } from "@/components/reaction-picker";
 import { MediaCarousel } from "@/components/media-carousel";
+import {
+  PostInsights,
+  computeAuthorAverages,
+} from "@/components/post-insights";
 import { MediaLightbox } from "@/components/media-lightbox";
 import { ReportSheet } from "@/components/report-sheet";
 import { ShareSheet } from "@/components/share-sheet";
@@ -54,6 +58,7 @@ import {
 } from "@/components/action-sheet";
 import { stageQuoteSeed } from "@/lib/quote-seed";
 import { recordAction, type ImpressionSurface } from "@/lib/impressions";
+import { getAuthorEngagementSample } from "@/lib/queries/profiles";
 import {
   getRankingSignals,
   markNotInterested,
@@ -325,6 +330,17 @@ export function PostCard({
   const [shareOpen, setShareOpen] = useState(false);
   const [repostMenuOpen, setRepostMenuOpen] = useState(false);
   const [notInterestedOpen, setNotInterestedOpen] = useState(false);
+
+  const showInsights = detail && post.user_id === currentUserId;
+  const { data: authorPosts } = useQuery({
+    queryKey: ["author-averages", currentUserId],
+    queryFn: () => getAuthorEngagementSample(currentUserId),
+    enabled: showInsights,
+    staleTime: 1000 * 60 * 5,
+  });
+  const authorAverages = authorPosts
+    ? computeAuthorAverages(authorPosts)
+    : undefined;
   const [warningRevealed, setWarningRevealed] = useState(false);
   // Viewers who set sensitive_content_level "more" skip the reveal tap.
   // getRankingSignals is module-cached, so cards share one fetch.
@@ -971,6 +987,12 @@ export function PostCard({
             </Text>
           ) : null}
         </View>
+      ) : null}
+
+      {/* Author-only, and only on the detail view: an insights card on every
+          feed row would be reading your own numbers instead of the feed. */}
+      {detail && display.user_id === currentUserId ? (
+        <PostInsights post={display} averages={authorAverages} />
       ) : null}
 
       <View style={[styles.actions, detail && styles.actionsDetail]}>
