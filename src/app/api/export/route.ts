@@ -6,17 +6,26 @@
  * An email sender exists (src/lib/services/email.ts) but v1 ships as a direct
  * download so the archive never sits in an inbox.
  */
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { createBearerClient, createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
 
 const EXPORT_WINDOW_MS = 10 * 60 * 1000;
 
-export async function POST() {
-  const supabase = await createClient();
+export async function POST(request: NextRequest) {
+  // The native app has no auth cookies; it sends the session access token as
+  // a Bearer header instead. Either way the token is validated by getUser and
+  // every query below runs under the caller's own RLS.
+  const authorization = request.headers.get("authorization");
+  const bearerToken = authorization?.startsWith("Bearer ")
+    ? authorization.slice("Bearer ".length)
+    : undefined;
+  const supabase = bearerToken
+    ? createBearerClient(authorization!)
+    : await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser(bearerToken);
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   Alert,
-  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -11,6 +10,8 @@ import {
 } from "react-native";
 import { Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { File, Paths } from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import { Button, Field } from "@/components/ui";
 import { deactivateAccount, deleteAccount } from "@/lib/queries/account";
 import { supabase } from "@/lib/supabase";
@@ -21,7 +22,7 @@ import { colors, radii, spacing } from "@/lib/theme";
 const PASSWORD_MIN_LENGTH = 10;
 // Export builds a zip on the server and hands back a download, which only
 // the browser can take delivery of, so the app links out for it.
-const WEB_EXPORT_URL = "https://orbitsocial.net/settings/export";
+const EXPORT_URL = "https://orbitsocial.net/api/export";
 const DELETE_CONFIRMATION = "DELETE";
 const BACKDROP = "rgba(0, 0, 0, 0.55)";
 
@@ -138,6 +139,62 @@ function DeleteAccountModal({
 }
 
 export default function AccountSettingsScreen() {
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  /**
+   * Builds the archive through the same web route the browser uses, so the
+   * two clients cannot disagree about what an export contains, then hands the
+   * file to the OS share sheet. Mobile has no cookies, so the session token
+   * goes in an Authorization header.
+   */
+  async function handleExport() {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Sign in again to export.");
+
+      const res = await fetch(EXPORT_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.status === 429) {
+        throw new Error("You can request one export every 10 minutes.");
+      }
+      if (!res.ok) throw new Error("The export could not be built.");
+
+      const body = await res.text();
+      const date = new Date().toISOString().slice(0, 10);
+      // Cache rather than documents: the archive is handed straight to the
+      // share sheet, and keeping a copy the user never asked for is the
+      // opposite of what a data export is for.
+      const file = new File(Paths.cache, `orbit-export-${date}.json`);
+      if (file.exists) file.delete();
+      file.create();
+      file.write(body);
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(file.uri, {
+          mimeType: "application/json",
+          dialogTitle: "Your Orbit data",
+        });
+      } else {
+        // No share sheet on this device, so say where the file went rather
+        // than failing silently after the work is already done.
+        Alert.alert("Export saved", `Written to ${file.uri}`);
+      }
+    } catch (err) {
+      setExportError(
+        err instanceof Error ? err.message : "The export could not be built.",
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const { user, signOutActiveAccount } = useAuth();
 
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -281,13 +338,18 @@ export default function AccountSettingsScreen() {
       <Text style={styles.sectionTitle}>Your data</Text>
       <View style={styles.formSection}>
         <Text style={styles.deleteExplainer}>
-          Export your posts, messages, and follows as a file. The export is
-          built and downloaded in a browser.
+          Export your profile, posts, comments, likes, follows, and saved
+          items as a file you can keep. Direct messages are not included:
+          a conversation belongs to everyone in it, not only to you.
         </Text>
+        {exportError ? (
+          <Text style={styles.submitError}>{exportError}</Text>
+        ) : null}
         <Button
-          label="Download your data"
+          label={exporting ? "Preparing your export" : "Export your data"}
           variant="outline"
-          onPress={() => void Linking.openURL(WEB_EXPORT_URL)}
+          loading={exporting}
+          onPress={() => void handleExport()}
         />
       </View>
 
