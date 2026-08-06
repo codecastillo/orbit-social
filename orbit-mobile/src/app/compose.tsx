@@ -23,6 +23,8 @@ import {
   useAudioRecorder,
 } from "expo-audio";
 import { Avatar, Field } from "@/components/ui";
+import { LinkPreviewCard } from "@/components/link-preview-card";
+import { extractFirstUrl } from "@/lib/queries/link-previews";
 import {
   MentionButton,
   MentionInput,
@@ -367,6 +369,10 @@ export default function ComposeScreen() {
   const trimmed = content.trim();
   const validPollOptions = pollOptions.filter((o) => o.trim().length > 0);
   const isPollValid = !showPoll || validPollOptions.length >= 2;
+  // Only for a post with no media of its own, mirroring the post card.
+  const composerPreviewUrl =
+    media.length === 0 && !voiceNote ? extractFirstUrl(content) : null;
+
   const canPost =
     (trimmed.length > 0 ||
       media.length > 0 ||
@@ -756,6 +762,16 @@ export default function ComposeScreen() {
               {thread.length === 0 ? "Continue in a thread" : "Add another part"}
             </Text>
           </Pressable>
+        ) : null}
+
+        {/* What the link will look like once posted. The card is fetched
+            from the same unfurl route the feed uses, so what shows here is
+            what readers get rather than a guess. Media replaces it, matching
+            the post card, which only previews links on text-only posts. */}
+        {composerPreviewUrl ? (
+          <View style={styles.previewWrap}>
+            <LinkPreviewCard url={composerPreviewUrl} />
+          </View>
         ) : null}
 
         {quotedPost ? (
@@ -1314,6 +1330,9 @@ export default function ComposeScreen() {
 }
 
 const styles = StyleSheet.create({
+  previewWrap: {
+    marginTop: spacing(3),
+  },
   threadRow: {
     flexDirection: "row",
     gap: spacing(3),
