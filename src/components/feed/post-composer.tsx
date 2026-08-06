@@ -7,6 +7,7 @@ import { Image as ImageIcon, X, Loader2, BarChart3, Plus, Minus, Clock, MapPin, 
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { MentionAutocomplete } from "@/components/shared/mention-autocomplete";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -294,6 +295,9 @@ function ComposerForm({
     composerRestore = null;
   }, []);
   const [content, setContent] = useState(restore?.content ?? initialContent ?? "");
+  // -1 means no collapsed caret, which is also how a blurred field reads.
+  const [caret, setCaret] = useState(-1);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [media, setMedia] = useState<MediaPreview[]>(restore?.media ?? []);
   // Removing the quoted post downgrades the submission to a plain post.
   const [quotedPost, setQuotedPost] = useState<PostWithAuthor | null>(
@@ -860,13 +864,40 @@ function ComposerForm({
           size="sm"
         />
 
-        <div className="flex-1 min-w-0 pl-1">
+        <div className="relative flex-1 min-w-0 pl-1">
           <Textarea
+            ref={textareaRef}
             placeholder={replyToId ? "Write a reply..." : "Write a caption..."}
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => {
+              setContent(e.target.value);
+              setCaret(e.target.selectionStart ?? -1);
+            }}
+            // The caret drives the suggestion list, and it moves on clicks
+            // and arrow keys as well as on typing.
+            onSelect={(e) =>
+              setCaret((e.target as HTMLTextAreaElement).selectionStart ?? -1)
+            }
+            onBlur={() => setCaret(-1)}
             className="border-none bg-transparent resize-none p-0 pt-1.5 text-sm text-foreground placeholder:text-text-faint focus-visible:ring-0 focus-visible:border-none min-h-[60px]"
             rows={inline ? 2 : 3}
+          />
+          <MentionAutocomplete
+            text={content}
+            caret={caret}
+            onPick={(nextText, nextCaret) => {
+              setContent(nextText);
+              // Restore focus and put the caret after the inserted handle,
+              // so typing continues where the name ended.
+              requestAnimationFrame(() => {
+                const el = textareaRef.current;
+                if (!el) return;
+                el.focus();
+                el.setSelectionRange(nextCaret, nextCaret);
+                setCaret(nextCaret);
+              });
+            }}
+            className="left-1 top-full mt-1"
           />
 
           {/* Quoted post preview, read-only; the X downgrades to a plain post */}

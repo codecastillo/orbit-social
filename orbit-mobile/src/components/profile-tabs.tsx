@@ -180,6 +180,11 @@ function MediaTile({
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.tilePlaceholder]} />
       )}
+      {post.is_pinned ? (
+        <View style={styles.pinBadge}>
+          <Ionicons name="pin" size={11} color={colors.primaryForeground} />
+        </View>
+      ) : null}
       {post.post_media.length > 1 ? (
         <Ionicons name="layers" size={14} color="#fff" style={styles.tileBadge} />
       ) : isVideo ? (
@@ -220,6 +225,11 @@ function TextTile({
         pressed && { opacity: 0.8 },
       ]}
     >
+      {post.is_pinned ? (
+        <View style={styles.pinBadge}>
+          <Ionicons name="pin" size={11} color={colors.primaryForeground} />
+        </View>
+      ) : null}
       <Text style={styles.textTileContent} numberOfLines={6}>
         {post.content}
       </Text>
@@ -228,9 +238,9 @@ function TextTile({
 }
 
 /**
- * Profile body below the header: Posts / Clips / Mentions tabs. Posts is the
- * user's timeline as a 3-column grid (media tiles plus text tiles); Clips is
- * their reels; Mentions is other people's posts that tag the username.
+ * Profile body below the header. Posts and Clips are 3-column grids; Mentions,
+ * Reposts, Likes and Saved are lists. Saved is the viewer's own bookmarks and
+ * is absent from anyone else's profile.
  */
 export function ProfileContent({
   header,
@@ -536,6 +546,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     fontVariant: ["tabular-nums"],
+  },
+  // Pinned posts already sort to the front of the grid; without a marker
+  // that ordering looks arbitrary to anyone who did not pin them.
+  pinBadge: {
+    position: "absolute",
+    top: spacing(1.5),
+    left: spacing(1.5),
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+    zIndex: 1,
   },
   tileBadge: {
     position: "absolute",

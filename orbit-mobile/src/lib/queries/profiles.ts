@@ -82,6 +82,8 @@ export interface ProfilePostMedia {
 }
 
 export interface ProfilePost {
+  /** Pinned posts already sort first; this is what lets the grid say so. */
+  is_pinned: boolean | null;
   id: string;
   content: string | null;
   type: "text" | "image" | "video" | "poll" | "quote" | "reel" | "repost";
@@ -650,7 +652,7 @@ export async function getUserRecentPosts(
   const { data, error } = await supabase
     .from("posts")
     .select(
-      `id, content, type, created_at,
+      `id, content, type, created_at, is_pinned,
        post_media ( id, type, url, thumbnail_url, width, height, sort_order, duration_ms )`,
     )
     .eq("user_id", userId)
@@ -700,7 +702,7 @@ export async function getUserClips(
   const { data, error } = await supabase
     .from("posts")
     .select(
-      `id, content, type, created_at,
+      `id, content, type, created_at, is_pinned,
        post_media ( id, type, url, thumbnail_url, width, height, sort_order, duration_ms )`,
     )
     .eq("user_id", userId)
